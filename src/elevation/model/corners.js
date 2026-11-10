@@ -11,6 +11,7 @@ import {
 } from './geometry.js';
 import { gridLeaves } from './grid.js';
 import { landingEndpoint, landingsOn } from './landings.js';
+import { panelThickness } from './panelThickness.js';
 import { roundTo } from './units.js';
 import { runTFiller } from './styles.js';
 import { isShelvesOnlyRun } from './wallEndPanels.js';
@@ -168,6 +169,69 @@ export function anchoredToCorner(anchor, corner) {
   return corner.anchorWallId
     ? anchor?.to === 'wall' && anchor.wallId === corner.anchorWallId
     : anchor === true;
+}
+
+export function defaultLegA(run) {
+  return run.cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 24 : 36;
+}
+
+/** Resolve corner legs from the stored outer root column, without running layout. */
+export function cornerLegs(run, side) {
+  const cols = run.grid?.cols ?? [];
+  const col = side === 'left' ? cols[0] : cols.at(-1);
+  const legA = col?.sizeMode === 'manual' && col.size > 0 ? col.size : defaultLegA(run);
+  return { legA, legB: run.ends?.[side]?.corner?.legB ?? legA };
+}
+
+/** Band-compatible runs anchored into the corner on its return wall face. */
+export function cornerReturnRuns(room, wall, owner, side) {
+  const view = wallViewForRun(wall, owner);
+  const corner = cornerForRunSide(room, view, owner, side);
+  const returnWall = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
+  const runs = corner.type === 'inside' ? returnWall?.runs.filter((candidate) => (
+    wallSideOf(candidate) === corner.neighborWallSide
+    && anchoredToCorner(candidate.anchors?.[corner.neighborSide], corner)
+    && bandsCompatible(owner, candidate)
+  )) ?? [] : [];
+  return { corner, returnWall, runs };
+}
+
+/** Merge z-ranges and report whether they cover [z, top] with no gap. */
+export function isBlindCovered(ranges, z, top) {
+  if (ranges.length === 0) return false;
+
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  let [start, end] = sorted[0];
+
+  for (const [nextStart, nextEnd] of sorted.slice(1)) {
+    if (nextStart <= end) {
+      end = Math.max(end, nextEnd);
+      continue;
+    }
+    if (start <= z && end >= top) return true;
+    [start, end] = [nextStart, nextEnd];
+  }
+
+  return start <= z && end >= top;
+}
+
+/** Resolve the return-side piece, including choices on inactive corner ends. */
+export function cornerReturnPiece(room, wall, owner, side, settings) {
+  const view = wallViewForRun(wall, owner);
+  const { runs } = cornerReturnRuns(room, view, owner, side);
+  const covered = isBlindCovered(runs.filter((run) => run.height > 0)
+    .map((run) => [run.z, run.z + run.height]), owner.z, owner.z + owner.height);
+  const corner = owner.ends?.[side]?.corner;
+  const auto = (corner?.returnPiece ?? 'auto') === 'auto';
+  const type = auto ? (covered ? 'none' : 'end_panel') : corner.returnPiece;
+  const width = type === 'none' ? 0 : corner?.returnWidth
+    ?? (type === 'filler' ? settings.fillerMinWidth : panelThickness(room, view, owner, null, settings));
+  return { type, width, covered, auto };
+}
+
+/** How far the corner cabinet and its return-side piece take the return wall. */
+export function cornerReach(room, wall, owner, side, settings) {
+  return cornerLegs(owner, side).legB + cornerReturnPiece(room, wall, owner, side, settings).width;
 }
 
 /**

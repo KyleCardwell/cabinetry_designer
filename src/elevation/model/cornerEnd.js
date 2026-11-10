@@ -1,12 +1,11 @@
-import { CABINET_TYPE_IDS } from './constants.js';
 import { cornerCabinetShape } from './cornerCabinet.js';
-import { anchoredToCorner, bandsCompatible, cornerEndActive, cornerForRunSide } from './corners.js';
+import { cornerEndActive, cornerReturnPiece, cornerReturnRuns } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
-import { wallSideOf, wallViewForRun } from './wallSides.js';
+import { wallViewForRun } from './wallSides.js';
 
 export const CORNER_KINDS = [90, 45];
 export const RETURN_PIECES = ['auto', 'end_panel', 'filler', 'none'];
@@ -21,13 +20,12 @@ export function normalizeCornerEnd(end) {
       legB: end.corner?.legB ?? null,
       depthB: end.corner?.depthB ?? null,
       returnPiece: end.corner?.returnPiece ?? 'auto',
+      returnWidth: end.corner?.returnWidth ?? null,
     },
   };
 }
 
-export function defaultLegA(run) {
-  return run.cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 24 : 36;
-}
+export { defaultLegA } from './corners.js';
 
 const WARNING_MESSAGES = {
   'corner-not-in-corner': "The corner cabinet isn't anchored into a square inside corner.",
@@ -44,7 +42,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   if (end?.type !== 'corner') return null;
 
   const view = wallViewForRun(wall, run);
-  const corner = cornerForRunSide(room, view, run, side);
+  const { corner, returnWall, runs: returns } = cornerReturnRuns(room, view, run, side);
   const { active, code } = cornerEndActive(room, view, run, side);
   const resolvedLayout = layout ?? splitRun(run, settings, splitOptionsForRun(room, view, run, settings));
   const items = runItems(run);
@@ -55,12 +53,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const legA = piece?.width ?? null;
   const legB = end.corner?.legB ?? legA;
   const depthA = run.depth;
-  const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
-  const returns = corner.type === 'inside' ? neighbor?.runs.filter((candidate) => (
-    wallSideOf(candidate) === corner.neighborWallSide
-    && anchoredToCorner(candidate.anchors?.[corner.neighborSide], corner)
-    && bandsCompatible(run, candidate)
-  )) ?? [] : [];
+  const returnSide = cornerReturnPiece(room, view, run, side, settings);
   const depthB = end.corner?.depthB
     ?? (returns.length ? Math.max(...returns.map((candidate) => candidate.depth)) : depthA);
   const kind = end.corner?.kind ?? 90;
@@ -74,7 +67,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     warn('corner-legs-too-short');
   }
   if (active && returns.some((candidate) => (
-    cornerEndActive(room, neighbor, candidate, corner.neighborSide).active
+    cornerEndActive(room, returnWall, candidate, corner.neighborSide).active
   ))) warn('corner-doubled');
 
   let cornerX = null;
@@ -88,6 +81,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   return {
     side, active, kind, legA, legB, depthA, depthB,
     returnPiece: end.corner?.returnPiece ?? 'auto',
+    returnSide, reach: legB + returnSide.width,
     columnId: piece?.id ?? null,
     corner, cornerX, dir: side === 'left' ? 1 : -1,
     shape: geometry?.errors ? null : geometry,

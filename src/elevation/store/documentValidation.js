@@ -130,9 +130,9 @@ function isEnd(end) {
       && Object.keys(end).every((key) => ['type', 'width', 'corner'].includes(key))
       && end.width === null
       && isPlainObject(corner)
-      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece'].includes(key))
+      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth'].includes(key))
       && CORNER_KINDS.includes(corner.kind)
-      && [corner.legB, corner.depthB].every((value) => value === null
+      && [corner.legB, corner.depthB, corner.returnWidth].every((value) => value === null
         || (isFiniteNumber(value) && value > 0))
       && RETURN_PIECES.includes(corner.returnPiece);
   }

@@ -11,7 +11,7 @@ import { isElevationDocument, normalizeElevationDocument, toElevationDocument } 
 
 const defaultCorner = {
   type: 'corner', width: null,
-  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto' },
+  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null },
 };
 const target = { wallId: 'wall-1', runId: 'run-1', side: 'left' };
 let state;
@@ -56,7 +56,7 @@ describe('CC1 step a corner end data', () => {
       end: { type: 'corner', corner: { kind: 45, legB: 30, depthB: 15 } },
     }));
     expect(current(next).ends.left).toEqual({ type: 'corner', width: null,
-      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto' } });
+      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null } });
     for (const returnPiece of RETURN_PIECES) {
       expect(normalizeCornerEnd({ type: 'corner', width: 2, height: 'full', auto: true,
         extend: {}, styleId: 'old', sizes: {}, corner: { returnPiece } }))
@@ -115,7 +115,7 @@ describe('CC1 step a corner end data', () => {
     for (const kind of [90, 45]) {
       for (const returnPiece of RETURN_PIECES) {
         const valid = structuredClone(document);
-        current(valid).ends.left.corner = { kind, legB: 30, depthB: 15, returnPiece };
+        current(valid).ends.left.corner = { kind, legB: 30, depthB: 15, returnPiece, returnWidth: null };
         expect(isElevationDocument(valid)).toBe(true);
         expect(current(createInitialElevationState(normalizeElevationDocument(valid))).ends.left)
           .toEqual(current(valid).ends.left);
@@ -123,7 +123,7 @@ describe('CC1 step a corner end data', () => {
     }
     const invalidEnds = [
       { ...defaultCorner, corner: { ...defaultCorner.corner, kind: 60 } },
-      ...[0, -1, Infinity, NaN, '30', undefined].flatMap((value) => ['legB', 'depthB'].map((key) => (
+      ...[0, -1, Infinity, NaN, '30', undefined].flatMap((value) => ['legB', 'depthB', 'returnWidth'].map((key) => (
         { ...defaultCorner, corner: { ...defaultCorner.corner, [key]: value } }
       ))),
       { ...defaultCorner, corner: { ...defaultCorner.corner, returnPiece: 'x' } },
@@ -152,6 +152,24 @@ describe('CC1 step a corner end data', () => {
     expect(current(next).grid.cols[1]).toMatchObject({ sizeMode: 'manual', size: 36 });
     expect(current(next).grid.cols[0]).toEqual(current(state).grid.cols[0]);
     expect(current(next).endLegs).toEqual({ left: { legs: 'front' } });
+  });
+
+  it('CC2 anchor 11: defaults returnWidth, loads null and positive widths, and rejects invalid widths', () => {
+    expect(normalizeCornerEnd({}).corner.returnWidth).toBeNull();
+    for (const returnWidth of [null, 3]) {
+      const next = elevationReducer(state, setRunEnd({ ...target,
+        end: { type: 'corner', corner: { returnWidth } },
+      }));
+      const document = toElevationDocument(next);
+      expect(isElevationDocument(document)).toBe(true);
+      expect(current(createInitialElevationState(normalizeElevationDocument(document))).ends.left.corner.returnWidth)
+        .toBe(returnWidth);
+      for (const invalid of [0, -1, '3', Infinity, NaN, undefined]) {
+        const bad = structuredClone(document);
+        current(bad).ends.left.corner.returnWidth = invalid;
+        expect(isElevationDocument(bad)).toBe(false);
+      }
+    }
   });
 
   it('keeps a corner when snapping inside and changes it to a panel at an outside corner', () => {

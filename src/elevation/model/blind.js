@@ -1,4 +1,4 @@
-import { anchoredToCorner, cornerForRunSide, frontDepth } from './corners.js';
+import { anchoredToCorner, cornerForRunSide, frontDepth, isBlindCovered } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runBlind } from './grid.js';
 import { splitOptionsForRun } from './placement.js';
@@ -35,24 +35,7 @@ function cornerNeighborRuns(room, wall, run, side) {
   return { corner, runs };
 }
 
-/** Merge z-ranges and report whether they cover [z, top] with no gap. */
-export function isBlindCovered(ranges, z, top) {
-  if (ranges.length === 0) return false;
-
-  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
-  let [start, end] = sorted[0];
-
-  for (const [nextStart, nextEnd] of sorted.slice(1)) {
-    if (nextStart <= end) {
-      end = Math.max(end, nextEnd);
-      continue;
-    }
-    if (start <= z && end >= top) return true;
-    [start, end] = [nextStart, nextEnd];
-  }
-
-  return start <= z && end >= top;
-}
+export { isBlindCovered } from './corners.js';
 
 /** Return z-ranges of neighbouring runs that die into this run's corner. */
 function coveredRanges(room, wall, run, side, settings) {
