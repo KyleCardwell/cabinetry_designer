@@ -6,7 +6,9 @@ import { cornerForRunSide } from '../corners.js';
 import { squashRect } from '../cornerSquash.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
 import { partNumbers } from '../partNumbers.js';
+import { pickStack } from '../pick.js';
 import { runScene } from '../runScene.js';
+import { formatInches } from '../units.js';
 
 describe('CC3 corner face boxes and scene', () => {
   let subject, ownerWall, returnWall, owner;
@@ -221,5 +223,34 @@ describe('CC3 corner face boxes and scene', () => {
     expect(filler.byKey.has('cc')).toBe(true);
     expect(runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).cornerPanels).toEqual([]);
     expect(corner.byKey.get('cc')).toBe(filler.byKey.get('cc'));
+  });
+
+  it('step c anchor 5: picks the projected face with its true width in the label', () => {
+    owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
+    owner.grid.cells[0].node.face = { type: 'door', hinge: 'right' };
+    const entry = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).faceLayouts.get('cc');
+    const face = entry.faces[0];
+    const drawn = squashRect(face, entry.squash);
+    const stack = pickStack(subject, ownerWall, DEFAULT_SETTINGS, {
+      x: drawn.x + drawn.width / 2, z: drawn.z + drawn.height / 2,
+    });
+    const picked = stack.find(({ kind, selection }) => kind === 'face' && selection.pieceId === 'cc');
+    expect(picked).toMatchObject({
+      rect: { x: drawn.x, z: drawn.z, width: drawn.width, height: drawn.height },
+      selection: { runId: owner.id, pieceId: 'cc' }, facePath: face.path,
+    });
+    expect(picked.label).toContain(formatInches(face.width));
+  });
+
+  it('step c anchor 6: excludes the true-only face area while still picking the column', () => {
+    owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
+    owner.grid.cells[0].node.face = { type: 'door', hinge: 'right' };
+    const entry = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).faceLayouts.get('cc');
+    expect(entry.faces[0].x).toBeLessThan(13);
+    expect(entry.faces[0].x + entry.faces[0].width).toBeGreaterThan(13);
+    const stack = pickStack(subject, ownerWall, DEFAULT_SETTINGS, { x: 13, z: owner.z + owner.height / 2 });
+    expect(stack.some(({ kind, selection }) => kind === 'face' && selection.pieceId === 'cc')).toBe(false);
+    expect(stack.find(({ kind, selection }) => kind === 'piece' && selection.pieceId === 'cc'))
+      .toMatchObject({ rect: { x: 0, width: 36 } });
   });
 });

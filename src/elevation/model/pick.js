@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, INTERIOR_DIVIDER_LABELS, KIND_LABELS } from './constants.js';
+import { squashFaceLayouts } from './cornerSquash.js';
 import { faceFeatures } from './faceFeatures.js';
 import { FACE_TYPE_LABELS } from './faces.js';
 import { wallInteriors } from './interiors.js';
@@ -46,13 +47,13 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
   for (const run of wall.runs) {
     const runRect = { x: run.x, z: run.z, width: run.width, height: run.height };
     const scene = runScene(room, wall, run, settings);
-    for (const [pieceId, layout] of doorsOff ? [] : scene.faceLayouts) {
+    for (const [pieceId, layout] of doorsOff ? [] : squashFaceLayouts(scene.faceLayouts)) {
       const face = layout.faces.find((candidate) => contains(candidate, point));
       if (!face) continue;
       faces.push({
         kind: 'face',
         key: `face:${run.id}:${pieceId}:${face.path}`,
-        label: `${FACE_TYPE_LABELS[face.type] ?? 'Face'} ${size(face)}`,
+        label: `${FACE_TYPE_LABELS[face.type] ?? 'Face'} ${size({ ...face, width: face.trueWidth ?? face.width })}`,
         rect: { x: face.x, z: face.z, width: face.width, height: face.height },
         selection: { runId: run.id, pieceId },
         facePath: face.path,

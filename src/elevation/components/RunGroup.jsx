@@ -9,6 +9,7 @@ import {
   Text,
 } from 'react-konva';
 import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
+import { cornerSquashes, squashDoorDetails, squashFaceLayouts, squashPulls } from '../model/cornerSquash.js';
 import { cornerAt, frontDepth } from '../model/corners.js';
 import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { regionOpenings } from '../model/frames.js';
@@ -89,14 +90,18 @@ function RunGroup({
     () => runDoorDetails(room, wall, run, settings, scene),
     [room, run, scene, settings, wall],
   );
-  const swingMarks = useMemo(() => runSwingMarks(scene.faceLayouts), [scene]);
   const pulls = useMemo(
     () => runPulls(room, wall, run, settings, scene, doorDetails),
     [room, wall, run, settings, scene, doorDetails],
   );
+  const squashes = useMemo(() => cornerSquashes(scene.faceLayouts), [scene]);
+  const drawnFaceLayouts = useMemo(() => squashFaceLayouts(scene.faceLayouts), [scene]);
+  const drawnDetails = useMemo(() => squashDoorDetails(doorDetails, squashes), [doorDetails, squashes]);
+  const drawnPulls = useMemo(() => squashPulls(pulls.pulls, squashes), [pulls, squashes]);
+  const swingMarks = useMemo(() => runSwingMarks(drawnFaceLayouts), [drawnFaceLayouts]);
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
-    panels, panelPieceIds, shelves, drawnPieces,
+    panels, cornerPanels, panelPieceIds, shelves, drawnPieces,
   } = scene;
   const bands = useMemo(
     () => runBands(room, wall, run, settings, scene),
@@ -415,6 +420,23 @@ function RunGroup({
         />
       ))}
 
+      {cornerPanels.map((panel) => (
+        <Rect
+          key={panel.key}
+          {...wallRectToScreen({
+            x: panel.x,
+            z: run.z,
+            width: panel.width,
+            height: run.height,
+          }, transform)}
+          fill={ELEVATION_BG}
+          opacity={0.82}
+          stroke={ELEVATION_LINE}
+          strokeWidth={1}
+          listening={false}
+        />
+      ))}
+
       {frames.regions.map((region) => (
         <FrameOutline
           key={region.id}
@@ -504,19 +526,19 @@ function RunGroup({
 
       {!doorsOff && (
         <DoorDetails
-          parts={doorDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
+          parts={drawnDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
             ({ partId }) => partId === part.key.replace(/:(left|right)$/, '$1'),
           )) ? { ...part, openingsShown: false } : part)}
-          warnings={doorDetails.warnings}
+          warnings={drawnDetails.warnings}
           transform={transform}
           showDetails={drawing.details}
           showTags={drawing.tags}
         />
       )}
       {!doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
-      {!doorsOff && drawing.pulls && <Pulls pulls={pulls.pulls} transform={transform} />}
+      {!doorsOff && drawing.pulls && <Pulls pulls={drawnPulls} transform={transform} />}
 
-      {!doorsOff && [...faceLayouts].map(([pieceId, layout]) => (
+      {!doorsOff && [...drawnFaceLayouts].map(([pieceId, layout]) => (
         <FaceOutlines
           key={`faces:${pieceId}`}
           faces={layout.faces}
