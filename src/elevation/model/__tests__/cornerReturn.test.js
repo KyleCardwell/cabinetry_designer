@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
+import { cornerEnd, cornerReturnWarnings, normalizeCornerEnd } from '../cornerEnd.js';
 import {
   cornerForRunSide, cornerLegs, cornerOwnersAt, cornerReach, cornerReserveParts,
-  cornerReturnPiece, cornerReturnRuns, frontDepth,
+  cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns, frontDepth,
 } from '../corners.js';
 import { wallLength } from '../geometry.js';
 import { landingsOn } from '../landings.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, resolveRunAnchorDatum } from '../runAnchors.js';
+import { roomDiagnostics } from '../roomSync.js';
 import { wallViewForRun } from '../wallSides.js';
 
 let subject, ownerWall, returnWall, owner;
@@ -25,6 +26,103 @@ beforeEach(() => {
     connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
   });
   subject = room({ walls: [ownerWall, returnWall] });
+});
+
+describe('CC2 step d corner return warnings', () => {
+  it('anchor 1: includes the exposed panel in the return footprint', () => {
+    expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toEqual({
+      wallId: 'wall-2', wallSide: 'front', x0: 107.1875, x1: 144, z0: 0, z1: owner.z + owner.height,
+    });
+  });
+
+  it('anchor 2: reports an unanchored overlap on both runs and in room diagnostics', () => {
+    const other = run({ id: 'other', x: 120, width: 24 });
+    returnWall.runs = [other];
+    const ownerWarnings = [{ code: 'corner-overlap', side: 'left', runId: other.id,
+      message: "A run on the return wall sits where the corner cabinet's return leg goes." }];
+    const otherWarnings = [{ code: 'corner-overlap', ownerRunId: owner.id,
+      message: "This run sits where a corner cabinet's return leg goes." }];
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual(ownerWarnings);
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toEqual(otherWarnings);
+    const diagnostics = roomDiagnostics(subject, DEFAULT_SETTINGS);
+    expect(diagnostics[owner.id].warnings).toEqual(expect.arrayContaining(ownerWarnings));
+    expect(diagnostics[other.id].warnings).toEqual(expect.arrayContaining(otherWarnings));
+  });
+
+  it.each([
+    [3, { x: 80, width: 27 }],
+    [4, { x: 110, width: 34, z: 54, height: 30, cabinetTypeId: CABINET_TYPE_IDS.UPPER }],
+    [7, { x: 120, width: 24 }],
+  ])('anchor %s: ignores runs outside the active footprint', (anchor, overrides) => {
+    const other = run({ id: 'other', ...overrides });
+    returnWall.runs = [other];
+    if (anchor === 7) {
+      owner.anchors.left = false;
+      expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toBeNull();
+    }
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual([]);
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toEqual([]);
+  });
+
+  it('anchor 5: a covering return run ends at the footprint with no warnings', () => {
+    const ret = run({ id: 'return', z: 0, x: 8, width: 100,
+      anchors: { right: true }, ends: { right: { type: 'none' } },
+    });
+    returnWall.runs = [ret];
+    expect(cornerReturnPiece(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS).type).toBe('none');
+    expect(cornerReach(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toBe(36);
+    expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS).x0).toBe(108);
+    expect(ret.x + ret.width).toBe(108);
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual([]);
+    expect(cornerReturnWarnings(subject, returnWall, ret, DEFAULT_SETTINGS)).toEqual([]);
+  });
+
+  it('anchor 6: warns for return end panels and blinds, allowing none and filler', () => {
+    const ret = run({ id: 'return', z: 0, x: 8, width: 100, anchors: { right: true } });
+    returnWall.runs = [ret];
+    for (const type of ['end_panel', 'blind', 'none', 'filler']) {
+      ret.ends.right = { type, width: null };
+      const expected = ['end_panel', 'blind'].includes(type) ? [{
+        code: 'corner-return-end', side: 'right',
+        message: 'A run dying into a corner cabinet takes a filler or nothing at that end.',
+      }] : [];
+      expect(cornerReturnWarnings(subject, returnWall, ret, DEFAULT_SETTINGS)).toEqual(expected);
+      expect(roomDiagnostics(subject, DEFAULT_SETTINGS)[ret.id].warnings
+        .filter((warning) => warning.code.startsWith('corner-return'))).toEqual(expected);
+    }
+  });
+
+  it('filters wall faces, ignores depth and applies the horizontal and vertical overlap limits', () => {
+    const other = run({ id: 'other', x: 120, width: 24, wallSide: 'back' });
+    returnWall.runs = [other];
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual([]);
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toEqual([]);
+    other.wallSide = 'front';
+    other._plane = { offset: 100 };
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toHaveLength(1);
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toHaveLength(1);
+    other.x = 107.1875 - other.width + 0.5e-6;
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual([]);
+    other.x += 1e-6;
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toHaveLength(1);
+    other.cabinetTypeId = CABINET_TYPE_IDS.UPPER;
+    other.z = owner.z + owner.height;
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toEqual([]);
+    other.z -= 0.5e-6;
+    expect(cornerReturnWarnings(subject, ownerWall, owner, DEFAULT_SETTINGS)).toHaveLength(1);
+  });
+
+  it('uses the floor for base runs and the stored z for stacked runs', () => {
+    owner.z = 10;
+    const other = run({ id: 'other', x: 120, width: 24, z: 60, height: 30 });
+    returnWall.runs = [other];
+    expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS).z0).toBe(0);
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toHaveLength(1);
+    other.stack = { below: 'lower' };
+    expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toEqual([]);
+    owner.stack = { below: 'owner-lower' };
+    expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS).z0).toBe(10);
+  });
 });
 
 describe('CC2 step b return runs die into the corner', () => {
@@ -134,6 +232,44 @@ describe('CC2 step b peninsula return runs (Room P)', () => {
     penRun.wallSide = corner.neighborWallSide;
     penSide = corner.neighborSide;
     penRun.anchors[penSide] = true;
+  });
+
+  it('anchor P1: warns on both runs when the pen run overlaps the host-owned 45 return', () => {
+    penRun.anchors = { left: false, right: false };
+    penRun.x = 0;
+    penRun.width = 20;
+    const footprint = cornerReturnFootprint(subject, host, hostRun, 'right', DEFAULT_SETTINGS);
+    expect(footprint).toEqual({ wallId: pen.id, wallSide: penRun.wallSide,
+      x0: 0, x1: 36.8125, z0: 0, z1: hostRun.z + hostRun.height });
+    expect(cornerReturnWarnings(subject, host, hostRun, DEFAULT_SETTINGS)).toEqual([{
+      code: 'corner-overlap', side: 'right', runId: penRun.id,
+      message: "A run on the return wall sits where the corner cabinet's return leg goes.",
+    }]);
+    expect(cornerReturnWarnings(subject, pen, penRun, DEFAULT_SETTINGS)).toEqual([{
+      code: 'corner-overlap', ownerRunId: hostRun.id,
+      message: "This run sits where a corner cabinet's return leg goes.",
+    }]);
+  });
+
+  it.each(['right', 'left'])('places a peninsula-owned footprint beside the host landing on the %s', (side) => {
+    hostRun.ends.right = { type: 'none' };
+    if (side === 'left') {
+      hostRun.anchors = { left: { to: 'wall', wallId: 'pen' }, right: false };
+      const corner = cornerForRunSide(subject, host, hostRun, 'left');
+      penRun.wallSide = corner.neighborWallSide;
+      penSide = corner.neighborSide;
+      penRun.anchors = { [penSide]: true };
+    }
+    penRun.ends[penSide] = normalizeCornerEnd({});
+    const view = wallViewForRun(host, hostRun);
+    const landing = landingsOn(subject, view)[0];
+    const footprint = cornerReturnFootprint(subject, pen, penRun, penSide, DEFAULT_SETTINGS);
+    const x = side === 'right' ? landing.a : landing.b;
+    expect(footprint).toEqual({ wallId: host.id, wallSide: 'front',
+      x0: side === 'right' ? x - 36 : x,
+      x1: side === 'right' ? x : x + 36,
+      z0: 0, z1: penRun.z + penRun.height,
+    });
   });
 
   it.each(['right', 'left'])('anchor P1: dies into a host-owned 45 corner at its %s side', (ownerSide) => {

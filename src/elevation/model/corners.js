@@ -8,10 +8,12 @@ import {
   scale,
   subtract,
   wallFrame,
+  wallLength,
 } from './geometry.js';
 import { gridLeaves } from './grid.js';
 import { landingEndpoint, landingsOn } from './landings.js';
 import { panelThickness } from './panelThickness.js';
+import { verticalStart } from './overlap.js';
 import { roundTo } from './units.js';
 import { runTFiller } from './styles.js';
 import { isShelvesOnlyRun } from './wallEndPanels.js';
@@ -232,6 +234,26 @@ export function cornerReturnPiece(room, wall, owner, side, settings) {
 /** How far the corner cabinet and its return-side piece take the return wall. */
 export function cornerReach(room, wall, owner, side, settings) {
   return cornerLegs(owner, side).legB + cornerReturnPiece(room, wall, owner, side, settings).width;
+}
+
+/** The active corner cabinet's occupied interval on the return wall face. */
+export function cornerReturnFootprint(room, wall, owner, side, settings) {
+  if (!cornerEndActive(room, wall, owner, side).active) return null;
+  const corner = cornerForRunSide(room, wall, owner, side);
+  const returnWall = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
+  const view = wallSideView(returnWall, corner.neighborWallSide);
+  const left = corner.neighborSide === 'left';
+  let x = left ? 0 : wallLength(view);
+  if (corner.anchorWallId) {
+    const landing = landingsOn(room, view).find((entry) => entry.wallId === corner.anchorWallId);
+    x = landing[left ? 'b' : 'a'];
+  }
+  const reach = cornerReach(room, wall, owner, side, settings);
+  return {
+    wallId: returnWall.id, wallSide: corner.neighborWallSide,
+    x0: left ? x : x - reach, x1: left ? x + reach : x,
+    z0: verticalStart(owner), z1: owner.z + owner.height,
+  };
 }
 
 /**

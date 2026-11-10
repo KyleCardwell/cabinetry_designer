@@ -1,11 +1,14 @@
 import { cornerCabinetShape } from './cornerCabinet.js';
-import { cornerEndActive, cornerReturnPiece, cornerReturnRuns } from './corners.js';
+import {
+  cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns,
+} from './corners.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
+import { verticalStart } from './overlap.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
-import { wallViewForRun } from './wallSides.js';
+import { wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
 
 export const CORNER_KINDS = [90, 45];
 export const RETURN_PIECES = ['auto', 'end_panel', 'filler', 'none'];
@@ -92,4 +95,46 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
 /** Warnings from both corner ends of a run, sharing its already computed layout. */
 export function cornerEndWarnings(room, wall, run, settings, layout = null) {
   return ['left', 'right'].flatMap((side) => cornerEnd(room, wall, run, side, settings, layout)?.warnings ?? []);
+}
+
+function overlapsReturn(footprint, run) {
+  return Math.min(footprint.x1, run.x + run.width) - Math.max(footprint.x0, run.x) > 1e-6
+    && Math.min(footprint.z1, run.z + run.height) - Math.max(footprint.z0, verticalStart(run)) > 0;
+}
+
+/** Return-end choices and return-leg overlaps, reported on both affected runs. */
+export function cornerReturnWarnings(room, wall, run, settings) {
+  const warnings = [];
+  const sides = ['left', 'right'];
+  for (const side of sides) {
+    if (['end_panel', 'blind'].includes(run.ends?.[side]?.type)
+      && cornerOwnersAt(room, wall, run, side).length) {
+      warnings.push({
+        code: 'corner-return-end', side,
+        message: 'A run dying into a corner cabinet takes a filler or nothing at that end.',
+      });
+    }
+    const footprint = cornerReturnFootprint(room, wall, run, side, settings);
+    if (!footprint) continue;
+    const returnWall = room.walls.find((candidate) => candidate.id === footprint.wallId);
+    for (const other of wallSideView(returnWall, footprint.wallSide).runs) {
+      if (overlapsReturn(footprint, other)) warnings.push({
+        code: 'corner-overlap', side, runId: other.id,
+        message: "A run on the return wall sits where the corner cabinet's return leg goes.",
+      });
+    }
+  }
+  for (const ownerWall of room.walls ?? []) {
+    for (const owner of ownerWall.runs) {
+      for (const side of sides) {
+        const footprint = cornerReturnFootprint(room, ownerWall, owner, side, settings);
+        if (footprint?.wallId === wall.id && footprint.wallSide === wallSideOf(run)
+          && overlapsReturn(footprint, run)) warnings.push({
+          code: 'corner-overlap', ownerRunId: owner.id,
+          message: "This run sits where a corner cabinet's return leg goes.",
+        });
+      }
+    }
+  }
+  return warnings;
 }
