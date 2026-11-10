@@ -59,11 +59,11 @@ describe('CC3 step c corner canvas', () => {
     const layer = canvas().find(({ type, key }) => type === FaceOutlines && key === 'faces:cc');
     const [drawn] = layer.props.faces;
     expect(entry.squash.k).toBeCloseTo(0.86824, 5);
-    expect(drawn.x).toBeCloseTo(36 + (face.x - 36) * entry.squash.k, 10);
+    expect(drawn.x).toBeCloseTo(entry.squash.pivot + (face.x - entry.squash.pivot) * entry.squash.k, 10);
     expect(drawn.width).toBeCloseTo(face.width * entry.squash.k, 10);
     expect(drawn).toMatchObject({ trueWidth: face.width, z: face.z, height: face.height });
     expect(drawn.x).toBeGreaterThanOrEqual(15);
-    expect(drawn.x + drawn.width).toBeLessThanOrEqual(36);
+    expect(drawn.x + drawn.width).toBeLessThanOrEqual(entry.squash.pivot);
   });
 
   it('anchor 2: projects door detail rectangles and openings at the same scale', () => {
@@ -72,16 +72,16 @@ describe('CC3 step c corner canvas', () => {
       .find(({ key }) => key === 'cc:r');
     const drawn = canvas().find(({ type }) => type === DoorDetails).props.parts
       .find(({ key }) => key === 'cc:r');
-    const { k } = scene.faceLayouts.get('cc').squash;
-    const projected = (rect) => ({ ...rect, x: 36 + (rect.x - 36) * k, width: rect.width * k });
-    expect(drawn.x).toBeCloseTo(36 + (part.x - 36) * k, 10);
+    const { k, pivot } = scene.faceLayouts.get('cc').squash;
+    const projected = (rect) => ({ ...rect, x: pivot + (rect.x - pivot) * k, width: rect.width * k });
+    expect(drawn.x).toBeCloseTo(pivot + (part.x - pivot) * k, 10);
     expect(drawn.width).toBeCloseTo(part.width * k, 10);
     expect(drawn).toMatchObject({ z: part.z, height: part.height });
     expect(part.openings.length).toBeGreaterThan(0);
     expect(drawn.openings).toEqual(part.openings.map(projected));
     expect(drawn.lines).toEqual(part.lines.map(projected));
     expect(drawn.miters).toEqual(part.miters.map((miter) => ({
-      ...miter, x1: 36 + (miter.x1 - 36) * k, x2: 36 + (miter.x2 - 36) * k,
+      ...miter, x1: pivot + (miter.x1 - pivot) * k, x2: pivot + (miter.x2 - pivot) * k,
     })));
   });
 
@@ -92,10 +92,10 @@ describe('CC3 step c corner canvas', () => {
     const tree = canvas();
     const drawn = tree.find(({ type }) => type === Pulls).props.pulls
       .find(({ pieceId }) => pieceId === 'cc');
-    const { k } = scene.faceLayouts.get('cc').squash;
+    const { k, pivot } = scene.faceLayouts.get('cc').squash;
     expect(pull.centers.length).toBeGreaterThan(0);
     expect(drawn).toEqual({ ...pull,
-      centers: pull.centers.map((center) => ({ ...center, x: 36 + (center.x - 36) * k })),
+      centers: pull.centers.map((center) => ({ ...center, x: pivot + (center.x - pivot) * k })),
     });
     const [face] = tree.find(({ type, key }) => type === FaceOutlines && key === 'faces:cc').props.faces;
     const marks = tree.find(({ type }) => type === SwingMarks).props.marks

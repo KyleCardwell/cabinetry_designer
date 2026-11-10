@@ -1,6 +1,7 @@
 import { cornerCabinetShape } from './cornerCabinet.js';
+import { DEFAULT_SETTINGS } from './constants.js';
 import {
-  cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns,
+  cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns, faceFrontOffset,
 } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
@@ -65,6 +66,12 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const depthA = run.depth;
   const returnSide = cornerReturnPiece(room, view, run, side, settings);
   const depthB = end.corner?.depthB ?? cornerDepthBAuto(room, view, run, side);
+  const offsetA = faceFrontOffset(run, settings);
+  const deepestReturn = returns.reduce((deepest, candidate) => (
+    !deepest || candidate.depth > deepest.depth ? candidate : deepest
+  ), null);
+  const offsetB = deepestReturn ? faceFrontOffset(deepestReturn, settings) : offsetA;
+  const doors = end.corner?.doors ?? settings.cornerDoors ?? DEFAULT_SETTINGS.cornerDoors;
   const kind = end.corner?.kind ?? 90;
   const geometry = legA === null ? null : cornerCabinetShape({ kind, legA, legB, depthA, depthB });
   const warnings = [];
@@ -88,7 +95,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     }
   }
   return {
-    side, active, kind, legA, legB, depthA, depthB,
+    side, active, kind, legA, legB, depthA, depthB, offsetA, offsetB, doors,
     returnPiece: end.corner?.returnPiece ?? 'auto',
     returnSide, reach: legB + returnSide.width,
     columnId: piece?.id ?? null,

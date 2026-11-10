@@ -1,3 +1,32 @@
+/** Door faces in the corner's wall A / wall B frame, independent of the box outline. */
+export function cornerFaceLayout({
+  kind = 90, legA, legB, depthA, depthB, offsetA, offsetB, sideReveal, gap, diagonalReveal, doors,
+}) {
+  const a = legA - depthB;
+  const b = legB - depthA;
+  if (kind === 90) return {
+    a: { cornerReveal: doors === 'a_long' ? null : offsetB + gap },
+    b: { cornerReveal: doors === 'b_long' ? null : offsetA + gap },
+    shown: { a: a - offsetB, b: b - offsetA },
+  };
+
+  const w = Math.hypot(a, b);
+  const n = [b / w, a / w];
+  const c = n[0] * legA + n[1] * depthA + offsetA;
+  const foot = ([x, y]) => {
+    const distance = c - n[0] * x - n[1] * y;
+    return [x + distance * n[0], y + distance * n[1]];
+  };
+  const fa = foot([legA + sideReveal, depthA + offsetA]);
+  const fb = foot([depthB + offsetB, legB + sideReveal]);
+  const span = Math.hypot(fb[0] - fa[0], fb[1] - fa[1]);
+  const ordered = Math.floor((span - 2 * diagonalReveal) * 16 + 1e-9) / 16;
+  return {
+    feet: { a: fa, b: fb }, span, ordered, reveal: (span - ordered) / 2,
+    shown: { a: span * a / w, b: span * b / w },
+  };
+}
+
 /** Corner cabinet geometry in the frame along wall A and out into the room. */
 export function cornerCabinetShape({ kind = 90, legA, legB, depthA, depthB }) {
   const a = legA - depthB;

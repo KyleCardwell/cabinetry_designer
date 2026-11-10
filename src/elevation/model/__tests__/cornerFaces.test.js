@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { cornerDepthBAuto, normalizeCornerEnd } from '../cornerEnd.js';
+import { cornerDepthBAuto, cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
 import { cornerForRunSide } from '../corners.js';
 import { squashRect } from '../cornerSquash.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
@@ -45,29 +45,30 @@ describe('CC3 corner face boxes and scene', () => {
   it('anchor 3: lays out the base 45 at true width before drawing projection', () => {
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(19.029, 3);
-    expect(entry.box.width).toBeCloseTo(16.971, 3);
-    expect(entry.squash.pivot).toBe(36);
+    expect(entry.box.x).toBeCloseTo(20.391, 3);
+    expect(entry.box.width).toBeCloseTo(15.8215, 3);
+    expect(entry.squash.pivot).toBeCloseTo(36.2125, 3);
     expect(entry.squash.k).toBeCloseTo(0.70711, 5);
     expect(entry.corner).toEqual({ side: 'left', kind: 45 });
     expect(entry.faces).toHaveLength(1); // The default face uses true width, not the 36-inch column.
     const drawn = squashRect(entry.box, entry.squash);
-    expect(drawn.x).toBeCloseTo(24, 10);
-    expect(drawn.width).toBeCloseTo(12, 10);
+    expect(drawn.x).toBeCloseTo(25.025, 3);
+    expect(drawn.width).toBeCloseTo(11.1875, 3);
   });
 
   it('anchor 4: keeps uneven 45 faces and reveals at true width', () => {
     owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
     owner.grid.cells[0].node.face = { type: 'door' };
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(11.813, 3);
-    expect(entry.box.width).toBeCloseTo(24.187, 3);
+    expect(entry.box.x).toBeCloseTo(13.0261, 3);
+    expect(entry.box.width).toBeCloseTo(23.0782, 3);
+    expect(entry.squash.pivot).toBeCloseTo(36.1043, 3);
     expect(entry.squash.k).toBeCloseTo(0.86824, 5);
     const drawn = squashRect(entry.box, entry.squash);
-    expect(drawn.x).toBeCloseTo(15, 10);
-    expect(drawn.width).toBeCloseTo(21, 10);
+    expect(drawn.x).toBeCloseTo(16.0668, 3);
+    expect(drawn.width).toBeCloseTo(20.0375, 3);
     expect(entry.faces[0].width + entry.reveals.values.left + entry.reveals.values.right)
-      .toBeCloseTo(24.187, 3);
+      .toBeCloseTo(23.0782, 3);
   });
 
   it('anchor 5: projects an upper 45 without changing its vertical dimensions', () => {
@@ -75,14 +76,15 @@ describe('CC3 corner face boxes and scene', () => {
     owner.grid.cols[0].size = 24;
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(7.029, 3);
-    expect(entry.box.width).toBeCloseTo(16.971, 3);
-    expect(entry.squash.pivot).toBe(24);
-    expect(squashRect(entry.box, entry.squash)).toMatchObject({ x: 12, z: 54, height: 30 });
-    expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(12, 10);
+    expect(entry.box.x).toBeCloseTo(8.391, 3);
+    expect(entry.box.width).toBeCloseTo(15.8215, 3);
+    expect(entry.squash.pivot).toBeCloseTo(24.2125, 3);
+    expect(squashRect(entry.box, entry.squash)).toMatchObject({ z: 54, height: 30 });
+    expect(squashRect(entry.box, entry.squash).x).toBeCloseTo(13.025, 3);
+    expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(11.1875, 3);
   });
 
-  it('anchor 6: keeps a right host corner pivot at the column x (Room P1)', () => {
+  it('anchor 6: projects a right host corner from the door-face pivot (Room P1)', () => {
     const hostRun = run({ id: 'host-run', x: 0, width: 72, autoCount: false,
       items: [auto('a'), fixed('cc', 36)], anchors: { left: false, right: { to: 'wall', wallId: 'pen' } },
       ends: { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) },
@@ -102,10 +104,10 @@ describe('CC3 corner face boxes and scene', () => {
     const pivot = layout.pieces.find(({ id }) => id === 'cc').x;
     const entry = runFaceLayouts(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS, layout).get('cc');
     expect(entry.corner).toEqual({ side: 'right', kind: 45 });
-    expect(entry.squash.pivot).toBe(pivot);
-    expect(entry.box.x).toBe(pivot);
-    expect(entry.box.width).toBeCloseTo(16.971, 3);
-    expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(12, 10);
+    expect(entry.squash.pivot).toBeCloseTo(pivot - 0.2125, 3);
+    expect(entry.box.x).toBeCloseTo(pivot - 0.2125, 3);
+    expect(entry.box.width).toBeCloseTo(15.8215, 3);
+    expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(11.1875, 3);
 
     // Step b anchors 5 and 6: the peninsula covers the return side until removed.
     const covered = runScene(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS);
@@ -246,11 +248,123 @@ describe('CC3 corner face boxes and scene', () => {
     owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
     owner.grid.cells[0].node.face = { type: 'door', hinge: 'right' };
     const entry = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).faceLayouts.get('cc');
-    expect(entry.faces[0].x).toBeLessThan(13);
-    expect(entry.faces[0].x + entry.faces[0].width).toBeGreaterThan(13);
-    const stack = pickStack(subject, ownerWall, DEFAULT_SETTINGS, { x: 13, z: owner.z + owner.height / 2 });
+    expect(entry.faces[0].x).toBeLessThan(14);
+    expect(entry.faces[0].x + entry.faces[0].width).toBeGreaterThan(14);
+    expect(squashRect(entry.faces[0], entry.squash).x).toBeGreaterThan(14);
+    const stack = pickStack(subject, ownerWall, DEFAULT_SETTINGS, { x: 14, z: owner.z + owner.height / 2 });
     expect(stack.some(({ kind, selection }) => kind === 'face' && selection.pieceId === 'cc')).toBe(false);
     expect(stack.find(({ kind, selection }) => kind === 'piece' && selection.pieceId === 'cc'))
       .toMatchObject({ rect: { x: 0, width: 36 } });
+  });
+
+  describe('CC3.1 step b door-face sizing', () => {
+    beforeEach(() => {
+      owner.grid.cells[0].node.face = { type: 'door', hinge: 'right' };
+    });
+
+    it.each([
+      ['8: equal', {}, {}, null, false, 24, 12, 1, 'rule:corner', 25, 10.9375],
+      ['9: A long', { doors: 'a_long' }, {}, null, false, 24, 12, 0.0625, 'style', 24.0625, 11.875],
+      ['10: explicit equal overrides shop A long', { doors: 'equal' }, { cornerDoors: 'a_long' }, null, false, 24, 12, 1, 'rule:corner', 25, 10.9375],
+      ['11: manual wins', {}, {}, 0.5, false, 24, 12, 0.5, 'manual', 24.5, 11.4375],
+      ['12: depth-21 return', {}, {}, null, true, 21, 15, 1, 'rule:corner', 22, 13.9375],
+    ])('anchor %s', (
+      _name, corner, settings, manual, hasReturn, x, width, reveal, source, doorX, doorWidth,
+    ) => {
+      Object.assign(owner.ends.left.corner, corner);
+      if (manual !== null) owner.grid.cells[0].node.reveals = { left: manual };
+      if (hasReturn) returnWall.runs = [run({ id: 'return', depth: 21, anchors: { right: true } })];
+      const entry = runFaceLayouts(subject, ownerWall, owner, { ...DEFAULT_SETTINGS, ...settings }).get('cc');
+      expect(entry.box).toMatchObject({ x, width });
+      expect(entry.reveals.values.left).toBe(reveal);
+      expect(entry.reveals.sources.left).toBe(source);
+      expect(entry.faces[0].x).toBe(doorX);
+      expect(entry.faces[0].width).toBe(doorWidth);
+    });
+
+    it.each([
+      ['13: base', false, 24, 36.2125, 20.391, 15.8215, 15.5625, 0.70711, 25.025],
+      ['14: uneven', false, 15, 36.1043, 13.0261, 23.0782, 22.8125, 0.86824, 16.0668],
+      ['15: upper', true, 12, 24.2125, 8.391, 15.8215, 15.5625, 0.70711, 13.025],
+    ])('anchor %s', (_name, upper, depthB, pivot, x, width, doorWidth, k, drawnX) => {
+      Object.assign(owner.ends.left.corner, { kind: 45, depthB });
+      if (upper) {
+        Object.assign(owner, { cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12 });
+        owner.grid.cols[0].size = 24;
+      }
+      const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
+      expect(entry.squash.pivot).toBeCloseTo(pivot, 3);
+      expect(entry.squash.k).toBeCloseTo(k, 5);
+      expect(entry.box.x).toBeCloseTo(x, 3);
+      expect(entry.box.width).toBeCloseTo(width, 3);
+      expect(entry.faces[0].width).toBeCloseTo(doorWidth, 3);
+      expect(entry.reveals.sources).toMatchObject({ left: 'rule:corner', right: 'rule:corner' });
+      const drawn = squashRect(entry.box, entry.squash);
+      expect(drawn.x).toBeCloseTo(drawnX, 3);
+      if (!upper && depthB === 24) expect(drawn.width).toBeCloseTo(11.1875, 3);
+    });
+
+    it('anchor 17: pair doors share the ordered span with their centre gap', () => {
+      owner.ends.left.corner.kind = 45;
+      owner.grid.cells[0].node.face = { type: 'pair_door' };
+      const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
+      expect(entry.faces).toHaveLength(2);
+      expect(entry.faces.reduce((total, face) => total + face.width, entry.reveals.values.pair))
+        .toBeCloseTo(15.8215 - 2 * 0.1295, 3);
+    });
+
+    it('keeps a manual 45 side reveal while applying the computed opposite reveal', () => {
+      owner.ends.left.corner.kind = 45;
+      owner.grid.cells[0].node.reveals = { left: 0.5 };
+      const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
+      expect(entry.reveals.values.left).toBe(0.5);
+      expect(entry.reveals.sources.left).toBe('manual');
+      expect(entry.reveals.values.right).toBeCloseTo(0.1295, 3);
+      expect(entry.reveals.sources.right).toBe('rule:corner');
+    });
+
+    it('uses shop door and reveal settings when the corner has no override', () => {
+      const settings = { ...DEFAULT_SETTINGS, cornerDoors: 'a_long', cornerDoorGap: 0.25,
+        cornerDiagonalReveal: 1 / 16 };
+      expect(cornerEnd(subject, ownerWall, owner, 'left', settings))
+        .toMatchObject({ offsetA: 0.875, offsetB: 0.875, doors: 'a_long' });
+      expect(runFaceLayouts(subject, ownerWall, owner, settings).get('cc').faces[0].width).toBe(11.875);
+      owner.ends.left.corner.doors = 'b_long';
+      expect(runFaceLayouts(subject, ownerWall, owner, settings).get('cc').reveals.values.left).toBe(1.125);
+      owner.ends.left.corner.kind = 45;
+      expect(runFaceLayouts(subject, ownerWall, owner, settings).get('cc').faces[0].width).toBe(15.6875);
+    });
+
+    it('takes offset B from the deepest compatible return even with manual depth B', () => {
+      owner._doorThickness = 1;
+      owner.ends.left.corner.depthB = 15;
+      returnWall.runs = [
+        run({ id: 'shallow', depth: 21, _doorThickness: 1.5, anchors: { right: true } }),
+        run({ id: 'deep', depth: 24, _doorThickness: 0.5, anchors: { right: true } }),
+        run({ id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER, depth: 30,
+          _doorThickness: 2, anchors: { right: true } }),
+      ];
+      expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
+        .toMatchObject({ depthB: 15, offsetA: 1.0625, offsetB: 0.5625 });
+      expect(runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc').reveals.values.left).toBe(0.6875);
+      returnWall.runs = [];
+      expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
+        .toMatchObject({ offsetA: 1.0625, offsetB: 1.0625 });
+    });
+
+    it('applies leg A corner reveal on the right side of a right-end 90 cabinet', () => {
+      owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
+      owner.grid.cells[1].node.face = { type: 'door', hinge: 'left' };
+      owner.anchors = { left: false, right: true };
+      owner.ends = { left: { type: 'none' }, right: normalizeCornerEnd({}) };
+      ownerWall.connections = { start: null, end: { wallId: 'wall-2', endpoint: 'start' } };
+      Object.assign(returnWall, { x1: 144, y1: 0, x2: 144, y2: 144,
+        connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null } });
+      const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
+      expect(entry.corner).toEqual({ side: 'right', kind: 90 });
+      expect(entry.reveals.values.right).toBe(1);
+      expect(entry.reveals.sources.right).toBe('rule:corner');
+      expect(entry.faces[0].width).toBe(10.9375);
+    });
   });
 });

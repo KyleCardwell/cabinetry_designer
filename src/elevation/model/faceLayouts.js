@@ -2,6 +2,7 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerFaceLayout } from './cornerCabinet.js';
 import { cornerEnd } from './cornerEnd.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -83,17 +84,26 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
     };
     const corner = corners.find((end) => end?.active && end.shape && end.columnId === piece.id
       && !piece.columnId);
+    const style = resolveStyle(settings, room, run, item);
+    const cornerLayout = corner ? cornerFaceLayout({
+      ...corner,
+      sideReveal: typeStandardReveals(style, run.cabinetTypeId, settings)[corner.side === 'left' ? 'right' : 'left'],
+      gap: settings.cornerDoorGap ?? DEFAULT_SETTINGS.cornerDoorGap,
+      diagonalReveal: settings.cornerDiagonalReveal ?? DEFAULT_SETTINGS.cornerDiagonalReveal,
+    }) : null;
     let squash = null;
     if (corner) {
-      const pivot = piece.x + (corner.side === 'left' ? corner.legA : 0);
-      box.width = corner.kind === 45 ? corner.shape.trueWidth : corner.shape.shown.a;
+      const faceX = corner.kind === 45 ? cornerLayout.feet.a[0] : corner.legA;
+      const pivot = piece.x + (corner.side === 'left' ? faceX : corner.legA - faceX);
+      box.width = corner.kind === 45 ? cornerLayout.span : corner.shape.shown.a;
       box.x = pivot - (corner.side === 'left' ? box.width : 0);
-      if (corner.kind === 45) squash = { pivot, k: corner.shape.shown.a / box.width };
+      if (corner.kind === 45) squash = {
+        pivot, k: corner.shape.shown.a / corner.shape.trueWidth,
+      };
     }
     const storedFace = item?.face ?? defaultFace(box.width, settings);
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
-    const style = resolveStyle(settings, room, run, item);
     const runEdges = {
       top: Math.abs(piece.z + piece.height - column.z - column.height) <= 1e-6,
       bottom: Math.abs(piece.z - column.z) <= 1e-6,
@@ -116,6 +126,16 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       manual: item?.reveals ?? null,
       settings,
     });
+    if (corner) {
+      const sides = corner.kind === 45 ? ['left', 'right'] : [corner.side];
+      const reveal = corner.kind === 45 ? cornerLayout.reveal : cornerLayout.a.cornerReveal;
+      for (const side of sides) {
+        if (reveal !== null && reveals.sources[side] !== 'manual') {
+          reveals.values[side] = reveal;
+          reveals.sources[side] = 'rule:corner';
+        }
+      }
+    }
     // A smaller top reveal than stone grows the standard drawer fronts, not the others (IN7.2).
     const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
       && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
