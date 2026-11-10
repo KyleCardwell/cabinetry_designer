@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { syncRoom } from '../room.js';
 import { wallEndFit } from '../wallEndFit.js';
-import { wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
+import { wallEndPanelPolygon, wallEndPanelReturnPolygons, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
 import { wallParts } from '../wallParts.js';
 import { planParts } from '../planParts.js';
 import { clearanceParts } from '../clearances.js';
@@ -245,6 +245,17 @@ describe('SH7.6 step f wall end panel returns', () => {
       { points: wallEndPanelPolygon(synced, w, panel) },
     ]);
     expect(planThroughDimensions(synced, w, settings).map(({ text }) => text)).toEqual(['18 3/8']);
+  });
+
+  it('gives the plan canvas the return rectangles beside the panel polygon', () => {
+    const { synced, w, panel } = inspect(room({ walls: [wall({ ...W,
+      endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' } } } })] }));
+    const xy = (points) => points.map(({ x, y }) => [x, Math.abs(y)]);
+    expect(wallEndPanelReturnPolygons(synced, w, panel).map(({ edge, points }) => [edge, xy(points)])).toEqual([
+      ['front', [[1.0625, 21.0625], [4.75, 21.0625], [4.75, 21.875], [1.0625, 21.875]]],
+      ['back', [[1.0625, 3.5], [4.75, 3.5], [4.75, 4.3125], [1.0625, 4.3125]]],
+    ]);
+    expect(wallEndPanelReturnPolygons(synced, w, { ...panel, returns: undefined })).toEqual([]);
   });
 
   it('picks the panel on returns from either face and respects its vertical clearances', () => {

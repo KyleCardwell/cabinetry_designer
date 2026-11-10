@@ -3,7 +3,7 @@ import { Group, Line } from 'react-konva';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { elevationToPlan } from '../model/geometry.js';
 import { planDepthPositions } from '../model/planDepthPositions.js';
-import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
+import { wallEndPanelPolygon, wallEndPanelReturnPolygons, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallSideFrame } from '../model/wallSides.js';
 import PlanClearances from './PlanClearances.jsx';
 import PlanOpening from './PlanOpening.jsx';
@@ -124,11 +124,15 @@ export default function PlanScene({
       {footprints.slice(0, split)}
       {firstUpper >= 0 && tops}
       {footprints.slice(split)}
-      {walls.flatMap((wall) => wallEndPanels(room, wall, settings).map((panel) => (
+      {walls.flatMap((wall) => wallEndPanels(room, wall, settings).flatMap((panel) => [
+        { key: `${wall.id}:${panel.endpoint}`, points: wallEndPanelPolygon(room, wall, panel) },
+        // A fitted panel's returns (SH7.6 step f) make the L / C in plan.
+        ...wallEndPanelReturnPolygons(room, wall, panel).map(({ edge, points }) => ({
+          key: `${wall.id}:${panel.endpoint}:return-${edge}`, points })),
+      ]).map(({ key, points }) => (
         <Line
-          key={`${wall.id}:${panel.endpoint}`}
-          points={wallEndPanelPolygon(room, wall, panel)
-            .flatMap((point) => [point.x, point.y])}
+          key={key}
+          points={points.flatMap((point) => [point.x, point.y])}
           closed
           fill={KIND_COLORS.end_panel}
           opacity={0.7}

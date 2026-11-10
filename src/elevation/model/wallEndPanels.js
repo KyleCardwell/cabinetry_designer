@@ -158,13 +158,25 @@ export function wallEndPanelReturns(panel, face = 'front') {
     back: -panel.thickness - front, front: -panel.thickness - back }));
 }
 
-export function wallEndPanelPolygon(room, wall, panel) {
+function frontPlanPoint(room, wall) {
   const source = wall.sideSource ?? wall;
   const frame = wallFrame(room, wallSideView(source, 'front'));
-  const point = (x, offset) => ({
+  return (x, offset) => ({
     x: frame.leftPoint.x + frame.r.x * x + frame.n.x * offset,
     y: frame.leftPoint.y + frame.r.y * x + frame.n.y * offset,
   });
+}
+
+/** The plan rectangles of a fitted wall panel's returns (SH7.6 step f), in the same points as the panel polygon. */
+export function wallEndPanelReturnPolygons(room, wall, panel) {
+  const point = frontPlanPoint(room, wall);
+  return (panel.returns ?? []).map(({ edge, start, end, back, front }) => ({ edge,
+    points: [point(start, back), point(end, back), point(end, front), point(start, front)] }));
+}
+
+export function wallEndPanelPolygon(room, wall, panel) {
+  const source = wall.sideSource ?? wall;
+  const point = frontPlanPoint(room, wall);
   const left = panel.front.x;
   const right = left + panel.width;
   const back = -(panel.thickness + panel.back.depth);
