@@ -1,6 +1,6 @@
 import { withoutWidthFrom } from './cellWidths.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { cornerForRunSide, cornerReserve } from './corners.js';
+import { cornerForRunSide, cornerOwnersAt, cornerReserve } from './corners.js';
 import { isJointAnchor, jointEdgeX, jointMembers } from './joints.js';
 import { runLineLock } from './lineLocks.js';
 import { landingsOn } from './landings.js';
@@ -141,6 +141,11 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings, { exac
       };
     } else if (anchorsAtSnap.to === 'recess') {
       proposed.ends[side] = { type: recessEndType(sideWall, proposed, side), width: null };
+    } else if (cornerOwnersAt(room, sideWall, proposed, side).length) {
+      const end = proposed.ends[side];
+      if (end.type !== 'none' && end.type !== 'corner' && !(end.type === 'filler' && end.width != null)) {
+        proposed.ends[side] = { type: 'none', width: null };
+      }
     } else {
       const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
       if (inside && !['blind', 'corner'].includes(proposed.ends[side].type)) {

@@ -3,7 +3,7 @@ import { endFit, isEndLegs } from '../../model/endLegs.js';
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { isLegList } from '../../model/legs.js';
 import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
-import { cornerAt } from '../../model/corners.js';
+import { cornerAt, cornerEndActive, cornerOwnersAt, cornerReturnRuns } from '../../model/corners.js';
 import { defaultLegA, normalizeCornerEnd } from '../../model/cornerEnd.js';
 import { setGridTrackSize } from '../../model/cellTree.js';
 import {
@@ -132,6 +132,17 @@ export const runReducers = {
       const col = cols[side === 'left' ? 0 : cols.length - 1];
       if (col && col.sizeMode !== 'manual') {
         location.run.grid = setGridTrackSize(location.run.grid, col.id, defaultLegA(location.run));
+      }
+    }
+    if (end.type === 'corner' && cornerEndActive(location.room, location.wall, location.run, side).active) {
+      const { corner, runs } = cornerReturnRuns(location.room, location.wall, location.run, side);
+      for (const run of runs) {
+        const returnSide = corner.neighborSide;
+        const returnEnd = run.ends[returnSide];
+        if (returnEnd.type === 'filler' && returnEnd.width == null) {
+          run.ends[returnSide] = { type: 'none', width: null };
+          if (run.endFiller) run.endFiller[returnSide] = null;
+        }
       }
     }
     if (end.type === 'none' || end.type === 'corner'
@@ -358,6 +369,12 @@ export const runReducers = {
         type: recessEndType(wallViewForRun(location.wall, location.run), location.run, side),
         width: null,
       };
+    } else if ((validWallAnchor || value === true)
+      && cornerOwnersAt(location.room, location.wall, location.run, side).length) {
+      const end = location.run.ends[side];
+      if (end.type !== 'none' && end.type !== 'corner' && !(end.type === 'filler' && end.width != null)) {
+        location.run.ends[side] = { type: 'none', width: null };
+      }
     } else if (validWallAnchor) {
       if (location.run.ends[side].type !== 'corner') {
         location.run.ends[side] = { type: 'filler', width: null };

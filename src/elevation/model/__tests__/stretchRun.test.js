@@ -1,72 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../constants.js';
 import { moveRun, stretchRun, syncRoom } from '../room.js';
+import { auto, fixed, room as buildRoom, run, wall } from '../../../test/builders.js';
+import { normalizeCornerEnd } from '../cornerEnd.js';
+import { runItems } from '../grid.js';
 
-function makeRun(id, overrides = {}) {
-  return {
-    id,
-    cabinetTypeId: CABINET_TYPE_IDS.BASE,
-    x: 40,
-    width: 40,
-    z: 4,
-    height: 30.5,
-    depth: 24,
-    ends: {
-      left: { type: 'none', width: null },
-      right: { type: 'none', width: null },
-    },
-    autoCount: false,
-    maxCabinetWidth: null,
-    items: [{ id: `${id}-cabinet`, kind: 'cabinet', width: 40 }],
-    heightMode: 'manual',
-    overrides: {},
-    anchors: { left: false, right: false },
-    ...overrides,
-  };
-}
-
-function makeRoom(runs = [makeRun('run')]) {
-  return {
-    id: 'room',
-    name: 'Room',
-    profile: { ...DEFAULT_SETTINGS.defaultProfile },
-    wallOrder: ['A'],
-    walls: [{
-      id: 'A',
-      name: '',
-      numberOverride: null,
-      x1: 0,
-      y1: 0,
-      x2: 120,
-      y2: 0,
-      height: 96,
-      thickness: 4.5,
-      flipped: false,
-      connections: { start: null, end: null },
-      profile: {},
-      runs,
-    }],
-  };
-}
-
-function makeOutsideRoom() {
-  const room = makeRoom();
-  room.wallOrder = ['A', 'B'];
-  room.walls[0].flipped = true;
-  room.walls[0].connections.end = { wallId: 'B', endpoint: 'start' };
-  room.walls.push({
-    ...room.walls[0],
-    id: 'B',
-    x1: 120,
-    y1: 0,
-    x2: 120,
-    y2: -96,
-    flipped: false,
-    connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
-    runs: [],
-  });
-  return room;
-}
+const runDefaults = {
+  x: 40, width: 40, autoCount: false,
+  ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+  items: [fixed('run-cabinet', 40)],
+};
+let subject;
+beforeEach(() => {
+  subject = buildRoom({ id: 'room', wallOrder: ['A'], walls: [wall({
+    id: 'A', x2: 120, runs: [run({ ...runDefaults, id: 'run' })],
+  })] });
+});
 
 function resultRun(result, id = 'run') {
   return result.room.walls[0].runs.find((run) => run.id === id);
@@ -74,7 +23,7 @@ function resultRun(result, id = 'run') {
 
 describe('stretchRun', () => {
   it('14. allows stretching within the overhang limit and rejects beyond it unchanged', () => {
-    const room = makeRoom();
+    const room = subject;
     const allowed = stretchRun(room, 'A', 'run', 'left', -10, DEFAULT_SETTINGS);
     expect(allowed.ok).toBe(true);
     expect(resultRun(allowed)).toMatchObject({ x: -10, width: 90 });
@@ -85,7 +34,7 @@ describe('stretchRun', () => {
   });
 
   it('17. snaps to and anchors an open wall end', () => {
-    const room = makeRoom();
+    const room = subject;
 
     const right = stretchRun(room, 'A', 'run', 'right', 87.3, DEFAULT_SETTINGS);
     expect(right.ok).toBe(true);
@@ -114,8 +63,14 @@ describe('stretchRun', () => {
   });
 
   it('12. snaps and anchors within two inches of an outside corner', () => {
+    subject.walls[0].flipped = true;
+    subject.walls[0].connections.end = { wallId: 'B', endpoint: 'start' };
+    subject.walls.push(wall({ id: 'B', x1: 120, y1: 0, x2: 120, y2: -96,
+      connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
+    }));
+    subject.wallOrder = ['A', 'B'];
     const result = stretchRun(
-      makeOutsideRoom(),
+      subject,
       'A',
       'run',
       'right',
@@ -133,14 +88,15 @@ describe('stretchRun', () => {
   });
 
   it('18. rejects conflicts unchanged and snaps within two inches to another run edge', () => {
-    const room = makeRoom([
-      makeRun('run'),
-      makeRun('neighbor', {
+    subject.walls[0].runs = [
+      run({ ...runDefaults, id: 'run' }),
+      run({ ...runDefaults, id: 'neighbor',
         x: 90,
         width: 20,
         items: [{ id: 'neighbor-cabinet', kind: 'cabinet', width: 20 }],
       }),
-    ]);
+    ];
+    const room = subject;
 
     const snapped = stretchRun(room, 'A', 'run', 'right', 88.5, DEFAULT_SETTINGS);
     expect(snapped.ok).toBe(true);
@@ -153,7 +109,7 @@ describe('stretchRun', () => {
 
   it('19. clamps a stretched run to the minimum width', () => {
     const result = stretchRun(
-      makeRoom(),
+      subject,
       'A',
       'run',
       'right',
@@ -166,23 +122,24 @@ describe('stretchRun', () => {
   });
 
   it('re-splits an auto-count run after crossing a max-width boundary', () => {
-    const room = syncRoom(makeRoom([makeRun('auto', {
+    subject.walls[0].runs = [run({ ...runDefaults, id: 'auto',
       x: 10,
       width: 60,
       autoCount: true,
       items: [],
-    })]), DEFAULT_SETTINGS);
-    expect(room.walls[0].runs[0].items).toHaveLength(2);
+    })];
+    const room = syncRoom(subject, DEFAULT_SETTINGS);
+    expect(runItems(room.walls[0].runs[0])).toHaveLength(2);
 
     const result = stretchRun(room, 'A', 'auto', 'right', 100, DEFAULT_SETTINGS);
     expect(result.ok).toBe(true);
-    expect(resultRun(result, 'auto').items).toHaveLength(3);
+    expect(runItems(resultRun(result, 'auto'))).toHaveLength(3);
   });
 });
 
 describe('moveRun', () => {
   it('12. shifts x and keeps width for a clean move', () => {
-    const result = moveRun(makeRoom(), 'A', 'run', 60, DEFAULT_SETTINGS);
+    const result = moveRun(subject, 'A', 'run', 60, DEFAULT_SETTINGS);
 
     expect(result.ok).toBe(true);
     expect(resultRun(result)).toMatchObject({ x: 60, width: 40 });
@@ -190,7 +147,7 @@ describe('moveRun', () => {
   });
 
   it('13. snaps its left edge to the wall end', () => {
-    const result = moveRun(makeRoom(), 'A', 'run', 1.5, DEFAULT_SETTINGS);
+    const result = moveRun(subject, 'A', 'run', 1.5, DEFAULT_SETTINGS);
 
     expect(result.ok).toBe(true);
     expect(resultRun(result)).toMatchObject({ x: 0, width: 40 });
@@ -198,14 +155,15 @@ describe('moveRun', () => {
   });
 
   it("14. snaps its right edge to a neighbour's left edge", () => {
-    const room = makeRoom([
-      makeRun('run'),
-      makeRun('other', {
+    subject.walls[0].runs = [
+      run({ ...runDefaults, id: 'run' }),
+      run({ ...runDefaults, id: 'other',
         x: 90,
         width: 20,
         items: [{ id: 'other-cabinet', kind: 'cabinet', width: 20 }],
       }),
-    ]);
+    ];
+    const room = subject;
     const result = moveRun(room, 'A', 'run', 49, DEFAULT_SETTINGS);
 
     expect(result.ok).toBe(true);
@@ -214,14 +172,15 @@ describe('moveRun', () => {
   });
 
   it('15. refuses conflicting and out-of-bounds moves without changing the room', () => {
-    const room = makeRoom([
-      makeRun('run'),
-      makeRun('other', {
+    subject.walls[0].runs = [
+      run({ ...runDefaults, id: 'run' }),
+      run({ ...runDefaults, id: 'other',
         x: 90,
         width: 20,
         items: [{ id: 'other-cabinet', kind: 'cabinet', width: 20 }],
       }),
-    ]);
+    ];
+    const room = subject;
 
     const conflict = moveRun(room, 'A', 'run', 80, DEFAULT_SETTINGS);
     expect(conflict).toEqual({
@@ -232,7 +191,9 @@ describe('moveRun', () => {
     });
     expect(conflict.room).toBe(room);
 
-    const source = makeRoom();
+    const source = buildRoom({ id: 'room', wallOrder: ['A'], walls: [wall({
+      id: 'A', x2: 120, runs: [run({ ...runDefaults, id: 'run' })],
+    })] });
     const outOfBounds = moveRun(source, 'A', 'run', 200, DEFAULT_SETTINGS);
     expect(outOfBounds).toEqual({
       ok: false,
@@ -244,9 +205,10 @@ describe('moveRun', () => {
   });
 
   it('16. refuses to move an anchored run', () => {
-    const room = makeRoom([
-      makeRun('run', { anchors: { left: true, right: false } }),
-    ]);
+    subject.walls[0].runs = [
+      run({ ...runDefaults, id: 'run', anchors: { left: true, right: false } }),
+    ];
+    const room = subject;
     const result = moveRun(room, 'A', 'run', 60, DEFAULT_SETTINGS);
 
     expect(result).toEqual({
@@ -256,5 +218,39 @@ describe('moveRun', () => {
       snap: null,
     });
     expect(result.room).toBe(room);
+  });
+});
+
+describe('CC2 step c corner return snap defaults', () => {
+  beforeEach(() => {
+    subject = buildRoom({ walls: [
+      wall({ runs: [run({ id: 'owner', z: 0, autoCount: false,
+        items: [fixed('cc', 36), auto('a')], anchors: { left: true, right: false },
+        ends: { left: normalizeCornerEnd({}), right: { type: 'none' } },
+      })], connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }),
+      wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0,
+        connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
+        runs: [run({ id: 'return', z: 0, width: 100,
+          ends: { left: { type: 'none' }, right: { type: 'end_panel' } },
+        })],
+      }),
+    ] });
+  });
+
+  it.each([
+    [7, { type: 'end_panel', width: null }, { type: 'none', width: null }, 108],
+    ['typed filler', { type: 'filler', width: 2 }, { type: 'filler', width: 2 }, 108],
+    ['none', { type: 'none', width: null }, { type: 'none', width: null }, 108],
+    ['own corner', normalizeCornerEnd({}), normalizeCornerEnd({}), 144],
+  ])('anchor %s: snaps the return edge into the corner and keeps explicit choices', (_case, end, expected, edge) => {
+    subject.walls[1].runs[0].ends.right = end;
+    const before = structuredClone(subject);
+    const result = stretchRun(subject, 'wall-2', 'return', 'right', edge - 1, DEFAULT_SETTINGS);
+    expect(result.ok).toBe(true);
+    const stored = result.room.walls[1].runs[0];
+    expect(stored.anchors.right).toBe(true);
+    expect(stored.ends.right).toEqual(expected);
+    expect(stored.x + stored.width).toBe(edge);
+    expect(subject).toEqual(before);
   });
 });

@@ -1,8 +1,12 @@
 import {
+  beforeEach,
   describe,
   expect,
   it,
 } from 'vitest';
+import { room, wall } from '../../../test/builders.js';
+import { normalizeCornerEnd } from '../../model/cornerEnd.js';
+import { cornerEndActive, cornerForRunSide } from '../../model/corners.js';
 import {
   CABINET_TYPE_IDS,
 } from '../../model/constants.js';
@@ -748,5 +752,113 @@ describe('SPEC-37.1 an end panel keeps its own T choice', () => {
     state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'filler', width: null } }));
     state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'end_panel', width: null } }));
     expect(currentRun().endFiller.left).toBeNull();
+  });
+});
+
+describe('CC2 step c return end defaults', () => {
+  let state, owner, ret;
+  beforeEach(() => {
+    owner = run({ id: 'owner', z: 0, autoCount: false, items: [fixed('cc', 36), auto('a')],
+      anchors: { left: true, right: false },
+      ends: { left: normalizeCornerEnd({}), right: { type: 'none' } },
+    });
+    ret = run({ id: 'return', z: 0, width: 100,
+      ends: { right: { type: 'end_panel' } },
+    });
+    state = stateWithRun();
+    state.rooms = [room({ walls: [
+      wall({ runs: [owner], connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }),
+      wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0, runs: [ret],
+        connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
+      }),
+    ] })];
+  });
+
+  it.each([
+    [1, { type: 'end_panel', width: null }, { type: 'none', width: null }],
+    [2, { type: 'filler', width: 2 }, { type: 'filler', width: 2 }],
+    ['none', { type: 'none', width: null }, { type: 'none', width: null }],
+    ['corner', normalizeCornerEnd({}), normalizeCornerEnd({})],
+    ['blind', { type: 'blind', width: null }, { type: 'none', width: null }],
+  ])('anchor %s: defaults a newly anchored return end and preserves explicit choices', (_case, end, expected) => {
+    ret.ends.right = end;
+    const next = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-2', runId: 'return', side: 'right', value: true,
+    }));
+    expect(next.rooms[0].walls[1].runs[0].ends.right).toEqual(expected);
+    expect(next.rooms[0].walls[1].runs[0].anchors.right).toBe(true);
+  });
+
+  it('anchor 3: keeps the existing inside-corner filler default without a corner owner', () => {
+    owner.ends.left = { type: 'filler', width: null };
+    const next = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-2', runId: 'return', side: 'right', value: true,
+    }));
+    expect(next.rooms[0].walls[1].runs[0].ends.right).toEqual({ type: 'filler', width: null });
+  });
+
+  it.each([
+    [4, null, { type: 'none', width: null }],
+    [5, 2, { type: 'filler', width: 2 }],
+  ])('anchor %s: setting an owner corner clears only flex return fillers and their overrides', (_case, width, end) => {
+    owner.ends.left = { type: 'filler', width: null };
+    ret.anchors.right = true;
+    ret.ends.right = { type: 'filler', width };
+    ret.endFiller = { right: { width: 3, returnDepth: 24 } };
+    const next = elevationReducer(state, setRunEnd({
+      wallId: 'wall-1', runId: 'owner', side: 'left', end: { type: 'corner' },
+    }));
+    expect(next.rooms[0].walls[1].runs[0].ends.right).toEqual(end);
+    expect(next.rooms[0].walls[1].runs[0].endFiller.right)
+      .toEqual(width === null ? null : ret.endFiller.right);
+  });
+
+  it('anchor 6: removing the owner corner leaves the return end as none', () => {
+    owner.ends.left = { type: 'filler', width: null };
+    ret.anchors.right = true;
+    ret.ends.right = { type: 'filler', width: null };
+    const action = { wallId: 'wall-1', runId: 'owner', side: 'left' };
+    const corner = elevationReducer(state, setRunEnd({ ...action, end: { type: 'corner' } }));
+    const next = elevationReducer(corner, setRunEnd({ ...action, end: { type: 'filler', width: null } }));
+    expect(next.rooms[0].walls[1].runs[0].ends.right).toEqual({ type: 'none', width: null });
+  });
+
+  it('leaves flex return fillers alone when the new owner corner is inactive', () => {
+    owner.anchors.left = false;
+    owner.ends.left = { type: 'filler', width: null };
+    ret.anchors.right = true;
+    ret.ends.right = { type: 'filler', width: null };
+    const next = elevationReducer(state, setRunEnd({
+      wallId: 'wall-1', runId: 'owner', side: 'left', end: { type: 'corner' },
+    }));
+    expect(next.rooms[0].walls[1].runs[0].ends.right).toEqual({ type: 'filler', width: null });
+  });
+
+  it('anchor P1: defaults the host return to none after anchoring to the peninsula', () => {
+    const hostRun = run({ id: 'host-run', width: 72,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+    });
+    const penRun = run({ id: 'pen-run', width: 48, autoCount: false,
+      items: [fixed('pen-cc', 36), auto('b')],
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+    });
+    const host = wall({ id: 'host', runs: [hostRun] });
+    const pen = wall({ id: 'pen', x1: 72, y1: 0, x2: 72, y2: 48, runs: [penRun],
+      landings: { start: { wallId: 'host', side: 'front', ref: 'left', to: 'near', offset: 72 }, end: null },
+    });
+    const subject = room({ walls: [host, pen] });
+    const corner = cornerForRunSide(subject, host, {
+      ...hostRun, anchors: { left: false, right: { to: 'wall', wallId: 'pen' } },
+    }, 'right');
+    penRun.wallSide = corner.neighborWallSide;
+    penRun.anchors[corner.neighborSide] = true;
+    penRun.ends[corner.neighborSide] = normalizeCornerEnd({});
+    expect(cornerEndActive(subject, pen, penRun, corner.neighborSide).active).toBe(true);
+    state.rooms = [subject];
+    const next = elevationReducer(state, setRunAnchor({
+      wallId: 'host', runId: 'host-run', side: 'right', value: { to: 'wall', wallId: 'pen' },
+    }));
+    expect(next.rooms[0].walls[0].runs[0].ends.right).toEqual({ type: 'none', width: null });
+    expect(next.rooms[0].walls[0].runs[0].anchors.right).toEqual({ to: 'wall', wallId: 'pen' });
   });
 });
