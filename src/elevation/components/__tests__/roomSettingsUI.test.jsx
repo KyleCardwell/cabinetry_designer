@@ -206,9 +206,9 @@ describe('DB2 d room settings panel', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('anchor 1: opens eleven filler fields with an empty inherited width of 3 and no Reset', () => {
+  it('anchor 1: opens fourteen filler and corner fields with an empty inherited width of 3 and no Reset', () => {
     const tree = openGroup('Fillers & corners');
-    expect(controls(tree)).toHaveLength(11);
+    expect(controls(tree)).toHaveLength(14);
     expect(field(tree, 'Room Interior filler width').props).toMatchObject({ value: '', placeholder: '3' });
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-gray-600');
     expect(field(tree, 'Reset Interior filler width')).toBeUndefined();

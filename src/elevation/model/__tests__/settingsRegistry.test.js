@@ -11,14 +11,43 @@ function leaves(values, prefix = '') {
   });
 }
 
+describe('CC3.1 step a corner door settings', () => {
+  it('anchor 1: defaults the door gap, diagonal reveal and door arrangement', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({
+      cornerDoorGap: 0.125, cornerDiagonalReveal: 0.125, cornerDoors: 'equal',
+    });
+  });
+
+  it('anchor 4: registers the labels, kinds, choices and room inheritance', () => {
+    for (const [key, label, kind, value] of [
+      ['cornerDoorGap', 'Corner 90 door gap', 'number', 0.125],
+      ['cornerDiagonalReveal', 'Corner 45 door reveal', 'number', 0.125],
+      ['cornerDoors', 'Corner 90 doors', 'choice', 'equal'],
+    ]) {
+      expect(registryEntry(key)).toEqual({ key, label, kind, lowest: 'room',
+        ...(kind === 'choice' ? { choices: ['equal', 'a_long', 'b_long'] } : {}),
+      });
+      expect(resolveSetting(key).value).toBe(value);
+      for (const level of ['team', 'project', 'phase', 'room']) {
+        const pick = kind === 'choice' ? 'a_long' : 0.25;
+        expect(cleanOverrides({ [key]: pick }, level)).toEqual({ [key]: pick });
+        expect(resolveSetting(key, [{ level, values: { [key]: pick } }]).value).toBe(pick);
+      }
+      for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
+      expect(groupsFor('room').find(({ id }) => id === 'fillers-corners').keys).toContain(key);
+    }
+    expect(cleanOverrides({ cornerDoors: 'x' }, 'room')).toEqual({});
+  });
+});
+
 describe('DB1 a settings registry', () => {
-  it('covers exactly 171 settings leaves, with 118 room settings and 15 team-only settings after SH7.4 a', () => {
+  it('covers exactly 174 settings leaves, with 121 room settings and 15 team-only settings after CC3.1 a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(171);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(118);
+    expect(new Set(keys).size).toBe(174);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(121);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 

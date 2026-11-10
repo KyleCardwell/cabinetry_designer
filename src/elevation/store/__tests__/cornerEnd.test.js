@@ -11,7 +11,7 @@ import { isElevationDocument, normalizeElevationDocument, toElevationDocument } 
 
 const defaultCorner = {
   type: 'corner', width: null,
-  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null },
+  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null },
 };
 const target = { wallId: 'wall-1', runId: 'run-1', side: 'left' };
 let state;
@@ -29,6 +29,53 @@ beforeEach(() => {
 });
 
 const current = (subject) => subject.rooms[0].walls[0].runs[0];
+
+describe('CC3.1 step a stored corner doors', () => {
+  it('anchor 2: defaults to inheritance and preserves explicit choices', () => {
+    expect(normalizeCornerEnd({}).corner.doors).toBeNull();
+    for (const doors of [null, 'equal', 'a_long', 'b_long']) {
+      expect(normalizeCornerEnd({ corner: { doors } }).corner.doors).toBe(doors);
+    }
+  });
+
+  it('anchor 3: loads valid overrides and rejects invalid corner door settings', () => {
+    for (const doors of [null, 'equal', 'a_long', 'b_long']) {
+      const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner', corner: { doors } } }));
+      const document = toElevationDocument(next);
+      document.rooms[0].settingsOverrides = { cornerDoors: 'b_long', cornerDoorGap: 0, cornerDiagonalReveal: 0.25 };
+      expect(isElevationDocument(document)).toBe(true);
+      const loaded = createInitialElevationState(normalizeElevationDocument(document));
+      expect(current(loaded).ends.left.corner.doors).toBe(doors);
+      expect(loaded.rooms[0].settingsOverrides).toEqual(document.rooms[0].settingsOverrides);
+
+      for (const invalid of ['x', '', 90, false, {}]) {
+        const bad = structuredClone(document);
+        current(bad).ends.left.corner.doors = invalid;
+        expect(isElevationDocument(bad)).toBe(false);
+      }
+      for (const [key, invalidValues] of [
+        ['cornerDoors', ['x', '', null, false, 90]],
+        ['cornerDoorGap', [-1, '0.125', null, Infinity, NaN]],
+        ['cornerDiagonalReveal', [-1, '0.125', null, Infinity, NaN]],
+      ]) {
+        for (const invalid of invalidValues) {
+          for (const scope of ['settings', 'room']) {
+            const bad = structuredClone(document);
+            const settings = scope === 'settings' ? bad.settings : bad.rooms[0].settingsOverrides;
+            settings[key] = invalid;
+            expect(isElevationDocument(bad), `${scope}.${key}: ${invalid}`).toBe(false);
+          }
+        }
+      }
+    }
+    const legacy = structuredClone(toElevationDocument(elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }))));
+    for (const key of ['cornerDoorGap', 'cornerDiagonalReveal', 'cornerDoors']) delete legacy.settings[key];
+    delete current(legacy).ends.left.corner.doors;
+    const normalized = normalizeElevationDocument(legacy);
+    expect(isElevationDocument(normalized)).toBe(true);
+    expect(normalized.settings).toMatchObject({ cornerDoorGap: 0.125, cornerDiagonalReveal: 0.125, cornerDoors: 'equal' });
+  });
+});
 
 describe('CC1 step a corner end data', () => {
   it('anchor 1: replaces an auto left track with the default 36-inch manual leg', () => {
@@ -56,7 +103,7 @@ describe('CC1 step a corner end data', () => {
       end: { type: 'corner', corner: { kind: 45, legB: 30, depthB: 15 } },
     }));
     expect(current(next).ends.left).toEqual({ type: 'corner', width: null,
-      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null } });
+      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null, doors: null } });
     for (const returnPiece of RETURN_PIECES) {
       expect(normalizeCornerEnd({ type: 'corner', width: 2, height: 'full', auto: true,
         extend: {}, styleId: 'old', sizes: {}, corner: { returnPiece } }))

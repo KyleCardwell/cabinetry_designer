@@ -39,6 +39,8 @@ const roomNumbers = [
   ['teeThickness', 'Tee thickness'],
   ['blindFillerWidth', 'Blind filler width'],
   ['cornerFillerMinWidth', 'Corner filler minimum'],
+  ['cornerDoorGap', 'Corner 90 door gap'],
+  ['cornerDiagonalReveal', 'Corner 45 door reveal'],
   ['defaultSoffitDepth', 'Soffit depth'],
   ['casingWidth', 'Casing width'],
   ['casingThickness', 'Casing thickness'],
@@ -139,6 +141,7 @@ export const SETTINGS_REGISTRY = [
   { key: 'drawerPullOrientation', label: 'Drawer pull direction', kind: 'choice', lowest: 'room', choices: ['auto', 'vertical', 'horizontal'] },
   ...teamNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'team' })),
   ...roomNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'room' })),
+  { key: 'cornerDoors', label: 'Corner 90 doors', kind: 'choice', lowest: 'room', choices: ['equal', 'a_long', 'b_long'] },
   ...[
     ['snapHeightsToDefaults', 'Snap run heights to defaults'],
     ['autoEndPanelOnFreeEnd', 'Add end panels to free run ends'],

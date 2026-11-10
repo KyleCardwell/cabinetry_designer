@@ -24,6 +24,7 @@ export function normalizeCornerEnd(end) {
       depthB: end.corner?.depthB ?? null,
       returnPiece: end.corner?.returnPiece ?? 'auto',
       returnWidth: end.corner?.returnWidth ?? null,
+      doors: end.corner?.doors ?? null,
     },
   };
 }

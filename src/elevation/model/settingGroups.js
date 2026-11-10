@@ -27,6 +27,7 @@ export const SETTING_GROUPS = [
       'fillerMinWidth', 'fillerWarnWidth', 'defaultInteriorFillerWidth', 'fillerReturnDepth',
       'fillerReturnThickness', 'fillerThickness', 'fillerReturnTongue',
       'teeCover', 'teeThickness', 'blindFillerWidth', 'cornerFillerMinWidth',
+      'cornerDoorGap', 'cornerDiagonalReveal', 'cornerDoors',
     ],
   },
   {

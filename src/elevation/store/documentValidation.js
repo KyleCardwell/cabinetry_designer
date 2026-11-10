@@ -21,6 +21,7 @@ import { isShapeList } from '../model/libraryShapes.js';
 import { isLegList } from '../model/legs.js';
 import { isEndLegs } from '../model/endLegs.js';
 import { CORNER_KINDS, RETURN_PIECES } from '../model/cornerEnd.js';
+import { registryEntry } from '../model/settingsRegistry.js';
 import { isWallEndLegs } from '../model/wallEndLegs.js';
 import {
   DOOR_STYLE_KEYS,
@@ -130,11 +131,13 @@ function isEnd(end) {
       && Object.keys(end).every((key) => ['type', 'width', 'corner'].includes(key))
       && end.width === null
       && isPlainObject(corner)
-      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth'].includes(key))
+      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth', 'doors'].includes(key))
       && CORNER_KINDS.includes(corner.kind)
       && [corner.legB, corner.depthB, corner.returnWidth].every((value) => value === null
         || (isFiniteNumber(value) && value > 0))
-      && RETURN_PIECES.includes(corner.returnPiece);
+      && RETURN_PIECES.includes(corner.returnPiece)
+      && (corner.doors === undefined || corner.doors === null
+        || registryEntry('cornerDoors').choices.includes(corner.doors));
   }
   return Boolean(end)
     && !Object.hasOwn(end, 'corner')
@@ -699,7 +702,8 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && (room.tFiller === undefined || T_FILLER_RUN_VALUES.includes(room.tFiller))
     && (room.roomLines === undefined || (Array.isArray(room.roomLines) && room.roomLines.every(isRoomLine)
       && new Set(room.roomLines.map((line) => line.id)).size === room.roomLines.length))
-    && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))
+    && (room.settingsOverrides === undefined || (isPlainObject(room.settingsOverrides)
+      && hasValidCornerDoorSettings(room.settingsOverrides)))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
     && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')
     && (room.swingMarks === undefined || typeof room.swingMarks === 'boolean')
@@ -746,6 +750,12 @@ function hasValidEnds(settings) {
     && DEFAULT_END_TYPES.has(settings.defaultEnds?.right);
 }
 
+function hasValidCornerDoorSettings(settings) {
+  return (settings.cornerDoors === undefined || registryEntry('cornerDoors').choices.includes(settings.cornerDoors))
+    && ['cornerDoorGap', 'cornerDiagonalReveal'].every((key) => settings[key] === undefined
+      || (isFiniteNumber(settings[key]) && settings[key] >= 0));
+}
+
 function isSettings(settings, profileKeys = PROFILE_KEYS) {
   return Boolean(settings)
     && isDoorStyle(settings.teamDoorStyle)
@@ -758,6 +768,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isShapeList(settings.shapes)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
+    && hasValidCornerDoorSettings(settings)
     && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
