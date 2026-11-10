@@ -39,6 +39,12 @@ const WARNING_MESSAGES = {
   'corner-doubled': 'Both runs in this corner have a corner cabinet.',
 };
 
+/** Auto depth B is the deepest compatible return run's box depth, else the owner's. */
+export function cornerDepthBAuto(room, wall, run, side) {
+  const { runs } = cornerReturnRuns(room, wall, run, side);
+  return runs.length ? Math.max(...runs.map((candidate) => candidate.depth)) : run.depth;
+}
+
 /** Resolve the owner column, return dimensions and geometry, including inactive corner ends. */
 export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const end = run.ends?.[side];
@@ -57,8 +63,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const legB = end.corner?.legB ?? legA;
   const depthA = run.depth;
   const returnSide = cornerReturnPiece(room, view, run, side, settings);
-  const depthB = end.corner?.depthB
-    ?? (returns.length ? Math.max(...returns.map((candidate) => candidate.depth)) : depthA);
+  const depthB = end.corner?.depthB ?? cornerDepthBAuto(room, view, run, side);
   const kind = end.corner?.kind ?? 90;
   const geometry = legA === null ? null : cornerCabinetShape({ kind, legA, legB, depthA, depthB });
   const warnings = [];

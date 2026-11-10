@@ -2,6 +2,7 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerEnd } from './cornerEnd.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
@@ -48,6 +49,8 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
   const frames = frameContext?.frames ?? frameRegions(room, run, cells, settings);
   const { covers: teeCovers } = teeFillers(room, run, cells, settings);
   const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+  const corners = ['left', 'right'].map((side) => run.ends?.[side]?.type === 'corner'
+    ? cornerEnd(room, wall, run, side, settings, layout) : null);
   for (const piece of cells.pieces) {
     if (piece.kind !== 'cabinet' || piece.role !== 'item') continue;
     const item = piece.columnId
@@ -78,6 +81,15 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       x: piece.x + (free.left ? overhang : 0),
       width: piece.width - (free.left ? overhang : 0) - (free.right ? overhang : 0),
     };
+    const corner = corners.find((end) => end?.active && end.shape && end.columnId === piece.id
+      && !piece.columnId);
+    let squash = null;
+    if (corner) {
+      const pivot = piece.x + (corner.side === 'left' ? corner.legA : 0);
+      box.width = corner.kind === 45 ? corner.shape.trueWidth : corner.shape.shown.a;
+      box.x = pivot - (corner.side === 'left' ? box.width : 0);
+      if (corner.kind === 45) squash = { pivot, k: corner.shape.shown.a / box.width };
+    }
     const storedFace = item?.face ?? defaultFace(box.width, settings);
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
@@ -124,9 +136,11 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
         : Math.abs(piece.x + piece.width - run.x - run.width) <= EPSILON;
       return [side, atEdge && (anchor === true || anchor?.to === 'wall')];
     }));
+    if (corner) wallSides[corner.side] = false;
     const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered, {
       wallSides,
-      runCenter: run.x + run.width / 2,
+      // The nearer-run-end fallback would still hinge into the corner; prefer its outer edge.
+      runCenter: corner ? box.x + (corner.side === 'right' ? box.width : 0) : run.x + run.width / 2,
     });
     const faces = hinged.faces.map((f) => {
       const partType = facePartType(f.type);
@@ -150,6 +164,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       style,
       reveals,
       box,
+      ...(corner ? { squash, corner: { side: corner.side, kind: corner.kind } } : {}),
       // The tree as laid out: matched groups and grown standard fronts carry their real sizes (IN7.2/IN7.3).
       layoutFace: face,
       openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
