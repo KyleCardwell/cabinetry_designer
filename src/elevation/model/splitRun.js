@@ -386,7 +386,7 @@ function splitSegment(run, settings, opts) {
   const rawPieces = [];
   const gapsAfter = [];
   const addEnd = (side, end) => {
-    if (end.type === 'none') return;
+    if (end.type === 'none' || end.type === 'corner') return;
     let width = endWidth(end, settings, run._endThickness?.[side]);
     if (isFlexEnd(end)) width = side === 'left' ? leftFlexWidth : rightFlexWidth;
     const kind = FILLER_END_TYPES.has(end.type) ? 'filler' : end.type;
@@ -430,7 +430,7 @@ function splitSegment(run, settings, opts) {
   if (computedItems.length > 0) gapsAfter[gapsAfter.length - 1] += rightGap;
   addEnd('right', run.ends.right);
 
-  let x = run.x + room.left + (run.ends.left.type === 'none' ? leftGap : 0);
+  let x = run.x + room.left + (['none', 'corner'].includes(run.ends.left.type) ? leftGap : 0);
   const pieces = rawPieces.map((piece, index) => {
     const positioned = {
       ...piece,

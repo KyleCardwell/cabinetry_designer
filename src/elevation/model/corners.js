@@ -210,6 +210,9 @@ function crossingReserve(room, corner, run, settings, sine) {
 /** Return the face, back, and lap components of a corner reserve and its controlling neighbor. */
 export function cornerReserveParts(room, wall, side, run, settings, { laps = true } = {}) {
   wall = wallViewForRun(wall, run);
+  if (run.ends?.[side]?.type === 'corner' && cornerEndActive(room, wall, run, side).active) {
+    return { face: 0, back: 0, lap: 0, total: 0, source: 'corner', neighborRunId: null };
+  }
   const corner = cornerForRunSide(room, wall, run, side);
   if (corner.type !== 'inside') {
     const override = run.cornerClearance?.[side];
