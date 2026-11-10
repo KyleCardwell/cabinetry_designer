@@ -1,6 +1,6 @@
-/** Drawing-only projection from a corner face's true width onto its owner's wall. */
-export function squashX(x, { pivot, k }) {
-  return pivot + (x - pivot) * k;
+/** Drawing-only projection from a corner face's true width onto a wall. */
+export function squashX(x, { pivot, k, from }) {
+  return pivot + (x - (from ?? pivot)) * k;
 }
 
 export function squashRect(rect, squash) {

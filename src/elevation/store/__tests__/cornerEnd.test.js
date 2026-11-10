@@ -11,7 +11,7 @@ import { isElevationDocument, normalizeElevationDocument, toElevationDocument } 
 
 const defaultCorner = {
   type: 'corner', width: null,
-  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null },
+  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null },
 };
 const target = { wallId: 'wall-1', runId: 'run-1', side: 'left' };
 let state;
@@ -29,6 +29,29 @@ beforeEach(() => {
 });
 
 const current = (subject) => subject.rooms[0].walls[0].runs[0];
+
+describe('CC4 step a stored leg B face', () => {
+  it('anchor 11: defaults to inheritance, loads valid faces and rejects invalid faces', () => {
+    expect(normalizeCornerEnd({}).corner.legBFace).toBeNull();
+    for (const legBFace of [null, 'door', 'panel']) {
+      const next = elevationReducer(state, setRunEnd({ ...target,
+        end: { type: 'corner', corner: { legBFace } },
+      }));
+      const document = toElevationDocument(next);
+      expect(isElevationDocument(document)).toBe(true);
+      expect(current(createInitialElevationState(normalizeElevationDocument(document))).ends.left.corner.legBFace)
+        .toBe(legBFace);
+      for (const invalid of ['x', '', 90, false, {}, 'pair_door']) {
+        const bad = structuredClone(document);
+        current(bad).ends.left.corner.legBFace = invalid;
+        expect(isElevationDocument(bad)).toBe(false);
+      }
+      const legacy = structuredClone(document);
+      delete current(legacy).ends.left.corner.legBFace;
+      expect(isElevationDocument(normalizeElevationDocument(legacy))).toBe(true);
+    }
+  });
+});
 
 describe('CC3.1 step a stored corner doors', () => {
   it('anchor 2: defaults to inheritance and preserves explicit choices', () => {
@@ -103,7 +126,7 @@ describe('CC1 step a corner end data', () => {
       end: { type: 'corner', corner: { kind: 45, legB: 30, depthB: 15 } },
     }));
     expect(current(next).ends.left).toEqual({ type: 'corner', width: null,
-      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null, doors: null } });
+      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null } });
     for (const returnPiece of RETURN_PIECES) {
       expect(normalizeCornerEnd({ type: 'corner', width: 2, height: 'full', auto: true,
         extend: {}, styleId: 'old', sizes: {}, corner: { returnPiece } }))

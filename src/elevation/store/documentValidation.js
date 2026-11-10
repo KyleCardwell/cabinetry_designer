@@ -20,7 +20,7 @@ import { isSectionProfileList } from '../model/sectionProfiles.js';
 import { isShapeList } from '../model/libraryShapes.js';
 import { isLegList } from '../model/legs.js';
 import { isEndLegs } from '../model/endLegs.js';
-import { CORNER_KINDS, RETURN_PIECES } from '../model/cornerEnd.js';
+import { CORNER_KINDS, LEG_B_FACES, RETURN_PIECES } from '../model/cornerEnd.js';
 import { registryEntry } from '../model/settingsRegistry.js';
 import { isWallEndLegs } from '../model/wallEndLegs.js';
 import {
@@ -131,11 +131,12 @@ function isEnd(end) {
       && Object.keys(end).every((key) => ['type', 'width', 'corner'].includes(key))
       && end.width === null
       && isPlainObject(corner)
-      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth', 'doors'].includes(key))
+      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth', 'doors', 'legBFace'].includes(key))
       && CORNER_KINDS.includes(corner.kind)
       && [corner.legB, corner.depthB, corner.returnWidth].every((value) => value === null
         || (isFiniteNumber(value) && value > 0))
       && RETURN_PIECES.includes(corner.returnPiece)
+      && (corner.legBFace === undefined || corner.legBFace === null || LEG_B_FACES.includes(corner.legBFace))
       && (corner.doors === undefined || corner.doors === null
         || registryEntry('cornerDoors').choices.includes(corner.doors));
   }

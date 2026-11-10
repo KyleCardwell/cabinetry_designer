@@ -3,9 +3,10 @@ import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeSto
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerEnd } from './cornerEnd.js';
+import { cornerReturnPoint } from './corners.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
-import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
+import { applyHinges, cabinetFaces, defaultFace, faceArea, flipHinges } from './faces.js';
 import { faceOutline, getFaceNode } from './faceTree.js';
 import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
@@ -27,6 +28,56 @@ function resolveFaceMatches(face, match, height) {
   return face.match === match || children?.some((child, index) => child !== face.children[index])
     ? { ...face, size: face.match === match ? height : face.size, ...(children ? { children } : {}) }
     : face;
+}
+
+/** Shared true-size face layout for an owner cabinet and its return leg. */
+function layoutCabinetFace({
+  room, wall, run, settings, item, box, style, reveals, storedFace, runEdges,
+  stops, covered, hingeContext, layoutFace = null, extraWarnings = [],
+}) {
+  // An inherited B tree already carries A's resolved matches and front growth.
+  let face = layoutFace;
+  if (!face) {
+    // A smaller top reveal than stone grows the standard drawer fronts, not the others (IN7.2).
+    const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
+      ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
+    const matchedFace = resolveFaceMatches(storedFace, 'base', baseBankHeight(room, wall, style, settings));
+    face = growStandardFronts(resolveFaceMatches(matchedFace, 'standard', standardDrawerHeight(style, settings)), topGrowth);
+  }
+  let resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
+  if (isInsetStyle(style)) {
+    reveals.values.squarePaths = new Set(resolved.faces.filter((rect) => !faceEdgeProfiled(
+      room, wall, run, item, getFaceNode(face, rect.path), rect, settings,
+    )).map(({ path }) => path));
+    resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
+  }
+  const hinged = applyHinges(resolved.faces, stops, covered, hingeContext);
+  const faces = hinged.faces.map((f) => {
+    const partType = facePartType(f.type);
+    if (partType === null) return f;
+    const { style: doorStyle } = resolveDoorStyle(
+      room, settings, partType,
+      cabinetFaceLevels(room, wall, run, item, getFaceNode(face, f.path)),
+    );
+    const { thickness } = doorStyle;
+    return Math.abs(thickness - teamDoorStyle(settings).thickness) > 1e-9
+      ? { ...f, thickness }
+      : f;
+  });
+  return {
+    faces,
+    warnings: [
+      ...resolved.warnings,
+      ...hinged.warnings,
+      ...extraWarnings,
+    ],
+    reveals,
+    box,
+    // The tree as laid out: matched groups and grown standard fronts carry their real sizes (IN7.2/IN7.3).
+    layoutFace: face,
+    openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
+  };
 }
 
 /**
@@ -130,19 +181,6 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
         }
       }
     }
-    // A smaller top reveal than stone grows the standard drawer fronts, not the others (IN7.2).
-    const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
-      && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
-      ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
-    const matchedFace = resolveFaceMatches(storedFace, 'base', baseBankHeight(room, wall, style, settings));
-    const face = growStandardFronts(resolveFaceMatches(matchedFace, 'standard', standardDrawerHeight(style, settings)), topGrowth);
-    let resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
-    if (isInsetStyle(style)) {
-      reveals.values.squarePaths = new Set(resolved.faces.filter((rect) => !faceEdgeProfiled(
-        room, wall, run, item, getFaceNode(face, rect.path), rect, settings,
-      )).map(({ path }) => path));
-      resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
-    }
     const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
       const anchor = run.anchors?.[side];
       const atEdge = side === 'left'
@@ -151,38 +189,60 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       return [side, atEdge && (anchor === true || anchor?.to === 'wall')];
     }));
     if (corner) wallSides[corner.side] = false;
-    const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered, {
-      wallSides,
-      // The nearer-run-end fallback would still hinge into the corner; prefer its outer edge.
-      runCenter: corner ? box.x + (corner.side === 'right' ? box.width : 0) : run.x + run.width / 2,
+    const entry = layoutCabinetFace({
+      room, wall, run, settings, item, box, style, reveals, storedFace, runEdges,
+      stops: hingeStops(cells.pieces, piece.id), covered,
+      hingeContext: {
+        wallSides,
+        // Prefer the edge away from the corner over the nearer run end.
+        runCenter: corner ? box.x + (corner.side === 'right' ? box.width : 0) : run.x + run.width / 2,
+      },
+      extraWarnings: pairCovers ? [{ code: 'pair-door-covers-panel', path: 'r' }] : [],
     });
-    const faces = hinged.faces.map((f) => {
-      const partType = facePartType(f.type);
-      if (partType === null) return f;
-      const { style: doorStyle } = resolveDoorStyle(
-        room, settings, partType,
-        cabinetFaceLevels(room, wall, run, item, getFaceNode(face, f.path)),
-      );
-      const { thickness } = doorStyle;
-      return Math.abs(thickness - teamDoorStyle(settings).thickness) > 1e-9
-        ? { ...f, thickness }
-        : f;
-    });
-    result.set(piece.id, {
-      faces,
-      warnings: [
-        ...resolved.warnings,
-        ...hinged.warnings,
-        ...(pairCovers ? [{ code: 'pair-door-covers-panel', path: 'r' }] : []),
-      ],
-      style,
-      reveals,
-      box,
-      ...(corner ? { squash, corner: { side: corner.side, kind: corner.kind } } : {}),
-      // The tree as laid out: matched groups and grown standard fronts carry their real sizes (IN7.2/IN7.3).
-      layoutFace: face,
-      openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
-    });
+    entry.style = style;
+    if (corner) {
+      entry.squash = squash;
+      entry.corner = { side: corner.side, kind: corner.kind };
+      const point = cornerReturnPoint(room, wall, run, corner.side);
+      if (point) {
+        let legB = null;
+        let returnSquash = null;
+        if (corner.kind === 90) {
+          const boxB = {
+            ...box,
+            x: Math.min(point.at + point.dir * corner.depthA, point.at + point.dir * corner.legB),
+            width: corner.legB - corner.depthA,
+          };
+          const farA = corner.side === 'left' ? 'right' : 'left';
+          const cornerB = point.dir === 1 ? 'left' : 'right';
+          const farB = point.dir === 1 ? 'right' : 'left';
+          const revealsB = { values: { ...reveals.values }, sources: { ...reveals.sources } };
+          delete revealsB.values.squarePaths;
+          revealsB.values[farB] = reveals.values[farA];
+          revealsB.sources[farB] = reveals.sources[farA];
+          revealsB.values[cornerB] = cornerLayout.b.cornerReveal ?? reveals.values[farA];
+          revealsB.sources[cornerB] = cornerLayout.b.cornerReveal === null
+            ? reveals.sources[farA] : 'rule:corner';
+          const faceB = run.ends[corner.side].corner?.legBFace;
+          const tree = faceB ? { type: faceB } : flipHinges(entry.layoutFace);
+          legB = layoutCabinetFace({
+            room, wall, run, settings, item, box: boxB, style, reveals: revealsB,
+            storedFace: tree, layoutFace: tree, runEdges,
+            stops: { left: false, right: false }, covered: { left: 0, right: 0 },
+            hingeContext: { wallSides: { left: false, right: false },
+              runCenter: boxB.x + (point.dir === -1 ? boxB.width : 0) },
+          });
+        } else {
+          returnSquash = {
+            from: squash.pivot,
+            pivot: point.at + point.dir * cornerLayout.feet.a[1],
+            k: corner.shape.shown.b / corner.shape.trueWidth,
+          };
+        }
+        entry.cornerReturn = { ...point, legB, squash: returnSquash };
+      }
+    }
+    result.set(piece.id, entry);
   }
   return result;
 }

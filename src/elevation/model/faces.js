@@ -119,6 +119,15 @@ function isFaceNodeWithin(node, parentDirection) {
     && (node.noRail === undefined || isSeamList(node));
 }
 
+/** Copy a face tree, swapping stored horizontal hinges without reversing children or paths. */
+export function flipHinges(face) {
+  return {
+    ...face,
+    ...(face.hinge === 'left' ? { hinge: 'right' } : face.hinge === 'right' ? { hinge: 'left' } : {}),
+    ...(face.children ? { children: face.children.map(flipHinges) } : {}),
+  };
+}
+
 /** The face a cabinet shows before anyone edits it. */
 export function defaultFace(width, settings) {
   const threshold = settings.pairDoorAboveWidth ?? DEFAULT_SETTINGS.pairDoorAboveWidth;

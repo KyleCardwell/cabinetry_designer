@@ -236,8 +236,8 @@ export function cornerReach(room, wall, owner, side, settings) {
   return cornerLegs(owner, side).legB + cornerReturnPiece(room, wall, owner, side, settings).width;
 }
 
-/** The active corner cabinet's occupied interval on the return wall face. */
-export function cornerReturnFootprint(room, wall, owner, side, settings) {
+/** The active corner's origin and direction on its return wall face. */
+export function cornerReturnPoint(room, wall, owner, side) {
   if (!cornerEndActive(room, wall, owner, side).active) return null;
   const corner = cornerForRunSide(room, wall, owner, side);
   const returnWall = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
@@ -248,10 +248,18 @@ export function cornerReturnFootprint(room, wall, owner, side, settings) {
     const landing = landingsOn(room, view).find((entry) => entry.wallId === corner.anchorWallId);
     x = landing[left ? 'b' : 'a'];
   }
+  return { wallId: returnWall.id, wallSide: corner.neighborWallSide, at: x, dir: left ? 1 : -1 };
+}
+
+/** The active corner cabinet's occupied interval on the return wall face. */
+export function cornerReturnFootprint(room, wall, owner, side, settings) {
+  const point = cornerReturnPoint(room, wall, owner, side);
+  if (!point) return null;
+  const { wallId, wallSide, at, dir } = point;
   const reach = cornerReach(room, wall, owner, side, settings);
   return {
-    wallId: returnWall.id, wallSide: corner.neighborWallSide,
-    x0: left ? x : x - reach, x1: left ? x + reach : x,
+    wallId, wallSide,
+    x0: dir === 1 ? at : at - reach, x1: dir === 1 ? at + reach : at,
     z0: verticalStart(owner), z1: owner.z + owner.height,
   };
 }

@@ -74,7 +74,7 @@ describe('CC3 step d corner run end fields', () => {
   it('anchor 3: creates a 45 corner and a manual 36-inch root column', () => {
     corner(45);
     expect(run().ends.left).toEqual({ type: 'corner', width: null, corner: {
-      kind: 45, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null,
+      kind: 45, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null,
     } });
     expect(run().grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 36 });
     expect(field('type').props.value).toBe('corner:45');
@@ -82,14 +82,14 @@ describe('CC3 step d corner run end fields', () => {
 
   it('anchor 4: preserves every stored corner choice when changing kind and other fields', () => {
     run().ends.left = { type: 'corner', width: null, corner: {
-      kind: 90, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long',
+      kind: 90, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long', legBFace: 'panel',
     } };
     corner(45);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long' });
+    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long', legBFace: 'panel' });
     commit('corner return width', 4);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 4, doors: 'a_long' });
+    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 4, doors: 'a_long', legBFace: 'panel' });
     commit('corner return width', null);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: null, doors: 'a_long' });
+    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: null, doors: 'a_long', legBFace: 'panel' });
   });
 
   it('anchor 5: edits leg A through its outer root track and resets blank to 36', () => {

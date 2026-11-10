@@ -14,6 +14,7 @@ import { wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
 
 export const CORNER_KINDS = [90, 45];
 export const RETURN_PIECES = ['auto', 'end_panel', 'filler', 'none'];
+export const LEG_B_FACES = ['door', 'panel'];
 
 /** Replace an end with only the stored corner choices, defaulting missing parts. */
 export function normalizeCornerEnd(end) {
@@ -27,6 +28,7 @@ export function normalizeCornerEnd(end) {
       returnPiece: end.corner?.returnPiece ?? 'auto',
       returnWidth: end.corner?.returnWidth ?? null,
       doors: end.corner?.doors ?? null,
+      legBFace: end.corner?.legBFace ?? null,
     },
   };
 }
