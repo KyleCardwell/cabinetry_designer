@@ -1,5 +1,6 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellPieces, floatingShelfLayout, panelOrientation, shelfParts } from './cells.js';
+import { cornerEnd } from './cornerEnd.js';
 import { extendPieces } from './extensions.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
@@ -40,6 +41,21 @@ export function runScene(room, wall, run, settings) {
     }
     if (entry.panel && entry.endPieceId) {
       subLabels.set(entry.endPieceId, `Panel ${formatInches(entry.panel.width)}`);
+    }
+  }
+  const cornerPanels = [];
+  for (const [columnId, entry] of faceLayouts) {
+    if (!entry.corner) continue;
+    const { side, kind } = entry.corner;
+    const { returnSide, legA, depthB } = cornerEnd(room, wall, run, side, settings, result);
+    subLabels.set(columnId, `Corner ${kind}`);
+    if (returnSide.type === 'end_panel') {
+      const piece = result.pieces.find((candidate) => candidate.id === columnId);
+      cornerPanels.push({
+        key: `corner-panel:${side}`, side,
+        x: piece.x + (side === 'right' ? legA - depthB : 0),
+        width: depthB, columnId,
+      });
     }
   }
   const panels = blind.entries.filter((entry) => entry.panel).map((entry) => ({
@@ -87,6 +103,6 @@ export function runScene(room, wall, run, settings) {
   ];
   return {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, blind, subLabels,
-    panels, panelPieceIds, panelBySide, endBottom, shelves, tees, ells, drawnPieces,
+    panels, cornerPanels, panelPieceIds, panelBySide, endBottom, shelves, tees, ells, drawnPieces,
   };
 }

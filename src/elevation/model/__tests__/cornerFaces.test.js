@@ -5,8 +5,10 @@ import { cornerDepthBAuto, normalizeCornerEnd } from '../cornerEnd.js';
 import { cornerForRunSide } from '../corners.js';
 import { squashRect } from '../cornerSquash.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
+import { partNumbers } from '../partNumbers.js';
+import { runScene } from '../runScene.js';
 
-describe('CC3 step a corner face boxes', () => {
+describe('CC3 corner face boxes and scene', () => {
   let subject, ownerWall, returnWall, owner;
   beforeEach(() => {
     owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
@@ -102,6 +104,17 @@ describe('CC3 step a corner face boxes', () => {
     expect(entry.box.x).toBe(pivot);
     expect(entry.box.width).toBeCloseTo(16.971, 3);
     expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(12, 10);
+
+    // Step b anchors 5 and 6: the peninsula covers the return side until removed.
+    const covered = runScene(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS);
+    expect(covered.cornerPanels).toEqual([]);
+    expect(covered.subLabels.get('cc')).toBe('Corner 45');
+    pen.runs = [];
+    const exposed = runScene(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS);
+    expect(exposed.cornerPanels).toEqual([
+      { key: 'corner-panel:right', side: 'right', x: pivot + 12, width: 24, columnId: 'cc' },
+    ]);
+    expect(exposed.subLabels.get('cc')).toBe('Corner 45');
   });
 
   it('anchor 7: leaves inactive corner entries ordinary', () => {
@@ -129,6 +142,9 @@ describe('CC3 step a corner face boxes', () => {
     expect(entry.box).toMatchObject({ x: 0, width: 36 });
     expect(entry).not.toHaveProperty('squash');
     expect(entry).not.toHaveProperty('corner');
+    const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+    expect(scene.cornerPanels).toEqual([]);
+    expect([...scene.subLabels.values()].some((label) => label.startsWith('Corner'))).toBe(false);
   });
 
   it('anchor 9: changes only the corner column when changing kind', () => {
@@ -147,5 +163,63 @@ describe('CC3 step a corner face boxes', () => {
     returnWall.runs.pop();
     returnWall.runs[0].cabinetTypeId = CABINET_TYPE_IDS.UPPER;
     expect(cornerDepthBAuto(subject, ownerWall, owner, 'left')).toBe(24);
+  });
+
+  it('step b anchor 1: exposes the 90 return panel and labels the full-width column', () => {
+    const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+    expect(scene.cornerPanels).toEqual([
+      { key: 'corner-panel:left', side: 'left', x: 0, width: 24, columnId: 'cc' },
+    ]);
+    expect(scene.subLabels.get('cc')).toBe('Corner 90');
+    const column = scene.drawnPieces.find(({ id }) => id === 'cc');
+    expect(column).toEqual(scene.result.pieces.find(({ id }) => id === 'cc'));
+    expect(column).toMatchObject({ kind: 'cabinet', role: 'item', x: 0, width: 36 });
+  });
+
+  it('step b anchor 2: omits the panel when a base return run covers it', () => {
+    owner.z = 0;
+    returnWall.runs = [run({ id: 'return', z: 0, x: 0, width: 100,
+      anchors: { left: false, right: true }, ends: { right: { type: 'none' } },
+    })];
+    const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+    expect(scene.cornerPanels).toEqual([]);
+    expect(scene.subLabels.get('cc')).toBe('Corner 90');
+  });
+
+  it('step b anchor 3: keeps the tall panel when the return covers only the base', () => {
+    Object.assign(owner, { cabinetTypeId: CABINET_TYPE_IDS.TALL, z: 0, height: 84 });
+    returnWall.runs = [run({ id: 'return', z: 0, x: 0, width: 100,
+      anchors: { left: false, right: true }, ends: { right: { type: 'none' } },
+    })];
+    expect(runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).cornerPanels).toEqual([
+      { key: 'corner-panel:left', side: 'left', x: 0, width: 24, columnId: 'cc' },
+    ]);
+  });
+
+  it('step b anchor 4: draws no panel for filler or none return pieces', () => {
+    for (const returnPiece of ['filler', 'none']) {
+      owner.ends.left.corner.returnPiece = returnPiece;
+      const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+      expect(scene.cornerPanels).toEqual([]);
+      expect(scene.subLabels.get('cc')).toBe('Corner 90');
+    }
+  });
+
+  it('step b anchor 7: gives an inactive corner no panel or corner label', () => {
+    owner.anchors.left = false;
+    const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+    expect(scene.cornerPanels).toEqual([]);
+    expect(scene.subLabels.has('cc')).toBe(false);
+  });
+
+  it('step b anchor 8: preserves the cabinet part key and number from a filler end', () => {
+    const corner = partNumbers(subject, DEFAULT_SETTINGS);
+    expect(corner.byKey.has('cc')).toBe(true);
+    expect(corner.byKey.has('corner-panel:left')).toBe(false);
+    owner.ends.left = { type: 'filler', width: null };
+    const filler = partNumbers(subject, DEFAULT_SETTINGS);
+    expect(filler.byKey.has('cc')).toBe(true);
+    expect(runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).cornerPanels).toEqual([]);
+    expect(corner.byKey.get('cc')).toBe(filler.byKey.get('cc'));
   });
 });
