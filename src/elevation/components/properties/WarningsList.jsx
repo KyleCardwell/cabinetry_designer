@@ -47,7 +47,7 @@ export default function WarningsList({ layout }) {
               key={`${warning.code}-${warning.pieceId}-${index}`}
               className="rounded border border-amber-900/80 bg-amber-950/35 px-2.5 py-2 text-amber-300"
             >
-              {formatRunWarning(warning) ?? WARNING_MESSAGES[warning.code] ?? warning.code}
+              {formatRunWarning(warning) ?? WARNING_MESSAGES[warning.code] ?? warning.message ?? warning.code}
             </li>
           ))}
         </ul>

@@ -1,12 +1,15 @@
 import { useDispatch } from 'react-redux';
-import { endHeightMode, frontDepth, runBlind } from '../../model/index.js';
+import { endHeightMode, formatInches, frontDepth, runBlind } from '../../model/index.js';
+import { cornerDepthBAuto, cornerEnd, defaultLegA } from '../../model/cornerEnd.js';
+import { cornerEndActive, cornerOwnersAt, cornerReturnRuns } from '../../model/corners.js';
+import { wallLabel } from '../../model/topology.js';
 import { endFit, endPieceType } from '../../model/endLegs.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
 import { isJoinedEnd } from '../../model/panelThickness.js';
 import {
-  setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
+  setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller, setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
@@ -32,13 +35,26 @@ export default function EndFields({
   const where = { ...actionBase, part: 'runEnd', side };
   const lap = endType === 'filler' && room && wall
     ? cornerLap(room, wall, run, side, settings, { ignoreOwn: true }) : null;
+  const isCorner = endType === 'corner';
+  const offersCorner = isCorner || (room && wall && cornerEndActive(room, wall, {
+    ...run, ends: { ...run.ends, [side]: { type: 'corner' } },
+  }, side).active);
+  const resolved = isCorner ? cornerEnd(room, wall, run, side, settings) : null;
+  const returnWall = isCorner ? cornerReturnRuns(room, wall, run, side).returnWall : null;
+  const owners = room && wall ? cornerOwnersAt(room, wall, run, side) : [];
+  const updateCorner = (patch) => dispatch(setRunEnd({
+    ...actionBase, side,
+    end: { type: 'corner', width: null, corner: { ...end.corner, ...patch } },
+  }));
 
   return (
     <>
       <Field label={`${side[0].toUpperCase()}${side.slice(1)} End`}>
         <select
-          value={endType}
-          onChange={(event) => dispatch(setRunEnd({
+          value={isCorner ? `corner:${end.corner?.kind ?? 90}` : endType}
+          onChange={(event) => event.target.value.startsWith('corner:')
+            ? updateCorner({ kind: Number(event.target.value.split(':')[1]) })
+            : dispatch(setRunEnd({
             ...actionBase,
             side,
             end: { type: event.target.value, width: null },
@@ -51,12 +67,77 @@ export default function EndFields({
               {value === 'filler' && run._frame ? 'Face frame stile' : label}
             </option>
           ))}
+          {offersCorner && <>
+            <option value="corner:90">Corner 90</option>
+            <option value="corner:45">Corner 45</option>
+          </>}
         </select>
       </Field>
+      {owners.map((owner) => (
+        <p key={`${owner.wall.id}:${owner.run.id}:${owner.side}`} className="mt-1.5 text-xs text-gray-500">
+          {`Dies into the corner cabinet on ${wallLabel(room, owner.wall)}.`}
+        </p>
+      ))}
       {note && (
         <p className="mt-1.5 text-xs text-gray-500">{note}</p>
       )}
-      {fitted ? (
+      {isCorner ? <>
+        <Field label="Leg A">
+          <InchInput
+            value={resolved.legA}
+            {...autoInchProps({ auto: defaultLegA(run), onCommit: (size) => dispatch(setTrackSize({
+              ...actionBase,
+              trackId: (side === 'left' ? run.grid.cols[0] : run.grid.cols.at(-1))?.id,
+              size: size ?? defaultLegA(run),
+            })) })}
+            aria-label={`${side} end corner leg A`}
+          />
+        </Field>
+        <Field label="Leg B">
+          <InchInput
+            value={end.corner?.legB}
+            {...autoInchProps({ auto: resolved.legA, onCommit: (legB) => updateCorner({ legB }) })}
+            aria-label={`${side} end corner leg B`}
+          />
+        </Field>
+        <Field label="Depth B">
+          <InchInput
+            value={end.corner?.depthB}
+            {...autoInchProps({ auto: cornerDepthBAuto(room, wall, run, side),
+              onCommit: (depthB) => updateCorner({ depthB }) })}
+            aria-label={`${side} end corner depth B`}
+          />
+        </Field>
+        <Field label="Return side">
+          <select
+            value={end.corner?.returnPiece ?? 'auto'}
+            onChange={(event) => updateCorner({ returnPiece: event.target.value })}
+            aria-label={`${side} end corner return side`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="auto">{`Auto (${resolved.returnSide.type === 'none' ? 'none' : 'end panel'})`}</option>
+            <option value="end_panel">End panel</option>
+            <option value="filler">Filler</option>
+            <option value="none">None</option>
+          </select>
+        </Field>
+        {resolved.returnSide.type !== 'none' && <Field label="Return width">
+          <InchInput
+            value={end.corner?.returnWidth}
+            {...autoInchProps({ auto: resolved.returnSide.width,
+              onCommit: (returnWidth) => updateCorner({ returnWidth }) })}
+            aria-label={`${side} end corner return width`}
+          />
+        </Field>}
+        {resolved.active && resolved.shape ? (
+          <p className="text-xs text-gray-500">
+            {`Shows ${formatInches(resolved.shape.shown.a)} here · ${formatInches(resolved.shape.shown.b)} on ${wallLabel(room, returnWall)}`}
+            {resolved.kind === 45 && ` · face ${formatInches(resolved.shape.trueWidth, 1 / 32)} true, ${Math.round(resolved.shape.angle * 10) / 10}°`}
+          </p>
+        ) : resolved.warnings.map((warning) => (
+          <p key={warning.code} className="text-amber-300">{warning.message}</p>
+        ))}
+      </> : fitted ? (
         <p className="mt-1.5 text-xs text-gray-500">Fitted to the legs (set under Legs below).</p>
       ) : <>
         {endType !== 'none' && (

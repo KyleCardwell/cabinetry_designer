@@ -112,8 +112,10 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                   settings={settings}
                   note={cornerLabel(corners[side], room)}
                 />
-                <EndLegsFields room={room} wall={wall} run={run} side={side}
-                  settings={settings} actionBase={actionBase} />
+                {run.ends[side].type !== 'corner' && (
+                  <EndLegsFields room={room} wall={wall} run={run} side={side}
+                    settings={settings} actionBase={actionBase} />
+                )}
                 <Field label={`Anchor ${side}`}>
                   <select
                     value={anchorValue}
