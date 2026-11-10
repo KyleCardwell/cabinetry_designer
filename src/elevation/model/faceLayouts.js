@@ -2,7 +2,6 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { cornerFaceLayout } from './cornerCabinet.js';
 import { cornerEnd } from './cornerEnd.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -85,12 +84,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
     const corner = corners.find((end) => end?.active && end.shape && end.columnId === piece.id
       && !piece.columnId);
     const style = resolveStyle(settings, room, run, item);
-    const cornerLayout = corner ? cornerFaceLayout({
-      ...corner,
-      sideReveal: typeStandardReveals(style, run.cabinetTypeId, settings)[corner.side === 'left' ? 'right' : 'left'],
-      gap: settings.cornerDoorGap ?? DEFAULT_SETTINGS.cornerDoorGap,
-      diagonalReveal: settings.cornerDiagonalReveal ?? DEFAULT_SETTINGS.cornerDiagonalReveal,
-    }) : null;
+    const cornerLayout = corner?.faceLayout ?? null;
     let squash = null;
     if (corner) {
       const faceX = corner.kind === 45 ? cornerLayout.feet.a[0] : corner.legA;

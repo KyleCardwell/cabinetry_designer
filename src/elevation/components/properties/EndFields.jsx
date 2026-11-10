@@ -2,6 +2,7 @@ import { useDispatch } from 'react-redux';
 import { endHeightMode, formatInches, frontDepth, runBlind } from '../../model/index.js';
 import { cornerDepthBAuto, cornerEnd, defaultLegA } from '../../model/cornerEnd.js';
 import { cornerEndActive, cornerOwnersAt, cornerReturnRuns } from '../../model/corners.js';
+import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { wallLabel } from '../../model/topology.js';
 import { endFit, endPieceType } from '../../model/endLegs.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
@@ -22,6 +23,12 @@ const END_TYPES = [
   ['none', 'None'],
   ['filler', 'Filler'],
   ['blind', 'Blind corner'],
+];
+
+const CORNER_DOORS = [
+  ['equal', 'Equal'],
+  ['a_long', 'Leg A long'],
+  ['b_long', 'Leg B long'],
 ];
 
 export default function EndFields({
@@ -108,6 +115,17 @@ export default function EndFields({
             aria-label={`${side} end corner depth B`}
           />
         </Field>
+        {resolved.kind === 90 && <Field label="Doors">
+          <select
+            value={end.corner?.doors ?? 'auto'}
+            onChange={(event) => updateCorner({ doors: event.target.value === 'auto' ? null : event.target.value })}
+            aria-label={`${side} end corner doors`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="auto">{`Auto (${CORNER_DOORS.find(([value]) => value === (settings.cornerDoors ?? DEFAULT_SETTINGS.cornerDoors))[1]})`}</option>
+            {CORNER_DOORS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>}
         <Field label="Return side">
           <select
             value={end.corner?.returnPiece ?? 'auto'}
@@ -129,10 +147,10 @@ export default function EndFields({
             aria-label={`${side} end corner return width`}
           />
         </Field>}
-        {resolved.active && resolved.shape ? (
+        {resolved.active && resolved.faceLayout ? (
           <p className="text-xs text-gray-500">
-            {`Shows ${formatInches(resolved.shape.shown.a)} here · ${formatInches(resolved.shape.shown.b)} on ${wallLabel(room, returnWall)}`}
-            {resolved.kind === 45 && ` · face ${formatInches(resolved.shape.trueWidth, 1 / 32)} true, ${Math.round(resolved.shape.angle * 10) / 10}°`}
+            {`Shows ${formatInches(resolved.faceLayout.shown.a)} here · ${formatInches(resolved.faceLayout.shown.b)} on ${wallLabel(room, returnWall)}`}
+            {resolved.kind === 45 && ` · door face ${formatInches(resolved.faceLayout.ordered)} (${Math.round(resolved.shape.angle * 10) / 10}°)`}
           </p>
         ) : resolved.warnings.map((warning) => (
           <p key={warning.code} className="text-amber-300">{warning.message}</p>

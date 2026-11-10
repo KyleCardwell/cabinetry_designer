@@ -1,4 +1,4 @@
-import { cornerCabinetShape } from './cornerCabinet.js';
+import { cornerCabinetShape, cornerFaceLayout } from './cornerCabinet.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import {
   cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns, faceFrontOffset,
@@ -9,6 +9,7 @@ import { landingsOn } from './landings.js';
 import { verticalStart } from './overlap.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
+import { resolveStyle, typeStandardReveals } from './styles.js';
 import { wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
 
 export const CORNER_KINDS = [90, 45];
@@ -94,7 +95,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
       cornerX = landing ? landing[side === 'left' ? 'b' : 'a'] : null;
     }
   }
-  return {
+  const result = {
     side, active, kind, legA, legB, depthA, depthB, offsetA, offsetB, doors,
     returnPiece: end.corner?.returnPiece ?? 'auto',
     returnSide, reach: legB + returnSide.width,
@@ -103,6 +104,13 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     shape: geometry?.errors ? null : geometry,
     warnings,
   };
+  result.faceLayout = result.shape ? cornerFaceLayout({
+    ...result,
+    sideReveal: typeStandardReveals(resolveStyle(settings, room, run, item), run.cabinetTypeId, settings)[side === 'left' ? 'right' : 'left'],
+    gap: settings.cornerDoorGap ?? DEFAULT_SETTINGS.cornerDoorGap,
+    diagonalReveal: settings.cornerDiagonalReveal ?? DEFAULT_SETTINGS.cornerDiagonalReveal,
+  }) : null;
+  return result;
 }
 
 /** Warnings from both corner ends of a run, sharing its already computed layout. */
