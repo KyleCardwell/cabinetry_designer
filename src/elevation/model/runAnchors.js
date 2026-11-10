@@ -4,6 +4,7 @@ import {
   cornerAt,
   cornerFillerMin,
   cornerForRunSide,
+  cornerOwnersAt,
   cornerReserve,
   cornerReserveParts,
   resolveHorizontal,
@@ -56,6 +57,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
     ? settings.teeCover
     : 0);
   return Object.fromEntries(['left', 'right'].map((side) => {
+    if (cornerOwnersAt(room, wall, run, side).length > 0) return [side, settings.fillerMinWidth];
     const corner = runSideCorner(room, wall, run, side);
     return [
       side,
@@ -83,6 +85,7 @@ export function blindCoversForRun(room, wall, run, settings) {
 export function endCornerAnglesForRun(room, wall, run) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
+    if (cornerOwnersAt(room, wall, run, side).length > 0) return [side, undefined];
     const corner = runSideCorner(room, wall, run, side);
     return [side, corner.anchored && corner.type === 'inside' ? corner.angle : undefined];
   }));

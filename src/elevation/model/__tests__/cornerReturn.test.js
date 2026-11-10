@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
-import { cornerLegs, cornerReach, cornerReturnPiece, cornerReturnRuns } from '../corners.js';
+import {
+  cornerForRunSide, cornerLegs, cornerOwnersAt, cornerReach, cornerReserveParts,
+  cornerReturnPiece, cornerReturnRuns, frontDepth,
+} from '../corners.js';
+import { wallLength } from '../geometry.js';
+import { landingsOn } from '../landings.js';
+import { endCornerAnglesForRun, endMinWidthsForRun, resolveRunAnchorDatum } from '../runAnchors.js';
+import { wallViewForRun } from '../wallSides.js';
 
 let subject, ownerWall, returnWall, owner;
 
@@ -18,6 +25,150 @@ beforeEach(() => {
     connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
   });
   subject = room({ walls: [ownerWall, returnWall] });
+});
+
+describe('CC2 step b return runs die into the corner', () => {
+  let ret;
+  beforeEach(() => {
+    ret = run({ id: 'return', z: 0, x: 0, width: 100,
+      anchors: { left: false, right: true }, ends: { right: { type: 'none' } },
+    });
+    returnWall.runs = [ret];
+  });
+
+  it.each([
+    [1, 36, 'corner-return', 108],
+    [2, 30, 'corner-return', 114],
+    [3, 36.8125, 'corner-return', 107.1875],
+    [4, 0, 'auto', 144],
+    [5, 0, 'auto', 144],
+    [6, 40, 'custom', 104],
+    [7, 36, 'corner-return', 108],
+    [8, 36, 'corner-return', 108],
+  ])('anchor %s: reserves the reach and resolves the right datum', (anchor, total, source, x) => {
+    if (anchor === 2) owner.ends.left.corner.legB = 30;
+    if (anchor === 3) Object.assign(owner, { cabinetTypeId: CABINET_TYPE_IDS.TALL, height: 84 });
+    if (anchor === 4) owner.anchors.left = false;
+    if (anchor === 5) Object.assign(ret, { cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12 });
+    if (anchor === 6) ret.cornerClearance = { right: 40 };
+    if (anchor === 7) ret.ends.right = { type: 'filler', width: null };
+    if (anchor === 8) {
+      Object.assign(ret, { cabinetTypeId: CABINET_TYPE_IDS.TALL, height: 84 });
+      const upper = run({ id: 'upper-owner', cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12,
+        items: [fixed('upper-cc', 24), auto('upper-a')], anchors: { left: true, right: false },
+        ends: { left: normalizeCornerEnd({}), right: { type: 'none' } },
+      });
+      ownerWall.runs.push(upper);
+      expect(cornerOwnersAt(subject, returnWall, ret, 'right'))
+        .toEqual([{ wall: ownerWall, run: owner, side: 'left' }, { wall: ownerWall, run: upper, side: 'left' }]);
+    }
+    expect(cornerReserveParts(subject, returnWall, 'right', ret, DEFAULT_SETTINGS)).toEqual({
+      face: anchor === 6 ? 36 : total, back: 0, lap: 0, total, source,
+      neighborRunId: [4, 5].includes(anchor) ? null : owner.id,
+    });
+    expect(resolveRunAnchorDatum(subject, returnWall, ret, 'right', DEFAULT_SETTINGS).x).toBe(x);
+    if (anchor === 7) {
+      expect(endMinWidthsForRun(subject, returnWall, ret, DEFAULT_SETTINGS).right).toBe(1.5);
+      expect(endCornerAnglesForRun(subject, returnWall, ret).right).toBeUndefined();
+    }
+  });
+
+  it('keeps the reach for a face override and compares ordinary neighbors by front depth', () => {
+    ret.cornerClearance = { right: 'face' };
+    expect(cornerReserveParts(subject, returnWall, 'right', ret, DEFAULT_SETTINGS))
+      .toMatchObject({ total: 36, source: 'corner-return', lap: 0 });
+    ret.cabinetTypeId = CABINET_TYPE_IDS.TALL;
+    const upper = run({ id: 'plain-upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      z: 54, height: 30, depth: 12, anchors: { left: true },
+    });
+    ownerWall.runs.push(upper);
+    expect(cornerReserveParts(subject, returnWall, 'right', ret, DEFAULT_SETTINGS))
+      .toMatchObject({ total: 36, source: 'corner-return', neighborRunId: owner.id });
+    upper.depth = 40;
+    expect(cornerReserveParts(subject, returnWall, 'right', ret, DEFAULT_SETTINGS))
+      .toMatchObject({ total: frontDepth(upper, DEFAULT_SETTINGS), source: 'face', neighborRunId: upper.id });
+  });
+
+  it('filters owners by face, anchor, compatible band and active corner end, returning the source wall', () => {
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')).toEqual([{ wall: ownerWall, run: owner, side: 'left' }]);
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')[0].wall).toBe(ownerWall);
+    owner.wallSide = 'back';
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')).toEqual([]);
+    delete owner.wallSide;
+    owner.anchors.left = false;
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')).toEqual([]);
+    owner.anchors.left = true;
+    owner.cabinetTypeId = CABINET_TYPE_IDS.UPPER;
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')).toEqual([]);
+    owner.cabinetTypeId = CABINET_TYPE_IDS.BASE;
+    owner.ends.left = { type: 'none' };
+    expect(cornerOwnersAt(subject, returnWall, ret, 'right')).toEqual([]);
+    expect(cornerOwnersAt(subject, returnWall, ret, 'left')).toEqual([]);
+  });
+
+  it('keeps flat filler defaults when rendering without a room wall list', () => {
+    const isolatedWall = wall({ runs: [ret] });
+    expect(cornerOwnersAt({}, isolatedWall, ret, 'right')).toEqual([]);
+    expect(endMinWidthsForRun({}, isolatedWall, ret, DEFAULT_SETTINGS).right).toBe(1.5);
+    expect(endCornerAnglesForRun({}, isolatedWall, ret).right).toBeUndefined();
+  });
+});
+
+describe('CC2 step b peninsula return runs (Room P)', () => {
+  let host, pen, hostRun, penRun, penSide;
+  beforeEach(() => {
+    hostRun = run({ id: 'host-run', x: 0, width: 72, autoCount: false,
+      items: [auto('a'), fixed('cc', 36)], anchors: { left: false, right: { to: 'wall', wallId: 'pen' } },
+      ends: { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) },
+    });
+    penRun = run({ id: 'pen-run', x: 0, width: 48, autoCount: false, items: [fixed('pen-cc', 36), auto('b')],
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+    });
+    host = wall({ id: 'host', x1: 0, y1: 0, x2: 144, y2: 0, thickness: 4.5, runs: [hostRun] });
+    pen = wall({ id: 'pen', x1: 72, y1: 0, x2: 72, y2: 48, thickness: 4.5,
+      connections: { start: null, end: null }, runs: [penRun],
+      landings: { start: { wallId: 'host', side: 'front', ref: 'left', to: 'near', offset: 72 }, end: null },
+    });
+    subject = room({ walls: [host, pen] });
+    const corner = cornerForRunSide(subject, host, hostRun, 'right');
+    penRun.wallSide = corner.neighborWallSide;
+    penSide = corner.neighborSide;
+    penRun.anchors[penSide] = true;
+  });
+
+  it.each(['right', 'left'])('anchor P1: dies into a host-owned 45 corner at its %s side', (ownerSide) => {
+    if (ownerSide === 'left') {
+      hostRun.anchors = { left: { to: 'wall', wallId: 'pen' }, right: false };
+      hostRun.ends = { left: normalizeCornerEnd({ corner: { kind: 45 } }), right: { type: 'none' } };
+      hostRun.grid = run({ items: [fixed('cc', 36), auto('a')] }).grid;
+      const corner = cornerForRunSide(subject, host, hostRun, 'left');
+      penRun.wallSide = corner.neighborWallSide;
+      penSide = corner.neighborSide;
+      penRun.anchors = { left: false, right: false, [penSide]: true };
+    }
+    expect(cornerOwnersAt(subject, pen, penRun, penSide)).toEqual([{ wall: host, run: hostRun, side: ownerSide }]);
+    expect(cornerReserveParts(subject, pen, penSide, penRun, DEFAULT_SETTINGS))
+      .toEqual({ face: 36, back: 0, lap: 0, total: 36, source: 'corner-return', neighborRunId: hostRun.id });
+    const x = penSide === 'left' ? 36 : wallLength(wallViewForRun(pen, penRun)) - 36;
+    expect(resolveRunAnchorDatum(subject, pen, penRun, penSide, DEFAULT_SETTINGS).x).toBe(x);
+  });
+
+  it('anchor P2: dies into a peninsula-owned 90 corner at the host landing datum', () => {
+    hostRun.ends.right = { type: 'none' };
+    penRun.ends[penSide] = normalizeCornerEnd({});
+    expect(cornerOwnersAt(subject, host, hostRun, 'right')).toEqual([{ wall: pen, run: penRun, side: penSide }]);
+    expect(cornerReserveParts(subject, host, 'right', hostRun, DEFAULT_SETTINGS))
+      .toMatchObject({ total: 36, source: 'corner-return', neighborRunId: penRun.id });
+    const landing = landingsOn(subject, wallViewForRun(host, hostRun))[0];
+    expect(resolveRunAnchorDatum(subject, host, hostRun, 'right', DEFAULT_SETTINGS).x).toBe(landing.a - 36);
+    const crossing = run({ id: 'crossing', x: 0, width: 144, depth: 60 });
+    host.runs.push(crossing);
+    expect(cornerOwnersAt(subject, host, hostRun, 'right')).toEqual([]);
+    penRun.ends[penSide] = { type: 'none' };
+    hostRun.ends.right = normalizeCornerEnd({ corner: { kind: 45 } });
+    expect(cornerReserveParts(subject, pen, penSide, penRun, DEFAULT_SETTINGS))
+      .toMatchObject({ total: frontDepth(crossing, DEFAULT_SETTINGS), source: 'auto', neighborRunId: null });
+  });
 });
 
 describe('CC2 step a return-side piece and reach', () => {

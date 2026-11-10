@@ -35,15 +35,15 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
       .toEqual(expected);
   });
 
-  it('anchor 2: keeps zero reserve beside a return base run, leaving its reserve unchanged', () => {
+  it('anchor 2: keeps the owner reserve zero while the return run reserves the CC2 reach', () => {
     const returning = run({ id: 'return', depth: 24, anchors: { left: false, right: true } });
     returnWall.runs = [returning];
     expect(resolveRunAnchorDatum(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
       .toEqual({ x: 0, type: 'corner' });
     expect(cornerReserveParts(subject, ownerWall, 'left', owner, DEFAULT_SETTINGS))
       .toMatchObject({ total: 0, source: 'corner' });
-    expect(cornerReserveParts(subject, returnWall, 'right', returning, DEFAULT_SETTINGS).total)
-      .toBeCloseTo(frontDepth(owner, DEFAULT_SETTINGS), 3);
+    expect(cornerReserveParts(subject, returnWall, 'right', returning, DEFAULT_SETTINGS))
+      .toMatchObject({ total: 36, source: 'corner-return' });
     const fillerOwner = { ...owner, ends: { ...owner.ends, left: { type: 'filler', width: null } } };
     expect(cornerReserveParts(subject, ownerWall, 'left', fillerOwner, DEFAULT_SETTINGS).total)
       .toBeCloseTo(frontDepth(returning, DEFAULT_SETTINGS), 3);

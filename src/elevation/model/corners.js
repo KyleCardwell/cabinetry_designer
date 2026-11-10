@@ -264,6 +264,14 @@ export function cornerEndActive(room, wall, run, side) {
   return { active: true, code: null };
 }
 
+/** Active corner owners that this run side meets on the neighboring wall face. */
+export function cornerOwnersAt(room, wall, run, side) {
+  if (!room.walls) return [];
+  const { corner, returnWall, runs } = cornerReturnRuns(room, wall, run, side);
+  return runs.filter((owner) => cornerEndActive(room, returnWall, owner, corner.neighborSide).active)
+    .map((owner) => ({ wall: returnWall, run: owner, side: corner.neighborSide }));
+}
+
 /** The deepest front depth (along this run's wall) of band-compatible host runs crossing a landing corner. */
 function crossingReserve(room, corner, run, settings, sine) {
   if (Math.abs(sine) < 1e-9) return 0;
@@ -308,14 +316,20 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
     : override === 'face' ? 'face' : 'auto';
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
   const sine = Math.sin(corner.angle * Math.PI / 180);
+  const owners = new Set(cornerOwnersAt(room, wall, run, side).map((owner) => owner.run));
   let neighborRunId = null;
+  let cornerReturn = false;
   let face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
     if (wallSideOf(neighborRun) !== corner.neighborWallSide) return reserve;
     if (!anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
-    const depth = frontDepth(neighborRun, settings) / sine;
+    const isOwner = owners.has(neighborRun);
+    const depth = isOwner
+      ? cornerReach(room, neighbor, neighborRun, corner.neighborSide, settings)
+      : frontDepth(neighborRun, settings) / sine;
     if (depth > reserve) {
       neighborRunId = neighborRun.id;
+      cornerReturn = isOwner;
       return depth;
     }
     return reserve;
@@ -326,6 +340,11 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
   if (crossing > face) {
     face = crossing;
     neighborRunId = null;
+    cornerReturn = false;
+  }
+  if (cornerReturn) {
+    return { face, back: 0, lap: 0, total: source === 'custom' ? override : face,
+      source: source === 'custom' ? 'custom' : 'corner-return', neighborRunId };
   }
 
   const radians = corner.angle * Math.PI / 180;
