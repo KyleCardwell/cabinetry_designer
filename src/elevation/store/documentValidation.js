@@ -20,6 +20,7 @@ import { isSectionProfileList } from '../model/sectionProfiles.js';
 import { isShapeList } from '../model/libraryShapes.js';
 import { isLegList } from '../model/legs.js';
 import { isEndLegs } from '../model/endLegs.js';
+import { CORNER_KINDS, RETURN_PIECES } from '../model/cornerEnd.js';
 import { isWallEndLegs } from '../model/wallEndLegs.js';
 import {
   DOOR_STYLE_KEYS,
@@ -48,7 +49,8 @@ import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 /** Current persisted schema version. */
 export const ELEVATION_SCHEMA_VERSION = 4;
 
-const END_TYPES = new Set(['filler', 'end_panel', 'none', 'blind']);
+const DEFAULT_END_TYPES = new Set(['filler', 'end_panel', 'none', 'blind']);
+const END_TYPES = new Set([...DEFAULT_END_TYPES, 'corner']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const LEAF_KIND_SET = new Set(LEAF_KINDS);
 /** Keys each non-cabinet cell kind may carry. */
@@ -122,7 +124,20 @@ function isPartPick(entry) {
 }
 
 function isEnd(end) {
+  if (end?.type === 'corner') {
+    const corner = end.corner;
+    return isPlainObject(end)
+      && Object.keys(end).every((key) => ['type', 'width', 'corner'].includes(key))
+      && end.width === null
+      && isPlainObject(corner)
+      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece'].includes(key))
+      && CORNER_KINDS.includes(corner.kind)
+      && [corner.legB, corner.depthB].every((value) => value === null
+        || (isFiniteNumber(value) && value > 0))
+      && RETURN_PIECES.includes(corner.returnPiece);
+  }
   return Boolean(end)
+    && !Object.hasOwn(end, 'corner')
     && isPartPick(end)
     && END_TYPES.has(end.type)
     && (end.height === undefined || end.height === 'full' || end.height === 'cabinets')
@@ -727,8 +742,8 @@ function isCombinedElevations(value) {
 }
 
 function hasValidEnds(settings) {
-  return END_TYPES.has(settings.defaultEnds?.left)
-    && END_TYPES.has(settings.defaultEnds?.right);
+  return DEFAULT_END_TYPES.has(settings.defaultEnds?.left)
+    && DEFAULT_END_TYPES.has(settings.defaultEnds?.right);
 }
 
 function isSettings(settings, profileKeys = PROFILE_KEYS) {

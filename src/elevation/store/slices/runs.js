@@ -4,6 +4,8 @@ import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { isLegList } from '../../model/legs.js';
 import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
 import { cornerAt } from '../../model/corners.js';
+import { defaultLegA, normalizeCornerEnd } from '../../model/cornerEnd.js';
+import { setGridTrackSize } from '../../model/cellTree.js';
 import {
   gridLeaves,
   resizeGridBlind,
@@ -109,11 +111,14 @@ export const runReducers = {
       width: action.payload.width,
     };
     const previous = location.run.ends[side]?.type;
-    const { auto, ...current } = location.run.ends[side] ?? {};
+    const { auto, corner, ...current } = location.run.ends[side] ?? {};
     void auto;
-    location.run.ends[side] = end.type === 'none'
-      ? { type: end.type, width: end.width }
-      : { ...current, type: end.type, width: end.width };
+    void corner;
+    location.run.ends[side] = end.type === 'corner'
+      ? normalizeCornerEnd(end)
+      : end.type === 'none'
+        ? { type: end.type, width: end.width }
+        : { ...current, type: end.type, width: end.width };
     if (end.type !== previous) delete location.run.ends[side].height;
     else if ((end.type === 'filler' || end.type === 'end_panel') && Object.hasOwn(end, 'height')) {
       if (end.height == null) delete location.run.ends[side].height;
@@ -122,12 +127,20 @@ export const runReducers = {
       }
     }
     if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
-    if (end.type === 'none' || (end.type === 'end_panel' && previous !== 'end_panel')) {
+    if (end.type === 'corner') {
+      const cols = location.run.grid.cols;
+      const col = cols[side === 'left' ? 0 : cols.length - 1];
+      if (col && col.sizeMode !== 'manual') {
+        location.run.grid = setGridTrackSize(location.run.grid, col.id, defaultLegA(location.run));
+      }
+    }
+    if (end.type === 'none' || end.type === 'corner'
+      || (end.type === 'end_panel' && previous !== 'end_panel')) {
       if (location.run.endFiller) location.run.endFiller[side] = null;
     }
     const legs = location.run.endLegs?.[side];
     if (legs) {
-      if (end.type === 'blind') {
+      if (end.type === 'blind' || end.type === 'corner') {
         delete location.run.endLegs[side];
         if (!Object.keys(location.run.endLegs).length) delete location.run.endLegs;
       } else {
@@ -346,10 +359,12 @@ export const runReducers = {
         width: null,
       };
     } else if (validWallAnchor) {
-      location.run.ends[side] = { type: 'filler', width: null };
+      if (location.run.ends[side].type !== 'corner') {
+        location.run.ends[side] = { type: 'filler', width: null };
+      }
     } else if (value === true) {
       const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
-      if (inside && location.run.ends[side].type !== 'blind') {
+      if (inside && !['blind', 'corner'].includes(location.run.ends[side].type)) {
         location.run.ends[side] = { type: 'filler', width: null };
       } else if (!inside && location.run.ends[side].type !== 'end_panel') {
         location.run.ends[side] = { type: 'end_panel', width: null };

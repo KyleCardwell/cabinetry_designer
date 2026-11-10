@@ -143,7 +143,7 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings, { exac
       proposed.ends[side] = { type: recessEndType(sideWall, proposed, side), width: null };
     } else {
       const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
-      if (inside && proposed.ends[side].type !== 'blind') {
+      if (inside && !['blind', 'corner'].includes(proposed.ends[side].type)) {
         proposed.ends[side] = { type: 'filler', width: null };
       } else if (!inside && proposed.ends[side].type !== 'end_panel') {
         proposed.ends[side] = { type: 'end_panel', width: null };
