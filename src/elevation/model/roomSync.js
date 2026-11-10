@@ -1,5 +1,6 @@
 import { cellPieces } from './cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerEndWarnings } from './cornerEnd.js';
 import { frontDepth } from './corners.js';
 import { runDoorThickness } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -464,6 +465,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
+          ...cornerEndWarnings(synced, wall, run, settings, layout),
           ...runLineWarnings(synced, wall, run, settings, held),
           ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
           ...cellPieces(run, layout).warnings,

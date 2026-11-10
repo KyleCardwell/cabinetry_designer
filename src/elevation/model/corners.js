@@ -185,6 +185,21 @@ export function crossingRuns(room, corner) {
     && !['left', 'right'].some((side) => anchoredToCorner(hostRun.anchors?.[side], corner)));
 }
 
+/** Whether a corner end can occupy its square inside corner, without a crossing run. */
+export function cornerEndActive(room, wall, run, side) {
+  if (run.ends?.[side]?.type !== 'corner') return { active: false, code: null };
+  const anchor = run.anchors?.[side];
+  const corner = cornerForRunSide(room, wall, run, side);
+  if ((anchor !== true && anchor?.to !== 'wall')
+    || corner.type !== 'inside' || Math.abs(corner.angle - 90) > 0.5) {
+    return { active: false, code: 'corner-not-in-corner' };
+  }
+  if (crossingRuns(room, corner).some((crossing) => bandsCompatible(run, crossing))) {
+    return { active: false, code: 'corner-crossed' };
+  }
+  return { active: true, code: null };
+}
+
 /** The deepest front depth (along this run's wall) of band-compatible host runs crossing a landing corner. */
 function crossingReserve(room, corner, run, settings, sine) {
   if (Math.abs(sine) < 1e-9) return 0;
