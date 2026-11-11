@@ -25,6 +25,7 @@ import { runLegs } from './legs.js';
 import { runLegFills } from './legFills.js';
 import { runScene } from './runScene.js';
 import { cornerSquashes, squashRect, squashX } from './cornerSquash.js';
+import { cornerLegPayload } from './cornerLegPayload.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -91,6 +92,7 @@ export function faceDoorDetails(room, wall, side, settings, sourceParts) {
  */
 export function faceDrawing(room, wall, side, settings, options) {
   const view = resolveWall(room, wall, side);
+  const cornerLegs = cornerLegPayload(room, view, settings);
   const legs = view.runs.flatMap((run) => runLegs(room, view, run, settings)
     .map((placed) => ({ ...placed, runId: run.id })));
   const sourceParts = faceParts(room, wall, side, settings, options);
@@ -110,10 +112,11 @@ export function faceDrawing(room, wall, side, settings, options) {
       x: start, width: end - start, z: bounds.z, height: bounds.height, front, back,
       coversBoxEdges: false,
     }))])));
+  parts.push(...cornerLegs.parts);
   const partIds = new Set(parts.map(({ id }) => id));
-  const doorDetails = faceDoorDetails(room, wall, side, settings, sourceParts);
-  const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
-  const pulls = elevationPulls(room, wall, side, settings, partIds);
+  const doorDetails = [...faceDoorDetails(room, wall, side, settings, sourceParts), ...cornerLegs.doorDetails];
+  const swingMarks = [...elevationSwingMarks(room, wall, side, settings, partIds), ...cornerLegs.swingMarks];
+  const pulls = [...elevationPulls(room, wall, side, settings, partIds), ...cornerLegs.pulls];
   const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
   const interiors = showThrough.map(interiorRecord)
     .filter(({ partId, lines, labels }) => partIds.has(partId) && (lines.length || labels.length));
