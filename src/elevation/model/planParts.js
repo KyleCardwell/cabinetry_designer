@@ -50,6 +50,22 @@ function rectangle(u0, u1, v0, v1) {
  * cuts the lines of what's under it (SPEC-44.1).
  */
 export function planParts(room, settings) {
+  const parts = planSolidParts(room, settings);
+  for (const { wallId, loops } of planTops(room, settings)) {
+    const wall = room.walls.find(({ id }) => id === wallId);
+    loops.forEach((loop, i) => {
+      parts.push({ id: `${wallId}:top:${i}`, kind: 'countertop', points: planTopPoints(room, wall, loop) });
+    });
+  }
+  return parts;
+}
+
+/**
+ * Everything planParts sends except the top lines: walls, wall things and run parts (PT2).
+ * `bottoms: true` adds each run part's and wall end panel's `bottom` (not a payload field) so
+ * planTopEdges can tell what stands through a top from what hangs above it.
+ */
+export function planSolidParts(room, settings, { bottoms = false } = {}) {
   const parts = [];
   for (const wall of room.walls) {
     if (wall.thickness > 1e-9) {
@@ -122,6 +138,7 @@ export function planParts(room, settings) {
         kind: 'wall_end_panel',
         points: wallEndPanelPolygon(room, wall, panel).map(flipPoint),
         top: panel.top,
+        ...(bottoms ? { bottom: panel.bottom ?? 0 } : {}),
       });
       const frame = wallSideFrame(room, wall, 'front');
       for (const ret of panel.returns ?? []) {
@@ -130,6 +147,7 @@ export function planParts(room, settings) {
           kind: 'wall_end_panel',
           points: planPoints(frame, rectangle(ret.start, ret.end, ret.back, ret.front)),
           top: panel.top,
+          ...(bottoms ? { bottom: panel.bottom ?? 0 } : {}),
         });
       }
     }
@@ -144,9 +162,11 @@ export function planParts(room, settings) {
       const { boxes, faces, returns, waterfallLegs = [] } = planRunPieces(
         room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),
       );
-      const tops = new Map([...layout.pieces, ...cellPieces(run, layout).pieces]
-        .map((piece) => [piece.id, piece.z + piece.height]));
+      const runPieces = [...layout.pieces, ...cellPieces(run, layout).pieces];
+      const tops = new Map(runPieces.map((piece) => [piece.id, piece.z + piece.height]));
+      const lows = new Map(runPieces.map((piece) => [piece.id, piece.z]));
       const topOf = (key) => tops.get(key) ?? tops.get(key.split(':')[0]) ?? run.z + run.height;
+      const bottomOf = (key) => lows.get(key) ?? lows.get(key.split(':')[0]) ?? run.z;
       const addRange = (range, kind) => {
         parts.push({
           id: range.key,
@@ -156,6 +176,7 @@ export function planParts(room, settings) {
           )),
           runId: run.id,
           top: range.top ?? topOf(range.key),
+          ...(bottoms ? { bottom: range.bottom ?? bottomOf(range.key) } : {}),
         });
       };
       for (const box of boxes) {
@@ -166,20 +187,15 @@ export function planParts(room, settings) {
       for (const leg of waterfallLegs) addRange(leg, leg.kind);
       for (const { id, type, bounds, back, front, face, ret, returns = [] } of runLegFills(room, wall, run, settings)) {
         const top = bounds.z + bounds.height;
+        const bottom = bounds.z;
         addRange({ key: id, start: bounds.x, end: bounds.x + bounds.width,
-          back: face?.back ?? back, front: face?.front ?? front, top }, type === 'panel' ? 'end_panel' : 'filler');
-        if (ret) addRange({ ...ret, key: `${id}:return`, top }, 'filler');
+          back: face?.back ?? back, front: face?.front ?? front, top, bottom }, type === 'panel' ? 'end_panel' : 'filler');
+        if (ret) addRange({ ...ret, key: `${id}:return`, top, bottom }, 'filler');
         for (const range of returns) {
-          addRange({ ...range, key: `${id}:return-${range.edge}`, top }, 'end_panel');
+          addRange({ ...range, key: `${id}:return-${range.edge}`, top, bottom }, 'end_panel');
         }
       }
     }
-  }
-  for (const { wallId, loops } of planTops(room, settings)) {
-    const wall = room.walls.find(({ id }) => id === wallId);
-    loops.forEach((loop, i) => {
-      parts.push({ id: `${wallId}:top:${i}`, kind: 'countertop', points: planTopPoints(room, wall, loop) });
-    });
   }
   return parts;
 }

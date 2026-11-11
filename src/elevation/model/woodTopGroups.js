@@ -70,8 +70,13 @@ function wallEntries(room, settings) {
   });
 }
 
-function miterPairs(room, settings, entries) {
-  if ((settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner) !== 'miter') return [];
+function cornerMode(settings) {
+  return settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner;
+}
+
+/** Wood tops meeting at an inside corner, either mode. Y's `reach` is set when its top also
+ * stops at X's front (both cope, as in G1), so the corner square belongs to neither yet. */
+function cornerPairs(room, settings, entries) {
   const paired = new Set();
   const endKey = (entry, end) => JSON.stringify([entry.wall.id, entry.wall.side, entry.band.id, end]);
   const pairs = [];
@@ -86,7 +91,8 @@ function miterPairs(room, settings, entries) {
       const yEnd = ['left', 'right'].find((yEnd) => isCornerEnd(y, yEnd));
       paired.add(endKey(x, end));
       paired.add(endKey(y, yEnd));
-      pairs.push({ x: { entry: x, end, reach: edge.reach }, y: { entry: y, end: yEnd } });
+      pairs.push({ x: { entry: x, end, reach: edge.reach },
+        y: { entry: y, end: yEnd, reach: y.corners[yEnd]?.reach ?? null } });
 
       function isCornerEnd(entry, yEnd) {
         if (!entry.run.anchors?.[yEnd] || paired.has(endKey(entry, yEnd))
@@ -105,11 +111,22 @@ function bandRef(entry) {
 }
 
 /** Paired corner ends in wall/face/run walk order; ends and reach use each face's frame. */
-export function woodTopMiters(room, settings = DEFAULT_SETTINGS) {
-  return miterPairs(room, settings, wallEntries(room, settings).flat()).map(({ x, y }) => ({
+export function woodTopCorners(room, settings = DEFAULT_SETTINGS) {
+  return cornerPairs(room, settings, wallEntries(room, settings).flat()).map(({ x, y }) => ({
+    mode: cornerMode(settings),
     x: { ...bandRef(x.entry), end: x.end, reach: x.reach },
-    y: { ...bandRef(y.entry), end: y.end },
+    y: { ...bandRef(y.entry), end: y.end, reach: y.reach },
   }));
+}
+
+/** The mitered pairs only (empty with `woodTopCorner: 'butt'`). */
+export function woodTopMiters(room, settings = DEFAULT_SETTINGS) {
+  return cornerMode(settings) === 'miter' ? woodTopCorners(room, settings) : [];
+}
+
+function extendToCorner({ entry, end, reach }) {
+  const back = entry.wall.side === 'back';
+  entry[(end === 'left') !== back ? 'start' : 'end'] = back ? entry.wall.length - reach : reach;
 }
 
 function linked(a, b) {
@@ -158,10 +175,12 @@ function groupSize(entries, key, settings) {
  */
 export function woodTopGroups(room, settings = DEFAULT_SETTINGS) {
   const walls = wallEntries(room, settings);
-  for (const { x, y } of miterPairs(room, settings, walls.flat())) {
-    const back = x.entry.wall.side === 'back';
-    x.entry[(x.end === 'left') !== back ? 'start' : 'end'] = back
-      ? x.entry.wall.length - x.reach : x.reach;
+  const miter = cornerMode(settings) === 'miter';
+  for (const { x, y } of cornerPairs(room, settings, walls.flat())) {
+    // Butt: Y runs on into the corner square when it stopped too; X dies into it as before.
+    if (y.reach !== null) extendToCorner(y);
+    if (!miter) continue;
+    extendToCorner(x);
     for (const { entry, end } of [x, y]) {
       const side = (end === 'left') !== (entry.wall.side === 'back') ? 'left' : 'right';
       entry[`${side}Scribe`] = false;
