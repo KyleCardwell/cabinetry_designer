@@ -1,4 +1,5 @@
 import { cornerEnd } from './cornerEnd.js';
+import { cornerFrame } from './cornerFrame.js';
 import { runBackOffset } from './corners.js';
 import { runFaceStyles } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -22,12 +23,41 @@ export function cornerPlanPieces(room, wall, run, settings, layout, faceLayouts,
     if (run.ends?.[side]?.type !== 'corner') continue;
     const corner = cornerEnd(room, wall, run, side, settings, layout);
     if (!corner.active || !corner.shape) continue;
-    const { columnId, cornerX, dir, depthB, offsetB, legB, returnSide } = corner;
+    const { columnId, cornerX, dir, depthA, depthB, offsetA, offsetB, legB, returnSide } = corner;
     const column = layout.pieces.find(({ id }) => id === columnId);
     const entry = faceLayouts.get(columnId);
     const top = column.z + column.height;
     const toWall = ([x, y]) => [cornerX + dir * x, y];
-    result.boxes.set(columnId, { polygon: corner.shape.outline.map(toWall) });
+    const frame = cornerFrame(room, wall, run, side, settings, layout, faceLayouts);
+    result.boxes.set(columnId, {
+      polygon: (frame?.diagonal?.box.polygon ?? corner.shape.outline).map(toWall),
+    });
+    if (frame) {
+      const frameTop = frame.frame.z + frame.frame.height;
+      const addFrame = (polygon) => result.faces.push(polygonPiece(
+        `${columnId}:frame`, 'frame', polygon.map(toWall), frameTop,
+      ));
+      if (frame.diagonal) {
+        const { a, b, pb, pa } = frame.diagonal;
+        addFrame([a, b, pb, pa]);
+      } else {
+        const [a, b] = frame.legs;
+        const ft = frame.frame.thickness;
+        addFrame([[a.x0, depthA], [a.x1, depthA],
+          [a.x1, depthA + ft], [a.x0, depthA + ft]]);
+        addFrame([[depthB + ft, b.x0], [depthB + ft, b.x1],
+          [depthB, returnSide.type === 'end_panel' ? legB : b.x1], [depthB, b.x0]]);
+        for (const face of entry.faces) {
+          const key = `${columnId}:${face.path}${face.half ?? ''}`;
+          const piece = faces.find((piece) => piece.key === key);
+          if (!piece) continue;
+          result.dropFaceKeys.add(key);
+          const front = depthA + offsetA;
+          result.faces.push({ ...piece, front,
+            back: front - (face.thickness ?? teamDoorStyle(settings).thickness) });
+        }
+      }
+    }
 
     if (corner.kind === 90 && entry?.cornerReturn?.legB) {
       const { at, dir: dirR, legB: returnLayout } = entry.cornerReturn;
@@ -78,7 +108,9 @@ export function cornerPlanPieces(room, wall, run, settings, layout, faceLayouts,
         back = depthB - thickness;
       }
       result.faces.push(polygonPiece(`${columnId}:return`, returnSide.type,
-        [[back, legB], [depthB, legB], [depthB, legB + returnSide.width],
+        [[back, legB], [depthB, legB],
+          [depthB + (frame?.kind === 90 && returnSide.type === 'end_panel' ? frame.frame.thickness : 0),
+            legB + returnSide.width],
           [back, legB + returnSide.width]].map(toWall), run.z + run.height));
     }
   }

@@ -221,6 +221,8 @@ function frameStrips(frames, pieces, faces, back, front) {
     const rightPanels = panels.filter((panel) => Math.abs(panel.x + panel.width - end) <= WIDTH_EPSILON);
     const [left] = leftPanels;
     const [right] = rightPanels;
+    const leftCut = (front - back) * Math.tan((region.cuts?.left ?? 0) * Math.PI / 180);
+    const rightCut = (front - back) * Math.tan((region.cuts?.right ?? 0) * Math.PI / 180);
     strips.push({
       key: region.id,
       kind: 'frame',
@@ -229,8 +231,8 @@ function frameStrips(frames, pieces, faces, back, front) {
       back,
       front,
       polygon: [
-        [region.x, front],
-        [end, front],
+        [region.x + leftCut, front],
+        [end - rightCut, front],
         [right ? right.x : end, back],
         [left ? left.x + left.width : region.x, back],
       ],
