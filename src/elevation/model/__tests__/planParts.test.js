@@ -60,14 +60,13 @@ describe('CC5 step a corner parts in plan', () => {
 });
 
 describe('PT1 step b tops in the plan payload', () => {
-  it('anchor 1: adds one closed Room 9b countertop outline without a hiding height or run', () => {
-    const wall4 = room9b.walls.find(({ name }) => name === 'Wall 4');
+  it('anchor 1 (PT2 c): adds the Room 9b exposed top edges, open where the tall frame covers the end', () => {
     const tops = planParts(room9b, settings9b).filter(({ kind }) => kind === 'countertop');
     expect(tops).toEqual([{
-      id: `${wall4.id}:top:0`, kind: 'countertop',
-      points: [[8.5625, 20.6875], [8.5625, -40.25], [-18.625, -40.25], [-18.625, 20.6875]],
+      id: 'top:0:0', kind: 'countertop', closed: false,
+      points: [[-18.625, 20.6875], [-18.625, -40.25], [8.5625, -40.25], [8.5625, 20.6875]],
     }]);
-    expect(tops[0].closed).not.toBe(false);
+    expect(planParts(room9b, settings9b).some((part) => 'bottom' in part)).toBe(false);
     expect(tops[0]).not.toHaveProperty('top');
     expect(tops[0]).not.toHaveProperty('runId');
   });
@@ -180,11 +179,11 @@ describe('SPEC-44 the room in plan: runs', () => {
         parts.filter(({ top }) => top !== undefined).length, kinds]];
     }));
     expect(counts).toEqual({
-      'G1 Euro kitchen': [79, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11, countertop: 3 }],
-      'G2 Face frame kitchen': [24, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1, countertop: 2 }],
+      'G1 Euro kitchen': [78, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11, countertop: 2 }],
+      'G2 Face frame kitchen': [23, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1, countertop: 1 }],
       'G3 Bath alcove': [19, 14, 1, 14, { wall: 3, soffit: 1, cabinet: 3, filler: 4, face: 4, end_panel: 2, panel: 1, countertop: 1 }],
       'G4 T-filler run': [20, 18, 0, 18, { wall: 2, cabinet: 4, end_panel: 2, face: 6, filler: 6 }],
-      'G5 Recess room': [29, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2, countertop: 2 }],
+      'G5 Recess room': [28, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2, countertop: 1 }],
       'G6 Stacked runs': [39, 34, 0, 34, { wall: 3, cabinet: 8, filler: 6, face: 16, end_panel: 3, panel: 1, countertop: 2 }],
     });
   });

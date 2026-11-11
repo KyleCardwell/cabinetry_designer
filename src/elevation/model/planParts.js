@@ -6,7 +6,7 @@ import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { planRunPieces } from './planPieces.js';
-import { planTopPoints, planTops } from './planTops.js';
+import { planTopEdges } from './planTops.js';
 import { openingPlanDepths, projectionTightSides, recessPlanShape } from './recesses.js';
 import { resolveWall } from './room.js';
 import { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
@@ -50,14 +50,17 @@ function rectangle(u0, u1, v0, v1) {
  * cuts the lines of what's under it (SPEC-44.1).
  */
 export function planParts(room, settings) {
-  const parts = planSolidParts(room, settings);
-  for (const { wallId, loops } of planTops(room, settings)) {
-    const wall = room.walls.find(({ id }) => id === wallId);
-    loops.forEach((loop, i) => {
-      parts.push({ id: `${wallId}:top:${i}`, kind: 'countertop', points: planTopPoints(room, wall, loop) });
-    });
-  }
-  return parts;
+  const solids = planSolidParts(room, settings, { bottoms: true });
+  const tops = planTopEdges(room, settings, solids);
+  // `bottom` only tells planTopEdges what stands through a top; it isn't a payload field.
+  return [
+    ...solids.map((part) => {
+      const copy = { ...part };
+      delete copy.bottom;
+      return copy;
+    }),
+    ...tops.map(({ id, points, closed }) => ({ id, kind: 'countertop', points, closed })),
+  ];
 }
 
 /**

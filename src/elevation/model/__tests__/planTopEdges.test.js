@@ -3,12 +3,23 @@ import { describe, expect, it } from 'vitest';
 import { auto, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { planParts, planSolidParts } from '../planParts.js';
-import { planTopEdges, planTopPoints } from '../planTops.js';
+import { elevationToPlan } from '../geometry.js';
+import { planTopEdges } from '../planTops.js';
+import { wallSideFrame } from '../wallSides.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 import { connectWallStops } from './helpers/wallStops.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
+
+// A wall's front-face (u, v) points in plan inches, y up (the frame planParts maps run pieces with).
+function planTopPoints(subject, stored, points) {
+  const frame = wallSideFrame(subject, stored, 'front');
+  return points.map(([u, v]) => {
+    const { x, y } = elevationToPlan(frame, u, v);
+    return [x + 0, 0 - y];
+  });
+}
 const noEnds = { left: { type: 'none' }, right: { type: 'none' } };
 const corner = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
   run({ id: 'base', top: 'wood', autoCount: false, ends: noEnds, width: 96,
@@ -163,5 +174,22 @@ describe('PT2 step b exposed plan top edges', () => {
     expect(planTopEdges(room(), settings)).toEqual([]);
     const subject = room({ walls: [wall({ runs: [run({ top: 'none', items: [auto('C')] })] })] });
     expect(planTopEdges(subject, settings, planSolidParts(subject, settings, { bottoms: true }))).toEqual([]);
+  });
+});
+
+describe('PT2 step c top edges in the plan payload', () => {
+  it('anchor 1: the corner room carries its edge chain and mitered joint as countertop parts', () => {
+    const tops = planParts(corner, settings).filter(({ kind }) => kind === 'countertop');
+    const inPlan = (points) => planTopPoints(corner, corner.walls[0], points);
+    expectChains(tops, [
+      { id: 'top:0:0', kind: 'countertop', closed: false,
+        points: inPlan([[0, 36.75], [25.625, 36.75], [25.625, 25.625], [96, 25.625]]) },
+      { id: 'top-joint:0:0', kind: 'countertop', closed: false, points: inPlan([[0, 0], [25.625, 25.625]]) },
+    ]);
+    tops.forEach((part) => {
+      expect(part).not.toHaveProperty('top');
+      expect(part).not.toHaveProperty('runId');
+    });
+    expect(planParts(corner, settings).some((part) => 'bottom' in part)).toBe(false);
   });
 });

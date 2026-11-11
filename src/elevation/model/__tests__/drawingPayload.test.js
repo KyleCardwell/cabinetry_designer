@@ -183,13 +183,14 @@ describe('DM8 step b end-view panel payload', () => {
 // PT1 step b adds only countertop outlines to plan.parts; all other payload fields stay unchanged.
 // G6's stored hash was already stale on step a; verified against that payload before refreshing it.
 // FX9 a moves only G4's Euro T faces and their dependent front projections in by 1/16".
+// PT2 c: plan countertop parts are exposed-edge chains now; every other payload byte is unchanged.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': 'b43f5d4f39003440958c00cf60669681e3eb8cba774dd2831a9007b7fcf2ae65',
-  'G2 Face frame kitchen': 'b015c39f5286b998b0f818b9218b0dcab795a02fc971071746ec84e429b6fac2',
-  'G3 Bath alcove': 'b0045d9f287b05c8166d279c0f5ae3bacb158c87cd95091615751860fc721e26',
+  'G1 Euro kitchen': '7f4603a200272406108c3943cf85a6f347afd8942194a0bcc7c3b05fcb794890',
+  'G2 Face frame kitchen': '27d56d42c910ff13956d25e7c9b45701463f46dde79fb185e672c827d2b1a516',
+  'G3 Bath alcove': '3e631443a6bfed8193f627d26d2090c8f232b84559118aee711cefc0999ccf52',
   'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
-  'G5 Recess room': '9cb0f7af1de8c63eeffad94d076db12959ba0c80a4e733be439c666b70f01c96',
-  'G6 Stacked runs': '47c9c29c8ed00fd02a245ef25fe14ad2c01c1e78d5bf13af58060a8545967091',
+  'G5 Recess room': '3ca4f370bfb3aa4ea609bab3769cb7abcc6213dcf96847d02d345823d1d76cd8',
+  'G6 Stacked runs': '491f6fc3a4134bf2878dc1a619f05a314b0e805d5bcca8912479d5630d14064c',
 };
 
 // Keep the historical hashes: assert PD3's only payload change, then restore its old position
@@ -499,7 +500,7 @@ describe('SPEC-40 drawing payload', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(Object.keys(plan)).toEqual(['parts', 'dimensions', 'marks']);
-    expect(plan.parts).toHaveLength(79);
+    expect(plan.parts).toHaveLength(78);
     expect(plan.parts).toEqual(planParts(synced, settings));
   });
 

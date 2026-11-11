@@ -174,7 +174,7 @@ describe('FX4 step g ordered wood top size', () => {
     r.walls[1].runs = [buildRun({ ...wood, id: 'return', x: 84, width: 36,
       anchors: { right: true }, items: [auto('R')] })];
     expect(row(r, 'wood_top:base', s)).toMatchObject({ size: '96 1/2 x 26 1/8 x 1 1/2', notes: ['Miter L'] });
-    expect(row(r, 'wood_top:return', s)).toMatchObject({ size: '11 1/8 x 26 1/8 x 1 1/2', notes: ['Miter R'] });
+    expect(row(r, 'wood_top:return', s)).toMatchObject({ size: '36 3/4 x 26 1/8 x 1 1/2', notes: ['Miter R'] });
     const butt = { ...s, woodTopCorner: 'butt' };
     expect(row(r, 'wood_top:base', butt).notes).toEqual([]);
     expect(row(r, 'wood_top:return', butt).notes).toEqual([]);

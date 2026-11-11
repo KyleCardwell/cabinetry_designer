@@ -92,10 +92,10 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
   });
 
   it('anchor 4: preserves the entire payload without fills, with and without legs', () => {
-    // Captured before step c, including elevation parts and plan parts/shapes.
+    // Captured before step c, including elevation parts and plan parts/shapes; PT2 c changed only the top lines.
     for (const [legs, hash] of [
-      [four, 'a876156d8d462c96673d23a748c19502dd480019261aa97fd72862c171d61601'],
-      [[], 'db8c85c4c1c4d63e0a99717d2a176d9f1eb45f55087be3fea436a5d148f19a39'],
+      [four, '273b9e96f24dcc21556cbbe28c03ac4754743c80722735d01e0fabbf1256a002'],
+      [[], 'a8d0978686bac67812b702c6ff3887eee6af9bf8c1d683d2fbe950ed77f7cdcb'],
     ]) {
       const input = room({ walls: [wall({ ...W, runs: [run({ ...R, legs })] })] });
       expect(createHash('sha256').update(JSON.stringify(toDrawingPayload(input, settings))).digest('hex')).toBe(hash);
