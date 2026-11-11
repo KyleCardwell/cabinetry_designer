@@ -158,7 +158,17 @@ export default function PlanRunFootprint({
         )
       ))}
       {boxes.flatMap((box) => (
-        footprintOutlineSegments(
+        box.polygon ? (
+          <Line
+            key={`${box.key}:outline`}
+            points={linePoints(planPiecePoints(frame, box))}
+            closed
+            stroke={outline}
+            strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
+            {...(box.dashed ? { dash: [4 / scale, 3 / scale] } : {})}
+            listening={false}
+          />
+        ) : footprintOutlineSegments(
           frame,
           { x: box.start, width: box.end - box.start },
           box.back,
