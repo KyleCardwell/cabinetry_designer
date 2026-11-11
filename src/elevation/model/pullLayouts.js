@@ -9,6 +9,7 @@ import { pullPartType, resolvePull } from './pulls.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
+import { cornerSquashes, squashPulls } from './cornerSquash.js';
 
 const EPS = 1e-6;
 
@@ -176,7 +177,10 @@ export function elevationPulls(room, wall, side, settings, partIds = null) {
   const view = resolveWall(room, wall, side);
   const result = [];
   for (const run of view.runs) {
-    for (const entry of runPulls(room, view, run, settings).pulls) {
+    const scene = runScene(room, view, run, settings);
+    const squashes = cornerSquashes(scene.faceLayouts);
+    const pulls = squashPulls(runPulls(room, view, run, settings, scene).pulls, squashes);
+    for (const entry of pulls) {
       if (partIds && !partIds.has(entry.partId)) continue;
       result.push({ partId: entry.partId, outlines: pullOutlines(entry) });
     }

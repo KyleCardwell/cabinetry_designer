@@ -1,6 +1,7 @@
 import { doorDrawing } from './doorDetails.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { squashFaceLayouts } from './cornerSquash.js';
 
 /** Two lines from the hinge edge's midpoint to the opposite corners, in wall inches (z up). */
 export function swingMarkLines(face) {
@@ -56,7 +57,8 @@ export function elevationSwingMarks(room, wall, side, settings, partIds = null) 
   const view = resolveWall(room, wall, side);
   const result = [];
   for (const run of view.runs) {
-    for (const { partId, lines } of runSwingMarks(runScene(room, view, run, settings).faceLayouts)) {
+    const scene = runScene(room, view, run, settings);
+    for (const { partId, lines } of runSwingMarks(squashFaceLayouts(scene.faceLayouts))) {
       if (partIds && !partIds.has(partId)) continue;
       result.push({ partId, lines });
     }

@@ -1,6 +1,8 @@
 import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { resolveWall } from './room.js';
 import { panelMaterial } from './constants.js';
+import { runScene } from './runScene.js';
+import { cornerSquashes, squashDoorDetails } from './cornerSquash.js';
 
 /**
  * Each part's door detail on one wall face as geometry draws it (SPEC-46.4): openings, profile lines and miters (SPEC-50) when the room draws details,
@@ -13,7 +15,10 @@ export function elevationDoorDetails(room, wall, side, settings, partIds = null)
   const view = resolveWall(room, wall, side);
   const result = [];
   for (const run of view.runs) {
-    for (const part of runDoorDetails(room, view, run, settings).parts) {
+    const scene = runScene(room, view, run, settings);
+    const squashes = cornerSquashes(scene.faceLayouts);
+    const drawing = squashDoorDetails(runDoorDetails(room, view, run, settings, scene), squashes);
+    for (const part of drawing.parts) {
       const { pieceId, path } = part;
       let partId = pieceId;
       if (part.kind === 'face') {

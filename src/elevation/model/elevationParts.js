@@ -6,6 +6,8 @@ import { faceFrontOffset, frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { isInsetStyle } from './styles.js';
+import { cornerEnd } from './cornerEnd.js';
+import { squashFaceLayouts } from './cornerSquash.js';
 
 const EPSILON = 1e-6;
 
@@ -79,6 +81,21 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
         coversBoxEdges: false,
         ...(withDecks ? { deckZ: deckZ(scene.faceLayouts.get(piece.id), settings) } : {}),
       });
+      for (const panel of scene.cornerPanels.filter(({ columnId }) => columnId === piece.id)) {
+        const { legB, returnSide } = cornerEnd(room, view, run, panel.side, settings, scene.result);
+        emit({
+          id: `corner-panel:${panel.columnId}`,
+          kind: 'end_panel',
+          runId: run.id,
+          x: panel.x,
+          z: run.z,
+          width: panel.width,
+          height: run.height,
+          back: legB,
+          front: legB + returnSide.width,
+          coversBoxEdges: false,
+        });
+      }
     }
 
     for (const piece of scene.drawnPieces) {
@@ -157,7 +174,7 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
       }
     }
 
-    for (const [pieceId, layout] of scene.faceLayouts) {
+    for (const [pieceId, layout] of squashFaceLayouts(scene.faceLayouts)) {
       const frame = scene.frames.regions.find((region) => region.cabinetIds.includes(pieceId));
       for (const face of layout.faces) {
         if (face.type === 'open') continue;

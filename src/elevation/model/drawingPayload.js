@@ -23,6 +23,8 @@ import { glassMarks } from './glassMarks.js';
 import { openingGeometry } from './openings.js';
 import { runLegs } from './legs.js';
 import { runLegFills } from './legFills.js';
+import { runScene } from './runScene.js';
+import { cornerSquashes, squashRect, squashX } from './cornerSquash.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -136,7 +138,18 @@ export function faceDrawing(room, wall, side, settings, options) {
       name: shapeBlockName(shapeName, leg.shapeId), ...insert, mirror: leg.mirror === true,
     } } : {}),
   })));
-  const glass = showThrough.flatMap(({ glass }) => glass);
+  const squashes = new Map(view.runs.flatMap((run) =>
+    [...cornerSquashes(runScene(room, view, run, settings).faceLayouts)]));
+  const glass = showThrough.flatMap(({ glass }) => glass).map((entry) => {
+    const squash = squashes.get(entry.partId.split(':')[0]);
+    return squash ? {
+      ...entry,
+      openings: entry.openings.map((rect) => squashRect(rect, squash)),
+      marks: entry.marks.map((mark) => ({
+        ...mark, x1: squashX(mark.x1, squash), x2: squashX(mark.x2, squash),
+      })),
+    } : entry;
+  });
   const openingsByPart = new Map(glass.map(({ partId, openings }) => [partId, openings]));
   for (const part of parts) {
     if (part.kind === 'face' && openingsByPart.has(part.id)) part.holes = openingsByPart.get(part.id);
