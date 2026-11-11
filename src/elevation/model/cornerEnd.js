@@ -1,5 +1,6 @@
 import { cornerCabinetShape, cornerFaceLayout } from './cornerCabinet.js';
 import { DEFAULT_SETTINGS } from './constants.js';
+import { sheetThickness } from './doorStyles.js';
 import {
   cornerDepthBAuto, cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns,
   faceFrontOffset,
@@ -42,6 +43,7 @@ const WARNING_MESSAGES = {
   'corner-column-not-cabinet': 'The corner column must be a single cabinet.',
   'corner-column-pinned': "The corner column can't be pinned or on a layout line.",
   'corner-legs-too-short': "The corner cabinet's legs are shorter than the depths beside them.",
+  'corner-door-clips-side': "The corner door reaches behind a cabinet side's front edge; check the legs and depths.",
   'corner-doubled': 'Both runs in this corner have a corner cabinet.',
 };
 
@@ -90,13 +92,17 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     : deepestReturn ? faceFrontOffset(deepestReturn, settings) : offsetA;
   const doors = end.corner?.doors ?? settings.cornerDoors ?? DEFAULT_SETTINGS.cornerDoors;
   const kind = end.corner?.kind ?? 90;
-  const geometry = legA === null ? null : cornerCabinetShape({ kind, legA, legB, depthA, depthB });
+  const construction = run._frame ? 'frame' : 'euro';
+  const sideThickness = construction === 'euro' ? sheetThickness(settings) : 0;
+  const geometry = legA === null ? null : cornerCabinetShape({
+    kind, legA, legB, depthA, depthB, construction, sideThickness,
+  });
   const warnings = [];
   const warn = (warningCode) => warnings.push({ code: warningCode, side, message: WARNING_MESSAGES[warningCode] });
   if (code) warn(code);
   if (!item || item.kind !== 'cabinet' || item.grid) warn('corner-column-not-cabinet');
   if (item?.pin || item?.attach) warn('corner-column-pinned');
-  if ((legA !== null && legA <= depthB) || (legB !== null && legB <= depthA)) {
+  if (geometry?.errors || (legA !== null && legA <= depthB) || (legB !== null && legB <= depthA)) {
     warn('corner-legs-too-short');
   }
   if (active && returns.some((candidate) => (
@@ -112,7 +118,7 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     }
   }
   const result = {
-    side, active, kind, legA, legB, depthA, depthB, offsetA, offsetB, doors,
+    side, active, kind, construction, legA, legB, depthA, depthB, offsetA, offsetB, doors,
     returnPiece: end.corner?.returnPiece ?? 'auto',
     returnSide, reach: legB + returnSide.width,
     columnId: piece?.id ?? null,
@@ -124,6 +130,8 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   result.faceLayout = result.shape ? cornerFaceLayout({
     ...result,
+    sideThickness,
+    doorThickness: offsetA - settings.bumperThickness,
     // Both framed legs stop at the frame opening, independently of the Euro long-door choice.
     doors: framedFaces ? 'equal' : doors,
     sideReveal: typeStandardReveals(resolveStyle(settings, room, run, item), run.cabinetTypeId, settings)[side === 'left' ? 'right' : 'left'],
@@ -134,6 +142,9 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     result.faceLayout = framedDiagonalLayout(result.shape, offsetA, frame.stile,
       settings.profiledFit?.edge ?? DEFAULT_SETTINGS.profiledFit.edge);
   }
+  if (Object.values(result.faceLayout?.sideClearance ?? {}).some((clearance) => (
+    clearance !== null && clearance < -1e-6
+  ))) warn('corner-door-clips-side');
   return result;
 }
 

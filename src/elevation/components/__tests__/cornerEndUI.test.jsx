@@ -311,6 +311,6 @@ describe('CC3.1 step c corner door fields and readout', () => {
     expect(entry.faces[0].width).toBeCloseTo(resolved.faceLayout.ordered);
     expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(resolved.faceLayout.shown.a);
     const readout = fields().find(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '));
-    expect(text(readout)).toBe(`Shows ${formatInches(resolved.faceLayout.shown.a)} here · ${formatInches(resolved.faceLayout.shown.b)} on ${wallLabel(currentRoom(), returnWall())} · door face 22 9/16" (29.7°)`);
+    expect(text(readout)).toBe(`Shows ${formatInches(resolved.faceLayout.shown.a)} here · ${formatInches(resolved.faceLayout.shown.b)} on ${wallLabel(currentRoom(), returnWall())} · door face 22 9/16" (29.1°)`);
   });
 });

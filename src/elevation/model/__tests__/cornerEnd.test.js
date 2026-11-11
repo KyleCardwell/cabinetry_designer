@@ -52,9 +52,9 @@ describe('CC1 step c plain corners', () => {
     returnWall.runs = [run({ depth: 28, anchors: { left: false, right: true } })];
     const result = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
     expect(result).toMatchObject({ legB: 30, depthB: 15, returnPiece: 'filler',
-      shape: { shown: { a: 21, b: 6 } } });
-    expect(result.shape.trueWidth).toBeCloseTo(21.840, 3);
-    expect(result.shape.angle).toBeCloseTo(15.945, 3);
+      shape: { shown: { a: 20.25, b: 5.25 } } });
+    expect(result.shape.trueWidth).toBeCloseTo(20.9195, 3);
+    expect(result.shape.angle).toBeCloseTo(14.5345, 3);
   });
 
   it('anchor 5: retains resolved dimensions while unanchored', () => {
@@ -65,6 +65,44 @@ describe('CC1 step c plain corners', () => {
       warnings: [{ code: 'corner-not-in-corner', side: 'left',
         message: "The corner cabinet isn't anchored into a square inside corner." }],
     });
+  });
+
+  it('CC6.1 uses sheet thickness for Euro sides and warns when it consumes a diagonal', () => {
+    owner.ends.left.corner.kind = 45;
+    const settings = { ...DEFAULT_SETTINGS, sheetThickness: 1 };
+    expect(cornerEnd(subject, ownerWall, owner, 'left', settings)).toMatchObject({
+      construction: 'euro', shape: { sideThickness: 1, shown: { a: 11, b: 11 } },
+    });
+    owner.ends.left.corner.depthB = 35.5;
+    expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toMatchObject({
+      shape: null, faceLayout: null,
+      warnings: [{ code: 'corner-legs-too-short', side: 'left' }],
+    });
+  });
+
+  it('CC6.1 warns for the uneven thick door and clears the warning for a thinner door', () => {
+    Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
+    const thick = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
+    expect(thick.faceLayout.sideClearance.a).toBeCloseTo(-0.0189, 3);
+    expect(thick.warnings).toEqual([{ code: 'corner-door-clips-side', side: 'left',
+      message: "The corner door reaches behind a cabinet side's front edge; check the legs and depths." }]);
+    owner._doorThickness = 0.75;
+    // Keep the anchor's 7/8-inch face offset with the thinner door and a thicker bumper.
+    const thin = cornerEnd(subject, ownerWall, owner, 'left', { ...DEFAULT_SETTINGS, bumperThickness: 1 / 8 });
+    expect(thin.faceLayout.sideClearance.a).toBeCloseTo(0.0357, 3);
+    expect(thin.warnings).toEqual([]);
+  });
+
+  it('CC6.1 keeps active, beaded and inactive framed corners five-sided', () => {
+    owner.ends.left.corner.kind = 45;
+    for (const [active, bead] of [[true, 0], [true, 0.25], [false, 0]]) {
+      owner.anchors.left = active;
+      owner._frame = { thickness: 0.75, bead };
+      expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toMatchObject({
+        construction: 'frame', shape: { construction: 'frame', sideThickness: 0, sideEdges: null,
+          shown: { a: 12, b: 12 }, outline: [[0, 0], [36, 0], [36, 24], [24, 36], [0, 36]] },
+      });
+    }
   });
 
   it('anchor 6: rejects a 135-degree inside corner', () => {
@@ -197,7 +235,7 @@ describe('CC1 step c peninsula corners', () => {
     const result = cornerEnd(subject, host, hostRun, 'right', DEFAULT_SETTINGS);
     const landing = landingsOn(subject, wallViewForRun(host, hostRun))[0];
     expect(result).toMatchObject({ active: true, dir: -1, cornerX: landing.a,
-      depthB: 24, shape: { shown: { a: 12, b: 12 }, angle: 45 }, warnings: [] });
+      depthB: 24, shape: { shown: { a: 11.25, b: 11.25 }, angle: 45 }, warnings: [] });
   });
 
   it('anchor P2: resolves a peninsula-owned corner from the host return box', () => {

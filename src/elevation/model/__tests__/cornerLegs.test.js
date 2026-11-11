@@ -97,23 +97,23 @@ describe('CC4 return leg layout', () => {
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { legB, squash } = entry.cornerReturn;
     expect(legB).toBeNull();
-    expect(squash.from).toBeCloseTo(36.2125, 4);
-    expect(squash.pivot).toBeCloseTo(118.975, 3);
+    expect(squash.from).toBeCloseTo(35.8375, 4);
+    expect(squash.pivot).toBeCloseTo(119.35, 3);
     expect(squash.k).toBeCloseTo(0.70711, 5);
     const drawn = squashRect(entry.box, squash);
-    expect(drawn.x).toBeCloseTo(107.7875, 4);
+    expect(drawn.x).toBeCloseTo(108.1625, 4);
     expect(drawn.width).toBeCloseTo(11.1875, 4);
-    expect(drawn.x + drawn.width).toBeCloseTo(118.975, 3);
+    expect(drawn.x + drawn.width).toBeCloseTo(119.35, 3);
   });
 
   it('anchor 7: projects an uneven 45 with depth B 15', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { squash } = entry.cornerReturn;
-    expect(squash.pivot).toBeCloseTo(119.0518, 4);
-    expect(squash.k).toBeCloseTo(0.49614, 5);
-    expect(squashRect(entry.box, squash).x).toBeCloseTo(107.6018, 4);
-    expect(squashRect(entry.box, squash).width).toBeCloseTo(11.4500, 4);
+    expect(squash.pivot).toBeCloseTo(119.3737, 4);
+    expect(squash.k).toBeCloseTo(0.48564, 5);
+    expect(squashRect(entry.box, squash).x).toBeCloseTo(108.1649, 4);
+    expect(squashRect(entry.box, squash).width).toBeCloseTo(11.2087, 4);
   });
 
   it('anchor 8: projects an upper 45 with its original box height', () => {
@@ -121,9 +121,9 @@ describe('CC4 return leg layout', () => {
     owner.grid.cols[0].size = 24;
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.cornerReturn.squash.pivot).toBeCloseTo(130.975, 3);
+    expect(entry.cornerReturn.squash.pivot).toBeCloseTo(131.35, 3);
     const drawn = squashRect(entry.box, entry.cornerReturn.squash);
-    expect(drawn.x).toBeCloseTo(119.7875, 4);
+    expect(drawn.x).toBeCloseTo(120.1625, 4);
     expect(drawn.width).toBeCloseTo(11.1875, 4);
     expect(drawn).toMatchObject({ z: 54, height: 30 });
   });
@@ -329,7 +329,7 @@ describe('CC4 return leg layout', () => {
       const face = leg.faceLayout.faces[0];
       expect(leg.label).toBe('Corner 45');
       expect(leg.rect).toEqual({ x: 108, width: 12, z: entry.box.z, height: entry.box.height });
-      expect(face.x).toBeCloseTo(107.8791, 4);
+      expect(face.x).toBeCloseTo(108.2541, 4);
       // The anchor uses k rounded to 0.70711; the model keeps the full-precision projection.
       expect(Math.abs(face.width - 11.0044)).toBeLessThan(0.0001);
       expect(face.trueWidth).toBe(15.5625);

@@ -56,7 +56,7 @@ describe('CC5 step c owner corner elevation payload', () => {
     const trueFace = scene().faceLayouts.get('cc').faces[0];
     expect(face).toMatchObject({ kind: 'face', back: 24.125, front: 24.875,
       z: trueFace.z, height: trueFace.height });
-    expect(face.x).toBeCloseTo(25.1165, 4);
+    expect(face.x).toBeCloseTo(24.7415, 4);
     expect(face.width).toBeCloseTo(11.0043, 4);
     expect(drawing.parts.find(({ id }) => id === 'cc'))
       .toMatchObject({ kind: 'cabinet', x: 0, width: 36, back: 0, front: 24 });
@@ -72,7 +72,7 @@ describe('CC5 step c owner corner elevation payload', () => {
       .pulls.find(({ partId }) => partId === 'cc:r');
     const before = structuredClone({ sourceScene, trueDetails, truePull });
     const drawing = draw();
-    expect(squashRect(detail, squash).x).toBeCloseTo(25.1165, 4);
+    expect(squashRect(detail, squash).x).toBeCloseTo(24.7415, 4);
     expect(squashRect(detail, squash).width).toBeCloseTo(11.0043, 4);
     expect(detail.openings.length).toBeGreaterThan(0);
     expect(detail.lines.length).toBeGreaterThan(0);

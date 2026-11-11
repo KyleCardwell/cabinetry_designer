@@ -45,14 +45,14 @@ describe('CC3 corner face boxes and scene', () => {
   it('anchor 3: lays out the base 45 at true width before drawing projection', () => {
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(20.391, 3);
+    expect(entry.box.x).toBeCloseTo(20.016, 3);
     expect(entry.box.width).toBeCloseTo(15.8215, 3);
-    expect(entry.squash.pivot).toBeCloseTo(36.2125, 3);
+    expect(entry.squash.pivot).toBeCloseTo(35.8375, 3);
     expect(entry.squash.k).toBeCloseTo(0.70711, 5);
     expect(entry.corner).toEqual({ side: 'left', kind: 45 });
     expect(entry.faces).toHaveLength(1); // The default face uses true width, not the 36-inch column.
     const drawn = squashRect(entry.box, entry.squash);
-    expect(drawn.x).toBeCloseTo(25.025, 3);
+    expect(drawn.x).toBeCloseTo(24.65, 3);
     expect(drawn.width).toBeCloseTo(11.1875, 3);
   });
 
@@ -60,15 +60,15 @@ describe('CC3 corner face boxes and scene', () => {
     owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
     owner.grid.cells[0].node.face = { type: 'door' };
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(13.0261, 3);
-    expect(entry.box.width).toBeCloseTo(23.0782, 3);
-    expect(entry.squash.pivot).toBeCloseTo(36.1043, 3);
-    expect(entry.squash.k).toBeCloseTo(0.86824, 5);
+    expect(entry.box.x).toBeCloseTo(12.8442, 3);
+    expect(entry.box.width).toBeCloseTo(23.0802, 3);
+    expect(entry.squash.pivot).toBeCloseTo(35.9243, 3);
+    expect(entry.squash.k).toBeCloseTo(0.87416, 5);
     const drawn = squashRect(entry.box, entry.squash);
-    expect(drawn.x).toBeCloseTo(16.0668, 3);
-    expect(drawn.width).toBeCloseTo(20.0375, 3);
+    expect(drawn.x).toBeCloseTo(15.7486, 3);
+    expect(drawn.width).toBeCloseTo(20.1757, 3);
     expect(entry.faces[0].width + entry.reveals.values.left + entry.reveals.values.right)
-      .toBeCloseTo(23.0782, 3);
+      .toBeCloseTo(23.0802, 3);
   });
 
   it('anchor 5: projects an upper 45 without changing its vertical dimensions', () => {
@@ -76,11 +76,11 @@ describe('CC3 corner face boxes and scene', () => {
     owner.grid.cols[0].size = 24;
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
-    expect(entry.box.x).toBeCloseTo(8.391, 3);
+    expect(entry.box.x).toBeCloseTo(8.016, 3);
     expect(entry.box.width).toBeCloseTo(15.8215, 3);
-    expect(entry.squash.pivot).toBeCloseTo(24.2125, 3);
+    expect(entry.squash.pivot).toBeCloseTo(23.8375, 3);
     expect(squashRect(entry.box, entry.squash)).toMatchObject({ z: 54, height: 30 });
-    expect(squashRect(entry.box, entry.squash).x).toBeCloseTo(13.025, 3);
+    expect(squashRect(entry.box, entry.squash).x).toBeCloseTo(12.65, 3);
     expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(11.1875, 3);
   });
 
@@ -104,8 +104,8 @@ describe('CC3 corner face boxes and scene', () => {
     const pivot = layout.pieces.find(({ id }) => id === 'cc').x;
     const entry = runFaceLayouts(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS, layout).get('cc');
     expect(entry.corner).toEqual({ side: 'right', kind: 45 });
-    expect(entry.squash.pivot).toBeCloseTo(pivot - 0.2125, 3);
-    expect(entry.box.x).toBeCloseTo(pivot - 0.2125, 3);
+    expect(entry.squash.pivot).toBeCloseTo(pivot + 0.1625, 3);
+    expect(entry.box.x).toBeCloseTo(pivot + 0.1625, 3);
     expect(entry.box.width).toBeCloseTo(15.8215, 3);
     expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(11.1875, 3);
 
@@ -283,9 +283,9 @@ describe('CC3 corner face boxes and scene', () => {
     });
 
     it.each([
-      ['13: base', false, 24, 36.2125, 20.391, 15.8215, 15.5625, 0.70711, 25.025],
-      ['14: uneven', false, 15, 36.1043, 13.0261, 23.0782, 22.8125, 0.86824, 16.0668],
-      ['15: upper', true, 12, 24.2125, 8.391, 15.8215, 15.5625, 0.70711, 13.025],
+      ['13: base', false, 24, 35.8375, 20.016, 15.8215, 15.5625, 0.70711, 24.65],
+      ['14: uneven', false, 15, 35.9243, 12.8442, 23.0802, 22.8125, 0.87416, 15.7486],
+      ['15: upper', true, 12, 23.8375, 8.016, 15.8215, 15.5625, 0.70711, 12.65],
     ])('anchor %s', (_name, upper, depthB, pivot, x, width, doorWidth, k, drawnX) => {
       Object.assign(owner.ends.left.corner, { kind: 45, depthB });
       if (upper) {

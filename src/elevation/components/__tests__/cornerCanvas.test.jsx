@@ -58,7 +58,7 @@ describe('CC3 step c corner canvas', () => {
     const face = entry.faces[0];
     const layer = canvas().find(({ type, key }) => type === FaceOutlines && key === 'faces:cc');
     const [drawn] = layer.props.faces;
-    expect(entry.squash.k).toBeCloseTo(0.86824, 5);
+    expect(entry.squash.k).toBeCloseTo(0.87416, 5);
     expect(drawn.x).toBeCloseTo(entry.squash.pivot + (face.x - entry.squash.pivot) * entry.squash.k, 10);
     expect(drawn.width).toBeCloseTo(face.width * entry.squash.k, 10);
     expect(drawn).toMatchObject({ trueWidth: face.width, z: face.z, height: face.height });

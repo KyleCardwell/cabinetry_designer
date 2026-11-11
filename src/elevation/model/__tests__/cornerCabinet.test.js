@@ -1,6 +1,89 @@
 import { describe, expect, it } from 'vitest';
 import { cornerCabinetShape, cornerFaceLayout } from '../cornerCabinet.js';
 
+describe('CC6.1 step a Euro 45 box and door fit', () => {
+  const base = { kind: 45, legA: 36, legB: 36, depthA: 24, depthB: 24,
+    construction: 'euro', sideThickness: 0.75, doorThickness: 13 / 16,
+    offsetA: 0.875, offsetB: 0.875, sideReveal: 1 / 16, diagonalReveal: 1 / 8 };
+
+  it.each([
+    ['base', 36, 24, 24, 11.25, 11.25, 15.9099, 45,
+      [35.8375, 24.65], [24.65, 35.8375], 15.8215, 15.5625, 0.1295, 11.1875, null],
+    ['upper', 24, 12, 12, 11.25, 11.25, 15.9099, 45,
+      [23.8375, 12.65], [12.65, 23.8375], 15.8215, 15.5625, 0.1295, 11.1875, null],
+    ['uneven', 36, 24, 15, 20.25, 11.25, 23.1652, 29.055,
+      [35.9243, 24.6263], [15.7486, 35.8351], 23.0802, 22.8125, 0.1338, 20.1757, -0.0189],
+  ])('anchor: %s shape, feet, order and clearance', (
+    _name, leg, depthA, depthB, a, b, trueWidth, angle, fa, fb, span, ordered, reveal, shownA, clearance,
+  ) => {
+    const dimensions = { ...base, legA: leg, legB: leg, depthA, depthB };
+    const shape = cornerCabinetShape(dimensions);
+    const face = cornerFaceLayout(dimensions);
+    expect(shape).toMatchObject({ construction: 'euro', sideThickness: 0.75, shown: { a, b } });
+    expect(shape.outline).toEqual([
+      [0, 0], [leg, 0], [leg, depthA], [leg - 0.75, depthA],
+      [depthB, leg - 0.75], [depthB, leg], [0, leg],
+    ]);
+    expect(shape.sideEdges).toEqual({
+      a: { from: [leg - 0.75, depthA], to: [leg, depthA] },
+      b: { from: [depthB, leg - 0.75], to: [depthB, leg] },
+    });
+    expect(shape.faces[0]).toMatchObject({ id: 'front', from: shape.sideEdges.a.from, to: shape.sideEdges.b.from });
+    for (const [actual, expected] of [
+      [shape.trueWidth, trueWidth], [shape.faces[0].width, trueWidth], [shape.angle, angle],
+      [shape.faces[0].normal[0], b / trueWidth], [shape.faces[0].normal[1], a / trueWidth],
+      [face.feet.a[0], fa[0]], [face.feet.a[1], fa[1]],
+      [face.feet.b[0], fb[0]], [face.feet.b[1], fb[1]],
+      [face.span, span], [face.ordered, ordered], [face.reveal, reveal], [face.shown.a, shownA],
+    ]) expect(actual).toBeCloseTo(expected, 3);
+    expect(shape.miters.a).toBeCloseTo(depthB === 15 ? 14.527 : 22.5, 3);
+    expect(shape.miters.b).toBeCloseTo(depthB === 15 ? 30.473 : 22.5, 3);
+    if (clearance === null) expect(face.sideClearance.a).toBeNull();
+    else expect(face.sideClearance.a).toBeCloseTo(clearance, 3);
+    expect(face.sideClearance.b).toBeNull();
+  });
+
+  it('keeps the five-sided shape by default and treats zero Euro thickness as framed', () => {
+    const dimensions = { kind: 45, legA: 36, legB: 36, depthA: 24, depthB: 24 };
+    const shape = cornerCabinetShape(dimensions);
+    expect(shape).toMatchObject({ construction: 'frame', sideThickness: 0, sideEdges: null,
+      shown: { a: 12, b: 12 }, outline: [[0, 0], [36, 0], [36, 24], [24, 36], [0, 36]] });
+    expect(cornerCabinetShape({ ...dimensions, construction: 'euro', sideThickness: 0 })).toEqual(shape);
+    expect(cornerCabinetShape({ ...dimensions, sideThickness: 0.75 })).toEqual(shape);
+    expect(cornerCabinetShape({ ...base, kind: 90 }))
+      .toEqual(cornerCabinetShape({ ...dimensions, kind: 90 }));
+    expect(cornerFaceLayout({ ...base, kind: 90 }))
+      .toEqual(cornerFaceLayout({ ...base, kind: 90, sideThickness: 0 }));
+  });
+
+  it('rejects legs consumed by the Euro side as well as the neighbouring depth', () => {
+    for (const dimensions of [{ depthB: 35.5 }, { depthB: 35.25 }, { depthA: 35.5 }]) {
+      expect(cornerCabinetShape({ ...base, ...dimensions })).toEqual({ errors: [{ code: 'legs-too-short' }] });
+    }
+  });
+
+  it('anchor: a three-quarter door clears the uneven side without changing its ordered size', () => {
+    const thick = cornerFaceLayout({ ...base, depthB: 15 });
+    const thin = cornerFaceLayout({ ...base, depthB: 15, doorThickness: 0.75 });
+    expect(thin.sideClearance.a).toBeCloseTo(0.0357, 3);
+    expect(thin.sideClearance.b).toBeNull();
+    expect(thin.ordered).toBe(thick.ordered);
+  });
+
+  it('checks the B side when the uneven depths are mirrored', () => {
+    const face = cornerFaceLayout({ ...base, depthA: 15 });
+    expect(face.sideClearance.a).toBeNull();
+    expect(face.sideClearance.b).toBeCloseTo(-0.0189, 3);
+  });
+
+  it('leaves clearance unknown when door thickness is absent or null', () => {
+    const dimensions = { ...base };
+    delete dimensions.doorThickness;
+    expect(cornerFaceLayout(dimensions).sideClearance).toEqual({ a: null, b: null });
+    expect(cornerFaceLayout({ ...dimensions, doorThickness: null }).sideClearance).toEqual({ a: null, b: null });
+  });
+});
+
 describe('CC1 step b cornerCabinetShape', () => {
   it.each([
     ['upper', 24, 12],
@@ -42,7 +125,7 @@ describe('CC1 step b cornerCabinetShape', () => {
 
   it('anchor: base 90 cabinet has two perpendicular faces', () => {
     expect(cornerCabinetShape({ kind: 90, legA: 36, legB: 36, depthA: 24, depthB: 24 })).toEqual({
-      kind: 90,
+      kind: 90, construction: 'frame', sideThickness: 0, sideEdges: null,
       outline: [[0, 0], [36, 0], [36, 24], [24, 24], [24, 36], [0, 36]],
       faces: [
         { id: 'A', from: [24, 24], to: [36, 24], width: 12, normal: [0, 1] },
@@ -55,7 +138,7 @@ describe('CC1 step b cornerCabinetShape', () => {
 
   it('anchor: uneven 90 cabinet uses each shown width independently', () => {
     expect(cornerCabinetShape({ kind: 90, legA: 36, legB: 30, depthA: 24, depthB: 15 })).toEqual({
-      kind: 90,
+      kind: 90, construction: 'frame', sideThickness: 0, sideEdges: null,
       outline: [[0, 0], [36, 0], [36, 24], [15, 24], [15, 30], [0, 30]],
       faces: [
         { id: 'A', from: [15, 24], to: [36, 24], width: 21, normal: [0, 1] },
