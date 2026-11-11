@@ -298,6 +298,10 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
       if (!meets) continue;
       free[side] = true;
       overhangs.set(id, { ...overhangs.get(id), [side]: amount });
+      if (!(run._frame.bead > 0)) {
+        const region = regions.find((region) => region.cabinetIds.includes(id));
+        (region.cuts ??= {})[side] = corner.cut;
+      }
     }
   }
   const frames = { regions, fillerIds, freeSides, seamSides, overhangs, cornerLaps, warnings };

@@ -91,11 +91,10 @@ describe('CC6 step b Corner 90 frame', () => {
     }
   });
 
-  it('anchor 8: Euro, inactive, Corner 45 and beaded corners have no Corner 90 frame', () => {
+  it('anchor 8: Euro, inactive and beaded corners have no frame', () => {
     for (const options of [
       { style: { cabinetStyleId: 13 } },
       { owner: { anchors: { left: false, right: false } } },
-      { corner: { kind: 45 } },
       { style: { cabinetStyleId: 15 } },
     ]) expect(frameOf(roomB(options))).toBeNull();
   });

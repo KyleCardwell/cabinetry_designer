@@ -127,10 +127,13 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       right: capturedByBox.right || tCovers?.right > 0,
     };
     const free = frames.freeSides.get(piece.id) ?? { left: false, right: false };
+    const ownOverhang = run._frame?.bead > 0 ? null : frames.overhangs.get(piece.id);
+    const leftInset = free.left ? ownOverhang?.left ?? overhang : 0;
+    const rightInset = free.right ? ownOverhang?.right ?? overhang : 0;
     const box = {
       ...piece,
-      x: piece.x + (free.left ? overhang : 0),
-      width: piece.width - (free.left ? overhang : 0) - (free.right ? overhang : 0),
+      x: piece.x + leftInset,
+      width: piece.width - leftInset - rightInset,
     };
     const corner = corners.find((end) => end?.active && end.shape && end.columnId === piece.id
       && !piece.columnId);
