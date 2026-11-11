@@ -1,15 +1,12 @@
-import { runFaceLayouts } from './faceLayouts.js';
 import { bandParts } from './bandParts.js';
-import { cellPieces, partPieces } from './cells.js';
+import { partPieces } from './cells.js';
 import { cornerReturnLegs } from './cornerLegs.js';
-import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
+import { frameBadgeAnchor, frameMembers, regionOpenings } from './frames.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { runLegs } from './legs.js';
 import { runLegFills } from './legFills.js';
 import { resolveProfile } from './profile.js';
-import { splitOptionsForRun } from './placement.js';
-import { splitRun } from './splitRun.js';
 import { runBands } from './runBands.js';
 import { runScene } from './runScene.js';
 import { teeFillers } from './tees.js';
@@ -32,6 +29,17 @@ export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 export function partNumbers(room, settings) {
   const ordered = roomParts(room, settings);
+  // Corner frames follow their neighbouring regions for numbering, while the parts list
+  // keeps them immediately after the run's pieces (CC6).
+  for (const corner of ordered.filter((part) => part.kind === 'frame' && part.columnId).reverse()) {
+    const index = ordered.indexOf(corner);
+    const lastRegion = ordered.findLastIndex((part) => part.kind === 'frame' && !part.columnId
+      && part.runId === corner.runId && part.wallId === corner.wallId && part.side === corner.side);
+    if (lastRegion > index) {
+      ordered.splice(index, 1);
+      ordered.splice(lastRegion, 0, corner);
+    }
+  }
   const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
     ? room.partNumberStart
     : 1;
@@ -165,9 +173,8 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
  */
 export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.flatMap((run) => {
-    const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
-    const cells = cellPieces(run, layout);
-    const frames = frameRegions(room, run, cells, settings);
+    const scene = runScene(room, wall, run, settings);
+    const { cells, frames, cornerFrames } = scene;
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
     const pieces = partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id));
     const endPanels = frames.regions.length > 0
@@ -175,8 +182,6 @@ export function wallBadgeGroups(room, wall, settings) {
       : [];
     const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
     const fills = new Map(runLegFills(room, wall, run, settings).map((fill) => [fill.leg.id, fill]));
-    let layouts = null;
-    const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
     return [
       {
         key: `run:${run.id}`,
@@ -193,7 +198,7 @@ export function wallBadgeGroups(room, wall, settings) {
       },
       // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
       ...frames.regions.map((region) => {
-        const openings = regionOpenings(region, faceLayouts());
+        const openings = regionOpenings(region, scene.faceLayouts);
         return {
           key: region.id,
           lift: 2,
@@ -207,6 +212,10 @@ export function wallBadgeGroups(room, wall, settings) {
           }],
         };
       }),
+      ...cornerFrames.map(({ columnId, owner }) => ({
+        key: `${columnId}:frame`, lift: 2,
+        pieces: [{ id: `${columnId}:frame`, ...owner, anchor: frameBadgeAnchor(owner, owner.members) }],
+      })),
       {
         key: `end-panels:${run.id}`,
         lift: 3,
@@ -223,8 +232,13 @@ export function wallBadgeGroups(room, wall, settings) {
     ];
   }).filter((group) => group.pieces.length > 0);
 
-  groups.push(...cornerReturnLegs(room, wall, settings).map((leg) => ({
+  const returnLegs = cornerReturnLegs(room, wall, settings);
+  groups.push(...returnLegs.map((leg) => ({
     key: leg.key, lift: 0, pieces: [{ id: leg.columnId, ...leg.rect }],
+  })));
+  groups.push(...returnLegs.filter(({ frame }) => frame).map(({ columnId, frame }) => ({
+    key: `${columnId}:frame`, lift: 2,
+    pieces: [{ id: `${columnId}:frame`, ...frame, anchor: frameBadgeAnchor(frame, frame.members) }],
   })));
 
   for (const panel of wallEndPanels(room, wall, settings)) {

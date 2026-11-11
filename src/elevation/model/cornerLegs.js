@@ -63,10 +63,12 @@ export function cornerReturnLegs(room, wall, settings) {
           pulls = squashPulls(runPulls(room, view, run, settings, scene, details).pulls
             .filter(({ pieceId }) => pieceId === columnId), squashes);
         }
+        const frame = scene.cornerFrames.find((frame) => frame.columnId === columnId)?.return;
         legs.push({
           key: `corner-leg:${ownerWall.id}:${run.id}:${side}`,
           ownerWallId: ownerWall.id, runId: run.id, side, columnId, kind,
           label: `Corner ${kind}`, rect, returnPanel, faceLayout, doorDetails, pulls,
+          ...(frame ? { frame } : {}),
         });
       }
     }

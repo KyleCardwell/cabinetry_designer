@@ -43,12 +43,21 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
   const dividers = [];
   const sections = [];
   const pieces = [];
+  const frameHits = [];
   const runs = [];
   const interiors = doorsOff
     ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : [];
   for (const run of wall.runs) {
     const runRect = { x: run.x, z: run.z, width: run.width, height: run.height };
     const scene = runScene(room, wall, run, settings);
+    for (const frame of scene.cornerFrames) {
+      const member = frame.owner.members.find((member) => contains(member, point));
+      if (!member) continue;
+      frameHits.push({
+        kind: 'piece', key: `${frame.columnId}:frame`, label: 'Face Frame', rect: member,
+        selection: { cornerOf: { wallId: wall.id, runId: run.id, side: frame.side } }, facePath: null,
+      });
+    }
     for (const [pieceId, layout] of doorsOff ? [] : squashFaceLayouts(scene.faceLayouts)) {
       const face = layout.faces.find((candidate) => contains(candidate, point));
       if (!face) continue;
@@ -127,6 +136,11 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
   const corners = [];
   for (const leg of cornerReturnLegs(room, wall, settings)) {
     const selection = { cornerOf: { wallId: leg.ownerWallId, runId: leg.runId, side: leg.side } };
+    const member = leg.frame?.members.find((member) => contains(member, point));
+    if (member) frameHits.push({
+      kind: 'piece', key: `${leg.columnId}:frame`, label: 'Face Frame', rect: member,
+      selection, facePath: null,
+    });
     for (const face of doorsOff ? [] : leg.faceLayout.faces) {
       if (!contains(face, point)) continue;
       corners.push({
@@ -201,6 +215,7 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
     }];
   }).sort((a, b) => FEATURE_ORDER[a.kind] - FEATURE_ORDER[b.kind]);
   return [
+    ...frameHits,
     ...dividers,
     ...sections,
     ...faces,

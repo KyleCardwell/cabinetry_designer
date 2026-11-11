@@ -1,17 +1,15 @@
 import { CABINET_TYPE_IDS } from './constants.js';
-import { blindEntries, blindPartWidths } from './blind.js';
-import { blindCellWidths, cellPieces, partPieces } from './cells.js';
+import { blindPartWidths } from './blind.js';
+import { blindCellWidths, partPieces } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { faceOutline } from './faceTree.js';
-import { frameRegions } from './frames.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { runLegs } from './legs.js';
 import { runLegFills } from './legFills.js';
 import { resolveProfile } from './profile.js';
-import { splitOptionsForRun } from './placement.js';
-import { splitRun } from './splitRun.js';
+import { runScene } from './runScene.js';
 import { teeFillers } from './tees.js';
 import { runMoldings } from './tops.js';
 import { wallNumbers } from './topology.js';
@@ -96,15 +94,14 @@ function rotParts(part, run) {
 function runParts(room, wall, side, settings) {
   const view = wallSideView(wall, side);
   return runsInWalkOrder(view).flatMap((run) => {
-    const layout = splitRun(run, settings, splitOptionsForRun(room, view, run, settings));
+    const scene = runScene(room, view, run, settings);
+    const { result: layout, cells, frames, cornerFrames } = scene;
     const widths = blindPartWidths(room, view, run, settings, layout);
-    const cells = cellPieces(run, layout);
-    const entries = blindEntries(room, view, run, settings, layout).entries;
+    const entries = scene.blind.entries;
     const cellWidths = blindCellWidths(cells.pieces, layout.pieces, entries);
     const blindPanels = new Set(entries
       .filter((entry) => entry.panel && entry.endPieceId)
       .map((entry) => entry.endPieceId));
-    const frames = frameRegions(room, run, cells, settings);
     const inFrame = frames.fillerIds;
     const { tees } = teeFillers(room, run, cells, settings);
     const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
@@ -157,6 +154,11 @@ function runParts(room, wall, side, settings) {
         ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
       ]),
       ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
+      ...cornerFrames.map(({ columnId, owner: { x, width, z, height } }) => ({
+        key: `${columnId}:frame`, kind: 'frame', source: 'frame', columnId,
+        wallId: wall.id, side, runId: run.id, pieceId: null, molding: null,
+        x, width, z, height,
+      })),
       // One part per face frame, after its run's pieces (SPEC-36.2).
       ...frames.regions.map((region) => ({
         key: region.id,

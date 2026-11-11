@@ -1,6 +1,8 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellPieces, floatingShelfLayout, panelOrientation, shelfParts } from './cells.js';
 import { cornerEnd } from './cornerEnd.js';
+import { cornerFrame } from './cornerFrame.js';
+import { squashRect } from './cornerSquash.js';
 import { extendPieces } from './extensions.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
@@ -11,6 +13,32 @@ import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
 const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
+/** Project frame members for badges and picking, retaining true sizes on the corner frame itself. */
+function cornerFrameView(frame, corner, entry, returning = false) {
+  const { z, height } = frame.frame;
+  if (frame.kind === 45) {
+    const width = frame.diagonal.frontWidth;
+    const x = entry.squash.pivot - (corner.dir === 1 ? width : 0);
+    const squash = returning ? entry.cornerReturn.squash : entry.squash;
+    return {
+      ...squashRect({ x, width, z, height }, squash),
+      members: frame.members.map((member) => squashRect(member, squash)),
+    };
+  }
+  const members = frame.members.filter(({ side }) => side === (returning ? 'B' : 'A'))
+    .map((member) => {
+      if (!returning) return member;
+      const p0 = corner.dir === 1 ? member.x - corner.cornerX
+        : corner.cornerX - member.x - member.width;
+      const { at, dir } = entry.cornerReturn;
+      return { ...member, x: Math.min(at + dir * p0, at + dir * (p0 + member.width)) };
+    });
+  const leg = frame.legs[returning ? 1 : 0];
+  const end = leg.stileAtEnd?.x0 ?? leg.x1;
+  const { at, dir } = returning ? entry.cornerReturn : { at: corner.cornerX, dir: corner.dir };
+  return { x: Math.min(at + dir * leg.x0, at + dir * end), width: end - leg.x0, z, height, members };
+}
+
 /**
  * Everything RunGroup draws for a run, derived once (SPEC-39.1): the layout, cells, faces, frames,
  * blind panels and the pieces as drawn (T-fillers, extensions and end drops applied). The canvas
@@ -20,7 +48,9 @@ export function runScene(room, wall, run, settings) {
   const result = layoutRun(room, wall, run, settings);
   const cells = cellPieces(run, result);
   const faceLayouts = runFaceLayouts(room, wall, run, settings, result);
-  const frames = frameRegions(room, run, cells, settings);
+  const frames = frameRegions(room, run, cells, settings, faceLayouts);
+  const cornerFrames = [];
+  frames.cornerFrames = cornerFrames;
   const framedIds = new Set(frames.regions.flatMap((region) => region.cabinetIds));
   const hiddenIds = new Set(frames.regions.flatMap((region) => region.fillerIds));
   const ghostIds = new Set(frames.regions.flatMap((region) => region.panelIds));
@@ -47,7 +77,14 @@ export function runScene(room, wall, run, settings) {
   for (const [columnId, entry] of faceLayouts) {
     if (!entry.corner) continue;
     const { side, kind } = entry.corner;
-    const { returnSide, legA, depthB } = cornerEnd(room, wall, run, side, settings, result);
+    const corner = cornerEnd(room, wall, run, side, settings, result);
+    const { returnSide, legA, depthB } = corner;
+    const frame = cornerFrame(room, wall, run, side, settings, result, faceLayouts);
+    if (frame) cornerFrames.push({
+      ...frame,
+      owner: cornerFrameView(frame, corner, entry),
+      ...(entry.cornerReturn ? { return: cornerFrameView(frame, corner, entry, true) } : {}),
+    });
     subLabels.set(columnId, `Corner ${kind}`);
     if (returnSide.type === 'end_panel') {
       const piece = result.pieces.find((candidate) => candidate.id === columnId);
@@ -103,6 +140,6 @@ export function runScene(room, wall, run, settings) {
   ];
   return {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, blind, subLabels,
-    panels, cornerPanels, panelPieceIds, panelBySide, endBottom, shelves, tees, ells, drawnPieces,
+    panels, cornerPanels, cornerFrames, panelPieceIds, panelBySide, endBottom, shelves, tees, ells, drawnPieces,
   };
 }
