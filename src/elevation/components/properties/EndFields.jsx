@@ -126,6 +126,18 @@ export default function EndFields({
             {CORNER_DOORS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </Field>}
+        {resolved.kind === 90 && <Field label="Leg B face">
+          <select
+            value={end.corner?.legBFace ?? 'same'}
+            onChange={(event) => updateCorner({ legBFace: event.target.value === 'same' ? null : event.target.value })}
+            aria-label={`${side} end corner leg B face`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="same">Same as leg A</option>
+            <option value="door">Door</option>
+            <option value="panel">Panel</option>
+          </select>
+        </Field>}
         <Field label="Return side">
           <select
             value={end.corner?.returnPiece ?? 'auto'}

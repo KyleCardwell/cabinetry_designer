@@ -21,12 +21,14 @@ import {
   roomDiagnostics,
 } from '../model/room.js';
 import { resolveSelectedPiece } from '../properties/helpers.js';
+import { cornerReturnPoint } from '../model/corners.js';
 import {
   clearSelection,
   setMessage,
   setSelection,
 } from '../store/elevationSlice.js';
 import OpeningProperties from './properties/OpeningProperties.jsx';
+import CornerLegProperties from './properties/CornerLegProperties.jsx';
 import LineProperties from './properties/LineProperties.jsx';
 import RoomLineProperties from './properties/RoomLineProperties.jsx';
 import { linesOn } from '../model/layoutLines.js';
@@ -57,6 +59,16 @@ export default function PropertiesPanel() {
     (candidate) => candidate.id === selection.wallId,
   ) ?? null;
   const wall = useMemo(() => resolveWall(room, storedWall, storedWall?.id === activeWallId ? activeWallSide : 'front'), [room, storedWall, activeWallId, activeWallSide]);
+  const cornerOwner = useMemo(() => {
+    if (!selection.cornerOf || !room || !wall) return null;
+    const { wallId, runId, side } = selection.cornerOf;
+    const ownerWall = room.walls.find((candidate) => candidate.id === wallId);
+    const ownerRun = ownerWall?.runs.find((candidate) => candidate.id === runId);
+    if (!ownerRun) return null;
+    const point = cornerReturnPoint(room, ownerWall, ownerRun, side);
+    return point?.wallId === wall.id && point.wallSide === (wall.side ?? 'front')
+      ? { ownerWall, ownerRun, side } : null;
+  }, [room, wall, selection.cornerOf]);
   const opening = wall?.openings.find(
     (candidate) => candidate.id === selection.openingId,
   ) ?? null;
@@ -144,6 +156,10 @@ export default function PropertiesPanel() {
     if (selection.roomLineId && !roomLine) dispatch(clearSelection());
   }, [dispatch, roomLine, selection.roomLineId]);
 
+  useEffect(() => {
+    if (selection.cornerOf && !cornerOwner) dispatch(clearSelection());
+  }, [dispatch, cornerOwner, selection.cornerOf]);
+
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
       <PropertiesHeader
@@ -163,7 +179,9 @@ export default function PropertiesPanel() {
       />
 
       <div className="mt-4">
-        {roomLine ? (
+        {cornerOwner ? (
+          <CornerLegProperties room={room} {...cornerOwner} settings={settings} />
+        ) : roomLine ? (
           <RoomLineProperties room={room} wall={view === 'plan' ? null : wall} line={roomLine} />
         ) : !wall ? (
           <p className="text-sm leading-relaxed text-gray-500">

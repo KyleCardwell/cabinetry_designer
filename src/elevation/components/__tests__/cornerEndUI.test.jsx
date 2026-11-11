@@ -217,13 +217,46 @@ describe('CC3 step d corner run end fields', () => {
     expect(fields().some(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '))).toBe(false);
     expect(fields().filter(({ props }) => props['aria-label']).map(({ props }) => props['aria-label'])).toEqual([
       'left end type', 'left end corner leg A', 'left end corner leg B',
-      'left end corner depth B', 'left end corner doors', 'left end corner return side', 'left end corner return width',
+      'left end corner depth B', 'left end corner doors', 'left end corner leg B face',
+      'left end corner return side', 'left end corner return width',
     ]);
   });
 
   it('anchor 13: displays a corner warning message instead of its code', () => {
     const result = WarningsList({ layout: { errors: [], warnings: [{ code: 'corner-crossed', message: 'X' }] } });
     expect(nodes(result).find(({ type }) => type === 'li').props.children).toBe('X');
+  });
+});
+
+describe('CC4 step d leg B face select', () => {
+  it('anchor 6: selects the leg B face after Doors, preserves corner choices, and hides it on a 45', () => {
+    expect(field('corner leg B face')).toBeUndefined();
+    corner();
+    expect(field('corner leg B face').props.value).toBe('same');
+    expect(options(field('corner leg B face'))).toEqual([
+      ['same', 'Same as leg A'], ['door', 'Door'], ['panel', 'Panel'],
+    ]);
+    const labels = fields().filter(({ props }) => props['aria-label']).map(({ props }) => props['aria-label']);
+    expect(labels.indexOf('left end corner leg B face')).toBe(labels.indexOf('left end corner doors') + 1);
+    commit('corner leg B', 30);
+    commit('corner depth B', 15);
+    pick('corner doors', 'b_long');
+    pick('corner return side', 'filler');
+    commit('corner return width', 3);
+    const stored = { ...run().ends.left.corner };
+    for (const value of ['panel', 'door', 'same', 'panel']) {
+      pick('corner leg B face', value);
+      const expected = { ...stored, legBFace: value === 'same' ? null : value };
+      expect(dispatch).toHaveBeenLastCalledWith(setRunEnd({ ...at, side: 'left',
+        end: { type: 'corner', width: null, corner: expected },
+      }));
+      expect(run().ends.left.corner).toEqual(expected);
+      expect(field('corner leg B face').props.value).toBe(value);
+    }
+    corner(45);
+    expect(field('corner leg B face')).toBeUndefined();
+    corner(90);
+    expect(field('corner leg B face').props.value).toBe('panel');
   });
 });
 
