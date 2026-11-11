@@ -45,6 +45,22 @@ const WARNING_MESSAGES = {
   'corner-doubled': 'Both runs in this corner have a corner cabinet.',
 };
 
+/** The framed diagonal's front line, bounded by its two miter points (CC6). */
+function framedDiagonalLayout(shape, thickness, lap, fit) {
+  const { from: a, to: b, normal } = shape.faces[0];
+  const u = [(b[0] - a[0]) / shape.trueWidth, (b[1] - a[1]) / shape.trueWidth];
+  const shiftA = thickness * Math.tan(shape.miters.a * Math.PI / 180);
+  const shiftB = thickness * Math.tan(shape.miters.b * Math.PI / 180);
+  const pa = a.map((value, i) => value + thickness * normal[i] + shiftA * u[i]);
+  const pb = b.map((value, i) => value + thickness * normal[i] - shiftB * u[i]);
+  const span = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+  return {
+    feet: { a: pa, b: pb }, span, reveal: 2 * lap,
+    ordered: span - 4 * lap - 2 * fit,
+    shown: { a: span * shape.shown.a / shape.trueWidth, b: span * shape.shown.b / shape.trueWidth },
+  };
+}
+
 /** Resolve the owner column, return dimensions and geometry, including inactive corner ends. */
 export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const end = run.ends?.[side];
@@ -104,12 +120,20 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
     shape: geometry?.errors ? null : geometry,
     warnings,
   };
+  const framedFaces = framed && !(run._frame.bead > 0);
+  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   result.faceLayout = result.shape ? cornerFaceLayout({
     ...result,
+    // Both framed legs stop at the frame opening, independently of the Euro long-door choice.
+    doors: framedFaces ? 'equal' : doors,
     sideReveal: typeStandardReveals(resolveStyle(settings, room, run, item), run.cabinetTypeId, settings)[side === 'left' ? 'right' : 'left'],
     gap: settings.cornerDoorGap ?? DEFAULT_SETTINGS.cornerDoorGap,
     diagonalReveal: settings.cornerDiagonalReveal ?? DEFAULT_SETTINGS.cornerDiagonalReveal,
   }) : null;
+  if (result.shape && framedFaces && kind === 45) {
+    result.faceLayout = framedDiagonalLayout(result.shape, offsetA, frame.stile,
+      settings.profiledFit?.edge ?? DEFAULT_SETTINGS.profiledFit.edge);
+  }
   return result;
 }
 

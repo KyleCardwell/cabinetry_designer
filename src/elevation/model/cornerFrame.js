@@ -21,17 +21,13 @@ function openingRows(openings) {
 
 /** True-size layout along Pa → Pb; only member x unfolds onto the owner's wall axis. */
 function diagonalFrame(corner, frame, rows, railRows, lap) {
-  const { from: a, to: b, normal } = corner.shape.faces[0];
+  const { from: a, to: b } = corner.shape.faces[0];
   const { trueWidth, miters } = corner.shape;
   const u = [(b[0] - a[0]) / trueWidth, (b[1] - a[1]) / trueWidth];
   const width = 2 * lap;
   const stiles = ['a', 'b'].map((end) => ({ end, width,
     backWidth: width + frame.thickness * Math.tan(miters[end] * Math.PI / 180), cut: miters[end] }));
-  const shiftA = stiles[0].backWidth - width;
-  const shiftB = stiles[1].backWidth - width;
-  const pa = a.map((value, i) => value + frame.thickness * normal[i] + shiftA * u[i]);
-  const pb = b.map((value, i) => value + frame.thickness * normal[i] - shiftB * u[i]);
-  const frontWidth = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+  const { feet: { a: pa, b: pb }, span: frontWidth } = corner.faceLayout;
   const p0 = width;
   const p1 = frontWidth - width;
   const rails = railRows.map(({ z, height }) => ({ p0, p1, z, height }));

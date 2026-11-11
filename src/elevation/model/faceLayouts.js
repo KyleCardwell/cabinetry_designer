@@ -139,6 +139,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       && !piece.columnId);
     const style = resolveStyle(settings, room, run, item);
     const cornerLayout = corner?.faceLayout ?? null;
+    const framedCorner = corner && run._frame && !(run._frame.bead > 0);
     let squash = null;
     if (corner) {
       const faceX = corner.kind === 45 ? cornerLayout.feet.a[0] : corner.legA;
@@ -149,7 +150,10 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
         pivot, k: corner.shape.shown.a / corner.shape.trueWidth,
       };
     }
-    const storedFace = item?.face ?? defaultFace(box.width, settings);
+    // Choose the default tree from the frame opening, before the ordinary inset fit.
+    const faceWidth = framedCorner ? box.width - (corner.kind === 45
+      ? 2 * cornerLayout.reveal : cornerLayout.a.cornerReveal + overhang) : box.width;
+    const storedFace = item?.face ?? defaultFace(faceWidth, settings);
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const runEdges = {
@@ -237,8 +241,8 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
           });
         } else {
           returnSquash = {
-            from: squash.pivot,
-            pivot: point.at + point.dir * cornerLayout.feet.a[1],
+            from: framedCorner ? squash.pivot - corner.dir * cornerLayout.span : squash.pivot,
+            pivot: point.at + point.dir * cornerLayout.feet[framedCorner ? 'b' : 'a'][1],
             k: corner.shape.shown.b / corner.shape.trueWidth,
           };
         }
