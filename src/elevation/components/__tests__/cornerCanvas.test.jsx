@@ -1,18 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
-import { wallRectToScreen } from '../../canvas/transform.js';
+import { wallRectToScreen, wallToScreen } from '../../canvas/transform.js';
 import { DEFAULT_SETTINGS, ELEVATION_BG, ELEVATION_LINE } from '../../model/constants.js';
 import { normalizeCornerEnd } from '../../model/cornerEnd.js';
+import { cornerReturnLegs } from '../../model/cornerLegs.js';
 import { runDoorDetails } from '../../model/doorDetails.js';
 import { runPulls } from '../../model/pullLayouts.js';
 import { runScene } from '../../model/runScene.js';
 import { runSwingMarks } from '../../model/swingMarks.js';
 import DoorDetails from '../DoorDetails.jsx';
 import FaceOutlines from '../FaceOutlines.jsx';
+import NeighborReturns from '../NeighborReturns.jsx';
 import PieceRect from '../PieceRect.jsx';
 import Pulls from '../Pulls.jsx';
 import RunGroup from '../RunGroup.jsx';
 import SwingMarks from '../SwingMarks.jsx';
+import EndFields from '../properties/EndFields.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -49,9 +52,73 @@ describe('CC3 step c corner canvas', () => {
     ] });
   });
 
-  const canvas = () => nodes(RunGroup.type({
+  const canvas = (extra = {}) => nodes(RunGroup.type({
     room: subject, wall: ownerWall, run: owner, settings: DEFAULT_SETTINGS, transform,
+    ...extra,
   }));
+
+  it('CC6.1 anchor 4: draws one full-height inner edge under each owner and return face', () => {
+    owner.ends.left.corner.depthB = 24;
+    const returnWall = subject.walls[1];
+    for (const side of ['left', 'right']) {
+      if (side === 'right') {
+        owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
+        owner.anchors = { left: false, right: true };
+        owner.ends = { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) };
+        ownerWall.connections = { start: null, end: { wallId: 'wall-2', endpoint: 'start' } };
+        Object.assign(returnWall, { x1: 144, y1: 0, x2: 144, y2: 144,
+          connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null } });
+      }
+      const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+      const cc = scene.result.pieces.find(({ id }) => id === 'cc');
+      for (const doorsOff of [false, true]) {
+        const trees = [canvas({ doorsOff }), nodes(NeighborReturns({
+          room: subject, wall: returnWall, settings: DEFAULT_SETTINGS, transform, doorsOff,
+        }))];
+        const xs = side === 'left' ? [35.25, 108.75] : [cc.x + 0.75, 35.25];
+        trees.forEach((tree, index) => {
+          const lines = tree.filter(({ type, key }) => type === 'line' && key?.startsWith('corner-side-edge'));
+          expect(lines).toHaveLength(1);
+          const from = wallToScreen({ x: xs[index], z: owner.z }, transform);
+          const to = wallToScreen({ x: xs[index], z: owner.z + owner.height }, transform);
+          expect(lines[0].props).toEqual({
+            points: [from.x, from.y, to.x, to.y], stroke: ELEVATION_LINE, strokeWidth: 1, listening: false,
+          });
+          if (!doorsOff) {
+            expect(tree.indexOf(lines[0])).toBeLessThan(tree.findIndex(({ type }) => type === FaceOutlines));
+            expect(tree.indexOf(lines[0])).toBeLessThan(tree.findIndex(({ type }) => type === DoorDetails));
+          }
+        });
+      }
+    }
+  });
+
+  it('CC6.1 anchor 6: omits side edges and lines on framed 45s, beaded 45s and Corner 90s', () => {
+    for (const [kind, frame] of [[45, { thickness: 0.75, bead: 0 }],
+      [45, { thickness: 0.75, bead: 0.125 }], [90, null]]) {
+      owner.ends.left.corner = { ...owner.ends.left.corner, kind, depthB: 24 };
+      owner._frame = frame;
+      const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
+      expect(scene.faceLayouts.get('cc').corner).not.toHaveProperty('sideEdge');
+      const legs = cornerReturnLegs(subject, subject.walls[1], DEFAULT_SETTINGS);
+      expect(legs).toHaveLength(1);
+      expect(legs[0]).not.toHaveProperty('sideEdge');
+      const trees = [canvas(), nodes(NeighborReturns({
+        room: subject, wall: subject.walls[1], settings: DEFAULT_SETTINGS, transform, legs,
+      }))];
+      for (const tree of trees) {
+        expect(tree.some(({ key }) => key?.startsWith('corner-side-edge'))).toBe(false);
+      }
+    }
+  });
+
+  it('CC6.1 anchor 5: reads out the uneven Euro 45 ordered door and angle', () => {
+    const tree = nodes(EndFields({
+      room: subject, wall: ownerWall, run: owner, side: 'left', settings: DEFAULT_SETTINGS,
+    }));
+    expect(tree.find(({ type }) => type === 'p').props.children.join(''))
+      .toContain('door face 22 13/16" (29.1°)');
+  });
 
   it('anchor 1: feeds projected faces with their true width to FaceOutlines', () => {
     const entry = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).faceLayouts.get('cc');

@@ -34,6 +34,29 @@ describe('CC4 return leg layout', () => {
     subject = room({ walls: [ownerWall, returnWall] });
   });
 
+  it('CC6.1 anchor 3: keeps the Euro 45 return side edge at true size beside the diagonal', () => {
+    owner.ends.left.corner.kind = 45;
+    const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
+    expect(leg.sideEdge).toEqual({ x: 108, width: 0.75 });
+    expect(leg.rect).toEqual({ x: 108, width: 12, z: owner.z, height: owner.height });
+  });
+
+  it('CC6.1: places a positive-direction return side edge using the sheet thickness', () => {
+    owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
+    owner.anchors = { left: false, right: true };
+    owner.ends = { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) };
+    ownerWall.connections = { start: null, end: { wallId: 'wall-2', endpoint: 'start' } };
+    Object.assign(returnWall, { x1: 144, y1: 0, x2: 144, y2: 144,
+      connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null } });
+    const settings = { ...DEFAULT_SETTINGS, sheetThickness: 1 };
+    const leg = cornerReturnLegs(subject, returnWall, settings)[0];
+    expect(leg.sideEdge).toEqual({ x: 35, width: 1 });
+    expect(leg.rect).toEqual({ x: 24, width: 12, z: owner.z, height: owner.height });
+    const scene = runScene(subject, ownerWall, owner, settings);
+    expect(scene.faceLayouts.get('cc').corner.sideEdge)
+      .toEqual({ x: scene.result.pieces.find(({ id }) => id === 'cc').x, width: 1 });
+  });
+
   it('anchor 1: lays out the 90 return face at true size on wall-2', () => {
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { legB } = entry.cornerReturn;

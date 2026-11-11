@@ -438,6 +438,22 @@ function RunGroup({
         />
       ))}
 
+      {[...faceLayouts].filter(([, entry]) => entry.corner?.sideEdge).map(([pieceId, entry]) => {
+        const { side, sideEdge } = entry.corner;
+        const x = sideEdge.x + (side === 'right' ? sideEdge.width : 0);
+        const from = wallToScreen({ x, z: entry.box.z }, transform);
+        const to = wallToScreen({ x, z: entry.box.z + entry.box.height }, transform);
+        return (
+          <Line
+            key={`corner-side-edge:${pieceId}`}
+            points={[from.x, from.y, to.x, to.y]}
+            stroke={ELEVATION_LINE}
+            strokeWidth={1}
+            listening={false}
+          />
+        );
+      })}
+
       {[...frames.regions, ...frames.cornerFrames.map((frame) => ({
         id: `${frame.columnId}:frame`, ...frame.owner,
       }))].map((region) => (

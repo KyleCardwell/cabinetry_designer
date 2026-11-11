@@ -75,6 +75,10 @@ export default function NeighborReturns({
       {legs.map((leg) => {
         const selected = selection?.cornerOf?.wallId === leg.ownerWallId
           && selection.cornerOf.runId === leg.runId && selection.cornerOf.side === leg.side;
+        const edgeX = leg.sideEdge && leg.sideEdge.x
+          + (leg.sideEdge.x === leg.rect.x ? leg.sideEdge.width : 0);
+        const edgeFrom = leg.sideEdge && wallToScreen({ x: edgeX, z: leg.rect.z }, transform);
+        const edgeTo = leg.sideEdge && wallToScreen({ x: edgeX, z: leg.rect.z + leg.rect.height }, transform);
         return (
           <Fragment key={leg.key}>
             <Rect
@@ -89,6 +93,15 @@ export default function NeighborReturns({
                 {...wallRectToScreen(leg.returnPanel, transform)}
                 fill={ELEVATION_BG}
                 opacity={0.82}
+                stroke={ELEVATION_LINE}
+                strokeWidth={1}
+                listening={false}
+              />
+            )}
+            {leg.sideEdge && (
+              <Line
+                key="corner-side-edge"
+                points={[edgeFrom.x, edgeFrom.y, edgeTo.x, edgeTo.y]}
                 stroke={ELEVATION_LINE}
                 strokeWidth={1}
                 listening={false}

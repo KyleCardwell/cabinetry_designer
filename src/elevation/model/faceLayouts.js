@@ -210,6 +210,13 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
     if (corner) {
       entry.squash = squash;
       entry.corner = { side: corner.side, kind: corner.kind };
+      if (corner.kind === 45 && corner.shape.sideEdges) {
+        const thickness = corner.shape.sideThickness;
+        entry.corner.sideEdge = {
+          x: piece.x + (corner.side === 'left' ? corner.legA - thickness : 0),
+          width: thickness,
+        };
+      }
       const point = cornerReturnPoint(room, wall, run, corner.side);
       if (point) {
         let legB = null;

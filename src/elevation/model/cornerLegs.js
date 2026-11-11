@@ -64,10 +64,15 @@ export function cornerReturnLegs(room, wall, settings) {
             .filter(({ pieceId }) => pieceId === columnId), squashes);
         }
         const frame = scene.cornerFrames.find((frame) => frame.columnId === columnId)?.return;
+        const sideEdge = kind === 45 && corner.shape.sideEdges ? {
+          x: Math.min(at + dir * (legB - corner.shape.sideThickness), at + dir * legB),
+          width: corner.shape.sideThickness,
+        } : null;
         legs.push({
           key: `corner-leg:${ownerWall.id}:${run.id}:${side}`,
           ownerWallId: ownerWall.id, runId: run.id, side, columnId, kind,
           label: `Corner ${kind}`, rect, returnPanel, faceLayout, doorDetails, pulls,
+          ...(sideEdge ? { sideEdge } : {}),
           ...(frame ? { frame } : {}),
         });
       }

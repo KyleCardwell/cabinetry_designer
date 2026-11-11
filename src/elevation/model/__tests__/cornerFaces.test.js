@@ -49,11 +49,12 @@ describe('CC3 corner face boxes and scene', () => {
     expect(entry.box.width).toBeCloseTo(15.8215, 3);
     expect(entry.squash.pivot).toBeCloseTo(35.8375, 3);
     expect(entry.squash.k).toBeCloseTo(0.70711, 5);
-    expect(entry.corner).toEqual({ side: 'left', kind: 45 });
+    expect(entry.corner).toEqual({ side: 'left', kind: 45, sideEdge: { x: 35.25, width: 0.75 } });
     expect(entry.faces).toHaveLength(1); // The default face uses true width, not the 36-inch column.
     const drawn = squashRect(entry.box, entry.squash);
     expect(drawn.x).toBeCloseTo(24.65, 3);
     expect(drawn.width).toBeCloseTo(11.1875, 3);
+    expect(drawn.x + drawn.width).toBeCloseTo(35.8375, 3);
   });
 
   it('anchor 4: keeps uneven 45 faces and reveals at true width', () => {
@@ -103,7 +104,7 @@ describe('CC3 corner face boxes and scene', () => {
     const layout = layoutRun(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS);
     const pivot = layout.pieces.find(({ id }) => id === 'cc').x;
     const entry = runFaceLayouts(peninsulaRoom, host, hostRun, DEFAULT_SETTINGS, layout).get('cc');
-    expect(entry.corner).toEqual({ side: 'right', kind: 45 });
+    expect(entry.corner).toEqual({ side: 'right', kind: 45, sideEdge: { x: pivot, width: 0.75 } });
     expect(entry.squash.pivot).toBeCloseTo(pivot + 0.1625, 3);
     expect(entry.box.x).toBeCloseTo(pivot + 0.1625, 3);
     expect(entry.box.width).toBeCloseTo(15.8215, 3);
