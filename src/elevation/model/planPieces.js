@@ -1,6 +1,7 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
+import { cornerPlanPieces } from './cornerPlan.js';
 import { faceFrontOffset, frontDepth, runBackOffset, runFaceThickness } from './corners.js';
 import { runFaceStyles } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -431,7 +432,10 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       : piece;
   });
   const waterfallLegs = planWaterfallLegs(room, wall, run, settings);
-  const pieces = [...boxes, ...teeFaces, ...endReturns, ...teeReturns, ...waterfallLegs];
+  const corner = cornerPlanPieces(room, wall, run, settings, layout, faceLayouts, teeFaces);
+  const cornerBoxes = boxes.map((box) => ({ ...box, ...corner.boxes.get(box.key) }));
+  const cornerFaces = [...teeFaces.filter(({ key }) => !corner.dropFaceKeys.has(key)), ...corner.faces];
+  const pieces = [...cornerBoxes, ...cornerFaces, ...endReturns, ...teeReturns, ...waterfallLegs];
   const shift = (piece) => (outset
     ? {
       ...piece,
@@ -446,8 +450,8 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       start: Math.min(...pieces.map((piece) => piece.start)),
       end: Math.max(...pieces.map((piece) => piece.end)),
     },
-    boxes: boxes.map(shift),
-    faces: teeFaces.map(shift),
+    boxes: cornerBoxes.map(shift),
+    faces: cornerFaces.map(shift),
     returns: [...endReturns, ...teeReturns].map(shift),
     ...(waterfallLegs.length ? { waterfallLegs } : {}),
   };

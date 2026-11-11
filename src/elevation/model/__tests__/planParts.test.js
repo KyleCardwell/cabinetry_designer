@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { normalizeCornerEnd } from '../cornerEnd.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { planMeasureGeometry, snapMeasure } from '../measure.js';
 import { planParts } from '../planParts.js';
 import { layoutRun } from '../faceLayouts.js';
@@ -21,6 +24,40 @@ const wallThings = (room) => planParts(syncRoom(room, settings), settings)
 const stored9b = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', import.meta.url), 'utf8'));
 const settings9b = { ...DEFAULT_SETTINGS, ...stored9b.settingsOverrides };
 const room9b = syncRoom(structuredClone(stored9b), settings9b);
+
+describe('CC5 step a corner parts in plan', () => {
+  it.each([90, 45])('anchor 9: exports a %s corner polygon, faces and return panel with their tops', (kind) => {
+    const owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')], _doorThickness: 0.75,
+      style: { cabinetStyleId: 13 }, anchors: { left: true, right: false },
+      ends: { left: normalizeCornerEnd({ corner: { kind } }), right: { type: 'none' } },
+    });
+    owner.grid.cells[0].node.face = { type: 'door' };
+    owner.grid.cells[0].node.doorStyleId = 'thin';
+    const subject = room({ walls: [
+      wall({ runs: [owner],
+        connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }),
+      wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0,
+        connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } } }),
+    ], doorStyles: [{ ...DEFAULT_DOOR_STYLE, id: 'thin', label: 'Thin', thickness: 0.75 }] });
+    const cornerSettings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125 };
+    const parts = planParts(subject, cornerSettings).filter(({ id }) => id === 'cc' || id.startsWith('cc:'));
+    const outline = [[0, 0], [36, 0], [36, -24],
+      ...(kind === 90 ? [[24, -24]] : []), [24, -36], [0, -36]];
+    expect(parts.find(({ id }) => id === 'cc')).toMatchObject({ kind: 'cabinet', points: outline });
+    expect(parts.find(({ id }) => id === 'cc:return')).toMatchObject({ kind: 'end_panel',
+      points: [[0, -36], [24, -36], [24, -36.8125], [0, -36.8125]] });
+    const face = parts.find(({ id }) => id === (kind === 90 ? 'cc:B:r' : 'cc:r'));
+    expect(face.kind).toBe('face');
+    const expected = kind === 90
+      ? [[24.125, -25], [24.875, -25], [24.875, -35.9375], [24.125, -35.9375]]
+      : [[36.1209, -25.1165], [25.1165, -36.1209], [24.5862, -35.5906], [35.5906, -24.5862]];
+    face.points.forEach((point, i) => point.forEach((value, j) => {
+      expect(Math.abs(value - expected[i][j])).toBeLessThan(0.001);
+    }));
+    expect(parts).toHaveLength(kind === 90 ? 4 : 3);
+    expect(parts.every(({ top }) => top === owner.z + owner.height)).toBe(true);
+  });
+});
 
 describe('PT1 step b tops in the plan payload', () => {
   it('anchor 1: adds one closed Room 9b countertop outline without a hiding height or run', () => {
