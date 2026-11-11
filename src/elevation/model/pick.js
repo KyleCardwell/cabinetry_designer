@@ -1,4 +1,6 @@
 import { CABINET_TYPE_IDS, INTERIOR_DIVIDER_LABELS, KIND_LABELS } from './constants.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerReturnLegs } from './cornerLegs.js';
 import { squashFaceLayouts } from './cornerSquash.js';
 import { faceFeatures } from './faceFeatures.js';
 import { FACE_TYPE_LABELS } from './faces.js';
@@ -122,6 +124,35 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
       });
     }
   }
+  const corners = [];
+  for (const leg of cornerReturnLegs(room, wall, settings)) {
+    const selection = { cornerOf: { wallId: leg.ownerWallId, runId: leg.runId, side: leg.side } };
+    for (const face of doorsOff ? [] : leg.faceLayout.faces) {
+      if (!contains(face, point)) continue;
+      corners.push({
+        kind: 'face',
+        key: `corner-face:${leg.key}:${face.path}`,
+        label: `${FACE_TYPE_LABELS[face.type] ?? 'Face'} ${size({ ...face, width: face.trueWidth ?? face.width })}`,
+        rect: { x: face.x, z: face.z, width: face.width, height: face.height },
+        selection,
+        facePath: null,
+      });
+    }
+    const rect = contains(leg.rect, point) ? leg.rect
+      : leg.returnPanel && contains(leg.returnPanel, point) ? leg.returnPanel : null;
+    if (!rect) continue;
+    const ownerWall = room.walls.find(({ id }) => id === leg.ownerWallId);
+    const owner = ownerWall.runs.find(({ id }) => id === leg.runId);
+    const { legA, legB } = cornerEnd(room, ownerWall, owner, leg.side, settings);
+    corners.push({
+      kind: 'piece',
+      key: leg.key,
+      label: `${leg.label} (${wallLabel(room, ownerWall)}) ${formatInches(legA)} × ${formatInches(legB)}`,
+      rect,
+      selection,
+      facePath: null,
+    });
+  }
   const side = wall.side ?? 'front';
   const endPanels = wallEndPanels(room, wall, settings).flatMap((panel) => {
     const rect = { x: panel[side].x, z: panel.bottom, width: panel.width, height: panel.top - panel.bottom };
@@ -174,6 +205,7 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
     ...sections,
     ...faces,
     ...pieces,
+    ...corners,
     ...runs,
     ...endPanels,
     ...features,

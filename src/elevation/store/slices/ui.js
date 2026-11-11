@@ -47,6 +47,12 @@ export const uiReducers = {
         : action.payload.lineId ?? null;
       const roomLineId = openingId || recessId || soffitId || runId || endPanel || lineId
         ? null : action.payload.roomLineId ?? null;
+      const corner = action.payload.cornerOf;
+      const cornerOf = ['runId', 'pieceId', 'openingId', 'soffitId', 'recessId', 'endPanel', 'lineId', 'roomLineId']
+        .every((key) => action.payload[key] == null)
+        && corner && typeof corner.wallId === 'string' && typeof corner.runId === 'string'
+        && ['left', 'right'].includes(corner.side)
+        ? { wallId: corner.wallId, runId: corner.runId, side: corner.side } : null;
       state.selection = {
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
@@ -57,6 +63,7 @@ export const uiReducers = {
         ...(endPanel ? { endPanel } : {}),
         ...(lineId ? { lineId } : {}),
         ...(roomLineId ? { roomLineId } : {}),
+        ...(cornerOf ? { cornerOf } : {}),
       };
       if (runId) {
         const selectedRun = roomFor(state)?.walls

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import {
   Group,
   Line,
@@ -8,12 +9,17 @@ import {
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { cornerShapes } from '../model/cornerParts.js';
+import { cornerReturnLegs } from '../model/cornerLegs.js';
 import { doorDrawing } from '../model/doorDetails.js';
 import { landingsOn } from '../model/landings.js';
 import { soffitSeams } from '../model/soffits.js';
+import { runSwingMarks } from '../model/swingMarks.js';
 import { wallLabel } from '../model/topology.js';
 import Hatch from './Hatch.jsx';
 import DoorDetails from './DoorDetails.jsx';
+import FaceOutlines from './FaceOutlines.jsx';
+import Pulls from './Pulls.jsx';
+import SwingMarks from './SwingMarks.jsx';
 import { outlineGeometry, outlinePath } from './outlinePath.js';
 
 /**
@@ -23,7 +29,9 @@ import { outlineGeometry, outlinePath } from './outlinePath.js';
 export default function NeighborReturns({
   room, wall, settings, transform, doorsOff = false,
   shapes = cornerShapes(room, wall, wall.side ?? 'front', settings),
+  legs = cornerReturnLegs(room, wall, settings), selection = null,
 }) {
+  const drawing = doorDrawing(room);
   const seams = soffitSeams(room, wall);
   const returns = shapes
     .filter((shape) => shape.kind === 'return')
@@ -63,6 +71,52 @@ export default function NeighborReturns({
 
   return (
     <>
+      {legs.map((leg) => {
+        const selected = selection?.cornerOf?.wallId === leg.ownerWallId
+          && selection.cornerOf.runId === leg.runId && selection.cornerOf.side === leg.side;
+        return (
+          <Fragment key={leg.key}>
+            <Rect
+              {...wallRectToScreen(leg.rect, transform)}
+              fill={ELEVATION_BG}
+              stroke={selected ? '#7dd3fc' : ELEVATION_LINE}
+              strokeWidth={selected ? 3 : 1}
+              listening={false}
+            />
+            {leg.returnPanel && (
+              <Rect
+                {...wallRectToScreen(leg.returnPanel, transform)}
+                fill={ELEVATION_BG}
+                opacity={0.82}
+                stroke={ELEVATION_LINE}
+                strokeWidth={1}
+                listening={false}
+              />
+            )}
+            {!doorsOff && (
+              <>
+                {drawing.details && (
+                  <DoorDetails
+                    parts={leg.doorDetails.parts}
+                    warnings={leg.doorDetails.warnings}
+                    transform={transform}
+                    showDetails={drawing.details}
+                    showTags={drawing.tags}
+                  />
+                )}
+                {drawing.swings && (
+                  <SwingMarks
+                    marks={runSwingMarks(new Map([[leg.columnId, leg.faceLayout]]))}
+                    transform={transform}
+                  />
+                )}
+                {drawing.pulls && <Pulls pulls={leg.pulls} transform={transform} />}
+                <FaceOutlines faces={leg.faceLayout.faces} transform={transform} />
+              </>
+            )}
+          </Fragment>
+        );
+      })}
       {returns.map((entry) => (
         <Group key={entry.key} listening={false}>
           {entry.parts.map((part) => {

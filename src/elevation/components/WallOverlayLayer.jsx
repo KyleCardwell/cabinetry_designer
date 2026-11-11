@@ -26,6 +26,7 @@ export default function WallOverlayLayer({
               wall={wall}
               settings={settings}
               transform={transform}
+              selection={selection}
               shapes={combinedFaces?.get(activeKey).shapes}
             />
             <NeighborProfiles

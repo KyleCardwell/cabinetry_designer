@@ -12,6 +12,7 @@ import { flipHinges } from '../faces.js';
 import { runFaceLayouts } from '../faceLayouts.js';
 import { rootItems } from '../grid.js';
 import { partNumbers, wallBadgeGroups } from '../partNumbers.js';
+import { defaultPick, pickStack } from '../pick.js';
 import { runPulls } from '../pullLayouts.js';
 import { runScene } from '../runScene.js';
 import { wallSideView, wallViewForRun } from '../wallSides.js';
@@ -236,6 +237,51 @@ describe('CC4 return leg layout', () => {
     expect(legB.reveals.values.left).toBe(1);
     expect(legB.reveals.sources.left).toBe('rule:corner');
     expect(legB.faces[0]).toMatchObject({ x: 25, width: 10.9375, hinge: 'right', hingeRule: true });
+  });
+
+  describe('step c return leg picking', () => {
+    it('anchor 1: picks the true-size 90 face and defaults to its corner piece', () => {
+      const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
+      const stack = pickStack(subject, wallSideView(returnWall), DEFAULT_SETTINGS,
+        { x: 114, z: leg.rect.z + leg.rect.height / 2 });
+      const selection = { cornerOf: { wallId: 'wall-1', runId: owner.id, side: 'left' } };
+      expect(stack.map(({ kind }) => kind)).toEqual(['face', 'piece', 'wall']);
+      expect(stack[0]).toMatchObject({
+        key: `corner-face:${leg.key}:${leg.faceLayout.faces[0].path}`,
+        label: expect.stringContaining('10 15/16"'), selection, facePath: null,
+      });
+      expect(stack[1]).toMatchObject({
+        key: leg.key, label: 'Corner 90 (Wall 1) 36" × 36"', rect: leg.rect, selection, facePath: null,
+      });
+      expect(defaultPick(stack)).toBe(stack[1]);
+      expect(pickStack(subject, returnWall, DEFAULT_SETTINGS,
+        { x: 114, z: leg.rect.z + leg.rect.height / 2 }, { doorsOff: true })
+        .map(({ kind }) => kind)).toEqual(['piece', 'wall']);
+    });
+
+    it('anchor 2: picks the return panel and misses beyond the leg', () => {
+      const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
+      const at = (x) => pickStack(subject, returnWall, DEFAULT_SETTINGS,
+        { x, z: leg.rect.z + leg.rect.height / 2 });
+      expect(defaultPick(at(107.5))).toMatchObject({
+        kind: 'piece', key: leg.key, rect: leg.returnPanel,
+        selection: { cornerOf: { wallId: 'wall-1', runId: owner.id, side: 'left' } },
+      });
+      expect(at(100).filter(({ selection }) => selection?.cornerOf)).toEqual([]);
+    });
+
+    it('anchor 3: labels the drawn 45 face with its true width', () => {
+      owner.ends.left.corner.kind = 45;
+      const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
+      const face = leg.faceLayout.faces[0];
+      const stack = pickStack(subject, returnWall, DEFAULT_SETTINGS,
+        { x: face.x + face.width / 2, z: face.z + face.height / 2 });
+      expect(stack[0]).toMatchObject({
+        kind: 'face', label: expect.stringContaining('15 9/16"'),
+        rect: { x: face.x, z: face.z, width: face.width, height: face.height },
+        selection: { cornerOf: { wallId: 'wall-1', runId: owner.id, side: 'left' } }, facePath: null,
+      });
+    });
   });
 
   describe('step b cornerReturnLegs', () => {
