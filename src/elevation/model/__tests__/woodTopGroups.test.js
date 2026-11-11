@@ -5,7 +5,7 @@ import { bandParts } from '../bandParts.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { syncRoom } from '../room.js';
 import { connectWallStops } from './helpers/wallStops.js';
-import { woodTopGroups } from '../woodTopGroups.js';
+import { woodTopGroups, woodTopMiters } from '../woodTopGroups.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const wood = { top: 'wood', autoCount: false,
@@ -39,6 +39,10 @@ describe('FX4 step d wood top groups', () => {
       .find(({ kind }) => kind === 'countertop').front);
     expect(woodTopGroups(island, settings)).toHaveLength(1);
     expect(group).toEqual({ key: 'wood_top:front', runIds: ['front', 'back'],
+      bandRefs: [
+        { wallId: 'island', side: 'front', bandId: 'front:countertop' },
+        { wallId: 'island', side: 'back', bandId: 'back:countertop' },
+      ], miters: { left: false, right: false },
       faces: [
         { wallId: 'island', side: 'front', runIds: ['front'], x1: -0.75, x2: 96.75 },
         { wallId: 'island', side: 'back', runIds: ['back'], x1: -0.75, x2: 96.75 },
@@ -66,6 +70,10 @@ describe('FX4 step d wood top groups', () => {
   it('anchor 5: joins touching wood spans on one face, including the drawn outside overhangs', () => {
     expect(woodTopGroups(touching, settings)).toEqual([{
       key: 'wood_top:left', runIds: ['left', 'right'],
+      bandRefs: [
+        { wallId: 'w', side: 'front', bandId: 'left:countertop' },
+        { wallId: 'w', side: 'front', bandId: 'right:countertop' },
+      ], miters: { left: false, right: false },
       faces: [{ wallId: 'w', side: 'front', runIds: ['left', 'right'], x1: 9.25, x2: 70.75 }],
       width: 61.5, depth: 25.625, thickness: 1.5, start: 9.25, end: 70.75, wallId: 'w', segment: false,
       orderedWidth: 61.5, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
@@ -92,6 +100,8 @@ describe('FX4 step d wood top groups', () => {
     })] })] });
     expect(woodTopGroups(stored, settings)).toEqual([{
       key: 'wood_top:r:top-insert', runIds: ['r'],
+      bandRefs: [{ wallId: 'w', side: 'front', bandId: 'r:top-insert' }],
+      miters: { left: false, right: false },
       faces: [{ wallId: 'w', side: 'front', runIds: ['r'], x1: 30, x2: 60 }],
       width: 30, depth: 25.625, thickness: 3.5, start: 30, end: 60, wallId: 'w', segment: true,
       orderedWidth: 30, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
@@ -194,7 +204,8 @@ describe('FX4 step g wood top scribe', () => {
     const stored = structuredClone(stopped);
     stored.walls[1].runs = [run({ ...wood, id: 'return', x: 84, width: 36,
       anchors: { right: true }, items: [auto('R')] })];
-    const group = woodTopGroups(stored, settings).find(({ key }) => key === 'wood_top:base');
+    const group = woodTopGroups(stored, { ...settings, woodTopCorner: 'butt' })
+      .find(({ key }) => key === 'wood_top:base');
     expect(group.scribe).toEqual({ left: false, right: true, back: true });
     expect(group.start).toBe(25.625);
     expect(group.orderedWidth).toBe(group.width + 0.5);
@@ -242,5 +253,95 @@ describe('FX4 step g wood top scribe', () => {
     const [returned] = woodTopGroups(stored, settings);
     expect(returned.scribe).toEqual({ left: false, right: false, back: false });
     expect(returned.orderedWidth).toBe(returned.width);
+  });
+});
+
+describe('PT2 step a mitered wood top corners', () => {
+  const stopped = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
+    run({ ...wood, id: 'base', width: 96, anchors: { left: true, right: true }, items: [auto('C')] }),
+  ] })] });
+  connectWallStops(stopped, stopped.walls[0]);
+  stopped.walls[1].runs = [run({ ...wood, id: 'return', x: 84, width: 36,
+    anchors: { right: true }, items: [auto('R')] })];
+  const butt = { ...settings, woodTopCorner: 'butt' };
+
+  it('anchors 1–3: extends the base to the return wall and flags both unscribed miter ends', () => {
+    expect(DEFAULT_SETTINGS.woodTopCorner).toBe('miter');
+    const before = structuredClone(stopped);
+    const [base, returned] = woodTopGroups(stopped, settings);
+    expect(base).toMatchObject({ key: 'wood_top:base', start: 0, end: 96, width: 96, orderedWidth: 96.5,
+      scribe: { left: false, right: true, back: true }, miters: { left: true, right: false },
+      bandRefs: [{ wallId: 'w', side: 'front', bandId: 'base:countertop' }],
+      faces: [{ x1: 0, x2: 96 }] });
+    const oldReturn = woodTopGroups(stopped, butt)[1];
+    expect(oldReturn).toMatchObject({ width: 11.125, orderedWidth: 11.125,
+      scribe: { left: false, right: false, back: true } });
+    expect(returned).toEqual({ ...oldReturn, miters: { left: false, right: true } });
+    expect(returned.orderedWidth - oldReturn.orderedWidth).toBe(0);
+    const legacy = { ...settings };
+    delete legacy.woodTopCorner;
+    expect(woodTopGroups(stopped, legacy)).toEqual([base, returned]);
+    expect(stopped).toEqual(before);
+  });
+
+  it('anchor 4: preserves both butt groups and exposes no miter pairs', () => {
+    const [base, returned] = woodTopGroups(stopped, butt);
+    expect(base).toMatchObject({ start: 25.625, end: 96, width: 70.375, orderedWidth: 70.875,
+      depth: 25.625, orderedDepth: 26.125, scribe: { left: false, right: true, back: true },
+      miters: { left: false, right: false } });
+    expect(returned).toMatchObject({ start: 83.25, end: 94.375, width: 11.125, orderedWidth: 11.125,
+      depth: 25.625, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
+      miters: { left: false, right: false } });
+    expect(woodTopMiters(stopped, butt)).toEqual([]);
+  });
+
+  it('anchor 5: keeps the cope when the return top is stone', () => {
+    const stored = structuredClone(stopped);
+    stored.walls[1].runs[0].top = 'stone';
+    expect(woodTopMiters(stored, settings)).toEqual([]);
+    expect(woodTopGroups(stored, settings)).toEqual([woodTopGroups(stopped, butt)[0]]);
+  });
+
+  it('anchor 6: exports one pair in wall walk order with face-local ends and reach', () => {
+    expect(woodTopMiters(stopped)).toEqual([{
+      x: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left', reach: 0 },
+      y: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right' },
+    }]);
+    const stored = structuredClone(stopped);
+    stored.wallOrder = ['w:stop:start', 'w', 'w:stop:end'];
+    expect(woodTopMiters(stored, settings)).toEqual([{
+      x: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right', reach: 120 },
+      y: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left' },
+    }]);
+  });
+
+  it('requires a wood band at the matching surface and anchored corner end', () => {
+    const stored = structuredClone(stopped);
+    stored.walls[1].runs[0].overrides.countertopThickness = 1.5 + 0.0000005;
+    expect(woodTopMiters(stored, settings)).toHaveLength(1);
+    stored.walls[1].runs[0].overrides.countertopThickness = 2;
+    expect(woodTopMiters(stored, settings)).toEqual([]);
+    delete stored.walls[1].runs[0].overrides.countertopThickness;
+    stored.walls[1].runs[0].anchors.right = false;
+    expect(woodTopMiters(stored, settings)).toEqual([]);
+  });
+
+  it('maps back-face miters and reach into front coordinates like scribe flags', () => {
+    const stored = structuredClone(stopped);
+    stored.walls[0].flipped = true;
+    stored.walls[0].runs[0].wallSide = 'back';
+    expect(woodTopMiters(stored, settings)).toEqual([{
+      x: { wallId: 'w', side: 'back', bandId: 'base:countertop', end: 'left', reach: 0 },
+      y: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right' },
+    }]);
+    expect(woodTopGroups(stored, settings)[0]).toMatchObject({ start: 0, end: 96, width: 96,
+      orderedWidth: 96.5, scribe: { left: true, right: false, back: true },
+      miters: { left: false, right: true },
+      bandRefs: [{ wallId: 'w', side: 'back', bandId: 'base:countertop' }] });
+    // With the return first in the walk, the back-face entry is Y instead of X.
+    stored.wallOrder = ['w:stop:start', 'w', 'w:stop:end'];
+    expect(woodTopGroups(stored, settings).find(({ key }) => key === 'wood_top:base'))
+      .toMatchObject({ start: 0, end: 70.375, miters: { left: false, right: true },
+        scribe: { left: true, right: false, back: true } });
   });
 });

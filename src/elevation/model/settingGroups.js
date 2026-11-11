@@ -18,7 +18,7 @@ export const SETTING_GROUPS = [
       'squareLegWidth', 'squareLegDepth',
       'legPanelReveal', 'legPanelTopClearance', 'legPanelBottomClearance',
       'legPanelReturnDepth',
-      'furnitureBaseScribe', 'woodTopScribe',
+      'furnitureBaseScribe', 'woodTopScribe', 'woodTopCorner',
     ],
   },
   {
@@ -113,6 +113,8 @@ export function groupsFor(scope) {
 }
 
 export const CHOICE_LABELS = {
+  miter: 'Miter',
+  butt: 'Butt',
   filler: 'Filler',
   end_panel: 'End panel',
   none: 'None',

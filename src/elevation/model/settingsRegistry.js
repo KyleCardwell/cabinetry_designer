@@ -142,6 +142,7 @@ export const SETTINGS_REGISTRY = [
   ...teamNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'team' })),
   ...roomNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'room' })),
   { key: 'cornerDoors', label: 'Corner 90 doors', kind: 'choice', lowest: 'room', choices: ['equal', 'a_long', 'b_long'] },
+  { key: 'woodTopCorner', label: 'Wood top corners', kind: 'choice', lowest: 'room', choices: ['miter', 'butt'] },
   ...[
     ['snapHeightsToDefaults', 'Snap run heights to defaults'],
     ['autoEndPanelOnFreeEnd', 'Add end panels to free run ends'],

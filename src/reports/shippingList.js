@@ -470,6 +470,7 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     }
     groups[13] = [top.faces.length === 2 ? 'Both faces' : null,
       left && right ? 'Waterfall both' : left ? 'Waterfall L' : right ? 'Waterfall R' : null,
+      top.miters.left && top.miters.right ? 'Miter both' : top.miters.left ? 'Miter L' : top.miters.right ? 'Miter R' : null,
       ...nosings];
   }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).

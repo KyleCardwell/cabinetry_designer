@@ -161,6 +161,32 @@ describe('FX4 step g ordered wood top size', () => {
       size: '96 x 25 5/8 x 1 1/2', notes: [],
     });
   });
+
+  it('PT2 a anchor 7: notes the left and right miters on separate wood top rows', () => {
+    const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const wood = { top: 'wood', autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } } };
+    const r = buildRoom({ walls: [buildWall({ id: 'w', x2: 96, thickness: 4.5, runs: [
+      buildRun({ ...wood, id: 'base', width: 96,
+        anchors: { left: true, right: true }, items: [auto('C')] }),
+    ] })] });
+    connectWallStops(r, r.walls[0]);
+    r.walls[1].runs = [buildRun({ ...wood, id: 'return', x: 84, width: 36,
+      anchors: { right: true }, items: [auto('R')] })];
+    expect(row(r, 'wood_top:base', s)).toMatchObject({ size: '96 1/2 x 26 1/8 x 1 1/2', notes: ['Miter L'] });
+    expect(row(r, 'wood_top:return', s)).toMatchObject({ size: '11 1/8 x 26 1/8 x 1 1/2', notes: ['Miter R'] });
+    const butt = { ...s, woodTopCorner: 'butt' };
+    expect(row(r, 'wood_top:base', butt).notes).toEqual([]);
+    expect(row(r, 'wood_top:return', butt).notes).toEqual([]);
+    const free = structuredClone(r);
+    free.walls[0].runs[0].width = 90;
+    free.walls[0].runs[0].anchors.right = false;
+    free.walls[0].runs[0].waterfall = { right: {} };
+    expect(row(free, 'wood_top:base', s).notes).toEqual(['Waterfall R', 'Miter L']);
+    r.walls[2].runs = [buildRun({ ...wood, id: 'other-return', width: 36,
+      anchors: { left: true }, items: [auto('O')] })];
+    expect(row(r, 'wood_top:base', s).notes).toEqual(['Miter both']);
+  });
 });
 
 describe('IE1 step d shipping inside panels', () => {

@@ -122,7 +122,7 @@ describe('DB2 f shop settings panel', () => {
     expect(header(render(), 'Settings')).toBeUndefined();
     const tree = render();
     const groups = [
-      ['Cabinets & depths', 12], ['Runs & ends', 17], ['Fillers & corners', 14],
+      ['Cabinets & depths', 12], ['Runs & ends', 18], ['Fillers & corners', 14],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 7],
       ['Walls', 1], ['Openings & soffits', 14], ['Pulls', 7], ['Drawer boxes', 18], ['Shelves', 10], ['Reports', 13],
     ];
@@ -196,8 +196,12 @@ describe('DB2 f shop settings panel', () => {
     field(tree, 'Snap run heights to defaults').props.onChange({ target: { checked: false } });
     expect(state.settings.snapHeightsToDefaults).toBe(false);
     const ends = openGroup('Runs & ends');
-    expect(controls(section(ends, 'Runs & ends')).slice(-2).map(({ props }) => props['aria-label']))
-      .toEqual(['Furniture base scribe', 'Wood top scribe']);
+    expect(controls(section(ends, 'Runs & ends')).slice(-3).map(({ props }) => props['aria-label']))
+      .toEqual(['Furniture base scribe', 'Wood top scribe', 'Wood top corners']);
+    expect(field(ends, 'Wood top corners').props.value).toBe('miter');
+    expect(options(field(ends, 'Wood top corners'))).toEqual([['miter', 'Miter'], ['butt', 'Butt']]);
+    field(ends, 'Wood top corners').props.onChange({ target: { value: 'butt' } });
+    expect(state.settings.woodTopCorner).toBe('butt');
     expect(field(ends, 'Wood top scribe').props.value).toBe('1/2');
     commit('Wood top scribe', '1');
     expect(state.settings.woodTopScribe).toBe(1);

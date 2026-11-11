@@ -40,14 +40,28 @@ describe('CC3.1 step a corner door settings', () => {
   });
 });
 
+it('PT2 a registers wood top corners with Miter default and inheritance through room scope', () => {
+  const key = 'woodTopCorner';
+  expect(registryEntry(key)).toEqual({ key, label: 'Wood top corners', kind: 'choice',
+    lowest: 'room', choices: ['miter', 'butt'] });
+  expect(resolveSetting(key).value).toBe('miter');
+  for (const level of ['team', 'project', 'phase', 'room']) {
+    expect(cleanOverrides({ [key]: 'butt' }, level)).toEqual({ [key]: 'butt' });
+    expect(resolveSetting(key, [{ level, values: { [key]: 'butt' } }]).value).toBe('butt');
+    expect(groupsFor(level).find(({ id }) => id === 'runs-ends').keys).toContain(key);
+  }
+  for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
+  expect(cleanOverrides({ [key]: 'cope' }, 'room')).toEqual({});
+});
+
 describe('DB1 a settings registry', () => {
-  it('covers exactly 174 settings leaves, with 121 room settings and 15 team-only settings after CC3.1 a', () => {
+  it('covers exactly 175 settings leaves, with 122 room settings and 15 team-only settings after PT2 a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(174);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(121);
+    expect(new Set(keys).size).toBe(175);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(122);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 

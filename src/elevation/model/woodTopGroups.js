@@ -1,6 +1,7 @@
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
+import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { compareRuns } from './parts.js';
 import { resolveProfile } from './profile.js';
@@ -33,6 +34,11 @@ function topEntries(room, source, side, settings) {
       const height = segment ? band.height : top.height;
       const ends = runBandEnds(room, wall, run, settings, scene, 'countertop', z, height, shapes);
       const start = side === 'back' ? wall.length - band.x - band.width : band.x;
+      const corners = Object.fromEntries(['left', 'right'].map((end) => {
+        const edge = cornerBandEdge(shapes, run, end, 'countertop', z, height);
+        const at = end === 'left' ? band.x : band.x + band.width;
+        return [end, edge && same(at, edge.x) ? edge : null];
+      }));
       const scribe = ['left', 'right'].map((endSide, index) => {
         const reachesEnd = index === 0 ? same(band.x, run.x)
           : same(band.x + band.width, run.x + run.width);
@@ -45,14 +51,65 @@ function topEntries(room, source, side, settings) {
             || anchor?.to === 'wall'
             || (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId));
       });
-      return { run, wall, band, segment: Boolean(segment),
+      return { run, wall, band, corners, segment: Boolean(segment),
         key: `wood_top:${segment ? band.id : run.id}`,
         start, end: start + band.width, surface: band.z + band.height,
         leftScribe: scribe[side === 'back' ? 1 : 0], rightScribe: scribe[side === 'back' ? 0 : 1],
+        leftMiter: false, rightMiter: false,
         // A waterfall's drawn band includes its floor legs; they are notes, not top thickness.
         thickness: !segment && (waterfall.left || waterfall.right) ? top.height : band.height };
     });
   });
+}
+
+function wallEntries(room, settings) {
+  const byId = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
+  return [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).map(([id]) => {
+    const source = byId.get(id);
+    return WALL_SIDES.flatMap((side) => topEntries(room, source, side, settings));
+  });
+}
+
+function miterPairs(room, settings, entries) {
+  if ((settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner) !== 'miter') return [];
+  const paired = new Set();
+  const endKey = (entry, end) => JSON.stringify([entry.wall.id, entry.wall.side, entry.band.id, end]);
+  const pairs = [];
+  for (const x of entries) {
+    for (const end of ['left', 'right']) {
+      const edge = x.corners[end];
+      if (!edge || paired.has(endKey(x, end))) continue;
+      const y = entries.find((entry) => entry.wall.id === edge.wallId
+        && entry.run.id === edge.runId && same(entry.surface, x.surface)
+        && ['left', 'right'].some((yEnd) => isCornerEnd(entry, yEnd)));
+      if (!y) continue;
+      const yEnd = ['left', 'right'].find((yEnd) => isCornerEnd(y, yEnd));
+      paired.add(endKey(x, end));
+      paired.add(endKey(y, yEnd));
+      pairs.push({ x: { entry: x, end, reach: edge.reach }, y: { entry: y, end: yEnd } });
+
+      function isCornerEnd(entry, yEnd) {
+        if (!entry.run.anchors?.[yEnd] || paired.has(endKey(entry, yEnd))
+          || cornerAt(room, entry.wall, yEnd).neighborWallId !== x.wall.id) return false;
+        const at = yEnd === 'left' ? entry.band.x : entry.band.x + entry.band.width;
+        return entry.corners[yEnd] !== null
+          || same(at, yEnd === 'left' ? entry.run.x : entry.run.x + entry.run.width);
+      }
+    }
+  }
+  return pairs;
+}
+
+function bandRef(entry) {
+  return { wallId: entry.wall.id, side: entry.wall.side, bandId: entry.band.id };
+}
+
+/** Paired corner ends in wall/face/run walk order; ends and reach use each face's frame. */
+export function woodTopMiters(room, settings = DEFAULT_SETTINGS) {
+  return miterPairs(room, settings, wallEntries(room, settings).flat()).map(({ x, y }) => ({
+    x: { ...bandRef(x.entry), end: x.end, reach: x.reach },
+    y: { ...bandRef(y.entry), end: y.end },
+  }));
 }
 
 function linked(a, b) {
@@ -85,9 +142,14 @@ function groupSize(entries, key, settings) {
   };
   const allowance = settings.woodTopScribe ?? DEFAULT_SETTINGS.woodTopScribe;
   return { key, runIds: [...new Set(entries.map(({ run }) => run.id))], faces,
+    bandRefs: entries.map(bandRef),
     width: end - start, depth, thickness: first.thickness, start, end,
     orderedWidth: end - start + allowance * (Number(scribe.left) + Number(scribe.right)),
     orderedDepth: depth + allowance * Number(scribe.back), scribe,
+    miters: {
+      left: entries.some((entry) => same(entry.start, start) && entry.leftMiter),
+      right: entries.some((entry) => same(entry.end, end) && entry.rightMiter),
+    },
     wallId: first.wall.id, segment: first.segment };
 }
 
@@ -95,11 +157,19 @@ function groupSize(entries, key, settings) {
  * Inserts always stand alone; inside corners never connect across walls.
  */
 export function woodTopGroups(room, settings = DEFAULT_SETTINGS) {
-  const byId = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
-  const walls = [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).map(([id]) => byId.get(id));
+  const walls = wallEntries(room, settings);
+  for (const { x, y } of miterPairs(room, settings, walls.flat())) {
+    const back = x.entry.wall.side === 'back';
+    x.entry[(x.end === 'left') !== back ? 'start' : 'end'] = back
+      ? x.entry.wall.length - x.reach : x.reach;
+    for (const { entry, end } of [x, y]) {
+      const side = (end === 'left') !== (entry.wall.side === 'back') ? 'left' : 'right';
+      entry[`${side}Scribe`] = false;
+      entry[`${side}Miter`] = true;
+    }
+  }
   const counts = new Map();
-  return walls.flatMap((source) => {
-    const entries = WALL_SIDES.flatMap((side) => topEntries(room, source, side, settings));
+  return walls.flatMap((entries) => {
     const remaining = new Set(entries);
     const groups = [];
     for (const first of entries) {

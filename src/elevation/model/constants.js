@@ -124,6 +124,7 @@ export const DEFAULT_SETTINGS = {
   baseCutoutHeight: 1.5,
   furnitureBaseScribe: 0.5,
   woodTopScribe: 0.5,
+  woodTopCorner: 'miter',
   toeKickTopGap: 0.125,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,

@@ -704,7 +704,8 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && (room.roomLines === undefined || (Array.isArray(room.roomLines) && room.roomLines.every(isRoomLine)
       && new Set(room.roomLines.map((line) => line.id)).size === room.roomLines.length))
     && (room.settingsOverrides === undefined || (isPlainObject(room.settingsOverrides)
-      && hasValidCornerDoorSettings(room.settingsOverrides)))
+      && hasValidCornerDoorSettings(room.settingsOverrides)
+      && hasValidWoodTopCorner(room.settingsOverrides)))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
     && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')
     && (room.swingMarks === undefined || typeof room.swingMarks === 'boolean')
@@ -757,6 +758,10 @@ function hasValidCornerDoorSettings(settings) {
       || (isFiniteNumber(settings[key]) && settings[key] >= 0));
 }
 
+function hasValidWoodTopCorner(settings) {
+  return settings.woodTopCorner === undefined || registryEntry('woodTopCorner').choices.includes(settings.woodTopCorner);
+}
+
 function isSettings(settings, profileKeys = PROFILE_KEYS) {
   return Boolean(settings)
     && isDoorStyle(settings.teamDoorStyle)
@@ -770,6 +775,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
     && hasValidCornerDoorSettings(settings)
+    && hasValidWoodTopCorner(settings)
     && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'

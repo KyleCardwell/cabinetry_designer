@@ -149,7 +149,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
       { kind: 'return', key: 'landing:wing:right:base', parts: [{ ...part, x: 94.3125 }] }];
     const run = { anchors: { left: true, right: { to: 'wall', wallId: 'wing' } } };
     expect(cornerBandEdge(shapes, run, 'left', 'furnitureBase', 0, 4))
-      .toEqual({ type: 'cope', x: 25.6875, outline });
+      .toEqual({ type: 'cope', x: 25.6875, outline, reach: 24.875, wallId: undefined, runId: undefined });
     const base = runBase({ profile: { baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' } }, {}, baseRun, settings);
     const band = furnitureBaseBand(base, [cornerBandEdge(shapes, run, 'left', 'furnitureBase', 0, 4),
       { type: 'return', x: 66.8125, side: 66, facing: 1 }]);

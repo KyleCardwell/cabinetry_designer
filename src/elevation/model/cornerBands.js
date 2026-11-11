@@ -63,15 +63,17 @@ export function cornerBandEdge(getShapes, run, side, band, z, height) {
   const kind = PART_KINDS[band];
   const parts = getShapes()
     .filter((shape) => shape.kind === 'return' && shape.key.startsWith(prefix))
-    .flatMap((shape) => shape.parts)
-    .filter((part) => part.kind === kind && Math.abs(part.z - z) <= EPSILON
+    .flatMap((shape) => shape.parts.map((part) => ({ shape, part })))
+    .filter(({ part }) => part.kind === kind && Math.abs(part.z - z) <= EPSILON
       && (band !== 'furnitureBase' || Math.abs(part.height - height) <= EPSILON));
   if (parts.length === 0) return null;
   const edgeOf = (part) => side === 'left' ? part.x + part.width : part.x;
-  const part = parts.reduce((best, candidate) => (
-    (side === 'left' ? edgeOf(candidate) > edgeOf(best) : edgeOf(candidate) < edgeOf(best))
+  const { shape, part } = parts.reduce((best, candidate) => (
+    (side === 'left' ? edgeOf(candidate.part) > edgeOf(best.part) : edgeOf(candidate.part) < edgeOf(best.part))
       ? candidate : best));
-  return { type: 'cope', x: edgeOf(part), ...(part.outline ? { outline: part.outline } : {}) };
+  return { type: 'cope', x: edgeOf(part), wallId: shape.wallId, runId: shape.runId,
+    reach: side === 'left' ? part.x : part.x + part.width,
+    ...(part.outline ? { outline: part.outline } : {}) };
 }
 
 /** cornerShapes for a resolved wall face, computed on first use. */
