@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
 import { Group, Line, Text } from 'react-konva';
 import { auto, room, run, wall } from '../../../test/builders.js';
+import { connectWallStops } from '../../model/__tests__/helpers/wallStops.js';
 import { DEFAULT_SETTINGS, KIND_COLORS } from '../../model/constants.js';
 import { syncRoom } from '../../model/room.js';
 import { wallSideFrame } from '../../model/wallSides.js';
@@ -38,7 +39,7 @@ function sceneProps(room, settings, scale = 4) {
   };
 }
 
-it('anchor 1: Room 9b scene draws one closed top outline in canvas y-down coordinates', () => {
+it('anchor 1 (PT2 d): Room 9b scene draws its open top edge chain in canvas y-down coordinates', () => {
   const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room9b.json', import.meta.url), 'utf8'));
   const settings9b = { ...settings, ...stored.settingsOverrides };
   const room9b = syncRoom(stored, settings9b);
@@ -48,8 +49,8 @@ it('anchor 1: Room 9b scene draws one closed top outline in canvas y-down coordi
     const lines = nodes(PlanTops(tops.props)).filter(({ type }) => type === Line);
     expect(lines).toHaveLength(1);
     expect(lines[0].props).toMatchObject({
-      points: [8.5625, -20.6875, 8.5625, 40.25, -18.625, 40.25, -18.625, -20.6875],
-      closed: true, stroke: '#cbd5e1', strokeWidth: 1 / scale, listening: false,
+      points: [-18.625, -20.6875, -18.625, 40.25, 8.5625, 40.25, 8.5625, -20.6875],
+      closed: false, stroke: '#cbd5e1', strokeWidth: 1 / scale, listening: false,
     });
     expect(lines[0].props.fill).toBeUndefined();
   }
@@ -119,4 +120,19 @@ it('PT1 step d: scene draws an overhang line, ticks and a readable label at two 
   }
   input.walls[0].runs[0].topOverhang.front = 3;
   expect(PlanTopOverhangs({ room: input, settings, scale: 4 })).toEqual([]);
+});
+
+it('PT2 d: a mitered wood corner draws the open edge chain, then the joint', () => {
+  const ends = { left: { type: 'none' }, right: { type: 'none' } };
+  const input = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
+    run({ id: 'base', top: 'wood', autoCount: false, ends, width: 96,
+      anchors: { left: true, right: true }, items: [auto('C')] }),
+  ] })] });
+  connectWallStops(input, input.walls[0]);
+  input.walls[1].runs = [run({ id: 'return', top: 'wood', autoCount: false, ends,
+    x: 84, width: 36, anchors: { right: true }, items: [auto('R')] })];
+  const lines = nodes(PlanTops({ room: input, settings: { ...settings, runFlex: 0 }, scale: 4 }))
+    .filter(({ type }) => type === Line);
+  expect(lines.map(({ key, props }) => [key, props.closed, props.points.length]))
+    .toEqual([['top:0:0', false, 8], ['top-joint:0:0', false, 4]]);
 });
