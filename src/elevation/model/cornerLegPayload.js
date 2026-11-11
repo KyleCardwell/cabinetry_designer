@@ -31,6 +31,12 @@ export function cornerLegPayload(room, view, settings) {
         front: depthB, coversBoxEdges: filler,
       });
     }
+    if (leg.frame) {
+      parts.push({
+        id: `${leg.key}:frame`, kind: 'frame', runId: run.id, ...rect(leg.frame),
+        back: depthB, front: depthB + offsetB, coversBoxEdges: true, holes: leg.frame.openings,
+      });
+    }
     for (const face of leg.faceLayout.faces) {
       if (face.type === 'open') continue;
       const thickness = face.thickness ?? teamDoorStyle(settings).thickness;

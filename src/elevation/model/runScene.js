@@ -13,7 +13,7 @@ import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
 const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
-/** Project frame members for badges and picking, retaining true sizes on the corner frame itself. */
+/** Project frames for drawing, badges and picking, retaining true member sizes on the frame itself. */
 function cornerFrameView(frame, corner, entry, returning = false) {
   const { z, height } = frame.frame;
   if (frame.kind === 45) {
@@ -23,6 +23,10 @@ function cornerFrameView(frame, corner, entry, returning = false) {
     return {
       ...squashRect({ x, width, z, height }, squash),
       members: frame.members.map((member) => squashRect(member, squash)),
+      openings: frame.diagonal.openings.map(({ p0, p1, z, height }) => squashRect({
+        x: entry.squash.pivot + (corner.dir === 1 ? -p1 : p0),
+        width: p1 - p0, z, height,
+      }, squash)),
     };
   }
   const members = frame.members.filter(({ side }) => side === (returning ? 'B' : 'A'))
@@ -34,9 +38,13 @@ function cornerFrameView(frame, corner, entry, returning = false) {
       return { ...member, x: Math.min(at + dir * p0, at + dir * (p0 + member.width)) };
     });
   const leg = frame.legs[returning ? 1 : 0];
-  const end = leg.stileAtEnd?.x0 ?? leg.x1;
   const { at, dir } = returning ? entry.cornerReturn : { at: corner.cornerX, dir: corner.dir };
-  return { x: Math.min(at + dir * leg.x0, at + dir * end), width: end - leg.x0, z, height, members };
+  return {
+    x: Math.min(at + dir * leg.x0, at + dir * leg.x1), width: leg.x1 - leg.x0, z, height, members,
+    openings: leg.openings.map(({ p0, p1, z, height }) => ({
+      x: Math.min(at + dir * p0, at + dir * p1), width: p1 - p0, z, height,
+    })),
+  };
 }
 
 /**

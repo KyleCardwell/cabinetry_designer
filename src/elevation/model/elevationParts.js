@@ -153,6 +153,17 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
       });
     }
 
+    // A diagonal frame follows the ordinary regions so its front miter covers their hidden sliver.
+    for (const frame of scene.cornerFrames) {
+      const { depthA } = cornerEnd(room, view, run, frame.side, settings, scene.result);
+      const { x, z, width, height, openings } = frame.owner;
+      emit({
+        id: `${frame.columnId}:frame`, kind: 'frame', runId: run.id,
+        x, z, width, height, back: depthA, front: depthA + frame.frame.thickness,
+        coversBoxEdges: true, holes: openings,
+      });
+    }
+
     for (const piece of scene.cells.pieces) {
       if (piece.kind !== 'shelves') continue;
       const box = boxes.get(piece.id);

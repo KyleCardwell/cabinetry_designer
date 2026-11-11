@@ -54,7 +54,7 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
       const member = frame.owner.members.find((member) => contains(member, point));
       if (!member) continue;
       frameHits.push({
-        kind: 'piece', key: `${frame.columnId}:frame`, label: 'Face Frame', rect: member,
+        kind: 'piece', key: `${frame.columnId}:frame`, label: 'Face Frame', rect: frame.owner,
         selection: { cornerOf: { wallId: wall.id, runId: run.id, side: frame.side } }, facePath: null,
       });
     }
@@ -138,7 +138,7 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
     const selection = { cornerOf: { wallId: leg.ownerWallId, runId: leg.runId, side: leg.side } };
     const member = leg.frame?.members.find((member) => contains(member, point));
     if (member) frameHits.push({
-      kind: 'piece', key: `${leg.columnId}:frame`, label: 'Face Frame', rect: member,
+      kind: 'piece', key: `${leg.columnId}:frame`, label: 'Face Frame', rect: leg.frame,
       selection, facePath: null,
     });
     for (const face of doorsOff ? [] : leg.faceLayout.faces) {

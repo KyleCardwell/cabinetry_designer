@@ -109,7 +109,8 @@ function RunGroup({
   );
   // FX4 a: the frame's openings, drawn on their own so they still show when profiled faces shrink inside them.
   const frameOpenings = useMemo(
-    () => frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
+    () => [...frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
+      ...frames.cornerFrames.flatMap((frame) => frame.owner.openings)],
     [frames, faceLayouts],
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
@@ -437,7 +438,9 @@ function RunGroup({
         />
       ))}
 
-      {frames.regions.map((region) => (
+      {[...frames.regions, ...frames.cornerFrames.map((frame) => ({
+        id: `${frame.columnId}:frame`, ...frame.owner,
+      }))].map((region) => (
         <FrameOutline
           key={region.id}
           region={region}

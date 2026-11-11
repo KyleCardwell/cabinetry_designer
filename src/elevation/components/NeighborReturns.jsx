@@ -18,6 +18,7 @@ import { wallLabel } from '../model/topology.js';
 import Hatch from './Hatch.jsx';
 import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
+import FrameOutline, { FRAME_STROKE } from './FrameOutline.jsx';
 import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
 import { outlineGeometry, outlinePath } from './outlinePath.js';
@@ -92,6 +93,15 @@ export default function NeighborReturns({
                 strokeWidth={1}
                 listening={false}
               />
+            )}
+            {leg.frame && (
+              <>
+                <FrameOutline region={leg.frame} transform={transform} />
+                {leg.frame.openings.map((opening, index) => (
+                  <Rect key={`frame-opening-${index}`} {...wallRectToScreen(opening, transform)}
+                    fillEnabled={false} stroke={FRAME_STROKE} strokeWidth={1} listening={false} />
+                ))}
+              </>
             )}
             {!doorsOff && (
               <>
