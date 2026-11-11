@@ -1,10 +1,13 @@
 import { gapReach, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
+import { cornerCabinetShape } from './cornerCabinet.js';
+import { cornerDepthBAuto, cornerEndActive, cornerLegs, cornerOwnersAt } from './corners.js';
 import { resolveFaces } from './faces.js';
 import { layoutFaces } from './faceLayouts.js';
 import { runItems } from './grid.js';
 import { frameDrop, isInsetStyle, resolveStyle } from './styles.js';
+import { wallViewForRun } from './wallSides.js';
 
 const EPSILON = 1e-6;
 
@@ -34,6 +37,50 @@ function isSidePanel(piece) {
   return piece.kind === 'end_panel' || (piece.kind === 'panel' && panelOrientation(piece) === 'side');
 }
 
+/** A framed corner's half-angle cut at its A (owner) or B (return) vertex: 0 unless a Corner 45. */
+function cornerCut(room, wall, owner, side, vertex, legA) {
+  const corner = owner.ends[side].corner ?? {};
+  if ((corner.kind ?? 90) !== 45) return 0;
+  const legs = cornerLegs(owner, side);
+  const shape = cornerCabinetShape({
+    kind: 45, legA: legA ?? legs.legA, legB: legs.legB, depthA: owner.depth,
+    depthB: corner.depthB ?? cornerDepthBAuto(room, wall, owner, side),
+  });
+  return shape.errors ? 0 : shape.miters[vertex];
+}
+
+/**
+ * The active corner cabinets on a framed run's ends (SPEC-CC6), per side: its own corner column
+ * (`owner`), or a framed owner on the return wall that this run's plain end dies into. Each gives
+ * the corner's kind and the cut its neighbour's stile takes (Corner 45).
+ */
+function frameCorners(room, run, columns) {
+  const found = {};
+  const wall = run._frame && room?.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
+  if (!wall) return found;
+  const view = wallViewForRun(wall, run);
+  const items = runItems(run);
+  for (const side of ['left', 'right']) {
+    const type = run.ends?.[side]?.type;
+    if (type === 'corner' && cornerEndActive(room, view, run, side).active) {
+      const columnId = (side === 'left' ? items[0] : items.at(-1))?.id;
+      const column = columns.get(columnId);
+      if (!column) continue;
+      found[side] = { owner: true, columnId, column,
+        kind: run.ends[side].corner?.kind ?? 90, cut: cornerCut(room, view, run, side, 'a', column.width) };
+    } else if (type === 'none') {
+      const owner = cornerOwnersAt(room, view, run, side).find((entry) => entry.run._frame);
+      if (!owner) continue;
+      const ownerItems = runItems(owner.run);
+      found[side] = { owner: false,
+        columnId: (owner.side === 'left' ? ownerItems[0] : ownerItems.at(-1))?.id ?? null,
+        kind: owner.run.ends[owner.side].corner?.kind ?? 90,
+        cut: cornerCut(room, owner.wall, owner.run, owner.side, 'b') };
+    }
+  }
+  return found;
+}
+
 function areaOf(rect) {
   return rect.width * rect.height;
 }
@@ -61,7 +108,12 @@ function boundsOf(pieces) {
  * is part of a wider stile. A cabinet side with nothing framed or covered beside it is free.
  * `faceLayouts` may supply resolved openings; otherwise the shared face resolver derives them.
  *
- * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, warnings: object[]}}
+ * SPEC-CC6: an active corner column on a framed run is in no region. Beside a Corner 90 the
+ * neighbour's frame laps over the corner box (`cornerLaps`, `region.cornerLaps`): on the owner's
+ * wall over the column's edge, on a return run dying into the corner past its end. Beside a
+ * Corner 45 the neighbouring box is free, with the mitered stile's wider overhang (`overhangs`).
+ *
+ * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, overhangs: Map<string, {left?: number, right?: number}>, cornerLaps: object[], warnings: object[]}}
  */
 export function frameRegions(room, run, cells, settings, faceLayouts) {
   const pieces = cells.pieces.filter((piece) => !piece.step);
@@ -72,9 +124,21 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
   const freeSides = new Map();
   const seamSides = new Map();
   const warnings = [];
+  const overhangs = new Map();
+  const cornerLaps = [];
+  // Use the root grid's full box, including void cells, rather than a nested cabinet's bounds.
+  const columns = new Map(pieces.map((piece) => {
+    const id = piece.columnId ?? piece.id;
+    const grid = cells.grids?.find((entry) => entry.columnId === id && entry.depth === 1);
+    return [id, grid ? { ...grid, id, depth: piece.depth } : piece];
+  }));
+  const corners = frameCorners(room, run, columns);
+  const cornerColumnIds = new Set(Object.values(corners).filter((corner) => corner.owner)
+    .map((corner) => corner.columnId));
   const cabinets = pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item'
+    && !cornerColumnIds.has(piece.columnId ?? piece.id)
     && isInsetStyle(resolveStyle(settings, room, run, pieceItem(run, piece))));
-  if (cabinets.length === 0) return { regions, fillerIds, freeSides, seamSides, warnings };
+  if (cabinets.length === 0) return { regions, fillerIds, freeSides, seamSides, overhangs, cornerLaps, warnings };
 
   // SPEC-38.3: cells.gaps only records gaps between pieces; plain ends also have an end gap.
   // Include those gaps so a mitered wall end panel can reach the outermost box too.
@@ -111,13 +175,17 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
       height: panel.top,
     }];
   });
-  const panels = [...pieces.filter(isSidePanel), ...wallPanels];
-  // Use the root grid's full box, including void cells, rather than a nested cabinet's bounds.
-  const columns = new Map(pieces.map((piece) => {
-    const id = piece.columnId ?? piece.id;
-    const grid = cells.grids?.find((entry) => entry.columnId === id && entry.depth === 1);
-    return [id, grid ? { ...grid, id, depth: piece.depth } : piece];
-  }));
+  // SPEC-CC6: a Corner 90 lap covers like a side panel but is never a part.
+  const lap = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+  const laps = Object.entries(corners).filter(([, corner]) => corner.kind === 90).map(([side, corner]) => {
+    const rect = corner.owner ? corner.column : runBounds;
+    const x = corner.owner
+      ? (side === 'left' ? rect.x + rect.width - lap : rect.x)
+      : (side === 'left' ? run.x - lap : run.x + run.width);
+    return { id: `corner-lap:${corner.columnId}`, lap: true, side, columnId: corner.columnId,
+      x, z: rect.z, width: lap, height: rect.height };
+  });
+  const panels = [...pieces.filter(isSidePanel), ...wallPanels, ...laps];
   const pending = [];
   for (const group of groups.values()) {
     const boxes = group.filter((piece) => piece.kind === 'cabinet');
@@ -148,7 +216,11 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
       region.x = Math.min(region.x, panel.x);
       region.width = right - region.x;
       covered.push(panel);
-      if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
+      if (panel.lap) {
+        const entry = { id: panel.id, side: panel.side, x: panel.x, width: panel.width, columnId: panel.columnId };
+        (region.cornerLaps ??= []).push(entry);
+        cornerLaps.push(entry);
+      } else if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
       else region.panelIds.push(panel.id);
     }
 
@@ -213,7 +285,22 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
       seamSides.set(box.id, { left: besideCabinet('left'), right: besideCabinet('right') });
     }
   }
-  const frames = { regions, fillerIds, freeSides, seamSides, warnings };
+  // SPEC-CC6: beside a Corner 45 the stile is mitered: the box is free, spaced off by lap + ft·tan(cut).
+  for (const [side, corner] of Object.entries(corners)) {
+    if (corner.kind !== 45) continue;
+    const other = side === 'left' ? 'right' : 'left';
+    const amount = lap + run._frame.thickness * Math.tan(corner.cut * Math.PI / 180);
+    for (const [id, free] of freeSides) {
+      const box = cabinets.find((piece) => piece.id === id);
+      const meets = corner.owner
+        ? sideOf(corner.column, box, reach) === other
+        : (side === 'left' ? box.x - run.x : run.x + run.width - box.x - box.width) <= wallReach + EPSILON;
+      if (!meets) continue;
+      free[side] = true;
+      overhangs.set(id, { ...overhangs.get(id), [side]: amount });
+    }
+  }
+  const frames = { regions, fillerIds, freeSides, seamSides, overhangs, cornerLaps, warnings };
   if (pending.length) {
     const wall = room.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
     const faces = faceLayouts ?? layoutFaces(room, wall, run, settings,
@@ -265,14 +352,15 @@ export function faceOpenings(face, area, reveals) {
 
 /**
  * How much narrower than its slot each framed box is, per side (SPEC-36.2): the stile's overhang on
- * a free side, else 0. Keyed by cabinet cell id, and by column id for a split column (from the cells
+ * a free side (a mitered corner stile's own, SPEC-CC6), else 0. Keyed by cabinet cell id, and by column id for a split column (from the cells
  * along its outside edges). Boxes outside a frame aren't in the map.
  */
 export function boxInsets(frames, cells, settings) {
   const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
   const insets = new Map();
   for (const [id, free] of frames.freeSides) {
-    insets.set(id, { left: free.left ? overhang : 0, right: free.right ? overhang : 0 });
+    const own = frames.overhangs?.get(id);
+    insets.set(id, { left: free.left ? own?.left ?? overhang : 0, right: free.right ? own?.right ?? overhang : 0 });
   }
   const columns = new Map();
   for (const piece of cells.pieces) {
@@ -281,9 +369,10 @@ export function boxInsets(frames, cells, settings) {
   for (const [columnId, pieces] of columns) {
     const left = Math.min(...pieces.map((piece) => piece.x));
     const right = Math.max(...pieces.map((piece) => piece.x + piece.width));
-    const free = (side, edge) => pieces.some((piece) => (insets.get(piece.id)?.[side] ?? 0) > 0
-      && Math.abs((side === 'left' ? piece.x : piece.x + piece.width) - edge) <= EPSILON);
-    const inset = { left: free('left', left) ? overhang : 0, right: free('right', right) ? overhang : 0 };
+    const edgeInset = (side, edge) => Math.max(0, ...pieces.filter((piece) => (
+      Math.abs((side === 'left' ? piece.x : piece.x + piece.width) - edge) <= EPSILON
+    )).map((piece) => insets.get(piece.id)?.[side] ?? 0));
+    const inset = { left: edgeInset('left', left), right: edgeInset('right', right) };
     if (inset.left > 0 || inset.right > 0) insets.set(columnId, inset);
   }
   return insets;

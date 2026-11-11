@@ -1,7 +1,8 @@
 import { cornerCabinetShape, cornerFaceLayout } from './cornerCabinet.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import {
-  cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns, faceFrontOffset,
+  cornerDepthBAuto, cornerEndActive, cornerOwnersAt, cornerReturnFootprint, cornerReturnPiece, cornerReturnRuns,
+  faceFrontOffset,
 } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
@@ -33,7 +34,7 @@ export function normalizeCornerEnd(end) {
   };
 }
 
-export { defaultLegA } from './corners.js';
+export { cornerDepthBAuto, defaultLegA } from './corners.js';
 
 const WARNING_MESSAGES = {
   'corner-not-in-corner': "The corner cabinet isn't anchored into a square inside corner.",
@@ -43,12 +44,6 @@ const WARNING_MESSAGES = {
   'corner-legs-too-short': "The corner cabinet's legs are shorter than the depths beside them.",
   'corner-doubled': 'Both runs in this corner have a corner cabinet.',
 };
-
-/** Auto depth B is the deepest compatible return run's box depth, else the owner's. */
-export function cornerDepthBAuto(room, wall, run, side) {
-  const { runs } = cornerReturnRuns(room, wall, run, side);
-  return runs.length ? Math.max(...runs.map((candidate) => candidate.depth)) : run.depth;
-}
 
 /** Resolve the owner column, return dimensions and geometry, including inactive corner ends. */
 export function cornerEnd(room, wall, run, side, settings, layout = null) {
@@ -69,11 +64,14 @@ export function cornerEnd(room, wall, run, side, settings, layout = null) {
   const depthA = run.depth;
   const returnSide = cornerReturnPiece(room, view, run, side, settings);
   const depthB = end.corner?.depthB ?? cornerDepthBAuto(room, view, run, side);
-  const offsetA = faceFrontOffset(run, settings);
   const deepestReturn = returns.reduce((deepest, candidate) => (
     !deepest || candidate.depth > deepest.depth ? candidate : deepest
   ), null);
-  const offsetB = deepestReturn ? faceFrontOffset(deepestReturn, settings) : offsetA;
+  // SPEC-CC6: a framed corner's faces sit on the frame's front; a Euro return beside it doesn't count.
+  const framed = active && Boolean(run._frame);
+  const offsetA = framed ? run._frame.thickness : faceFrontOffset(run, settings);
+  const offsetB = framed ? deepestReturn?._frame?.thickness ?? offsetA
+    : deepestReturn ? faceFrontOffset(deepestReturn, settings) : offsetA;
   const doors = end.corner?.doors ?? settings.cornerDoors ?? DEFAULT_SETTINGS.cornerDoors;
   const kind = end.corner?.kind ?? 90;
   const geometry = legA === null ? null : cornerCabinetShape({ kind, legA, legB, depthA, depthB });

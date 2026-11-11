@@ -1,7 +1,7 @@
 import { cellPieces } from './cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerEndWarnings, cornerReturnWarnings } from './cornerEnd.js';
-import { frontDepth } from './corners.js';
+import { cornerOwnersAt, frontDepth } from './corners.js';
 import { runDoorThickness } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { extendPieces } from './extensions.js';
@@ -214,9 +214,10 @@ function withWallPanelThickness(room, wall, settings) {
 /**
  * A face frame run's joined ends that die into a deeper neighbour (SPEC-38.4): `_frame.dieIn` gives,
  * per side, an end of type None whose neighbour is deeper, so the frame's stile overhangs the box
- * there like a free end.
+ * there like a free end. `_frame.cornerDieIn` (SPEC-CC6) gives, per side, an end of type None that
+ * dies into a framed active corner cabinet: the corner's lap covers it, so it's joined.
  */
-function withDieIns(wall) {
+function withDieIns(room, wall) {
   const deeper = deeperJoinedSides(wall);
   return {
     ...wall,
@@ -227,10 +228,17 @@ function withDieIns(wall) {
         left: Boolean(sides?.left) && run.ends.left.type === 'none',
         right: Boolean(sides?.right) && run.ends.right.type === 'none',
       };
-      const { dieIn, ...frame } = run._frame;
-      void dieIn;
-      if (found.left || found.right) return { ...run, _frame: { ...frame, dieIn: found } };
-      return dieIn === undefined ? run : { ...run, _frame: frame };
+      const intoCorner = (side) => run.ends[side].type === 'none'
+        && cornerOwnersAt(room, wall, run, side).some((owner) => owner.run._frame);
+      const corner = { left: intoCorner('left'), right: intoCorner('right') };
+      const { dieIn, cornerDieIn, ...frame } = run._frame;
+      const next = {
+        ...frame,
+        ...(found.left || found.right ? { dieIn: found } : {}),
+        ...(corner.left || corner.right ? { cornerDieIn: corner } : {}),
+      };
+      return JSON.stringify(next.dieIn) === JSON.stringify(dieIn)
+        && JSON.stringify(next.cornerDieIn) === JSON.stringify(cornerDieIn) ? run : { ...run, _frame: next };
     }),
   };
 }
@@ -390,7 +398,7 @@ export function syncRoom(room, settings) {
     }),
   };
 
-  nextRoom = { ...nextRoom, walls: nextRoom.walls.map(withDieIns) };
+  nextRoom = { ...nextRoom, walls: nextRoom.walls.map((wall) => withDieIns(nextRoom, wall)) };
   // SPEC-38.4: before the auto items, so splitRun knows a wall end panel's join.
   nextRoom = {
     ...nextRoom,

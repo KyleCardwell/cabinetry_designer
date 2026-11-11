@@ -198,6 +198,12 @@ export function cornerReturnRuns(room, wall, owner, side) {
   return { corner, returnWall, runs };
 }
 
+/** Auto depth B is the deepest compatible return run's box depth, else the owner's. */
+export function cornerDepthBAuto(room, wall, run, side) {
+  const { runs } = cornerReturnRuns(room, wall, run, side);
+  return runs.length ? Math.max(...runs.map((candidate) => candidate.depth)) : run.depth;
+}
+
 /** Merge z-ranges and report whether they cover [z, top] with no gap. */
 export function isBlindCovered(ranges, z, top) {
   if (ranges.length === 0) return false;
