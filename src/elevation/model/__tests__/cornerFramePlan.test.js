@@ -134,7 +134,7 @@ describe('CC6 step g corner frames in plan', () => {
       expect(planParts(subject, S).some(({ kind }) => kind === 'frame')).toBe(false);
       expect(boxes.find(({ key }) => key === 'cc').polygon).toEqual(kind === 90
         ? [[0, 0], [36, 0], [36, 24], [24, 24], [24, 36], [0, 36]]
-        : [[0, 0], [36, 0], [36, 24], [24, 36], [0, 36]]);
+        : [[0, 0], [36, 0], [36, 24], [35.25, 24], [24, 35.25], [24, 36], [0, 36]]);
       expectPolygon(faces.find(({ key }) => key === 'cc:return').polygon,
         [[0, 36], [24, 36], [24, 36.8125], [0, 36.8125]]);
     }

@@ -42,7 +42,7 @@ describe('CC5 step a corner parts in plan', () => {
     const cornerSettings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125 };
     const parts = planParts(subject, cornerSettings).filter(({ id }) => id === 'cc' || id.startsWith('cc:'));
     const outline = [[0, 0], [36, 0], [36, -24],
-      ...(kind === 90 ? [[24, -24]] : []), [24, -36], [0, -36]];
+      ...(kind === 90 ? [[24, -24]] : [[35.25, -24], [24, -35.25]]), [24, -36], [0, -36]];
     expect(parts.find(({ id }) => id === 'cc')).toMatchObject({ kind: 'cabinet', points: outline });
     expect(parts.find(({ id }) => id === 'cc:return')).toMatchObject({ kind: 'end_panel',
       points: [[0, -36], [24, -36], [24, -36.8125], [0, -36.8125]] });
@@ -50,7 +50,7 @@ describe('CC5 step a corner parts in plan', () => {
     expect(face.kind).toBe('face');
     const expected = kind === 90
       ? [[24.125, -25], [24.875, -25], [24.875, -35.9375], [24.125, -35.9375]]
-      : [[36.1209, -25.1165], [25.1165, -36.1209], [24.5862, -35.5906], [35.5906, -24.5862]];
+      : [[35.7459, -24.7415], [24.7415, -35.7459], [24.2112, -35.2156], [35.2156, -24.2112]];
     face.points.forEach((point, i) => point.forEach((value, j) => {
       expect(Math.abs(value - expected[i][j])).toBeLessThan(0.001);
     }));

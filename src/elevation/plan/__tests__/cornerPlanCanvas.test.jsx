@@ -77,20 +77,21 @@ it('anchor 1: Room A Corner 90 outlines the L once and keeps ordinary box segmen
   });
 });
 
-it('anchor 2: Corner 45 outlines five points and draws only the diagonal cc:r face', () => {
+it('anchor 2: Euro Corner 45 outlines seven points and draws only the diagonal cc:r face', () => {
   owner.ends.left.corner.kind = 45;
   const drawing = lines();
   const outlines = drawing.filter(({ key, props }) => key.startsWith('cc:') && props.strokeWidth === 1.5);
   expect(outlines).toHaveLength(1);
   expect(outlines[0].props).toMatchObject({
-    points: mapped([[0, 0], [36, 0], [36, 24], [24, 36], [0, 36]]), closed: true,
+    points: mapped([[0, 0], [36, 0], [36, 24], [35.25, 24], [24, 35.25], [24, 36], [0, 36]]),
+    closed: true,
   });
   expect(drawing.filter(({ key }) => key.startsWith('cc:outline:'))).toEqual([]);
   const faces = drawing.filter(({ key }) => key === 'cc:r');
   expect(faces).toHaveLength(1);
   expect(faces[0].props.closed).toBe(true);
-  const expected = mapped([[36.1209, 25.1165], [25.1165, 36.1209],
-    [24.5862, 35.5906], [35.5906, 24.5862]]);
+  const expected = mapped([[35.7459, 24.7415], [24.7415, 35.7459],
+    [24.2112, 35.2156], [35.2156, 24.2112]]);
   expect(faces[0].props.points).toHaveLength(8);
   faces[0].props.points.forEach((value, i) => expect(value).toBeCloseTo(expected[i], 3));
 });
