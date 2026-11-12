@@ -7,6 +7,25 @@ const PART_KINDS = {
   furnitureBase: 'furniture_base',
 };
 
+/** Where a band's front turns between legs, in the corner's wall A / wall B frame. */
+export function cornerBandTurns(corner, kind, frontA) {
+  const { depthA, depthB, offsetA, offsetB, shape, faceLayout } = corner;
+  const toeKick = kind === 'toeKick';
+  const frontB = toeKick ? frontA - depthA + depthB
+    : frontA - (depthA + offsetA) + (depthB + offsetB);
+  if (corner.kind === 90) return { frontA, frontB, a: [frontB, frontA], b: [frontB, frontA] };
+
+  const { normal } = shape.faces[0];
+  const from = toeKick ? shape.faces[0].from : faceLayout.feet.a;
+  const shift = toeKick ? frontA - depthA : frontA - depthA - offsetA;
+  const line = normal[0] * from[0] + normal[1] * from[1] + shift;
+  return {
+    frontA, frontB,
+    a: [(line - normal[1] * frontA) / normal[0], frontA],
+    b: [frontB, (line - normal[0] * frontB) / normal[1]],
+  };
+}
+
 /** A touching end view carrying this band at this height, in the face's depth frame. */
 export function profileBandJoint(getShapes, run, side, band, z, height, front) {
   const edge = side === 'left' ? run.x : run.x + run.width;
