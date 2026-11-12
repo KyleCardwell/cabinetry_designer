@@ -3,6 +3,7 @@ import { SEGMENT_EPSILON, appendSegment, faceHasRuns } from './dimensionsShared.
 import { cellPieces } from './cells.js';
 import { cornerLap } from './cornerLaps.js';
 import { cornerAt, cornerReserveParts } from './corners.js';
+import { cornerEnd } from './cornerEnd.js';
 import { runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
 import { wallFrame, wallLength } from './geometry.js';
@@ -346,6 +347,58 @@ function withCornerReturns(inner, returns, wallStart, wallEnd) {
   });
 }
 
+/**
+ * A corner cabinet's column on the owner face reads as the return's depth next to the corner, then the
+ * corner span out to its near edge (CC8): the frame part's far edge on a framed corner, else the
+ * column's own edge. A neighbouring segment reaching past the near edge is clipped to it.
+ */
+function withCornerSpans(inner, room, wall, runs, returns, settings) {
+  let row = inner;
+  for (const run of runs) {
+    for (const side of ['left', 'right']) {
+      const corner = cornerEnd(room, wall, run, side, settings);
+      if (!corner?.active || !corner.columnId || corner.cornerX === null) continue;
+      const index = row.findIndex((segment) => segment.kind === 'piece' && segment.pieceId === corner.columnId);
+      if (index < 0) continue;
+      const column = row[index];
+      const { cornerX, dir } = corner;
+      const atCorner = (segment) => Math.abs((dir === 1 ? segment.start : segment.end) - cornerX) <= SEGMENT_EPSILON;
+      const neighbor = returns.find(atCorner);
+      const panel = !neighbor && corner.returnSide.type === 'end_panel' && corner.depthB > SEGMENT_EPSILON;
+      if (!neighbor && !panel) continue;
+      const depth = neighbor
+        ? { ...neighbor }
+        : {
+          start: dir === 1 ? cornerX : cornerX - corner.depthB,
+          end: dir === 1 ? cornerX + corner.depthB : cornerX,
+          kind: 'corner-return',
+          wallId: corner.corner.neighborWallId,
+        };
+      const frame = runScene(room, wall, run, settings).cornerFrames
+        .find((entry) => entry.columnId === corner.columnId)?.owner;
+      const near = frame ? (dir === 1 ? frame.x + frame.width : frame.x) : (dir === 1 ? column.end : column.start);
+      const span = dir === 1
+        ? { ...column, start: depth.end, end: near }
+        : { ...column, start: near, end: depth.start };
+      const clip = (segment) => {
+        if (dir === 1 && segment.start < near - SEGMENT_EPSILON && segment.end > near + SEGMENT_EPSILON) {
+          return { ...segment, start: near };
+        }
+        if (dir === -1 && segment.end > near + SEGMENT_EPSILON && segment.start < near - SEGMENT_EPSILON) {
+          return { ...segment, end: near };
+        }
+        return segment;
+      };
+      const kept = row.filter((_, at) => at !== index).map(clip);
+      const replacement = [depth, ...(span.end - span.start > SEGMENT_EPSILON ? [span] : [])]
+        .sort((a, b) => a.start - b.start);
+      kept.splice(index, 0, ...replacement);
+      row = kept;
+    }
+  }
+  return row;
+}
+
 /** The face's wall row ends, built end panels included (SPEC-36.2). */
 function wallSpan(room, wall) {
   const frame = wallFrame(room, wall);
@@ -517,5 +570,7 @@ function bandChains(room, wall, band, settings) {
   appendOpenGap(outer, cursor, rangeEnd, tallRanges);
   if (right) outer.push(right);
 
-  return { inner: withCornerReturns(inner, cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd), outer };
+  const returns = cornerReturnSegments(room, wall, band, settings);
+  const spanned = withCornerSpans(inner, room, wall, runs, returns, settings);
+  return { inner: withCornerReturns(spanned, returns, wallStart, wallEnd), outer };
 }
