@@ -53,7 +53,8 @@ export function ownerBands(room, view, owner, settings) {
   }).filter(({ height }) => height > EPSILON);
 }
 
-function legBandsForOwner(room, view, ownerWall, owner, side, settings) {
+/** One owner's leg bands, including the end treatment needed for shipping footage. */
+export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings) {
   const point = cornerReturnPoint(room, ownerWall, owner, side);
   if (!point || point.wallId !== view.id || point.wallSide !== (view.side ?? 'front')) return [];
   const ownerView = wallViewForRun(ownerWall, owner);
@@ -111,14 +112,14 @@ function legBandsForOwner(room, view, ownerWall, owner, side, settings) {
       id: `${key}:${PART_KINDS[kind]}`, kind: PART_KINDS[kind], ownerWallId: ownerWall.id,
       runId: owner.id, side, x, z, width, height, back: runBackOffset(owner), front: turn.frontB,
       ...(lines.length ? { lines } : {}),
-    }, kind, carriers: carriers.map(({ run }) => run), jointX, near };
+    }, kind, returned, carriers: carriers.map(({ run }) => run), jointX, near };
   }).filter(({ part }) => part.width > EPSILON);
 }
 
 /** Bands owned by corner cabinets on other wall faces, in this return elevation's frame. */
 export function cornerLegBands(room, view, settings) {
   return (room.walls ?? []).flatMap((ownerWall) => ownerWall.runs.flatMap((owner) => (
-    ['left', 'right'].flatMap((side) => legBandsForOwner(room, view, ownerWall, owner, side, settings)
+    ['left', 'right'].flatMap((side) => cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings)
       .map(({ part }) => part))
   )));
 }
@@ -126,7 +127,7 @@ export function cornerLegBands(room, view, settings) {
 /** A return run meets its corner leg square, unless its own band is the deeper free return. */
 export function cornerLegBandEdge(room, view, run, side, kind, settings) {
   for (const owner of cornerOwnersAt(room, view, run, side)) {
-    const joint = legBandsForOwner(room, view, owner.wall, owner.run, owner.side, settings)
+    const joint = cornerLegBandsForOwner(room, view, owner.wall, owner.run, owner.side, settings)
       .find((band) => band.kind === kind && band.near === side && band.carriers.some(({ id }) => id === run.id));
     if (!joint) continue;
     const front = bandFronts(room, view, run, settings)[kind];

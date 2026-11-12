@@ -3,7 +3,8 @@ import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
-import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
+import { cornerLegBandsForOwner } from '../elevation/model/cornerLegBands.js';
+import { cornerReturnPoint, frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { deckZ, elevationParts } from '../elevation/model/elevationParts.js';
@@ -55,7 +56,7 @@ export function linealFeet(inches) {
   return Math.ceil((inches + MOLDING_EXTRA) / 96) * 8;
 }
 
-function shippingMoldings(room, settings) {
+export function shippingMoldings(room, settings) {
   const result = Object.fromEntries(Object.keys(MOLDINGS).map((kind) => [kind,
     { measured: 0, dimensions: new Map() }]));
   const shelfDepths = new Map();
@@ -69,6 +70,13 @@ function shippingMoldings(room, settings) {
         const scene = runScene(room, wall, run, settings);
         const bands = runBands(room, wall, run, settings, scene);
         const moldings = moldingProfiles(profile, settings, run);
+        const legBands = ['left', 'right'].flatMap((end) => {
+          const point = cornerReturnPoint(room, wall, run, end);
+          if (!point) return [];
+          const returnWall = room.walls.find(({ id }) => id === point.wallId);
+          const view = resolveWall(room, returnWall, point.wallSide);
+          return cornerLegBandsForOwner(room, view, wall, run, end, settings);
+        });
         for (const kind of kinds) {
           const data = result[kind];
           const picked = moldings[kind];
@@ -90,6 +98,10 @@ function shippingMoldings(room, settings) {
             const band = bands[kind];
             data.measured += band.width + band.ends.filter((end) => end.type === 'return').length
               * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
+          }
+          for (const leg of legBands.filter((leg) => leg.kind === kind)) {
+            data.measured += leg.part.width;
+            if (kind !== 'toeKick' && leg.returned) data.measured += leg.part.front - leg.part.back;
           }
         }
       }
