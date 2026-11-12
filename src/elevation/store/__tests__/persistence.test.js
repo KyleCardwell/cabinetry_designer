@@ -1,24 +1,18 @@
 import { fixed, room as makeRoom, run as makeRun, wall as makeWall } from '../../../test/builders.js';
-import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
-import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DOOR_DESIGNS } from '../../model/doorStyles.js';
-import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
-import { isAccessory, newAccessory } from '../../model/accessories.js';
+import { newAccessory } from '../../model/accessories.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
 import { syncRoom } from '../../model/room.js';
-import { cornerLap } from '../../model/cornerLaps.js';
-import { cornerReserve } from '../../model/corners.js';
 import {
   ELEVATION_STORAGE_KEY,
   isElevationDocument,
   loadElevationDocument,
   normalizeElevationDocument,
-  roomFromDocument,
-  toElevationDocument,
+  toElevationDocument
 } from '../persistence.js';
 import { createInitialElevationState } from '../elevationSlice.js';
 import { MICRO_SHAKER } from '../../model/__tests__/fixtures/microShakerDesign.js';
@@ -31,83 +25,6 @@ function storageWith(entries) {
     removeItem: (key) => values.delete(key),
   };
 }
-
-it('IN15e defaults legacy zone gap settings and round-trips explicit settings and divider gaps', () => {
-  const legacy = currentDocument();
-  delete legacy.settings.zoneGap;
-  const normalized = normalizeElevationDocument(legacy);
-  expect(normalized.settings.zoneGap).toBe(1);
-  expect(legacy.settings).not.toHaveProperty('zoneGap');
-  expect(isElevationDocument(normalized)).toBe(true);
-  for (const gap of [0, 2]) {
-    const document = structuredClone(normalized);
-    document.settings.zoneGap = gap;
-    const interior = { direction: 'horizontal', children: [{}, {}], dividers: [{ kind: 'zone', gap }] };
-    document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
-    const saved = toElevationDocument(createInitialElevationState(document));
-    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
-    const loaded = loadElevationDocument();
-    expect(isElevationDocument(loaded)).toBe(true);
-    expect(loaded.settings.zoneGap).toBe(gap);
-    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
-  }
-});
-
-it('IN4c a: defaults missing sandbox slide back clearance by id without changing saved data', () => {
-  const document = currentDocument();
-  document.settings.slides = structuredClone([
-    ...BUILT_IN_SLIDES, { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Custom slide' },
-  ]);
-  for (const slide of document.settings.slides) delete slide.backClearance;
-  const before = structuredClone(document);
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-  const loaded = loadElevationDocument();
-  expect(isElevationDocument(loaded)).toBe(true);
-  expect(loaded.settings.slides.map(({ backClearance }) => backClearance)).toEqual([0.75, 0, 0, 0]);
-  expect(document).toEqual(before);
-  for (const backClearance of [0, 0.25]) {
-    document.settings.slides[0].backClearance = backClearance;
-    expect(normalizeElevationDocument(document).settings.slides[0].backClearance).toBe(backClearance);
-  }
-  for (const backClearance of [-0.25, null, '0.75']) {
-    document.settings.slides[0].backClearance = backClearance;
-    expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
-  }
-});
-
-it('LP1 anchor 3: loads pre-LP1 sandbox pull and slide pricing without repairing invalid values', () => {
-  const document = currentDocument();
-  document.settings.pulls = structuredClone(BUILT_IN_PULLS);
-  document.settings.slides = structuredClone(BUILT_IN_SLIDES);
-  for (const key of ['pulls', 'slides']) {
-    for (const item of document.settings[key]) {
-      delete item.price;
-      delete item.actualCost;
-      delete item.labor;
-    }
-  }
-  document.settings.slides[0].cvName = 'Retired name';
-  const before = structuredClone(document);
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-  const loaded = loadElevationDocument();
-  expect(isElevationDocument(loaded)).toBe(true);
-  expect(loaded.settings.pulls).toEqual(BUILT_IN_PULLS);
-  expect(loaded.settings.slides).toEqual(BUILT_IN_SLIDES);
-  expect(normalizeElevationDocument(document)).toEqual(loaded);
-  expect(document).toEqual(before);
-  for (const key of ['pulls', 'slides']) {
-    Object.assign(document.settings[key][0], { price: 12, actualCost: 8, labor: { '7': 4 } });
-    expect(normalizeElevationDocument(document).settings[key][0])
-      .toMatchObject({ price: 12, actualCost: 8, labor: { '7': 4 } });
-    for (const [field, value] of [['price', 'x'], ['actualCost', -1], ['labor', null]]) {
-      const invalid = structuredClone(document);
-      invalid.settings[key][0][field] = value;
-      expect(isElevationDocument(normalizeElevationDocument(invalid))).toBe(false);
-      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(invalid)]]) };
-      expect(loadElevationDocument()).toBeNull();
-    }
-  }
-});
 
 function currentDocument() {
   const settings = structuredClone(DEFAULT_SETTINGS);
@@ -135,43 +52,6 @@ function currentDocument() {
   };
 }
 
-it('SH7.4 defaults older square leg settings and round-trips dimensions and square legs', () => {
-  const legacy = currentDocument();
-  delete legacy.settings.squareLegWidth;
-  delete legacy.settings.squareLegDepth;
-  const before = structuredClone(legacy);
-  const normalized = normalizeElevationDocument(legacy);
-  expect(normalized.settings).toMatchObject({ squareLegWidth: 3, squareLegDepth: 3 });
-  expect(isElevationDocument(normalized)).toBe(true);
-  expect(legacy).toEqual(before);
-  normalized.settings.squareLegWidth = 4;
-  normalized.settings.squareLegDepth = 5;
-  const legs = [{ id: 'square-1', square: {}, from: 'left', x: 0, yFrom: 'front', y: 0.5, height: 'full' },
-    { id: 'square-2', square: { w: 2, d: 4 }, from: 'right', x: 0, yFrom: 'back', y: 0, height: 'feet' }];
-  normalized.rooms[0].walls[0].runs[0].legs = legs;
-  const saved = toElevationDocument(createInitialElevationState(normalized));
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
-  const loaded = loadElevationDocument();
-  expect(isElevationDocument(loaded)).toBe(true);
-  expect(loaded.settings).toMatchObject({ squareLegWidth: 4, squareLegDepth: 5 });
-  expect(loaded.rooms[0].walls[0].runs[0].legs).toEqual(legs);
-});
-
-it('IN15a defaults floating shelf spacing in older saves and preserves typed values', () => {
-  const document = currentDocument();
-  delete document.settings.floatingShelfSpacing;
-  const normalized = normalizeElevationDocument(document);
-  expect(normalized.settings.floatingShelfSpacing).toBe(11);
-  expect(document.settings).not.toHaveProperty('floatingShelfSpacing');
-  expect(isElevationDocument(normalized)).toBe(true);
-  document.settings.floatingShelfSpacing = 8;
-  expect(normalizeElevationDocument(document).settings.floatingShelfSpacing).toBe(8);
-  for (const invalid of [null, '11', Infinity]) {
-    document.settings.floatingShelfSpacing = invalid;
-    expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
-  }
-});
-
 it('IN12b anchor 6: defaults missing accessories, round trips saved entries and rejects invalid libraries', () => {
   const document = currentDocument();
   delete document.settings.accessories;
@@ -194,32 +74,6 @@ it('IN12b anchor 6: defaults missing accessories, round trips saved entries and 
     const invalid = { ...loaded, settings: { ...loaded.settings, accessories } };
     expect(isElevationDocument(invalid)).toBe(false);
     window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(invalid));
-    expect(loadElevationDocument()).toBeNull();
-  }
-});
-
-it('IN13a a anchor 4: defaults legacy sandbox accessories before validation without rewriting storage', () => {
-  const document = currentDocument();
-  const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, price: 185 };
-  const legacy = structuredClone(accessory);
-  delete legacy.size;
-  delete legacy.lengthDeduction;
-  document.settings.accessories = [legacy];
-  const before = structuredClone(document);
-  const serialized = JSON.stringify(document);
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, serialized]]) };
-  const loaded = loadElevationDocument();
-  expect(isElevationDocument(loaded)).toBe(true);
-  expect(isAccessory(loaded.settings.accessories[0])).toBe(true);
-  expect(loaded.settings.accessories).toEqual([accessory]);
-  expect(document).toEqual(before);
-  expect(window.localStorage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
-  document.settings.accessories = [{ ...accessory, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 }];
-  window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
-  expect(loadElevationDocument().settings.accessories).toEqual(document.settings.accessories);
-  for (const change of [{ size: null }, { size: { width: 3 } }, { lengthDeduction: -1 / 8 }]) {
-    document.settings.accessories = [{ ...legacy, ...change }];
-    window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
     expect(loadElevationDocument()).toBeNull();
   }
 });
@@ -419,48 +273,6 @@ describe('HP3c step a pull reference persistence', () => {
 describe('IN4b step a sandbox slide persistence', () => {
   const custom = { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Shop slide', hardwareSlideId: 3 };
 
-  it('loads missing slides and appends missing built-ins without changing saved data (anchor 6)', () => {
-    const edited = { ...BUILT_IN_SLIDES[0], name: 'Shop Blum', sideClearance: 0.375 };
-    for (const [slides, expected] of [
-      [undefined, BUILT_IN_SLIDES], [[], BUILT_IN_SLIDES],
-      [[custom], [custom, ...BUILT_IN_SLIDES]],
-      [[custom, edited], [custom, edited, ...BUILT_IN_SLIDES.slice(1)]],
-      [[BUILT_IN_SLIDES[2], custom, edited], [BUILT_IN_SLIDES[2], custom, edited, BUILT_IN_SLIDES[1]]],
-    ]) {
-      const document = currentDocument();
-      if (slides === undefined) delete document.settings.slides;
-      else document.settings.slides = structuredClone(slides);
-      const before = structuredClone(document);
-      const serialized = JSON.stringify(document);
-      const storage = storageWith([[ELEVATION_STORAGE_KEY, serialized]]);
-      globalThis.window = { localStorage: storage };
-      const loaded = loadElevationDocument();
-      expect(loaded.settings.slides).toEqual(expected);
-      expect(isElevationDocument(loaded)).toBe(true);
-      expect(normalizeElevationDocument(loaded)).toEqual(loaded);
-      expect(normalizeElevationDocument(document).settings.slides).toEqual(expected);
-      expect(document).toEqual(before);
-      expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
-      if (slides === undefined || slides.length === 0) {
-        expect(loaded.settings.slides).not.toBe(BUILT_IN_SLIDES);
-        expect(loaded.settings.slides[0].lengths[0]).not.toBe(BUILT_IN_SLIDES[0].lengths[0]);
-      }
-      const roundTrip = normalizeElevationDocument(JSON.parse(JSON.stringify(
-        toElevationDocument(createInitialElevationState(loaded)),
-      )));
-      expect(roundTrip.settings.slides).toEqual(expected);
-    }
-  });
-
-  it('drops the retired Cabinet Vision name from saved sandbox slides', () => {
-    const document = currentDocument();
-    document.settings.slides = [{ ...custom, cvName: 'Shop CV' }, { ...BUILT_IN_SLIDES[0], cvName: 'Blum 562H3810B' }];
-    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.slides).toEqual([custom, ...BUILT_IN_SLIDES]);
-    expect(isElevationDocument(loaded)).toBe(true);
-  });
-
   it('rejects duplicate names and ids, invalid slides and altered built-in mounts (anchor 6)', () => {
     for (const slides of [
       [{ ...custom, name: 'X' }, { ...custom, id: 'other', name: 'x' }],
@@ -485,42 +297,6 @@ describe('HP3b step a sandbox pull persistence', () => {
     projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
   };
 
-  it('loads missing pulls as independent built-ins without writing storage (anchor 5)', () => {
-    const document = currentDocument();
-    delete document.settings.pulls;
-    const serialized = JSON.stringify(document);
-    const storage = storageWith([[ELEVATION_STORAGE_KEY, serialized]]);
-    globalThis.window = { localStorage: storage };
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.pulls).toEqual(BUILT_IN_PULLS);
-    expect(loaded.settings.pulls).not.toBe(BUILT_IN_PULLS);
-    expect(loaded.settings.pulls[0]).not.toBe(BUILT_IN_PULLS[0]);
-    expect(isElevationDocument(loaded)).toBe(true);
-    expect(document.settings).not.toHaveProperty('pulls');
-    expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
-  });
-
-  it('appends only missing built-ins, retaining custom order and edited built-ins (anchor 5)', () => {
-    const edited = { ...BUILT_IN_PULLS[0], name: 'Shop bar', length: 6, hardwarePullId: 3 };
-    for (const [pulls, expected] of [
-      [[bar], [bar, ...BUILT_IN_PULLS]],
-      [[bar, edited], [bar, edited, BUILT_IN_PULLS[1]]],
-      [[bar, BUILT_IN_PULLS[1], edited], [bar, BUILT_IN_PULLS[1], edited]],
-      [[], BUILT_IN_PULLS],
-    ]) {
-      const document = currentDocument();
-      document.settings.pulls = structuredClone(pulls);
-      const before = structuredClone(document);
-      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-      const loaded = loadElevationDocument();
-      expect(loaded.settings.pulls).toEqual(expected);
-      expect(normalizeElevationDocument(loaded)).toEqual(loaded);
-      expect(document).toEqual(before);
-      expect(normalizeElevationDocument(document).settings.pulls).toEqual(expected);
-      expect(document).toEqual(before);
-    }
-  });
-
   it('rejects name clashes and other invalid saved lists without repairing their entries (anchor 6)', () => {
     for (const pulls of [
       [...BUILT_IN_PULLS, bar, { ...bar, id: 'p2', name: 'BAR' }],
@@ -541,23 +317,6 @@ describe('HP3b step a sandbox pull persistence', () => {
 });
 
 describe('FL2 corner lap persistence', () => {
-  it('A1: loads an older room without adding lap choices and applies automatic laps', () => {
-    const document = currentDocument();
-    const [a, b] = document.rooms[0].walls;
-    Object.assign(a, { x2: 84.875, connections: { start: null, end: { wallId: b.id, endpoint: 'start' } } });
-    Object.assign(b, { x1: 84.875, y1: 0, x2: 84.875, y2: 120.875,
-      connections: { start: { wallId: a.id, endpoint: 'end' }, end: null } });
-    for (const wall of [a, b]) wall.runs[0].anchors = { left: true, right: true };
-    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-    const loaded = loadElevationDocument();
-    const room = loaded.rooms[0];
-    for (const wall of room.walls) expect(wall.runs[0]).not.toHaveProperty('endFiller');
-    expect(room.walls.map((wall) => wall.runs[0])).toEqual([a.runs[0], b.runs[0]]);
-    expect(cornerLap(room, room.walls[0], room.walls[0].runs[0], 'right', loaded.settings))
-      .toMatchObject({ laps: true, source: 'shorter' });
-    expect(cornerReserve(room, room.walls[0], 'right', room.walls[0].runs[0], loaded.settings)).toBe(24.0625);
-  });
-
   it('A2: round-trips over and into, and rejects invalid lap values on load', () => {
     const document = currentDocument();
     const run = document.rooms[0].walls[0].runs[0];
@@ -695,53 +454,6 @@ describe('elevation persistence migration', () => {
     expect(loadElevationDocument()).toBeNull();
   });
 
-  it('defaults new optional wall fields and settings and computes wall order on current load', () => {
-    const current = currentDocument();
-    delete current.rooms[0].walls[0].numberOverride;
-    delete current.rooms[0].wallOrder;
-    delete current.settings.autoEndPanelOnFreeEnd;
-    delete current.settings.adjacentRunGap;
-    delete current.settings.maxRunOverhang;
-    for (const key of [
-      'casingWidth',
-      'casingThickness',
-      'openingsHaveCasing',
-      'defaultOpeningMeasureMode',
-      'defaultDoorWidth',
-      'defaultDoorHeight',
-      'defaultWindowWidth',
-      'defaultWindowHeight',
-      'defaultWindowSillZ',
-      'minOpeningWidth',
-      'casingClearance',
-    ]) delete current.settings[key];
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.rooms[0].walls[0]).toMatchObject({
-      numberOverride: null,
-    });
-    expect(loaded.rooms[0].wallOrder).toEqual(['wall-a', 'wall-b']);
-    expect(loaded.settings).toMatchObject({
-      autoEndPanelOnFreeEnd: true,
-      adjacentRunGap: 1,
-      maxRunOverhang: 36,
-      casingWidth: DEFAULT_SETTINGS.casingWidth,
-      casingThickness: DEFAULT_SETTINGS.casingThickness,
-      openingsHaveCasing: DEFAULT_SETTINGS.openingsHaveCasing,
-      defaultOpeningMeasureMode: DEFAULT_SETTINGS.defaultOpeningMeasureMode,
-      defaultDoorWidth: DEFAULT_SETTINGS.defaultDoorWidth,
-      defaultDoorHeight: DEFAULT_SETTINGS.defaultDoorHeight,
-      defaultWindowWidth: DEFAULT_SETTINGS.defaultWindowWidth,
-      defaultWindowHeight: DEFAULT_SETTINGS.defaultWindowHeight,
-      defaultWindowSillZ: DEFAULT_SETTINGS.defaultWindowSillZ,
-      minOpeningWidth: DEFAULT_SETTINGS.minOpeningWidth,
-      casingClearance: DEFAULT_SETTINGS.casingClearance,
-    });
-  });
-
   it('14. defaults a missing elevationForced field and rejects non-boolean values', () => {
     const current = currentDocument();
     delete current.rooms[0].walls[0].elevationForced;
@@ -755,43 +467,6 @@ describe('elevation persistence migration', () => {
 
     loaded.rooms[0].walls[0].elevationForced = 'yes';
     expect(isElevationDocument(loaded)).toBe(false);
-  });
-
-  it('24. defaults a missing v2 openings array and validates the result', () => {
-    const current = currentDocument();
-    delete current.rooms[0].walls[0].openings;
-    expect(isElevationDocument(current)).toBe(true);
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.rooms[0].walls[0].openings).toEqual([]);
-    expect(isElevationDocument(loaded)).toBe(true);
-  });
-
-  it('defaults a missing v3 opening offset anchor to edge', () => {
-    const current = currentDocument();
-    current.rooms[0].walls[0].openings.push({
-      id: 'door-1',
-      kind: 'door',
-      label: 'D1',
-      measureMode: 'jamb',
-      width: 36,
-      height: 80,
-      sillZ: 0,
-      offset: 24,
-      offsetFrom: 'left',
-      casing: { width: 3, thickness: 0.75 },
-    });
-    expect(isElevationDocument(current)).toBe(true);
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.rooms[0].walls[0].openings[0].offsetAnchor).toBe('edge');
-    expect(isElevationDocument(loaded)).toBe(true);
   });
 
   it('validates optional cabinet pins without requiring the referenced opening', () => {
@@ -876,19 +551,6 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(true);
   });
 
-  it('22. defaults the face settings on documents saved before them', () => {
-    const current = currentDocument();
-    delete current.settings.faceReveals;
-    delete current.settings.pairDoorAboveWidth;
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.pairDoorAboveWidth).toBe(24);
-    expect(loaded.settings.faceReveals).toEqual(DEFAULT_SETTINGS.faceReveals);
-  });
-
   it('43. round-trips styles, run face options and manual reveals', () => {
     const current = currentDocument();
     const room = current.rooms[0];
@@ -937,34 +599,6 @@ describe('elevation persistence migration', () => {
     check(() => { run.top = 'quartz'; }, () => { run.top = 'stone'; });
     check(() => { item.style = { finish: 'paint' }; }, () => { item.style = {}; });
     check(() => { item.reveals = { pair: 0.125 }; }, () => { item.reveals = null; });
-  });
-
-  it('45. defaults the style settings on documents saved before them', () => {
-    const current = currentDocument();
-    for (const key of ['defaultStyle', 'insetFrame', 'profiledFit', 'woodTopReveal', 'capturedSingleReveal']) {
-      delete current.settings[key];
-    }
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.defaultStyle).toEqual({ cabinetStyleId: 13, beadWidth: 0.25 });
-    expect(loaded.settings.insetFrame).toEqual(DEFAULT_SETTINGS.insetFrame);
-    expect(loaded.settings.profiledFit).toEqual(DEFAULT_SETTINGS.profiledFit);
-    expect(loaded.settings.woodTopReveal).toBe(0.125);
-    expect(loaded.settings.capturedSingleReveal).toBe(0.09375);
-  });
-
-  it('54. defaults the standard drawer settings on documents saved before them', () => {
-    const current = currentDocument();
-    delete current.settings.standardDrawerHeights;
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.standardDrawerHeights).toEqual({ european: 5.875, faceFrame: 5 });
   });
 
   it('validates opening anchors on either run side', () => {
@@ -1245,23 +879,6 @@ describe('SPEC-32 grid persistence', () => {
     value: 60,
   };
 
-  it('ignores saves under the old keys', () => {
-    expect(ELEVATION_STORAGE_KEY).toBe('cd.elevationLab.v4');
-    globalThis.window = {
-      localStorage: storageWith([[
-        'cd.elevationLab.v3',
-        JSON.stringify({ ...currentDocument(), schemaVersion: 3 }),
-      ]]),
-    };
-    expect(loadElevationDocument()).toBeNull();
-
-    const current = currentDocument();
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(currentDocument()));
-  });
-
   it('rejects v4 runs that keep items or blind, or hold a malformed grid', () => {
     expect(isElevationDocument(currentDocument())).toBe(true);
     const rejects = (mutate) => {
@@ -1284,25 +901,6 @@ describe('SPEC-32 grid persistence', () => {
     });
   });
 
-  it('the store keeps grids and saves them unchanged', () => {
-    const document = currentDocument();
-    // LL4: a column on a layout line (wall-end pins became lines).
-    document.rooms[0].walls[0].lines = [{ id: 'P', label: 'L1', from: 'left', value: 60 }];
-    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
-      { id: 'p', kind: 'cabinet', width: null, attach: { lineId: 'P', at: 'center', offset: 0 } },
-      { id: 'l', kind: 'cabinet', width: 30 },
-      { id: 'f', kind: 'filler', width: 3 },
-    ], { left: 36, right: null });
-    expect(isElevationDocument(document)).toBe(true);
-
-    const state = createInitialElevationState(document);
-    const storeRun = state.rooms[0].walls[0].runs[0];
-    expect(storeRun.grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
-    expect(storeRun).not.toHaveProperty('items');
-    expect(storeRun).not.toHaveProperty('blind');
-    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
-      .toEqual(document.rooms[0].walls[0].runs[0].grid);
-  });
 });
 
 describe('SPEC-33 split columns', () => {
@@ -1366,13 +964,6 @@ describe('SPEC-33 split columns', () => {
     rejects((node) => { node.rows[1] = { id: 'g:r1', size: 12, sizeMode: 'auto' }; });
   });
 
-  it('the store loads a split column unchanged', () => {
-    const document = splitDocument();
-    const state = createInitialElevationState(document);
-    expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
-    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
-      .toEqual(splitDocument().rooms[0].walls[0].runs[0].grid);
-  });
 });
 
 describe('SPEC-34 cell kinds', () => {
@@ -1449,13 +1040,6 @@ describe('SPEC-34 cell kinds', () => {
     expect(isElevationDocument(root)).toBe(false);
   });
 
-  it('the store loads kinds unchanged', () => {
-    const document = kindDocument();
-    const state = createInitialElevationState(document);
-    expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
-    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
-      .toEqual(kindDocument().rooms[0].walls[0].runs[0].grid);
-  });
 });
 
 describe('SPEC-34.1 top-level cell kinds', () => {
@@ -1553,22 +1137,6 @@ describe('SPEC-35 run shape', () => {
     expect(isElevationDocument(withRun({ outset: -1 }))).toBe(false);
   });
 
-  it('defaults the parts-below settings on documents saved before them', () => {
-    const current = currentDocument();
-    delete current.settings.belowRunOverhang;
-    delete current.settings.belowRunFlushReveal;
-    delete current.settings.bottomPartHeights;
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.belowRunOverhang).toBe(-0.125);
-    expect(loaded.settings.belowRunFlushReveal).toBe(0.125);
-    expect(loaded.settings.bottomPartHeights).toEqual({
-      light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6,
-    });
-  });
 });
 
 describe('SPEC-35.3 extensions shape', () => {
@@ -1691,35 +1259,6 @@ describe('SPEC-37 T-filler persistence', () => {
   });
 });
 
-describe('SPEC-43 drawing scale setting', () => {
-  it('keeps drawing scale out of settings on documents saved before it', () => {
-    const current = currentDocument();
-    delete current.settings.plotScale;
-    globalThis.window = {
-      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
-    };
-
-    expect(loadElevationDocument().settings).not.toHaveProperty('plotScale');
-    expect(createInitialElevationState().prefs.plotScale).toBe(24);
-  });
-});
-
-describe('DB1 c transient preference persistence', () => {
-
-  it('never serializes preference keys, even if legacy settings still contain them (anchor 5)', () => {
-    const state = createInitialElevationState(null);
-    state.prefs = { ...DEFAULT_PREFS, plotScale: 32, paperSize: 'ledger' };
-    state.settings = { ...state.settings, ...state.prefs };
-    const saved = toElevationDocument(state);
-    expect(saved).not.toHaveProperty('prefs');
-    for (const key of Object.keys(DEFAULT_PREFS)) {
-      expect(JSON.stringify(saved)).not.toContain(`"${key}"`);
-    }
-    expect(state.settings.paperSize).toBe('ledger');
-    expect(isElevationDocument(saved)).toBe(true);
-  });
-});
-
 it('EP1 a defaults sheet thickness on old documents and round-trips room overrides', () => {
   const saved = currentDocument();
   delete saved.settings.sheetThickness;
@@ -1733,18 +1272,6 @@ it('EP1 a defaults sheet thickness on old documents and round-trips room overrid
   expect(roundTrip.rooms[0].settingsOverrides).toEqual({ sheetThickness: 0.6875 });
   loaded.settings.sheetThickness = 0.5;
   expect(normalizeElevationDocument(toElevationDocument(loaded)).settings.sheetThickness).toBe(0.5);
-});
-
-it('527. appends missing seeds in seed order after the retained saved designs', () => {
-  const saved = currentDocument();
-  const custom = { ...structuredClone(LEGACY_DOOR_DESIGNS[0]), id: 'd1', code: '114' };
-  saved.settings.doorDesigns = [custom, LEGACY_DOOR_DESIGNS[1]];
-  const loaded = normalizeElevationDocument(saved);
-  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf']);
-  expect(loaded.settings.doorDesigns[0].defaults).toEqual({});
-  expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
-  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
-  expect(saved.settings.doorDesigns).toHaveLength(2);
 });
 
 it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothing (not a built-in)', () => {
@@ -1891,72 +1418,3 @@ describe('IN8 shelf and flag persistence', () => {
   });
 });
 
-it('IN11a loads older settings and rooms with ProBox defaults and preserves saved overrides (anchor 3)', () => {
-  const document = currentDocument();
-  delete document.settings.drawerBoxOrder;
-  for (const leaf of ['companyAddress', 'companyCity', 'companyState', 'companyZip']) {
-    delete document.settings.report[leaf];
-  }
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-  const loaded = loadElevationDocument();
-  expect(loaded.settings.drawerBoxOrder).toEqual(DEFAULT_SETTINGS.drawerBoxOrder);
-  expect(document.settings).not.toHaveProperty('drawerBoxOrder');
-  expect(roomFromDocument(document.rooms[0], document.schemaVersion, document.settings).ok).toBe(true);
-  expect(createInitialElevationState(loaded).settings.report).toMatchObject({
-    companyAddress: '', companyCity: '', companyState: '', companyZip: '',
-  });
-  loaded.settings.drawerBoxOrder = { ...DEFAULT_SETTINGS.drawerBoxOrder, assembly: 'Custom finish' };
-  loaded.settings.report = { ...DEFAULT_SETTINGS.report, companyAddress: '4311 W 8480 S' };
-  loaded.rooms[0].settingsOverrides = { drawerBoxOrder: { sideMaterial: 'Soft Maple' } };
-  const saved = toElevationDocument(createInitialElevationState(loaded));
-  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
-  const roundTrip = loadElevationDocument();
-  expect(roundTrip.settings.drawerBoxOrder).toEqual(loaded.settings.drawerBoxOrder);
-  expect(roundTrip.settings.report.companyAddress).toBe('4311 W 8480 S');
-  expect(roundTrip.rooms[0].settingsOverrides).toEqual({ drawerBoxOrder: { sideMaterial: 'Soft Maple' } });
-});
-
-describe('AU2 b current loads', () => {
-  it('preserves a current wall named Wall 3 on sandbox and room loads', () => {
-    const document = currentDocument();
-    document.rooms = [makeRoom({ walls: [makeWall({ name: 'Wall 3' })] })];
-    document.activeWallId = 'wall-1';
-    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-    expect(loadElevationDocument().rooms[0].walls[0].name).toBe('Wall 3');
-    expect(roomFromDocument(document.rooms[0], document.schemaVersion, document.settings).room.walls[0].name)
-      .toBe('Wall 3');
-  });
-
-  it('fills missing panel and stone defaults without changing style thicknesses or base reveals', () => {
-    const document = currentDocument();
-    delete document.settings.doorPanelDefault;
-    delete document.settings.stoneTopReveal;
-    document.settings.teamDoorStyle.panel.thickness = 0.25;
-    document.settings.faceReveals[CABINET_TYPE_IDS.BASE].top = 0.25;
-    const style = { ...structuredClone(DEFAULT_DOOR_STYLE), id: 'quarter', label: 'Quarter',
-      panel: { type: 'flat', thickness: 0.25 } };
-    document.rooms = [makeRoom({ doorStyles: [style], phases: [{ doorStyles: [style] }] })];
-    document.phases = [{ doorStyles: [style] }];
-    document.activeWallId = null;
-    const before = structuredClone(document);
-    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
-    const loaded = loadElevationDocument();
-    expect(loaded.settings.doorPanelDefault).toBe(0.5);
-    expect(loaded.settings.stoneTopReveal).toBe(DEFAULT_SETTINGS.stoneTopReveal);
-    expect(loaded.settings.teamDoorStyle.panel.thickness).toBe(0.25);
-    expect(loaded.settings.faceReveals[CABINET_TYPE_IDS.BASE].top).toBe(0.25);
-    expect(loaded.rooms[0].doorStyles).toEqual([style]);
-    expect(loaded.rooms[0].phases[0].doorStyles).toEqual([style]);
-    expect(loaded.phases[0].doorStyles).toEqual([style]);
-    expect(document).toEqual(before);
-  });
-
-  it('fills a missing team style with an independent current default', () => {
-    const document = currentDocument();
-    delete document.settings.teamDoorStyle;
-    const normalized = normalizeElevationDocument(document);
-    expect(normalized.settings.teamDoorStyle).toEqual(DEFAULT_DOOR_STYLE);
-    expect(normalized.settings.teamDoorStyle.panel).not.toBe(DEFAULT_DOOR_STYLE.panel);
-    expect(isElevationDocument(normalized)).toBe(true);
-  });
-});

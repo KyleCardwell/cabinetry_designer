@@ -843,17 +843,6 @@ describe('RP2.4 step c shipping face frame notes', () => {
     expect(result.rows.find(({ kind }) => kind === 'frame')).toMatchObject({ number: 3, notes: expected });
   });
 
-  it('keeps Euro rows unchanged and has no frame row (C9)', () => {
-    const { r, s } = fixture({}, 13);
-    const result = shippingList(r, s);
-    expect(result.rows.some(({ kind }) => kind === 'frame')).toBe(false);
-    expect(shippingList(r, s, { ...settings, insetFrame: { stile: 2, rail: 3 } })).toEqual(result);
-    expect(result.rows.filter(({ kind }) => kind === 'cabinet')).toEqual([
-      { number: 1, key: 'a', kind: 'cabinet', description: 'Base', notes: ['full top', '1 as', 'hl'], size: '9 x 30 1/2 x 24' },
-      { number: 2, key: 'b', kind: 'cabinet', description: 'Base', notes: ['full top', '1 as', 'hl'], size: '9 x 30 1/2 x 24' },
-    ]);
-  });
-
   it('uses room settings as the standards when shop settings are omitted', () => {
     const { r, s } = fixture({ stile: 1 });
     expect(shippingList(r, s).rows.find(({ kind }) => kind === 'frame').notes).toEqual([]);

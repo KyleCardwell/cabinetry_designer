@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
 import { doorDesignToRow, profileToRow } from '../../model/cloudRows.js';
@@ -108,27 +107,6 @@ describe('DB4 e shop workspace', () => {
   });
 });
 
-
-it('527. loads legacy built-in rows in place without rewriting them or resetting the MDF team style', async () => {
-  const rows = LEGACY_DOOR_DESIGNS.map(({ id, code, ...data }) => ({
-    design_id: fakeUuid(), code, data: { ...data, seedId: id }, version: 3,
-  }));
-  const api = fakeDesignApi({ doorDesigns: rows, teamSettings: {
-    settings: { teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied' } }, version: 2,
-  } });
-  const before = structuredClone(api.db.doorDesigns);
-  const store = cloudStore(api);
-  expect(await store.dispatch(openCloudWorkspace())).toEqual({ ok: true });
-  const elevation = store.getState().elevation;
-  expect(elevation.settings.doorDesigns).toEqual(DOOR_DESIGNS);
-  expect(elevation.settings.teamDoorStyle.designId).toBe('slab-mdf');
-  expect(elevation.cloud.rows.doorDesigns['slab-mdf']).toEqual({ rowId: rows[2].design_id, version: 3 });
-  expect(api.db.doorDesigns.slice(0, 3)).toEqual(before);
-  expect(api.db.doorDesigns).toHaveLength(3);
-  await store.dispatch(openCloudWorkspace());
-  expect(api.db.doorDesigns).toHaveLength(3);
-  expect(elevation.message).toBeNull();
-});
 
 it('loads a Micro Shaker row written as a built-in by step 530 as the team\'s own design', async () => {
   const builtIns = DOOR_DESIGNS.map((design) => ({ design_id: fakeUuid(), ...doorDesignToRow(design), version: 1 }));

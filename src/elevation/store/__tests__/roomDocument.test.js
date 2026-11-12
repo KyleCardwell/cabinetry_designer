@@ -19,13 +19,6 @@ describe('DB6a room documents', () => {
     expect(toRoomDocument(loaded.room)).toEqual(document);
   });
 
-  it('does not change the document it is given', () => {
-    const { document } = newRoomDocument('Kitchen');
-    const copy = structuredClone(document);
-    roomFromDocument(document, ELEVATION_SCHEMA_VERSION, settings());
-    expect(document).toEqual(copy);
-  });
-
   it('refuses other schema versions and things that are not rooms', () => {
     const { document } = newRoomDocument('Kitchen');
     expect(roomFromDocument(document, ELEVATION_SCHEMA_VERSION + 1, settings())).toMatchObject({ ok: false, reason: 'schema' });

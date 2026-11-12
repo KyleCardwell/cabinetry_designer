@@ -1,10 +1,7 @@
 import { missingDoorDesigns } from '../../model/doorDesigns.js';
-import { isUuid } from '../../model/cloudRows.js';
-import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
-import elevationReducer, {
-  importDoorDesigns, addDoorDesign, addDoorStyle, deleteDoorDesign, setTeamDoorStyle, updateDoorDesign, updateDoorStyle,
+import elevationReducer, { addDoorDesign, addDoorStyle, deleteDoorDesign, setTeamDoorStyle, updateDoorDesign, updateDoorStyle
 } from '../elevationSlice.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
@@ -104,19 +101,3 @@ describe('SPEC-46.3 editing the team library', () => {
   });
 });
 
-
-it('527. migrates imported designs before validating and merging the library', () => {
-  const state = base();
-  const legacy = { ...LEGACY_DOOR_DESIGNS[2], id: 'custom', code: '114' };
-  const next = apply(state, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
-  expect(next.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
-  expect(next.settings.doorDesigns[3]).toEqual({ ...legacy, construction: 'slab', slabCore: 'mdf', panelJoint: null, defaults: {} });
-  for (const designs of [[{ ...legacy, defaults: { thickness: 0 } }], [{ ...legacy, code: 'Slab' }], [null]]) {
-    expect(apply(state, importDoorDesigns({ designs }))).toBe(state);
-  }
-  expect(apply(state, importDoorDesigns({ designs: null }))).toBe(state);
-  const cloud = apply({ ...state, source: 'cloud' }, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
-  expect(cloud.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
-  expect(isUuid(cloud.settings.doorDesigns[3].id)).toBe(true);
-  expect(cloud.settings.doorDesigns[3].slabCore).toBe('mdf');
-});

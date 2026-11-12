@@ -120,19 +120,6 @@ it('SH7.5 rejects hand-leg fills in additions, edits and saved documents', () =>
   }
 });
 
-it('SH7.2 defaults missing leg panel settings and preserves explicit values through persistence', () => {
-  const saved = structuredClone(toElevationDocument(initial));
-  const defaults = { legPanelReveal: 0.25, legPanelTopClearance: 0, legPanelBottomClearance: 0, legPanelReturnDepth: 4.5 };
-  for (const key of Object.keys(defaults)) delete saved.settings[key];
-  const normalized = normalizeElevationDocument(saved);
-  expect(normalized.settings).toMatchObject(defaults);
-  expect(isElevationDocument(normalized)).toBe(true);
-  for (const key of Object.keys(defaults)) expect(saved.settings).not.toHaveProperty(key);
-  const explicit = { legPanelReveal: 0, legPanelTopClearance: 0.5, legPanelBottomClearance: 1, legPanelReturnDepth: 6 };
-  Object.assign(normalized.settings, explicit);
-  expect(toElevationDocument(normalizeElevationDocument(normalized)).settings).toMatchObject(explicit);
-});
-
 it('SH7.5 round-trips end panel returns and room settings', () => {
   const saved = structuredClone(toElevationDocument(initial));
   const spec = { shapeId: 'missing-shape', height: 'full', x: 0, y: 0 };

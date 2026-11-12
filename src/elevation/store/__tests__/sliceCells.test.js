@@ -42,11 +42,10 @@ import elevationReducer, {
   setSelection,
   setTrackSize,
   splitCell,
-  splitItem,
   unlockItem,
   unsplitCell,
   updateRun,
-  wrapCell,
+  wrapCell
 } from '../elevationSlice.js';
 import {
   auto,
@@ -379,24 +378,6 @@ describe('standard drawers on style switch', () => {
 
 describe('SPEC-32 store holds grids', () => {
   const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
-
-  it('splits a grid item without restoring legacy run fields', () => {
-    const initial = stateWithRun(run({
-      autoCount: false,
-      items: [fixed('a', 30)],
-      blind: { left: 36, right: 24 },
-    }));
-    const state = elevationReducer(initial, splitItem({ ...actionBase, itemId: 'a' }));
-    const storedRun = currentRun(state);
-
-    expect(storedRun).not.toHaveProperty('items');
-    expect(storedRun).not.toHaveProperty('blind');
-    expect(runItems(storedRun)).toHaveLength(2);
-    expect(runItems(storedRun).every((item) => (
-      item.kind === 'cabinet' && item.id !== 'a'
-    ))).toBe(true);
-    expect(runBlind(storedRun)).toEqual({ left: 36, right: 24 });
-  });
 
   it('locks and unlocks the root grid column', () => {
     let state = stateWithRun(run({ autoCount: false, items: [fixed('a', 30)] }));

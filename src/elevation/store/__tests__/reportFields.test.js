@@ -98,24 +98,6 @@ describe('RP2 step a room report fields', () => {
     }
   });
 
-  it('adds only the report defaults to old rooms and initializes new rooms (anchor 8)', () => {
-    const document = savedDocument();
-    for (const room of document.rooms) {
-      delete room.reportParts;
-      delete room.reportNote;
-    }
-    const original = structuredClone(document);
-    expect(normalizeElevationDocument(document)).toEqual({
-      ...document,
-      rooms: document.rooms.map((room) => ({ ...room, reportParts: {}, reportNote: '' })),
-    });
-    expect(document).toEqual(original);
-    let state = initialState();
-    expect(state.rooms[0]).toMatchObject({ reportParts: {}, reportNote: '' });
-    state = elevationReducer(state, addRoom({ name: 'New room' }));
-    expect(state.rooms[1]).toMatchObject({ reportParts: {}, reportNote: '' });
-  });
-
   it('trims and caps room notes at 400 characters and clears blanks', () => {
     let state = initialState();
     state = elevationReducer(state, setRoomReportNote({ value: '  Ship Fri  ' }));

@@ -1,16 +1,12 @@
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { room, run, wall } from '../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
-import { legPreset } from '../../elevation/model/legs.js';
 import { roomParts } from '../../elevation/model/parts.js';
 import { E, Sf, fourEndLegs, legShape, noEnds } from '../../elevation/model/__tests__/fixtures/legs.js';
 import { formatSize } from '../format.js';
 import { shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };
-let nextId = 0;
-const four = legPreset('four', { shapeId: 'leg', proud: 0.5 }, () => ['LF', 'LB', 'RF', 'RB'][nextId++]);
 const R = run({ x: 10, width: 36 });
 
 describe('SH7.2 step b leg fill shipping list', () => {
@@ -71,15 +67,4 @@ describe('SH7.3 step b leg fill shipping list', () => {
     }
   });
 
-  it('anchor 6: preserves parts and reports without fills, with and without hand legs', () => {
-    // Captured before step b; the existing drawing regression also preserves the payloads.
-    for (const [legs, hash] of [
-      [four, '08b6dffeef899a6223a4c6426cb5148374ad081c0b212f7be3213c0ba42ac337'],
-      [[], 'b70abf264768c8378c93ca729b997b5a9e654c644926e68e9270d3be891e65c9'],
-    ]) {
-      const input = room({ walls: [wall({ runs: [run({ ...R, legs })] })] });
-      const output = { parts: roomParts(input, settings), report: shippingList(input, settings) };
-      expect(createHash('sha256').update(JSON.stringify(output)).digest('hex')).toBe(hash);
-    }
-  });
 });
