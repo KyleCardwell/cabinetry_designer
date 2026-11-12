@@ -9,7 +9,7 @@ import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { faceDrawing, toDrawingPayload } from '../drawingPayload.js';
 import { runFillerThickness } from '../planPieces.js';
 import { pullOutlines, runPulls } from '../pullLayouts.js';
-import { resolveWall } from '../room.js';
+import { resolveWall, syncRoom } from '../room.js';
 import { runScene } from '../runScene.js';
 
 const key = 'corner-leg:wall-1:run-1:left';
@@ -43,7 +43,7 @@ describe('CC5 step d return corner elevation payload', () => {
   it('anchor 1: exports the 90 leg, edge-on panel and B face with their own depths and ids', () => {
     const before = structuredClone(subject);
     const box = runScene(subject, ownerWall, owner, settings).faceLayouts.get('cc').box;
-    expect(payload().parts).toEqual([
+    expect(payload().parts.filter(({ kind }) => !['countertop', 'toe_kick'].includes(kind))).toEqual([
       { id: key, kind: 'cabinet', runId: owner.id, x: 108, width: 12,
         z: box.z, height: box.height, back: 0, front: 24, coversBoxEdges: false },
       { id: `${key}:panel`, kind: 'end_panel', runId: owner.id, x: 107.1875, width: 0.8125,
@@ -136,7 +136,7 @@ describe('CC5 step d return corner elevation payload', () => {
     const elevation = toDrawingPayload(subject, settings).elevations.find(({ faces }) => faces?.length === 2);
     expect(elevation).toBeDefined();
     const parts = elevation.parts.filter(({ id }) => id.startsWith(key));
-    expect(parts).toHaveLength(3);
+    expect(parts).toHaveLength(5);
     expect(parts.find(({ id }) => id === key).x).toBe(252);
     expect(new Set(elevation.parts.map(({ id }) => id)).size).toBe(elevation.parts.length);
     for (const collection of ['doorDetails', 'swingMarks', 'pulls']) {
@@ -172,5 +172,34 @@ describe('CC5 step d return corner elevation payload', () => {
     for (const collection of ['doorDetails', 'swingMarks', 'pulls']) {
       expect(drawing[collection].map(({ partId }) => partId)).toEqual(ids);
     }
+  });
+
+  it('CC7 anchor 1: exports the E90 countertop and toe kick with owner ids and leg depths', () => {
+    const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const synced = syncRoom(subject, S);
+    const parts = faceDrawing(synced, synced.walls[1], 'front', S).parts
+      .filter(({ id }) => [`${key}:countertop`, `${key}:toe_kick`].includes(id));
+    expect(parts).toEqual([
+      { id: `${key}:toe_kick`, kind: 'toe_kick', runId: owner.id,
+        x: 108.1875, z: 0, width: 14.8125, height: 4,
+        back: 0, front: 21, coversBoxEdges: false },
+      { id: `${key}:countertop`, kind: 'countertop', runId: owner.id,
+        x: 106.4375, z: 34.5, width: 11.9375, height: 1.5,
+        back: 0, front: 25.625, coversBoxEdges: false },
+    ]);
+    for (const part of parts) expect(part).not.toHaveProperty('top');
+  });
+
+  it('CC7 anchor 2: carries the E45 countertop turn line through the return payload', () => {
+    owner.ends.left.corner.kind = 45;
+    const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const synced = syncRoom(subject, S);
+    const part = faceDrawing(synced, synced.walls[1], 'front', S).parts
+      .find(({ id }) => id === `${key}:countertop`);
+    expect(part.lines).toEqual([
+      { x1: expect.closeTo(107.6268, 3), z1: 34.5, x2: expect.closeTo(107.6268, 3), z2: 36 },
+    ]);
+    expect(part).toMatchObject({ runId: owner.id, back: 0, front: 25.625, coversBoxEdges: false });
+    expect(part).not.toHaveProperty('top');
   });
 });

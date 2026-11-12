@@ -45,6 +45,13 @@ export function cornerLegPayload(room, view, settings) {
         back: depthB + offsetB - thickness, front: depthB + offsetB, coversBoxEdges: true,
       });
     }
+    for (const band of leg.bands) {
+      parts.push({
+        id: band.id, kind: band.kind, runId: run.id, ...rect(band),
+        back: band.back, front: band.front, coversBoxEdges: false,
+        ...(band.lines ? { lines: band.lines } : {}),
+      });
+    }
     result.parts.push(...parts);
     const partIds = new Set(parts.map(({ id }) => id));
     const rePrefix = (partId) => leg.key + partId.slice(leg.columnId.length);

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Group, Rect } from 'react-konva';
+import { Group, Line, Rect } from 'react-konva';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
-import { wallRectToScreen } from '../../canvas/transform.js';
+import { wallRectToScreen, wallToScreen } from '../../canvas/transform.js';
 import { DEFAULT_SETTINGS, ELEVATION_BG, ELEVATION_LINE } from '../../model/constants.js';
 import { normalizeCornerEnd } from '../../model/cornerEnd.js';
 import { cornerReturnLegs } from '../../model/cornerLegs.js';
+import { syncRoom } from '../../model/room.js';
 import { runSwingMarks } from '../../model/swingMarks.js';
 import DoorDetails from '../DoorDetails.jsx';
 import FaceOutlines from '../FaceOutlines.jsx';
@@ -99,6 +100,62 @@ describe('CC4 step c return leg canvas', () => {
       expect(canvas().some(({ type }) => type === Component)).toBe(false);
       expect(canvas().some(({ type }) => type === FaceOutlines)).toBe(true);
       subject[field] = true;
+    }
+  });
+
+  it('CC7 anchor 3: draws E90 leg bands and E45 turn lines even with doors off', () => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    for (const kind of [90, 45]) {
+      owner.ends.left.corner.kind = kind;
+      const synced = syncRoom(subject, settings);
+      const tree = nodes(NeighborReturns({ room: synced, wall: synced.walls[1], settings,
+        transform, doorsOff: true }));
+      for (const [bandKind, bounds, fill, stroke, opacity] of [
+        ['countertop', { x: 106.4375, z: 34.5, width: 11.9375, height: 1.5 }, '#cbd5e1', '#64748b', 0.9],
+        ['toe_kick', { x: 108.1875, z: 0, width: 14.8125, height: 4 }, ELEVATION_BG, ELEVATION_LINE, 1],
+      ]) {
+        const band = tree.find(({ key }) => key === `corner-leg:wall-1:run-1:left:${bandKind}`);
+        expect(band).toBeDefined();
+        expect(nodes(band).find(({ type }) => type === Rect).props).toMatchObject({
+          ...wallRectToScreen(bounds, transform), fill, stroke, opacity, strokeWidth: 1, listening: false,
+        });
+        if (kind === 90) expect(nodes(band).some(({ type }) => type === Line)).toBe(false);
+      }
+      if (kind === 45) {
+        const top = tree.find(({ key }) => key === 'corner-leg:wall-1:run-1:left:countertop');
+        const from = wallToScreen({ x: 107.6268, z: 34.5 }, transform);
+        const to = wallToScreen({ x: 107.6268, z: 36 }, transform);
+        expect(nodes(top).find(({ type }) => type === Line).props).toMatchObject({
+          points: [expect.closeTo(from.x, 2), from.y, expect.closeTo(to.x, 2), to.y],
+          stroke: '#64748b', strokeWidth: 0.5, opacity: 0.9, listening: false,
+        });
+      }
+    }
+  });
+
+  it('uses run band styles for wood, furniture base and moldings without making them pickable', () => {
+    owner.top = 'wood';
+    const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
+    const kinds = ['countertop', 'furniture_base', 'top_mold', 'crown'];
+    leg.bands = kinds.map((kind) => ({ id: `band:${kind}`, kind,
+      x: 108, z: 34.5, width: 12, height: 1.5,
+      lines: [{ x1: 110, z1: 34.5, x2: 111, z2: 36 }],
+    }));
+    const tree = canvas({ legs: [leg] });
+    for (const kind of kinds) {
+      const band = nodes(tree.find(({ key }) => key === `band:${kind}`));
+      const stroke = kind === 'countertop' ? '#64748b' : ELEVATION_LINE;
+      const opacity = kind === 'crown' ? 0.82 : 0.9;
+      expect(band.find(({ type }) => type === Rect).props).toMatchObject({
+        fill: ELEVATION_BG, stroke, opacity, strokeWidth: 1, listening: false,
+      });
+      const from = wallToScreen({ x: 110, z: 34.5 }, transform);
+      const to = wallToScreen({ x: 111, z: 36 }, transform);
+      expect(band.find(({ type }) => type === Line).props).toMatchObject({
+        points: [from.x, from.y, to.x, to.y], stroke,
+        opacity: kind === 'furniture_base' ? 1 : opacity,
+        strokeWidth: kind === 'furniture_base' ? 1 : 0.5, listening: false,
+      });
     }
   });
 });

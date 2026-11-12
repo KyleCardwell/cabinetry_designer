@@ -73,6 +73,8 @@ export default function NeighborReturns({
   return (
     <>
       {legs.map((leg) => {
+        const owner = room.walls.find(({ id }) => id === leg.ownerWallId)
+          ?.runs.find(({ id }) => id === leg.runId);
         const selected = selection?.cornerOf?.wallId === leg.ownerWallId
           && selection.cornerOf.runId === leg.runId && selection.cornerOf.side === leg.side;
         const edgeX = leg.sideEdge && leg.sideEdge.x
@@ -98,6 +100,38 @@ export default function NeighborReturns({
                 listening={false}
               />
             )}
+            {(leg.bands ?? []).map((band) => {
+              const countertop = band.kind === 'countertop';
+              const stroke = countertop ? '#64748b' : ELEVATION_LINE;
+              const opacity = band.kind === 'toe_kick' ? 1 : band.kind === 'crown' ? 0.82 : 0.9;
+              const BandShape = band.outline ? Shape : Rect;
+              return (
+                <Fragment key={band.id}>
+                  <BandShape
+                    {...(band.outline ? outlineGeometry(band.outline, transform) : wallRectToScreen(band, transform))}
+                    fill={countertop && owner?.top !== 'wood' ? '#cbd5e1' : ELEVATION_BG}
+                    opacity={opacity}
+                    stroke={stroke}
+                    strokeWidth={1}
+                    listening={false}
+                  />
+                  {(band.lines ?? []).map((line, index) => {
+                    const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
+                    const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
+                    return (
+                      <Line
+                        key={`line:${index}`}
+                        points={[from.x, from.y, to.x, to.y]}
+                        stroke={stroke}
+                        strokeWidth={band.kind === 'furniture_base' ? 1 : 0.5}
+                        opacity={band.kind === 'furniture_base' ? 1 : opacity}
+                        listening={false}
+                      />
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
             {leg.sideEdge && (
               <Line
                 key="corner-side-edge"
