@@ -10,7 +10,7 @@ export default function HeightBands({ level, fields, renderField, isSet, warning
       {bands.map((band) => {
         const rows = band.rows.map((row) => row.map((field) => ({ field, control: renderField(field) }))
           .filter(({ control }) => control != null)).filter((row) => row.length > 0);
-        if (!rows.length) return null;
+        if (!rows.length && !extras[band.id]) return null;
         return (
           <PanelSection
             key={band.id}
