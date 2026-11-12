@@ -3,6 +3,7 @@ import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
+import { cornerEnd } from '../elevation/model/cornerEnd.js';
 import { cornerLegBandsForOwner } from '../elevation/model/cornerLegBands.js';
 import { cornerReturnPoint, frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
@@ -36,7 +37,8 @@ import { wallEndFit } from '../elevation/model/wallEndFit.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
-import { formatRevealParts, profiledFaceReveals } from './faceReveals.js';
+import { cornerReportNotes } from './cornerNotes.js';
+import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
 import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
@@ -271,7 +273,12 @@ function describePart(room, settings, part, context) {
   const type = TYPES[run?.cabinetTypeId];
   let description;
   switch (part.kind) {
-    case 'cabinet': description = cabinetDescription(listedTypeId(run, piece), scene.faceLayouts.get(part.key)?.faces); break;
+    case 'cabinet': {
+      const layout = scene.faceLayouts.get(part.key);
+      description = layout?.corner ? `${TYPES[listedTypeId(run, piece)]} Corner ${layout.corner.kind}`
+        : cabinetDescription(listedTypeId(run, piece), layout?.faces);
+      break;
+    }
     case 'filler': description = `${type} ${blindPanel ? 'Blind Panel' : 'Filler'}`; break;
     case 'end_panel': description = `${type} ${scene.panelPieceIds.has(part.key) ? 'Blind' : 'End'} Panel`; break;
     case 'panel': {
@@ -343,6 +350,11 @@ function shippingSize(room, settings, part, context) {
       : fillerOrderedDepth(room, wall, run, piece, settings);
     return formatSize(part.width, height, thickness);
   }
+  const corner = part.kind === 'cabinet' && scene.faceLayouts.get(part.key)?.corner;
+  if (corner) {
+    const { legA, legB } = cornerEnd(room, wall, run, corner.side, settings, scene.result);
+    return formatSize(legA, part.height, legB);
+  }
   const rect = context.rectangle();
   const depth = rect.front - rect.back;
   switch (part.kind) {
@@ -368,6 +380,7 @@ function cabinetNotes(room, settings, part, context) {
   const fullTop = box.top === 'between' || box.top === 'overlay';
   const base = listedTypeId(run, piece) === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
+  const corner = layout?.corner ? cornerReportNotes(room, wall, run, layout, settings) : null;
   const deckRise = deckZ(layout, settings);
   const faces = layout?.faces ?? [];
   const roomSlideId = resolveSlide(settings).id;
@@ -397,10 +410,22 @@ function cabinetNotes(room, settings, part, context) {
   // and the 3/4" seam reveals of boxes stacked under one shared rail (Kyle 2026-10-23).
   const overlap = layout && !standard ? REVEAL_KEYS.filter((key) => PRINTED_FRAME_RULES.has(layout.reveals.sources?.[key]))
     .map((key) => [key, layout.reveals.values[key]]) : [];
-  const values = standard ? layout.reveals.values : { ...leaf?.reveals, ...Object.fromEntries(overlap) };
+  const values = { ...(standard ? layout.reveals.values : { ...leaf?.reveals, ...Object.fromEntries(overlap) }) };
+  if (layout?.corner?.kind === 90) {
+    const { side } = layout.corner;
+    const farA = side === 'left' ? 'right' : 'left';
+    const exterior = standard || Number.isFinite(values[farA]) ? corner.revealValues[side] : undefined;
+    delete values[side];
+    if (Number.isFinite(exterior)) values[side] = exterior;
+  }
   const profiled = isInsetStyle(style) && faces.some((face) => face.type !== 'open'
     && !layout.reveals.values.squarePaths?.has(face.path));
-  const reveals = profiled ? profiledFaceReveals(piece, faces) : formatRevealParts(Object.fromEntries(
+  const measured = profiled ? measureFaceReveals(layout.corner ? layout.box : piece, faces) : null;
+  if (profiled && layout.corner?.kind === 90 && layout.cornerReturn?.legB) {
+    const { legB, dir } = layout.cornerReturn;
+    measured[layout.corner.side] = measureFaceReveals(legB.box, legB.faces)[dir === 1 ? 'right' : 'left'];
+  }
+  const reveals = profiled ? formatRevealParts(measured) : formatRevealParts(Object.fromEntries(
     REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
       && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
       .map((key) => [key, [values[key]]]),
@@ -424,6 +449,7 @@ function cabinetNotes(room, settings, part, context) {
       box.finTop ? 'fin top (dowel front holes)' : null,
       box.finBottom ? 'fin bottom (dowel front holes)' : null,
     ],
+    1.6: corner?.sides,
     1.8: box.bottom === 'between' && deckRise > 0
       ? `deck up ${formatInch(deckRise + sheetThickness(settings) / 2)} (with supports)` : null,
     2: reveals.length ? `RV's (${reveals.join(', ')})` : null,
@@ -434,7 +460,7 @@ function cabinetNotes(room, settings, part, context) {
       box.left === false ? 'no left side' : null,
       box.right === false ? 'no right side' : null,
     ],
-    3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
+    3: corner ? corner.doors : blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
     // Drawer fronts print inside their section (IN10.1); only fronts outside every section stay here.
     4: notes ? notes.fronts : drawerFrontNote(faces, slideNames, depths, accessoryTags),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
@@ -445,7 +471,7 @@ function cabinetNotes(room, settings, part, context) {
       ...(drawerData?.notes ?? []).map(({ text }) => text),
       notch > 0 ? `notch back for slides (${formatInch(notch)})` : null,
     ],
-    6: hingeNote(faces),
+    6: corner?.hinge ?? hingeNote([...faces, ...(layout?.cornerReturn?.legB?.faces ?? [])]),
     7: [
       rabbets.get(part.key),
       setback > 0 ? `deck, fixed shelves & top set back ${formatInch(setback)}` : null,

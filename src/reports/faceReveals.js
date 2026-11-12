@@ -29,7 +29,7 @@ export function formatRevealParts(values) {
 }
 
 /** Measure the exposed edges and neighboring face gaps in the real box's coordinates. */
-export function profiledFaceReveals(box, faces) {
+export function measureFaceReveals(box, faces) {
   const solid = faces.filter(({ type }) => type !== 'open');
   const values = Object.fromEntries(ORDER.map((key) => [key, []]));
   for (const [axis, size, cross, crossSize, low, high, gapKey] of [
@@ -58,5 +58,9 @@ export function profiledFaceReveals(box, faces) {
       }
     }
   }
-  return formatRevealParts(values);
+  return values;
+}
+
+export function profiledFaceReveals(box, faces) {
+  return formatRevealParts(measureFaceReveals(box, faces));
 }
