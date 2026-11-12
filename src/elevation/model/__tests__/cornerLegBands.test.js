@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { cove35 } from './fixtures/cove35.js';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
+import { endEdgeX, frontContour } from '../bandEnds.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
@@ -73,6 +74,36 @@ describe('profiled return leg bands', () => {
       for (const part of [leg('top_mold'), carrier('top_mold')]) {
         edgePoints(part, [[78.3339, 102], [78.3339, 102.75], [78.3857, 102.75], [78.3857, 105]]);
       }
+    }],
+  ])('%s (CC7.1)', (_, check) => check());
+
+  const ownerParts = faceDrawing(synced, synced.walls.find(({ name }) => name === 'Wall 3'), 'front', settings).parts;
+  const ownerLeg = (kind) => ownerParts.find(({ id }) => id.startsWith('left:corner:30580003-')
+    && id.endsWith(`:${kind}`));
+
+  it.each([
+    ['shows the leg crown section end-on', () => {
+      const part = ownerLeg('crown');
+      expect(part.x).toBeCloseTo(13.125, 3);
+      expect(part.width).toBeCloseTo(3, 3);
+      expect(part.outline).toBeDefined();
+      const returned = ownerParts.find(({ id }) => id.startsWith('left:bc3f')
+        && id.includes(':40329765-') && id.endsWith(':crown'));
+      expect(part.x).toBeCloseTo(returned.x, 3);
+      expect(part.width).toBeCloseTo(returned.width, 3);
+    }],
+    ['shows the leg top mold section end-on', () => {
+      const part = ownerLeg('top_mold');
+      expect(part.x).toBeCloseTo(11.625, 3);
+      expect(part.width).toBeCloseTo(1.5, 3);
+      expect(part.outline).toBeDefined();
+    }],
+    ['copes the owner crown and its drawn line against the leg section', () => {
+      const part = ownerParts.find(({ id }) => id.startsWith('30580003-') && id.endsWith(':crown'));
+      const left = frontContour(part.outline, -1);
+      for (const z of [104.75, 105, 105.25]) expect(endEdgeX(left, z, -1)).toBeCloseTo(13.625, 3);
+      for (const z of [107.75, 108, 108.25]) expect(endEdgeX(left, z, -1)).toBeCloseTo(16.125, 3);
+      expect(part.lines.find(({ z1, z2 }) => z1 === 105.25 && z2 === 105.25).x1).toBeCloseTo(13.625, 3);
     }],
   ])('%s (CC7.1)', (_, check) => check());
 

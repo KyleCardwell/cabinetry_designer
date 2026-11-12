@@ -48,8 +48,9 @@ export function ownerBands(room, view, owner, settings) {
       : kind === 'crown' && moldings.picked.topMold === 'none' ? 0 : moldings.overhang;
     const past = kind === 'furnitureBase' ? furnitureBasePast(base) : kind === 'countertop'
       ? nosingProjection(moldings.nosing) : moldingPast(moldings, kind, settings);
-    const contour = loop && frontContour(placeAtEnd(loop, front - past, overhang, reference));
-    return { kind, front, z, height, contour, loop, picked, reference, overhang, overhangs };
+    const placedLoop = loop && placeAtEnd(loop, front - past, overhang, reference);
+    const contour = placedLoop && frontContour(placedLoop);
+    return { kind, front, z, height, contour, placedLoop, loop, picked, reference, overhang, overhangs };
   }).filter(({ height }) => height > EPSILON);
 }
 

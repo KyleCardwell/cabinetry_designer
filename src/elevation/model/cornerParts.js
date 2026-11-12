@@ -2,7 +2,7 @@ import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
-import { cornerLegBands } from './cornerLegBands.js';
+import { cornerLegBands, ownerBands } from './cornerLegBands.js';
 import { anchoredToCorner, cornerAt, cornerReturnPoint, crossingRuns, frontDepth, spanCorner } from './corners.js';
 import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
@@ -11,7 +11,7 @@ import { resolveWall } from './room.js';
 import { runEndView, runSide } from './runSide.js';
 import { runBandEnds } from './runBands.js';
 import { runScene } from './runScene.js';
-import { transformOutline } from './sectionProfileOutline.js';
+import { outlineBounds, transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
 import { elevationKey, returnsView } from './topology.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
@@ -119,16 +119,26 @@ export function cornerShapes(room, wall, side, settings,
         legBands.set(returnKey, cornerLegBands(room, wallSideView(neighbor, point.wallSide), settings));
       }
       const key = `${end}:corner:${run.id}`;
+      const bands = ownerBands(room, view, run, settings);
+      const xOf = (depth) => corner.cornerX + (end === 'left' ? depth : -depth);
       const parts = legBands.get(returnKey)
         .filter((band) => band.ownerWallId === view.id && band.runId === run.id && band.side === end)
-        .map((band) => ({
-          id: `${key}:${band.kind}`, kind: band.kind, runId: run.id,
-          x: corner.cornerX + (end === 'left' ? 0 : -band.front),
-          z: band.z, width: band.front, height: band.height,
-          back: 0, front: Math.max(point.dir * (band.x - point.at),
-            point.dir * (band.x + band.width - point.at)),
-          coversBoxEdges: false, opaque: false,
-        }));
+        .map((band) => {
+          const ownerBand = bands.find(({ kind }) => kind === BANDS[band.kind]);
+          const outline = ownerBand?.placedLoop && transformOutline(ownerBand.placedLoop, ([depth, z]) => [
+            Math.min(length, Math.max(0, xOf(depth + band.front - ownerBand.front))), z,
+          ], end === 'right');
+          const { minX, maxX } = outline ? outlineBounds(outline)
+            : { minX: Math.min(xOf(0), xOf(band.front)), maxX: Math.max(xOf(0), xOf(band.front)) };
+          return {
+            id: `${key}:${band.kind}`, kind: band.kind, runId: run.id,
+            x: minX, z: band.z, width: maxX - minX, height: band.height,
+            back: 0, front: Math.max(point.dir * (band.x - point.at),
+              point.dir * (band.x + band.width - point.at)),
+            coversBoxEdges: false, opaque: false,
+            ...(outline ? { outline } : {}),
+          };
+        });
       if (parts.length) shapes.push({ key, kind: 'return', wallId: point.wallId, runId: run.id,
         cornerOf: { wallId: view.id, runId: run.id, side: end }, parts });
     }
