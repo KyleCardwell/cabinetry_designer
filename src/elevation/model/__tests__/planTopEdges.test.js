@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import { auto, room, run, wall } from '../../../test/builders.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { normalizeCornerEnd } from '../cornerEnd.js';
 import { planParts, planSolidParts } from '../planParts.js';
 import { elevationToPlan } from '../geometry.js';
 import { planTopEdges } from '../planTops.js';
@@ -191,5 +192,89 @@ describe('PT2 step c top edges in the plan payload', () => {
       expect(part).not.toHaveProperty('runId');
     });
     expect(planParts(corner, settings).some((part) => 'bottom' in part)).toBe(false);
+  });
+});
+
+describe('CC7 step e corner countertop pieces in plan', () => {
+  let owner, ownerWall, returnWall;
+
+  beforeEach(() => {
+    owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
+      anchors: { left: true, right: false },
+      ends: { left: normalizeCornerEnd({ corner: { kind: 90 } }), right: { type: 'none' } },
+    });
+    ownerWall = wall({ runs: [owner],
+      connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null },
+    });
+    returnWall = wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0, runs: [],
+      connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
+    });
+  });
+
+  it.each([
+    ['1: E90R', 90, true, null, false, [
+      [0, -132.75], [25.625, -132.75], [25.625, -25.625], [120.75, -25.625], [120.75, 0],
+    ]],
+    ['2: E90', 90, false, null, false, [
+      [0, -37.5625], [25.625, -37.5625], [25.625, -25.625], [120.75, -25.625], [120.75, 0],
+    ]],
+    ['3: E45', 45, false, null, false, [
+      [0, -37.5625], [25.625, -37.5625], [25.625, -36.3732], [36.3732, -25.625],
+      [120.75, -25.625], [120.75, 0],
+    ]],
+    ['4: E45R', 45, true, null, false, [
+      [0, -132.75], [25.625, -132.75], [25.625, -36.3732], [36.3732, -25.625],
+      [120.75, -25.625], [120.75, 0],
+    ]],
+    ['5: E45u', 45, false, 15, false, [
+      [0, -37.5625], [16.625, -37.5625], [16.625, -36.5038], [36.2069, -25.625],
+      [120.75, -25.625], [120.75, 0],
+    ]],
+    ['6: E45R wood', 45, true, null, true, [
+      [0, -132.75], [25.625, -132.75], [25.625, -36.3732], [36.3732, -25.625],
+      [120.75, -25.625], [120.75, 0],
+    ]],
+  ])('anchor %s', (_, kind, joined, depthB, wood, points) => {
+    Object.assign(owner.ends.left.corner, { kind, depthB });
+    if (wood) owner.top = 'wood';
+    if (joined) {
+      returnWall.runs = [run({ id: 'run-2', x: 0, width: 96,
+        anchors: { left: false, right: true }, items: [auto('r')], ends: noEnds,
+        ...(wood ? { top: 'wood' } : {}),
+      })];
+    }
+    const subject = syncRoom(room({ walls: [ownerWall, returnWall] }), settings);
+    const expected = [{ id: 'top:0:0', kind: 'edge', closed: false, points }];
+    if (wood) expected.push({ id: 'top-joint:0:0', kind: 'joint', closed: false,
+      points: [[0, -36.3732], [25.625, -36.3732]] });
+    expectChains(planTopEdges(subject, settings, planSolidParts(subject, settings, { bottoms: true })), expected);
+    if (wood) {
+      const butt = { ...settings, woodTopCorner: 'butt' };
+      expectChains(planTopEdges(subject, butt, planSolidParts(subject, butt, { bottoms: true })), expected);
+    }
+  });
+
+  it.each(['right', 'back'])('maps a free wood 45 leg and fill on the %s owner face', (orientation) => {
+    owner.top = 'wood';
+    owner.ends.left.corner.kind = 45;
+    if (orientation === 'right') {
+      ownerWall.runs = [run({ ...owner, items: [auto('a'), fixed('cc', 36)],
+        anchors: { left: false, right: true },
+        ends: { left: { type: 'none' }, right: owner.ends.left },
+      })];
+      ownerWall.connections = { start: null, end: { wallId: 'wall-2', endpoint: 'start' } };
+      Object.assign(returnWall, { x1: 144, y1: 0, x2: 144, y2: 144,
+        connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null } });
+    } else {
+      owner.wallSide = 'back';
+      Object.assign(ownerWall, { flipped: true, thickness: 4.5, y1: -4.5, y2: -4.5 });
+    }
+    const subject = syncRoom(room({ walls: [ownerWall, returnWall] }), settings);
+    const points = [[0, -37.5625], [25.625, -37.5625], [25.625, -36.3732], [36.3732, -25.625],
+      [120.75, -25.625], [120.75, 0]];
+    expectChains(planTopEdges(subject, settings, planSolidParts(subject, settings, { bottoms: true })), [
+      { id: 'top:0:0', kind: 'edge', closed: false,
+        points: orientation === 'right' ? points.map(([x, y]) => [144 - x, y]) : points },
+    ]);
   });
 });

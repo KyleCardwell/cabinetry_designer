@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandParts } from '../bandParts.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { normalizeCornerEnd } from '../cornerEnd.js';
 import { syncRoom } from '../room.js';
 import { connectWallStops } from './helpers/wallStops.js';
 import { woodTopCorners, woodTopGroups, woodTopMiters } from '../woodTopGroups.js';
@@ -352,5 +353,35 @@ describe('PT2 step a mitered wood top corners', () => {
     expect(woodTopGroups(stored, settings).find(({ key }) => key === 'wood_top:base'))
       .toMatchObject({ start: 0, end: 96, width: 96, miters: { left: false, right: true },
         scribe: { left: true, right: false, back: true } });
+  });
+});
+
+describe('CC7 step e wood tops at corner cabinets', () => {
+  it.each([90, 45])('anchor 7: skips a %s corner cabinet in either wall walk order and corner mode', (kind) => {
+    const owner = run({ top: 'wood', autoCount: false, items: [fixed('cc', 36), auto('a')],
+      anchors: { left: true, right: false },
+      ends: { left: normalizeCornerEnd({ corner: { kind } }), right: { type: 'none' } },
+    });
+    const stored = room({ walls: [wall({ runs: [owner],
+      connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null },
+    }), wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0,
+      runs: [run({ ...wood, id: 'run-2', x: 0, width: 96,
+        anchors: { left: false, right: true }, items: [auto('r')] })],
+      connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
+    })] });
+    for (const wallOrder of [['wall-1', 'wall-2'], ['wall-2', 'wall-1']]) {
+      for (const woodTopCorner of ['miter', 'butt']) {
+        const using = { ...settings, woodTopCorner };
+        const subject = syncRoom({ ...stored, wallOrder }, using);
+        expect(woodTopCorners(subject, using)).toEqual([]);
+        expect(woodTopMiters(subject, using)).toEqual([]);
+        const groups = woodTopGroups(subject, using);
+        expect(groups).toHaveLength(2);
+        groups.forEach(({ miters }) => expect(miters).toEqual({ left: false, right: false }));
+        expect(groups.find(({ key }) => key === 'wood_top:run-1')).toMatchObject({ start: 25.625, end: 120.75 });
+        expect(groups.find(({ key }) => key === 'wood_top:run-2').end)
+          .toBeCloseTo(kind === 90 ? 108 : 107.6268, 3);
+      }
+    }
   });
 });

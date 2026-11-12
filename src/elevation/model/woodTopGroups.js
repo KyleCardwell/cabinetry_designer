@@ -1,7 +1,7 @@
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
-import { cornerAt } from './corners.js';
+import { cornerAt, cornerEndActive, cornerOwnersAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { compareRuns } from './parts.js';
 import { resolveProfile } from './profile.js';
@@ -80,10 +80,12 @@ function cornerPairs(room, settings, entries) {
   const paired = new Set();
   const endKey = (entry, end) => JSON.stringify([entry.wall.id, entry.wall.side, entry.band.id, end]);
   const pairs = [];
+  const cabinetEnd = (entry, end) => cornerEndActive(room, entry.wall, entry.run, end).active
+    || cornerOwnersAt(room, entry.wall, entry.run, end).length > 0;
   for (const x of entries) {
     for (const end of ['left', 'right']) {
       const edge = x.corners[end];
-      if (!edge || paired.has(endKey(x, end))) continue;
+      if (!edge || paired.has(endKey(x, end)) || cabinetEnd(x, end)) continue;
       const y = entries.find((entry) => entry.wall.id === edge.wallId
         && entry.run.id === edge.runId && same(entry.surface, x.surface)
         && ['left', 'right'].some((yEnd) => isCornerEnd(entry, yEnd)));
@@ -95,7 +97,7 @@ function cornerPairs(room, settings, entries) {
         y: { entry: y, end: yEnd, reach: y.corners[yEnd]?.reach ?? null } });
 
       function isCornerEnd(entry, yEnd) {
-        if (!entry.run.anchors?.[yEnd] || paired.has(endKey(entry, yEnd))
+        if (!entry.run.anchors?.[yEnd] || paired.has(endKey(entry, yEnd)) || cabinetEnd(entry, yEnd)
           || cornerAt(room, entry.wall, yEnd).neighborWallId !== x.wall.id) return false;
         const at = yEnd === 'left' ? entry.band.x : entry.band.x + entry.band.width;
         return entry.corners[yEnd] !== null

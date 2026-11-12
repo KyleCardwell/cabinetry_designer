@@ -1,7 +1,9 @@
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
-import { frontDepth } from './corners.js';
+import { cornerBandEdge, cornerBandTurns, lazyCornerShapes } from './cornerBands.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerLegBands } from './cornerLegBands.js';
+import { cornerReturnPoint, frontDepth } from './corners.js';
 import { elevationToPlan, wallLength } from './geometry.js';
 import { resolveWall } from './room.js';
 import { topOverhangs } from './topOverhang.js';
@@ -148,6 +150,52 @@ function clipToSide(polygon, i, o, keep) {
   return result;
 }
 
+/** Corner legs and diagonal fills share the owner's top part, hiding their internal seams. */
+function cornerTopPieces(room, settings, pieces) {
+  const result = [];
+  const legBands = new Map();
+  for (const wall of room?.walls ?? []) {
+    for (const side of WALL_SIDES) {
+      const view = wallSideView(wall, side);
+      for (const run of view.runs) {
+        for (const end of ['left', 'right']) {
+          if (run.ends?.[end]?.type !== 'corner') continue;
+          const corner = cornerEnd(room, view, run, end, settings);
+          if (!corner?.active || !corner.shape || !corner.columnId) continue;
+          const point = cornerReturnPoint(room, view, run, end);
+          if (!point) continue;
+          const returned = room.walls.find(({ id }) => id === point.wallId);
+          const key = `${point.wallId}|${point.wallSide}`;
+          if (!legBands.has(key)) {
+            legBands.set(key, cornerLegBands(room, wallSideView(returned, point.wallSide), settings));
+          }
+          const leg = legBands.get(key).find((band) => band.kind === 'countertop'
+            && band.ownerWallId === wall.id && band.runId === run.id && band.side === end);
+          if (!leg) continue;
+          const owner = pieces.find((piece) => {
+            if (piece.wallId !== wall.id || piece.side !== side || piece.band?.runId !== run.id
+              || Math.abs(piece.surface - leg.z - leg.height) > EPSILON) return false;
+            const at = end === 'left' ? piece.band.x : piece.band.x + piece.band.width;
+            return Math.abs(at - corner.cornerX - corner.dir * leg.front) <= EPSILON;
+          });
+          if (!owner) continue;
+          const frame = wallSideFrame(room, returned, point.wallSide);
+          const far = point.dir === 1 ? leg.x + leg.width : leg.x;
+          const add = (polygon) => result.push({ surface: owner.surface, part: owner.part, polygon: ccw(polygon) });
+          add(toPlan(frame, [[point.at, leg.back], [far, leg.back], [far, leg.front], [point.at, leg.front]]));
+          if (corner.kind === 45) {
+            const { a, b } = cornerBandTurns(corner, 'countertop', owner.band.front);
+            const fill = [[0, 0], [a[0], 0], a, b, [0, b[1]]]
+              .map(([x, y]) => [corner.cornerX + corner.dir * x, y]);
+            add(toPlan(owner.frame, fill));
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
 /** Every countertop band as a piece in plan (y up), plus PT1's island bridges. */
 function topPieces(room, settings) {
   const parts = new Map(woodTopGroups(room, settings).flatMap(({ key, bandRefs = [] }) =>
@@ -220,7 +268,8 @@ function topPieces(room, settings) {
     x.polygon = clipToSide(x.polygon, i, o, x.farEnd(xEnd));
     y.polygon = clipToSide(y.polygon, i, o, y.farEnd(yEnd));
   }
-  return pieces.filter(({ polygon }) => polygon.length >= 3 && Math.abs(signedArea(polygon)) > EPSILON);
+  return [...pieces, ...cornerTopPieces(room, settings, pieces)]
+    .filter(({ polygon }) => polygon.length >= 3 && Math.abs(signedArea(polygon)) > EPSILON);
 }
 
 /** Walls taller than the surface and solids standing through it, as plain polygons. */
