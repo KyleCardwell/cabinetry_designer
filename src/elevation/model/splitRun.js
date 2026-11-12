@@ -1013,6 +1013,8 @@ function syncAutoSegment(segment, items, settings, opts, seedOnly, insertAtStart
 
 function syncAutoSegments(run, settings, opts, seedOnly) {
   if (!run.autoCount) return run;
+  // Root-column insertion requires one row; stacked root cells keep their existing layout.
+  if (run.grid && run.grid.rows.length !== 1) return run;
 
   const layoutRun = withLineEndFillers(run, settings, opts);
   const plan = pinPlan(layoutRun, settings, opts);

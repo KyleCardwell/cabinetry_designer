@@ -123,7 +123,7 @@ function attachTargetColumn(room, wall, run, item, attach, settings) {
       }
     }
   }
-  return { ...run, grid, autoCount: false };
+  return { ...run, grid };
 }
 
 /** LL4: center on a shared layout line, attaching the target too when it can follow the line. */

@@ -58,7 +58,7 @@ function currentPieces(state, location, run, { unplaced = false } = {}) {
 }
 
 /**
- * LL4: attach a root column, doing what pinning did: auto count off, and when the run already has a
+ * LL4: attach a root column; when the run already has a
  * placed column, lock widths to the unplaced split as pinning did (a second placed column locks both, a later one itself).
  */
 function attachColumn(state, location, run, item, attach) {
@@ -66,7 +66,6 @@ function attachColumn(state, location, run, item, attach) {
   const adds = !placedAt(item);
   const pieces = adds && placedBefore.length >= 1 ? currentPieces(state, location, run, { unplaced: true }) : null;
   run.grid = updateRootItem(run.grid, item.id, { attach });
-  run.autoCount = false;
   if (!pieces) return;
   const lock = placedBefore.length === 1 ? [...placedBefore, item] : [item];
   const step = settingsFor(state, location.room).roundTo;

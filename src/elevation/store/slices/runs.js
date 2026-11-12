@@ -8,8 +8,10 @@ import { defaultLegA, normalizeCornerEnd } from '../../model/cornerEnd.js';
 import { setGridTrackSize } from '../../model/cellTree.js';
 import {
   gridLeaves,
+  runItems,
   resizeGridBlind,
   setGridBlind,
+  updateRootItem,
 } from '../../model/grid.js';
 import {
   isFollowAnchor,
@@ -559,6 +561,14 @@ export const runReducers = {
     const location = runLocation(state, action.payload);
     if (!location) return;
     location.run.autoCount = action.payload.value ?? action.payload.autoCount;
+    if (location.run.autoCount) {
+      for (const item of runItems(location.run)) {
+        if (item.kind === 'cabinet' && item.width === null
+          && Object.keys(item).every((key) => ['id', 'kind', 'width'].includes(key))) {
+          location.run.grid = updateRootItem(location.run.grid, item.id, { autoAdded: true });
+        }
+      }
+    }
     syncRoomAt(state, location.roomIndex);
   },
   setMaxCabinetWidth(state, action) {

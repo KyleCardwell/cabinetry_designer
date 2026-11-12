@@ -435,7 +435,7 @@ describe('elevation room reducers', () => {
     const first = elevationReducer(initial, setAttachment({
       wallId: 'wall-1', target: column('b'), attach: attach('L1'),
     }));
-    expect(currentRun(first).autoCount).toBe(false);
+    expect(currentRun(first).autoCount).toBe(true);
     expect(runItems(currentRun(first)).find((item) => item.id === 'b').width).toBeNull();
 
     const second = elevationReducer(first, setAttachment({

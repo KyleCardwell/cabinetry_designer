@@ -18,6 +18,7 @@ import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
 import { isStoredInterior, patchShelfSettings } from '../../model/interiorTree.js';
 import {
+  clearSegmentAutoAdded,
   runLocation,
   syncRoomAt,
   settingsFor,
@@ -101,7 +102,6 @@ export const itemReducers = {
         } : {}),
       } : null,
     });
-    if (pin) location.run.autoCount = false;
     if (addsPinToPinnedRun) {
       const itemsToLock = addsSecondPin
         ? runItems(location.run).filter((candidate) => placedAt(candidate))
@@ -238,10 +238,11 @@ export const itemReducers = {
     if (!location) return;
     const itemIndex = itemIndexFor(location.run, action.payload.itemId);
     if (itemIndex === -1 || runItems(location.run)[itemIndex].kind !== 'cabinet') return;
-    let grid = insertRootColumn(location.run.grid, itemIndex + 1, { id: uuid(), kind: 'cabinet', width: null });
+    const firstId = uuid();
+    let grid = insertRootColumn(location.run.grid, itemIndex + 1, { id: firstId, kind: 'cabinet', width: null });
     grid = insertRootColumn(grid, itemIndex + 2, { id: uuid(), kind: 'cabinet', width: null });
     location.run.grid = removeRootColumn(grid, action.payload.itemId);
-    location.run.autoCount = false;
+    clearSegmentAutoAdded(state, location, firstId);
     syncRoomAt(state, location.roomIndex);
   },
   addItemAfter(state, action) {
@@ -259,7 +260,7 @@ export const itemReducers = {
       appendToEmptyRun ? 0 : itemIndex + (action.payload.side === 'left' ? 0 : 1),
       item,
     );
-    location.run.autoCount = false;
+    clearSegmentAutoAdded(state, location, item.id);
     syncRoomAt(state, location.roomIndex);
   },
   removeItem(state, action) {

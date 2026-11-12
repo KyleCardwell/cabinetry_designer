@@ -83,7 +83,7 @@ it('setCellBaseUnder sets and clears only void and panel leaves', () => {
 describe('shelves-only runs (FS1)', () => {
   const at = { wallId: 'wall-1', runId: 'run-1' };
 
-  it('collapses auto cabinets into one full-width shelves piece with no ends or Top', () => {
+  it('recounts cabinets after changing a root cabinet to shelves (AC1)', () => {
     let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
     state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
@@ -93,14 +93,19 @@ describe('shelves-only runs (FS1)', () => {
 
     state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
     const changed = currentRun(state);
-    expect(runItems(changed)).toEqual([expect.objectContaining({ id: 'a', kind: 'shelves', width: null })]);
+    expect(runItems(changed)).toEqual([
+      expect.objectContaining({ id: 'a', kind: 'shelves', width: null }),
+      expect.objectContaining({ kind: 'cabinet', width: null, autoAdded: true }),
+      expect.objectContaining({ kind: 'cabinet', width: null, autoAdded: true }),
+    ]);
     expect(changed.ends).toEqual({ left: { type: 'none', width: null }, right: { type: 'none', width: null } });
     expect(changed.top).toBe('none');
-    expect(changed.autoCount).toBe(false);
-    expect(frontDepth(changed, state.settings)).toBe(12);
+    expect(changed.autoCount).toBe(true);
+    expect(frontDepth(changed, state.settings)).toBe(12 + faceFrontOffset(changed, state.settings));
     const storedRoom = state.rooms[0];
     const scene = runScene(storedRoom, storedRoom.walls[0], changed, state.settings);
-    expect(scene.drawnPieces).toEqual([expect.objectContaining({ id: 'a', kind: 'shelves', width: 72 })]);
+    expect(scene.drawnPieces.filter(({ role }) => role === 'item').map(({ kind }) => kind))
+      .toEqual(['shelves', 'cabinet', 'cabinet']);
   });
 
   it('preserves a second cabinet with a face and leaves ends and Top unchanged', () => {
@@ -113,11 +118,12 @@ describe('shelves-only runs (FS1)', () => {
     state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
     const changed = currentRun(state);
     expect(runItems(changed).map(({ id, kind }) => ({ id, kind })))
-      .toEqual([{ id: 'a', kind: 'shelves' }, { id: secondId, kind: 'cabinet' }]);
+      .toEqual([{ id: 'a', kind: 'shelves' }, { id: secondId, kind: 'cabinet' },
+        { id: expect.any(String), kind: 'cabinet' }]);
     expect(isShelvesOnlyRun(changed)).toBe(false);
     expect(changed.ends).toEqual(before.ends);
     expect(changed.top).toBe(before.top);
-    expect(changed.autoCount).toBe(false);
+    expect(changed.autoCount).toBe(true);
   });
 
   it('keeps a manual-count run intact when its fixed-width cabinet becomes shelves', () => {
@@ -150,7 +156,7 @@ describe('shelves-only runs (FS1)', () => {
       expect(runItems(currentRun(state))).toHaveLength(2);
       const before = currentRun(state).ends.left;
       state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
-      expect(runItems(currentRun(state))).toHaveLength(1);
+      expect(runItems(currentRun(state))).toHaveLength(3);
       expect(currentRun(state).ends.left).toEqual(before);
       expect(currentRun(state).ends.left.auto).toBe(true);
       expect(currentRun(state).ends.right).toEqual({ type: 'none', width: null });
@@ -175,7 +181,7 @@ describe('shelves-only runs (FS1)', () => {
       { grid: run({ id: 'nested', items: [auto('inner')] }).grid }, { gap: 0 }]) {
       const state = stateWithRun(run({ top: 'crown', items: [auto('a'), { ...auto('b'), ...extra }] }));
       const next = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
-      expect(runItems(currentRun(next))).toHaveLength(2);
+      expect(runItems(currentRun(next)).length).toBeGreaterThanOrEqual(2);
       expect(runItems(currentRun(next))[1]).toEqual(runItems(currentRun(state))[1]);
       expect(currentRun(next).ends).toEqual(currentRun(state).ends);
       expect(currentRun(next).top).toBe('crown');
@@ -433,12 +439,12 @@ describe('SPEC-33 cell reducers', () => {
     expect(stackOf(state).rows.every((row) => row.size === null)).toBe(true);
   });
 
-  it('splits across into root columns and turns auto count off', () => {
+  it('splits across into root columns with auto count on (AC1)', () => {
     const state = split(start({ autoCount: true }), 'b', 'across');
-    expect(runItems(currentRun(state))).toHaveLength(3);
+    expect(runItems(currentRun(state))).toHaveLength(4);
     expect(runItems(currentRun(state))[0].id).toBe('a');
     expect(runItems(currentRun(state))[1].id).toBe('b');
-    expect(currentRun(state).autoCount).toBe(false);
+    expect(currentRun(state).autoCount).toBe(true);
   });
 
   it('removes a nested cell, collapsing the stack and its selection', () => {
@@ -583,7 +589,7 @@ describe('SPEC-34.1 panel reducers', () => {
     let state = elevationReducer(start(), setCellKind({ ...actionBase, cellId: 'a', kind: 'panel' }));
     expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel' });
     expect(currentRun(state).grid.cols[0]).toEqual({ id: 'a:col', size: 0.75, sizeMode: 'manual' });
-    expect(currentRun(state).autoCount).toBe(false);
+    expect(currentRun(state).autoCount).toBe(true);
     state = elevationReducer(state, setPanelType({ ...actionBase, cellId: 'a', type: 'back' }));
     expect(currentRun(state).grid.cols[0]).toEqual({ id: 'a:col', size: null, sizeMode: 'auto' });
     expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel', depth: 0.8125, align: 'back' });
@@ -605,10 +611,10 @@ describe('SPEC-34.1 panel reducers', () => {
   it('adds panels beside and above cells', () => {
     let state = elevationReducer(start(), addPanel({ ...actionBase, cellId: 'b', side: 'left' }));
     const items = runItems(currentRun(state));
-    expect(items.map(({ kind }) => kind)).toEqual(['cabinet', 'panel', 'cabinet']);
+    expect(items.map(({ kind }) => kind)).toEqual(['cabinet', 'panel', 'cabinet', 'cabinet', 'cabinet']);
     expect(items[1].width).toBe(0.75);
     expect(items[2].id).toBe('b');
-    expect(currentRun(state).autoCount).toBe(false);
+    expect(currentRun(state).autoCount).toBe(true);
     state = elevationReducer(state, addPanel({ ...actionBase, cellId: 'a', side: 'above' }));
     expect(stackOf(state).rows.map(({ size }) => size)).toEqual([0.75, null]);
     expect(stackOf(state).cells.map((entry) => entry.node.kind)).toEqual(['panel', 'cabinet']);

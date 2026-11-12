@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
-import { removeRootColumn, replaceRootItems, rootItems, runItems, setGridCellBlind } from '../../model/grid.js';
+import { removeRootColumn, replaceRootItems, rootItems, runItems, setGridCellBlind, updateRootItem } from '../../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../../model/joints.js';
 import { isSheetCell, panelThickness } from '../../model/panelThickness.js';
 import { resolveProfile } from '../../model/profile.js';
@@ -28,6 +28,7 @@ import {
   wrapGridCell,
 } from '../../model/cellTree.js';
 import {
+  clearSegmentAutoAdded,
   cleanEndValue,
   runLocation,
   syncRoomAt,
@@ -120,10 +121,11 @@ export const cellReducers = {
     const { cellId, direction, count } = action.payload;
     const before = location.run.grid;
     const rootAcross = direction === 'across' && findCell(before, cellId)?.depth === 0;
+    const rootIndex = rootAcross ? rootItems(before).findIndex((item) => item.id === cellId) : -1;
     const grid = splitGridCell(before, cellId, direction, count, uuid);
     if (grid === before) return;
-    location.run.grid = grid;
-    if (rootAcross) location.run.autoCount = false;
+    location.run.grid = rootAcross ? updateRootItem(grid, cellId, { autoAdded: undefined }) : grid;
+    clearSegmentAutoAdded(state, location, rootAcross ? rootItems(grid)[rootIndex + 1].id : cellId);
     syncRoomAt(state, location.roomIndex);
   },
   removeCell(state, action) {
@@ -131,11 +133,9 @@ export const cellReducers = {
     if (!location) return;
     const { cellId } = action.payload;
     const before = location.run.grid;
-    const atRoot = findCell(before, cellId)?.depth === 0;
     const grid = removeGridCell(before, cellId);
     if (grid === before) return;
     location.run.grid = grid;
-    if (atRoot) location.run.autoCount = false;
     if (state.selection.pieceId === cellId) {
       state.selection = {
         runId: location.run.id, pieceId: null, openingId: null, soffitId: null, recessId: null,
@@ -173,6 +173,13 @@ export const cellReducers = {
     const grid = setGridTrackSize(before, trackId, size ?? null);
     if (grid === before) return;
     location.run.grid = grid;
+    const column = grid.cols.find((track) => track.id === trackId);
+    if (column && size != null) {
+      const item = runItems(location.run)[grid.cols.indexOf(column)];
+      if (item.kind === 'cabinet') {
+        location.run.grid = updateRootItem(grid, item.id, { autoAdded: undefined });
+      }
+    }
     syncRoomAt(state, location.roomIndex);
   },
   setTrackGap(state, action) {
@@ -204,6 +211,9 @@ export const cellReducers = {
     const found = findCell(before, cellId);
     let grid = setGridCellKind(before, cellId, kind);
     if (grid === before) return;
+    if (found.depth === 0 && kind !== 'cabinet') {
+      grid = updateRootItem(grid, cellId, { autoAdded: undefined });
+    }
     if (kind === 'shelves' && found.depth === 0 && location.run.autoCount
       && before.rows.length === 1) {
       const items = runItems(location.run);
@@ -224,7 +234,6 @@ export const cellReducers = {
       const profile = resolveProfile(settings, location.room, location.wall);
       location.run.depth = defaultsForType(location.run.cabinetTypeId, settings, profile).depth;
     }
-    if (found.depth === 0) location.run.autoCount = false;
     if (!wasShelvesOnly && isShelvesOnlyRun(location.run)) {
       for (const side of ['left', 'right']) {
         const anchor = location.run.anchors?.[side];
@@ -303,12 +312,12 @@ export const cellReducers = {
     if (!location) return;
     const { cellId, side } = action.payload;
     const before = location.run.grid;
-    const found = findCell(before, cellId);
     const grid = addGridPanel(before, cellId, side,
       panelThickness(location.room, location.wall, location.run, null, settingsFor(state, location.room), { sheet: true }), uuid);
     if (grid === before) return;
     location.run.grid = grid;
-    if (found.depth === 0 && (side === 'left' || side === 'right')) location.run.autoCount = false;
+    const added = rootItems(grid).find((item) => !rootItems(before).some((old) => old.id === item.id));
+    clearSegmentAutoAdded(state, location, added?.id ?? cellId);
     syncRoomAt(state, location.roomIndex);
   },
   setPanelDoors(state, action) {

@@ -22,7 +22,7 @@ describe('stored return pins (DR3b)', () => {
       expect(storedPin).toEqual({ ...returnPin, anchor: edge === 'both' ? 'left' : edge });
       expect(storedPin).not.toBe(returnPin);
       expect(runItems(currentRun)[1].pin).toEqual(storedPin);
-      expect(currentRun.autoCount).toBe(false);
+      expect(currentRun.autoCount).toBe(true);
       expect(isRoom(next.rooms[0])).toBe(true);
       const cleared = elevationReducer(next, setItemPin({ ...at, pin: null }));
       expect(runItems(cleared.rooms[0].walls[0].runs[0])[1].pin).toBeFalsy();

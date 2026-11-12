@@ -49,7 +49,7 @@ describe('column attach actions (LL4)', () => {
     const state = reduce(start, attachColumnToNewLine({ ...at, runId: 'R', itemId: 'B', id: 'N' }));
     expect(wallOf(state).lines).toEqual([{ id: 'N', label: 'L1', from: 'left', value: 45 }]);
     expect(itemOf(state, 'B').attach).toEqual(attach('N'));
-    expect(runOf(state).autoCount).toBe(false);
+    expect(runOf(state).autoCount).toBe(true);
     const after = pieces(state);
     for (const id of ['A', 'B', 'C']) expect(after[id]).toMatchObject({ x: before[id].x, width: before[id].width });
   });
@@ -91,7 +91,7 @@ describe('column attach actions (LL4)', () => {
       setAttachment({ ...at, target: { kind: 'column', runId: 'R', itemId: 'B' }, attach: attach('L1') }),
     );
     expect(itemOf(first, 'B').width).toBeNull();
-    expect(runOf(first).autoCount).toBe(false);
+    expect(runOf(first).autoCount).toBe(true);
     const current = pieces(first);
     const state = reduce(first, setAttachment({
       ...at, target: { kind: 'column', runId: 'R', itemId: 'C' }, attach: attach('L2'),

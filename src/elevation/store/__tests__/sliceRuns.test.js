@@ -9,7 +9,11 @@ import { normalizeCornerEnd } from '../../model/cornerEnd.js';
 import { cornerEndActive, cornerForRunSide } from '../../model/corners.js';
 import {
   CABINET_TYPE_IDS,
+  DEFAULT_SETTINGS,
 } from '../../model/constants.js';
+import { syncRoom } from '../../model/roomSync.js';
+import { splitOptionsForRun } from '../../model/placement.js';
+import { splitRun } from '../../model/splitRun.js';
 import {
   gridLeaves,
   runBlind,
@@ -39,6 +43,7 @@ import elevationReducer, {
   setRunJointOffset,
   setRunStackOffset,
   setRunEnd,
+  setAutoCount,
   setTrackGap,
   splitItem,
   updateRun,
@@ -56,6 +61,52 @@ import {
 } from './helpers/sliceFixtures.js';
 
 describe('elevation run reducers', () => {
+  it.each([
+    { name: 'adds a cabinet to the left and takes ownership of its segment', action: 'add' },
+    { name: 'removes an auto-added cabinet and turns auto count off', action: 'remove' },
+    { name: 'adopts only plain auto cabinets when enabling auto count', action: 'enable' },
+  ])('$name (AC1)', ({ action }) => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const face = { direction: 'vertical', size: null, children: [
+      { type: 'drawer_front', size: null },
+      { type: 'drawer_front', size: null },
+      { type: 'drawer_front', size: null },
+    ] };
+    const initialRun = run({ width: 96, autoCount: action !== 'enable',
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      anchors: { left: false, right: false },
+      items: action === 'enable' ? [auto('a'), { ...auto('b'), face }]
+        : [{ ...auto('a'), face }, fixed('f', 24)],
+    });
+    const initial = stateWithRun();
+    initial.settings = settings;
+    initial.rooms = [syncRoom(room({ walls: [wall({ runs: [initialRun] })] }), settings)];
+    const at = { wallId: 'wall-1', runId: 'run-1' };
+    const generated = runItems(currentRun(initial)).find((item) => item.autoAdded);
+    const edit = action === 'add' ? addItemAfter({ ...at, itemId: 'a', side: 'left' })
+      : action === 'remove' ? removeItem({ ...at, itemId: generated.id })
+        : setAutoCount({ ...at, value: true });
+    const next = elevationReducer(initial, edit);
+    const resolved = currentRun(next);
+    const items = runItems(resolved);
+    expect(resolved.autoCount).toBe(action !== 'remove');
+    if (action === 'add') {
+      expect(items.map(({ id }) => ['a', 'f', generated.id].includes(id) ? id : 'new'))
+        .toEqual(['new', 'a', generated.id, 'f']);
+      const r = next.rooms[0];
+      const w = r.walls[0];
+      const layout = splitRun(resolved, settings, splitOptionsForRun(r, w, resolved, settings));
+      expect(items.map(({ id }) => layout.pieces.find((piece) => piece.id === id).width))
+        .toEqual([24, 24, 24, 24]);
+      for (const item of items) expect(item).not.toHaveProperty('autoAdded');
+    } else if (action === 'remove') {
+      expect(items.map(({ id }) => id)).toEqual(['a', 'f']);
+    } else {
+      expect(items.find(({ id }) => id === 'a').autoAdded).toBe(true);
+      expect(items.find(({ id }) => id === 'b')).not.toHaveProperty('autoAdded');
+    }
+  });
+
   it('syncs auto cabinet items when adding an already-built run', () => {
     const next = elevationReducer(
       stateWithRun(),
@@ -80,15 +131,15 @@ describe('elevation run reducers', () => {
     expect(runItems(currentRun(next))).toHaveLength(3);
   });
 
-  it('splits a cabinet into two auto cabinets and disables auto count', () => {
+  it('splits a cabinet and fills the run with auto count on (AC1)', () => {
     const initial = stateWithRun(run({ items: [fixed('locked', 36)] }));
     const next = elevationReducer(
       initial,
       splitItem({ wallId: 'wall-1', runId: 'run-1', itemId: 'locked' }),
     );
 
-    expect(currentRun(next).autoCount).toBe(false);
-    expect(runItems(currentRun(next))).toHaveLength(2);
+    expect(currentRun(next).autoCount).toBe(true);
+    expect(runItems(currentRun(next))).toHaveLength(4);
     expect(runItems(currentRun(next)).every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
   });
 
@@ -145,7 +196,7 @@ describe('elevation run reducers', () => {
     expect(ids).toEqual(order);
   });
 
-  it('adds the first manual item to an empty run and disables auto count', () => {
+  it('adds the first manual item to an empty manual-count run (AC1)', () => {
     const initial = stateWithRun(run({ autoCount: false, items: [] }));
     const next = elevationReducer(
       initial,

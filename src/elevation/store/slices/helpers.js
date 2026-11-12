@@ -1,11 +1,13 @@
 import { v4 as uuid } from 'uuid';
 import { current, isDraft } from '@reduxjs/toolkit';
-import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { DEFAULT_SETTINGS, PINNABLE_KINDS } from '../../model/constants.js';
 import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
-import { runItems } from '../../model/grid.js';
+import { gridLeaves, runItems, updateRootItem } from '../../model/grid.js';
+import { placedAt } from '../../model/layoutLines.js';
+import { splitOptionsForRun } from '../../model/placement.js';
 import { recessEndType } from '../../model/recesses.js';
 import { heldLandingCorner, holdLandedWalls } from '../../model/landings.js';
 import {
@@ -87,6 +89,29 @@ export function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uu
 
 export function settingsFor(state, room) {
   return effectiveSettings(state, room);
+}
+
+/** A manual addition or split takes ownership of cabinets in its placed-column segment. */
+export function clearSegmentAutoAdded(state, location, cellId) {
+  const { room, wall, run } = location;
+  const items = runItems(run);
+  const index = items.findIndex((item) => item.id === cellId
+    || (item.grid && gridLeaves(item.grid).some((leaf) => leaf.id === cellId)));
+  if (index < 0) return;
+  const { pinTargets } = splitOptionsForRun(room, wall, run, settingsFor(state, room));
+  const boundary = (item) => PINNABLE_KINDS.has(item.kind) && placedAt(item)
+    && Number.isFinite(pinTargets?.[item.id]);
+  let first = index;
+  let last = index;
+  if (!boundary(items[index])) {
+    while (first > 0 && !boundary(items[first - 1])) first -= 1;
+    while (last < items.length - 1 && !boundary(items[last + 1])) last += 1;
+  }
+  for (const item of items.slice(first, last + 1)) {
+    if (item.kind === 'cabinet' && item.autoAdded !== undefined) {
+      run.grid = updateRootItem(run.grid, item.id, { autoAdded: undefined });
+    }
+  }
 }
 
 export function roomIndexFor(state, roomId) {
