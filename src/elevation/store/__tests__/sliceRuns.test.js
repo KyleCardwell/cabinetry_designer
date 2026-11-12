@@ -136,6 +136,15 @@ describe('elevation run reducers', () => {
     expect(runItems(currentRun(next))).toHaveLength(3);
   });
 
+  it.each([['left', ['f', 'a', 'b']], ['right', ['a', 'f', 'b']]])('adds a filler %s of the selected column (AL1)', (side, order) => {
+    const initial = stateWithRun(run({ autoCount: false, items: [auto('a'), auto('b')] }));
+    const next = elevationReducer(initial, addItemAfter({
+      wallId: 'wall-1', runId: 'run-1', itemId: 'a', kind: 'filler', side,
+    }));
+    const ids = runItems(currentRun(next)).map((item) => (item.kind === 'filler' ? 'f' : item.id));
+    expect(ids).toEqual(order);
+  });
+
   it('adds the first manual item to an empty run and disables auto count', () => {
     const initial = stateWithRun(run({ autoCount: false, items: [] }));
     const next = elevationReducer(

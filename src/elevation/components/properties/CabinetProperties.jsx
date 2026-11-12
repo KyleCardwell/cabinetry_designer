@@ -148,14 +148,28 @@ export default function CabinetProperties({
                 <section className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet' }))}
+                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet', side: 'left' }))}
+                    className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
+                  >
+                    Add cabinet left
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet', side: 'right' }))}
                     className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
                   >
                     Add cabinet right
                   </button>
                   <button
                     type="button"
-                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'filler' }))}
+                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'filler', side: 'left' }))}
+                    className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
+                  >
+                    Add filler left
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'filler', side: 'right' }))}
                     className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
                   >
                     Add filler right

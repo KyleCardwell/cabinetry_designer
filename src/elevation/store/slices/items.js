@@ -253,9 +253,10 @@ export const itemReducers = {
     const item = action.payload.kind === 'filler'
       ? { id: uuid(), kind: 'filler', width: settingsFor(state, location.room).defaultInteriorFillerWidth }
       : { id: uuid(), kind: 'cabinet', width: null };
+    // `side: 'left'` puts the new column before the selected one (default right, after it).
     location.run.grid = insertRootColumn(
       location.run.grid,
-      appendToEmptyRun ? 0 : itemIndex + 1,
+      appendToEmptyRun ? 0 : itemIndex + (action.payload.side === 'left' ? 0 : 1),
       item,
     );
     location.run.autoCount = false;
