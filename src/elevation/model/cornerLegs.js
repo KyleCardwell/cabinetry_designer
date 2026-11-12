@@ -9,6 +9,24 @@ import { runPulls } from './pullLayouts.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
+/** True-size door details and their scene for a Corner 90 return leg. */
+export function cornerLegBDetails(room, wall, run, settings, columnId, entry) {
+  const faceLayout = entry.cornerReturn.legB;
+  const item = runItems(run).find(({ id }) => id === columnId);
+  const stored = run.ends[entry.corner.side].corner?.legBFace;
+  const face = stored ? { type: stored } : item.face ? flipHinges(item.face) : null;
+  const legRun = {
+    ...run,
+    ...(run.grid ? { grid: updateRootItem(run.grid, columnId, { face }) } : {}),
+    ...(run.items ? { items: run.items.map((item) => item.id === columnId ? { ...item, face } : item) } : {}),
+  };
+  const legScene = {
+    faceLayouts: new Map([[columnId, faceLayout]]), drawnPieces: [], blind: { entries: [] },
+  };
+  const doorDetails = runDoorDetails(room, wall, legRun, settings, legScene);
+  return { run: legRun, scene: legScene, doorDetails };
+}
+
 /** Drawing-only corner legs owned by runs on other wall faces. */
 export function cornerReturnLegs(room, wall, settings) {
   const legs = [];
@@ -40,19 +58,9 @@ export function cornerReturnLegs(room, wall, settings) {
         let faceLayout, doorDetails, pulls;
         if (kind === 90) {
           faceLayout = entry.cornerReturn.legB;
-          const item = runItems(run).find(({ id }) => id === columnId);
-          const stored = run.ends[side].corner?.legBFace;
-          const face = stored ? { type: stored } : item.face ? flipHinges(item.face) : null;
-          const legRun = {
-            ...run,
-            ...(run.grid ? { grid: updateRootItem(run.grid, columnId, { face }) } : {}),
-            ...(run.items ? { items: run.items.map((item) => item.id === columnId ? { ...item, face } : item) } : {}),
-          };
-          const legScene = {
-            faceLayouts: new Map([[columnId, faceLayout]]), drawnPieces: [], blind: { entries: [] },
-          };
-          doorDetails = runDoorDetails(room, view, legRun, settings, legScene);
-          pulls = runPulls(room, view, legRun, settings, legScene, doorDetails).pulls;
+          const leg = cornerLegBDetails(room, view, run, settings, columnId, entry);
+          doorDetails = leg.doorDetails;
+          pulls = runPulls(room, view, leg.run, settings, leg.scene, doorDetails).pulls;
         } else {
           const squash = entry.cornerReturn.squash;
           const squashes = new Map([[columnId, squash]]);

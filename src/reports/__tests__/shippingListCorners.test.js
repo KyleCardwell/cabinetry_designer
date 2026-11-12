@@ -4,8 +4,9 @@ import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { effectiveSettings } from '../../elevation/model/effectiveSettings.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
+import { doorOrder, doorOrderItems } from '../doorOrder.js';
 import { formatRevealParts } from '../faceReveals.js';
-import { formatInch } from '../format.js';
+import { formatInch, formatSize } from '../format.js';
 import { shippingList } from '../shippingList.js';
 
 const BASE = 'b0505231-35e6-4630-8a1e-e9b2181d443c';
@@ -81,5 +82,55 @@ describe('corner cabinet shipping rows', () => {
     expect(row.notes).toContain('RV\'s (1 19/32" T, 27/32" B, 27/32" L & R)');
     expect(row.notes).toContain('hr');
     expect(row.notes).not.toContain('bi-fold doors');
+  });
+});
+
+describe('corner cabinet door orders', () => {
+  it.each([
+    { name: 'equal doors on both legs', kind: 90, keys: [BASE, UPPER], qty: 2, width: 10.9375 },
+    { name: 'a door and a return panel', kind: 90, keys: [UPPER], qty: 1, width: 10.9375, panel: true },
+    { name: 'a diagonal door', kind: 45, keys: [BASE], qty: 1, width: 15.5625 },
+  ])('orders $name under the corner number (CC9)', (anchor) => {
+    const source = JSON.parse(readFileSync(new URL('../../elevation/model/__tests__/fixtures/room8cc.json', import.meta.url), 'utf8'));
+    const storedWall = source.walls.find(({ name }) => name === 'Wall 3');
+    for (const run of storedWall.runs) {
+      for (const end of Object.values(run.ends ?? {})) {
+        if (end?.type === 'corner') end.corner.kind = anchor.kind;
+      }
+    }
+    if (anchor.panel) {
+      const run = storedWall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === UPPER));
+      run.ends.left.corner.legBFace = 'panel';
+    }
+    const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS } }, source);
+    const room = syncRoom(source, settings);
+    const wall = room.walls.find(({ name }) => name === 'Wall 3');
+    const rows = shippingList(room, settings).rows;
+    const { items } = doorOrderItems(room, settings);
+    const order = doorOrder(room, settings);
+    for (const key of anchor.keys) {
+      const run = wall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === key));
+      const entry = runScene(room, wall, run, settings).faceLayouts.get(key);
+      const height = entry.faces[0].height;
+      const number = rows.find((row) => row.key === key).number;
+      const doors = items.filter((item) => item.pieceId === key && item.faceType === 'door');
+      expect(doors).toHaveLength(anchor.qty);
+      for (const door of doors) expect(door).toMatchObject({ kind: 'face', width: anchor.width, height });
+      const lines = order.pages.filter((page) => page.type === 'doors')
+        .flatMap((page) => page.sections.flatMap((section) => section.lines))
+        .filter((line) => line.number === number);
+      expect(lines).toContainEqual(expect.objectContaining({
+        number, qty: anchor.qty + (anchor.panel ? 1 : 0), width: anchor.width, height,
+        size: formatSize(anchor.width, height),
+      }));
+      expect(lines).toHaveLength(1);
+      if (anchor.panel) {
+        expect(items.filter((item) => item.pieceId === key && item.faceType === 'panel')).toEqual([
+          expect.objectContaining({ kind: 'face', pieceId: key,
+            width: entry.cornerReturn.legB.faces[0].width, height }),
+        ]);
+      }
+    }
+    expect(order.warnings.filter(({ code }) => code === 'report-part-unnumbered')).toEqual([]);
   });
 });
