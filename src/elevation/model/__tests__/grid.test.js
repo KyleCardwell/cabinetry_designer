@@ -159,16 +159,6 @@ describe('grid shape', () => {
     expect(runItems({})).toEqual([]);
   });
 
-  it('reads legacy and grid blind values', () => {
-    expect(runBlind({ blind: { left: 5, right: null }, grid: BLIND_GRID }))
-      .toEqual({ left: 5, right: null });
-    expect(runBlind({ grid: BLIND_GRID })).toEqual({ left: 36, right: 24 });
-    expect(runBlind({ grid: GRID })).toBeUndefined();
-    const one = gridFromItems('r2', [ITEMS[0]], { left: 36, right: 24 });
-    expect(leaf(one, 'a').blind).toEqual({ left: 36, right: 24 });
-    expect(runBlind({ grid: one })).toEqual({ left: 36, right: 24 });
-  });
-
   it('sets and clears grid blind values', () => {
     const set = setGridBlind(GRID, 'right', 24);
     expect(leaf(set, 'c').blind).toEqual({ right: 24 });

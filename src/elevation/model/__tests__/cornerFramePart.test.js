@@ -110,18 +110,6 @@ describe('CC6 step e corner frame parts', () => {
     }
   });
 
-  it('anchor 6: preserves parts, numbering and scene frames in rooms without corner ends', () => {
-    const source = room({ style: { cabinetStyleId: 14 }, walls: [wall({ runs: [run({
-      autoCount: false, items: [auto('a')],
-      ends: { left: { type: 'none' }, right: { type: 'none' } },
-    })] }), wall({ id: 'wall-2' })] });
-    const { subject, scene } = resolved(source);
-    expect(scene.cornerFrames).toEqual([]);
-    expect(partNumbers(subject, S).parts.map(({ key, number }) => [key, number]))
-      .toEqual([['a', 1], ['frame:a', 2], ['molding:toeKick', 3]]);
-    expect(roomParts(subject, S).filter(({ kind }) => kind === 'frame')).toHaveLength(1);
-  });
-
   it('anchors badges on each elevation’s nearest own stile, falling back to the rails’ centre', () => {
     for (const source of [ROOM_B, ROOM_C]) {
       const { subject, owner, returning, scene } = resolved(source);

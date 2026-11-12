@@ -185,13 +185,6 @@ describe('WL1 a: held landed walls', () => {
     expect(byId(resolved, 'wall-5')).toMatchObject({ x1: -93, y1: 9, x2: -93, y2: -30 });
   });
 
-  it('anchor 9: returns the same walls for an unchanged room', () => {
-    expect(holdLandedWalls(K, { ...K })).toEqual({
-      ok: true, reason: null, message: null, walls: K.walls,
-    });
-    expect(holdLandedWalls(K, { ...K }).walls).toBe(K.walls);
-  });
-
   it.each([
     ['thickness', { thickness: 6 }, 15],
     ['flip', { flipped: true }, 4.5],

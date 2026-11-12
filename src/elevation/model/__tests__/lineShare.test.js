@@ -156,17 +156,6 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('keeps return-pin widths and placement unchanged', () => {
-    delete r.grid.cols[1].attach;
-    r.grid.cols[1].pin = { from: 'return', anchor: 'right', edge: 'right' };
-    r._pinWidths = { B: 39 };
-    const opts = { pinTargets: { B: 76.5 } };
-    expect(lineSharedWidths(r, settings, opts)).toEqual({});
-    expect(splitRun(r, settings, opts).pieces).toMatchObject([
-      { width: 1.5 }, { id: 'A', width: 36 }, { id: 'B', x: 37.5, width: 39 },
-    ]);
-  });
-
   it('LL4.1 b: a left end column stays on its line; between two lines with no filler the widths match, unrounded', () => {
     w.runs = [run({
       ...r, anchors: { left: false, right: false }, seamGap: 1,

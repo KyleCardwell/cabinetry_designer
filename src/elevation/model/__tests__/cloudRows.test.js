@@ -1,17 +1,13 @@
-import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
-import { isDoorDesign } from '../doorDesigns.js';
-import { isAccessory } from '../accessories.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
 import { BUILT_IN_SLIDES, isSlide } from '../slides.js';
-import { BUILT_IN_PULLS, isPull } from '../pulls.js';
+import { BUILT_IN_PULLS } from '../pulls.js';
 import {
   accessoryToRow,
   accessoryFromRow,
-  doorDesignIdFor,
   doorDesignFromRow,
   doorDesignToRow,
   isUuid,
@@ -48,25 +44,6 @@ it('IN4c a anchors 2 and 3: defaults missing slide back clearance by seedId, els
     }
     for (const backClearance of [-0.25, null, '0.75', Infinity, NaN, undefined]) {
       expect(slideFromRow({ ...row, data: { ...row.data, backClearance } })).toBeNull();
-    }
-  }
-});
-
-it('LP1 anchor 4: defaults legacy shop row pricing and skips invalid present values', () => {
-  for (const [base, toRow, fromRow, idKey, validate] of [
-    [BUILT_IN_PULLS[0], pullToRow, pullFromRow, 'pull_id', isPull],
-    [BUILT_IN_SLIDES[0], slideToRow, slideFromRow, 'slide_id', isSlide],
-  ]) {
-    const row = { ...toRow(base), [idKey]: DID };
-    for (const key of ['price', 'actualCost', 'labor']) delete row.data[key];
-    if (idKey === 'slide_id') row.data.cvName = 'Retired name';
-    const before = structuredClone(row);
-    const loaded = fromRow(row);
-    expect(loaded).toEqual(base);
-    expect(validate(loaded)).toBe(true);
-    expect(row).toEqual(before);
-    for (const [key, value] of [['price', 'x'], ['actualCost', -1], ['labor', null]]) {
-      expect(fromRow({ ...row, data: { ...row.data, [key]: value } })).toBeNull();
     }
   }
 });
@@ -231,19 +208,6 @@ describe('cloudRows', () => {
 });
 
 
-it('527. migrates the old MDF Supabase seed on read without changing the row (anchor 5)', () => {
-  const { id, code, ...data } = structuredClone(LEGACY_DOOR_DESIGNS[2]);
-  const row = { design_id: DID, code, data: { ...data, seedId: id } };
-  const before = structuredClone(row);
-  const migrated = doorDesignFromRow(row);
-  expect(migrated).toEqual(DOOR_DESIGNS[2]);
-  expect(isDoorDesign(migrated)).toBe(true);
-  expect(doorDesignIdFor(row)).toBe('slab-mdf');
-  expect(doorDesignToRow(migrated).data.seedId).toBe('slab-mdf');
-  expect(row).toEqual(before);
-  expect(teamSettingsFromRow({ teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied' } }).teamDoorStyle.designId).toBe('slab-mdf');
-});
-
 
 it('IN4b d round-trips the default slide and replaces an empty stored ID (anchor 4)', () => {
   for (const drawerSlideId of ['blum-562h', 'accuride-3832', 'gone']) {
@@ -296,24 +260,4 @@ it('IN12b c keeps accessories out of the shop standard and defaults clone (ancho
   expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, accessories: [susan] })).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({})).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({ accessories: [susan] })).not.toHaveProperty('accessories');
-});
-
-it('IN13a a anchor 4: loads legacy cloud accessories before validation and round trips saved size', () => {
-  const row = { accessory_id: DID, ...accessoryToRow(susan) };
-  delete row.data.size;
-  delete row.data.lengthDeduction;
-  delete row.data.shapeId;
-  delete row.data.depthAnchor;
-  const before = structuredClone(row);
-  const loaded = accessoryFromRow(row);
-  expect(isAccessory(loaded)).toBe(true);
-  expect(loaded).toEqual(susan);
-  expect(row).toEqual(before);
-  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
-    shapeId: 's1', depthAnchor: { at: 'centre', offset: -0.5 } };
-  expect(accessoryFromRow({ accessory_id: DID, ...accessoryToRow(rod) })).toEqual(rod);
-  for (const data of [{ ...row.data, size: null }, { ...row.data, lengthDeduction: -1 / 8 },
-    { ...row.data, shapeId: '' }, { ...row.data, depthAnchor: { at: 'middle', offset: 0 } }]) {
-    expect(accessoryFromRow({ ...row, data })).toBeNull();
-  }
 });

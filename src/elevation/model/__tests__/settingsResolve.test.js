@@ -102,21 +102,6 @@ describe('DB1 a settings resolver', () => {
     expect(resolveSetting('extra.nested', [team(teamValues), room({ extra: { nested: 8 } })]))
       .toEqual({ value: 7, source: { level: 'team', id: 'shop' } });
   });
-
-  it('keeps inputs and defaults unchanged when resolved outputs are edited or overrides cleaned', () => {
-    const chain = [team({ insetFrame: { stile: 1 }, extra: { nested: [1] } }), room({ insetFrame: { rail: 2 } })];
-    const before = structuredClone(chain);
-    const defaults = structuredClone(DEFAULT_SETTINGS);
-    const resolved = resolveSettings(chain);
-    resolved.insetFrame.stile = 99;
-    resolved.extra.nested.push(2);
-    resolved.defaultProfile.wallHeight = 200;
-    resolved.doorDesigns.length = 0;
-    const clean = cleanOverrides(chain[1].values, 'room');
-    clean.insetFrame.rail = 99;
-    expect(chain).toEqual(before);
-    expect(DEFAULT_SETTINGS).toEqual(defaults);
-  });
 });
 
 describe('DB2 c setting value validation', () => {

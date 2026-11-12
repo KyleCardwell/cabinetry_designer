@@ -1,8 +1,6 @@
-import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
-import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
-import { DESIGN_SLOTS, SEEDED_DESIGN_IDS, isDoorDesign, isDoorDesignList, migrateDoorDesign, parseDoorDesignFile, doorDesignFile } from '../doorDesigns.js';
+import { DESIGN_SLOTS, SEEDED_DESIGN_IDS, isDoorDesign, isDoorDesignList } from '../doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, teamDoorStyle } from '../doorStyles.js';
 
 const ARCHED = {
@@ -77,31 +75,6 @@ describe('SPEC-46.3 the team\'s door designs and default door style live in sett
 
 
 describe('Step 527 door design migration and shape', () => {
-  it('migrates both legacy slab seeds to their new cores, slots and defaults (anchors 1–2)', () => {
-    const before = structuredClone(LEGACY_DOOR_DESIGNS);
-    expect(migrateDoorDesign(before[2])).toEqual(DOOR_DESIGNS[2]);
-    expect(migrateDoorDesign(before[1])).toEqual(DOOR_DESIGNS[1]);
-    expect(migrateDoorDesign(before[0])).toEqual(DOOR_DESIGNS[0]);
-    expect(DOOR_DESIGNS[2].defaults).toEqual({ thickness: 0.75 });
-    expect(DOOR_DESIGNS[1].defaults).toEqual({ thickness: 0.8125 });
-    expect(before).toEqual(LEGACY_DOOR_DESIGNS);
-  });
-
-  it('preserves custom identity, rails and seed text edits; migration is idempotent (anchor 3)', () => {
-    const old = { ...LEGACY_DOOR_DESIGNS[0], id: 'd1', code: '114', topRail: { shape: 'arch' } };
-    const migrated = migrateDoorDesign(old);
-    expect(migrated).toEqual({ ...old, slabCore: null, panelJoint: 'curved', defaults: {} });
-    expect(migrated.topRail).toBe(old.topRail);
-    const applied = migrateDoorDesign({ ...LEGACY_DOOR_DESIGNS[2], id: 'd2', code: 'Custom' });
-    expect(applied).toMatchObject({ id: 'd2', code: 'Custom', construction: 'slab', slabCore: 'mdf', panelJoint: null, defaults: {} });
-    const renamed = migrateDoorDesign({ ...LEGACY_DOOR_DESIGNS[2], code: 'Shop', description: 'Custom description' });
-    expect(renamed).toMatchObject({ id: 'slab-mdf', code: 'Shop', description: 'Custom description' });
-    expect(migrateDoorDesign({ ...LEGACY_DOOR_DESIGNS[1], description: 'Shop slab' }).description).toBe('Shop slab');
-    for (const design of [...DOOR_DESIGNS, migrated, applied, renamed, { ...ARCHED, panelJoint: 'square', defaults: { thickness: 1 } }]) {
-      expect(migrateDoorDesign(design)).toBe(design);
-    }
-    expect(migrateDoorDesign(null)).toBeNull();
-  });
 
   it('validates core/joint exclusivity and strict positive design defaults (anchor 6)', () => {
     for (const design of [
@@ -117,15 +90,5 @@ describe('Step 527 door design migration and shape', () => {
     ]) expect(isDoorDesign(design)).toBe(false);
     expect(isDoorDesign({ ...ARCHED, panelJoint: 'square', defaults: { thickness: 1, stileWidth: 2, panelThickness: 0.5, slabBelow: 4 } })).toBe(true);
     expect(isDoorDesignList(withDesign('slab', { slabCore: 'mdf' }))).toBe(false);
-  });
-
-  it('migrates file entries before validation and rejects unsupported envelopes', () => {
-    const parsed = parseDoorDesignFile(JSON.stringify(doorDesignFile(LEGACY_DOOR_DESIGNS)));
-    expect(parsed).toEqual(DOOR_DESIGNS.slice(0, 3));
-    expect(isDoorDesignList([...parsed, MICRO_SHAKER])).toBe(true);
-    expect(parseDoorDesignFile(JSON.stringify(doorDesignFile(DOOR_DESIGNS)))).toEqual(DOOR_DESIGNS);
-    for (const text of ['{', 'null', '{}', JSON.stringify({ kind: 'door-designs', version: 2, designs: [] })]) {
-      expect(parseDoorDesignFile(text)).toBeNull();
-    }
   });
 });

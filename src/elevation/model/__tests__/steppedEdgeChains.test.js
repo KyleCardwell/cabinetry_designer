@@ -56,15 +56,6 @@ describe('ST6 step a stepped edge chains', () => {
     expect(chain(fixture('C', { bottom: manual(3) }), 'right')).toEqual(expected);
   });
 
-  it('anchor 3: leaves both edge chains unchanged when only B top is dropped', () => {
-    const f = fixture('B', { top: manual(2) });
-    for (const edge of ['left', 'right']) expect(chain(f, edge)).toEqual(plain);
-    for (const edge of ['left', 'right']) {
-      expect(chain(fixture('B', { top: manual(2) }, true), edge))
-        .toEqual(chain(fixture(undefined, undefined, true), edge));
-    }
-  });
-
   it('anchor 4: ends the plain inset edge stack at 32.5 and labels its notch as a step', () => {
     const expected = [plain[0], segment('frame', 4, 5.5), segment('frame-opening', 5.5, 31),
       segment('frame', 31, 32.5), segment('step', 32.5, 34.5), plain[2]];

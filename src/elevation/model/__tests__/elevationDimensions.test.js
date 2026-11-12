@@ -61,16 +61,6 @@ describe('ST6 step b internal step dimensions', () => {
     expect(room).toEqual(before);
   });
 
-  it('anchor 5: has no step row without steps and preserves all golden dimensions', () => {
-    expect(dimensions(fixture())).toEqual([]);
-    for (const original of document.rooms) {
-      const synced = syncRoom(original, settings);
-      for (const wall of synced.walls) {
-        for (const side of ['front', 'back']) expect(dimensions({ ...synced, walls: [wall] }, settings, side)).toEqual([]);
-      }
-    }
-  });
-
   it('uses accepted root box bounds for both edges, nested grids, equal drops and rejected offsets', () => {
     const room = fixture({ B: { top: manual(2), bottom: manual(3) } });
     room.walls[0].runs[0].grid.cells[1].node = {

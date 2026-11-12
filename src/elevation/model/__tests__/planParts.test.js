@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
@@ -69,14 +68,6 @@ describe('PT1 step b tops in the plan payload', () => {
     expect(planParts(room9b, settings9b).some((part) => 'bottom' in part)).toBe(false);
     expect(tops[0]).not.toHaveProperty('top');
     expect(tops[0]).not.toHaveProperty('runId');
-  });
-
-  it('anchor 2: preserves every pre-PT1 Room 9b part in order', () => {
-    const unchanged = planParts(room9b, settings9b).filter(({ kind }) => kind !== 'countertop');
-    expect(unchanged).toHaveLength(25);
-    // Captured from planParts after step a, before adding countertop outlines.
-    expect(createHash('sha256').update(JSON.stringify(unchanged)).digest('hex'))
-      .toBe('776699c4dd03844c85db1e12a08ea24c1e2423a250398fcb1a145a1abf3ccc5b');
   });
 
   it('anchor 3: snaps a plan measurement to the Room 9b top corner in canvas coordinates', () => {

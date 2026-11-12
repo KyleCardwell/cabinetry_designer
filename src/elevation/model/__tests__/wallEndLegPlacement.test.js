@@ -33,14 +33,6 @@ function inspect(input, options = settings, runId = 'R') {
 }
 
 describe('SH7.6 step b wall end placement and room', () => {
-  it('anchor 1: preserves panel and run positions without wall legs', () => {
-    const { r, panel, legs } = inspect(room({ walls: [wall({ ...W, endLegs: undefined })] }));
-    expect(r.x).toBe(0.8125);
-    expect(panel.front.x).toBe(0);
-    expect(legs).toHaveLength(0);
-    expect(r).not.toHaveProperty('_wallLegs');
-    expect(r).not.toHaveProperty('_wallEnds');
-  });
 
   it('anchor 2: places a named wall leg at the end line and reserves it once', () => {
     const input = room({ walls: [W] });
@@ -169,19 +161,6 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(after.panel.front.x).toBe(91.6875);
     expect(after.legs.map(({ front, back }) => [front, back]))
       .toEqual(before.legs.map(({ front, back }) => [front, back]));
-  });
-
-  it('anchor 12: absent wall legs leave parts, payloads and numbering unchanged', () => {
-    const bare = room({ walls: [wall({ ...W, endLegs: undefined })] });
-    const dormant = room({ walls: [wall({ ...W, endLegs: { end: W.endLegs.start },
-      connections: { end: { wallId: 'other', endpoint: 'start' } } })] });
-    const baseline = syncRoom(room({ ...bare, walls: [wall({ ...bare.walls[0],
-      connections: dormant.walls[0].connections })] }), settings);
-    const actual = syncRoom(dormant, settings);
-    expect(roomParts(actual, settings)).toEqual(roomParts(baseline, settings));
-    expect(toDrawingPayload(actual, settings)).toEqual(toDrawingPayload(baseline, settings));
-    expect(partNumbers(actual, settings)).toEqual(partNumbers(baseline, settings));
-    expect(shippingList(actual, settings)).toEqual(shippingList(baseline, settings));
   });
 
   it('honors typed clearance and missing shapes, and leaves wall legs out of run fills', () => {

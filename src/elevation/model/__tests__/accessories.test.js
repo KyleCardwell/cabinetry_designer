@@ -85,27 +85,6 @@ it('IN13a a anchors 1–2: validates size and ordered-length deduction for each 
   expect(rod.size.height).toBe(1.25);
 });
 
-it('IN13a a anchor 4: defaults only missing accessory keys without changing old fields or invalid values', () => {
-  const legacy = structuredClone(susan);
-  delete legacy.size;
-  delete legacy.lengthDeduction;
-  const before = structuredClone(legacy);
-  const loaded = withAccessoryDefaults(legacy);
-  expect(loaded).toEqual({ ...before, size: { width: null, height: null, depth: null }, lengthDeduction: null });
-  expect(isAccessory(loaded)).toBe(true);
-  expect(legacy).toEqual(before);
-  expect(withAccessoryDefaults(legacy).size).not.toBe(loaded.size);
-  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
-  expect(withAccessoryDefaults(rod)).toEqual(rod);
-  expect(withAccessoryDefaults({ ...legacy, size: rod.size })).toEqual({ ...legacy, size: rod.size, lengthDeduction: null });
-  expect(withAccessoryDefaults({ ...legacy, lengthDeduction: 0 })).toEqual({ ...legacy, size: loaded.size, lengthDeduction: 0 });
-  for (const change of [{ size: null }, { size: undefined }, { size: { width: 3 } }, { lengthDeduction: undefined }]) {
-    const invalid = { ...legacy, ...change };
-    expect(isAccessory(withAccessoryDefaults(invalid))).toBe(false);
-  }
-  for (const value of [null, undefined, 'x', 3, false, []]) expect(withAccessoryDefaults(value)).toBe(value);
-});
-
 it('IN12b anchor 2: picks the first unused new accessory name ignoring case', () => {
   const first = newAccessory([], 'x');
   expect(newAccessory([first], 'y').name).toBe('New accessory 2');

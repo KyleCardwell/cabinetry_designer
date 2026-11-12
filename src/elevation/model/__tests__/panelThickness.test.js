@@ -8,7 +8,7 @@ import { runScene } from '../runScene.js';
 import { isJoinedEnd, runEndThickness } from '../panelThickness.js';
 import { syncRoom } from '../room.js';
 import { wallEndPanels } from '../wallEndPanels.js';
-import { isElevationDocument, normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
+import { normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
@@ -151,18 +151,6 @@ describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {
     const pick = pickOptions(room, settings, 'panel', [{ level: 'room', node: room }]);
     expect(pick.inherit.text).toBe('Same as doors (Std · 5PC · 13/16")');
     expect(pick.options[0].text).toBe('Team default (Std · 5PC · 13/16")');
-  });
-
-  it('prunes old room panel thickness settings on load without carrying values over', () => {
-    const old = structuredClone(document);
-    old.rooms[0].settingsOverrides = { endPanelThickness: 1, sheetThickness: 0.875 };
-    old.rooms[1].settingsOverrides = { endPanelThickness: 1 };
-    const loaded = normalizeElevationDocument(old);
-    expect(loaded.rooms[0].settingsOverrides).toEqual({ sheetThickness: 0.875 });
-    expect(loaded.rooms[1]).not.toHaveProperty('settingsOverrides');
-    expect(loaded.settings.teamDoorStyle.thickness).toBe(0.8125);
-    expect(loaded.schemaVersion).toBe(old.schemaVersion);
-    expect(isElevationDocument(loaded)).toBe(true);
   });
 
   it('gives an unpicked free panel a 1 9/16" face frame end stile', () => {

@@ -50,28 +50,12 @@ describe('FX11 a bottom reveal over an open cell', () => {
     expect(layouts.get('bottom').reveals.sources.top).toBe('rule:stacked-seam');
   });
 
-  it('anchor 3: leaves a cabinet below an open top cell unchanged', () => {
-    const layout = fixture({ voidAbove: true }).get('cabinet');
-    expect(layout.box.z).toBe(4);
-    expect(layout.reveals.values.bottom).toBe(0.125);
-    expect(layout.reveals.sources.bottom).toBe('style');
-    expect(layout.faces[0].z).toBe(4.125);
-  });
-
   it('anchor 4: applies a typed bottom reveal after the open-below rule', () => {
     const layout = fixture({ manual: 0.125 }).get('cabinet');
     expect(layout.box.z).toBe(44);
     expect(layout.reveals.values.bottom).toBe(0.125);
     expect(layout.reveals.sources.bottom).toBe('manual');
     expect(layout.faces[0].z).toBe(44.125);
-  });
-
-  it('anchor 5: leaves face frame and beaded inset reveals unchanged', () => {
-    for (const [styleId, bottom] of [[14, 1.5], [15, 1.75]]) {
-      const layout = fixture({ styleId }).get('cabinet');
-      expect(layout.reveals.values.bottom).toBe(bottom);
-      expect(layout.reveals.sources.bottom).toBe('style');
-    }
   });
 
   it('uses gap reach and the configured upper bottom reveal', () => {

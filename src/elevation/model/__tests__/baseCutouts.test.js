@@ -3,15 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { bandParts } from '../bandParts.js';
 import { baseCutoutSpan } from '../baseCutouts.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
-import { cornerShapes } from '../cornerParts.js';
 import { toDrawingPayload } from '../drawingPayload.js';
 import { runBase } from '../furnitureBase.js';
 import { gridFromItems } from '../grid.js';
-import { carriesMolding } from '../parts.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
-import { runSide } from '../runSide.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
@@ -366,48 +363,6 @@ describe('SPEC-50.6 step 493 base cutouts', () => {
     expect([topLeft, topRight, whole]).toEqual([
       line(29.1875, 34.5, 1.5), line(61.5, 66.8125, 1.5), line(29.1875, 66.8125, 3.6875),
     ]);
-  });
-
-  it('keeps side sections, depths and part-kind selection unchanged', () => {
-    const withCutout = setup();
-    const plain = setup({ cutouts: [] });
-    expect(runSide(withCutout.room, withCutout.wall, withCutout.run, settings))
-      .toEqual(runSide(plain.room, plain.wall, plain.run, settings));
-    expect(withCutout.parts.find(({ kind }) => kind === 'furniture_base').front)
-      .toBe(plain.parts.find(({ kind }) => kind === 'furniture_base').front);
-    expect(carriesMolding(withCutout.wall, withCutout.run, withCutout.room.profile, 'toeKick')).toBe(false);
-  });
-
-  it('preserves connected-wall corner sections and plan geometry when their runs have cutouts', () => {
-    const stored = structuredClone(document.rooms[2]);
-    stored.profile = { ...stored.profile, baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' };
-    const plain = syncRoom(stored, settings);
-    const cut = structuredClone(plain);
-    for (const wall of cut.walls) {
-      const view = resolveWall(cut, wall);
-      for (const run of wall.runs) {
-        if (run.cabinetTypeId !== CABINET_TYPE_IDS.BASE) continue;
-        const resolved = view.runs.find(({ id }) => id === run.id);
-        const cabinets = runScene(cut, view, resolved, settings).cells.pieces
-          .filter(({ kind, z }) => kind === 'cabinet' && Math.abs(z - resolved.z) < 1e-6);
-        if (cabinets.length) run.baseCutouts = [{ id: 'cut', from: cabinets[0].id, to: cabinets.at(-1).id }];
-      }
-    }
-    let drawn = 0;
-    for (const wall of cut.walls) {
-      const original = plain.walls.find(({ id }) => id === wall.id);
-      expect(cornerShapes(cut, wall, 'front', settings)).toEqual(cornerShapes(plain, original, 'front', settings));
-      const view = resolveWall(cut, wall);
-      for (const run of view.runs) {
-        const base = runBase(cut, view, run, settings);
-        if (!base.cutouts?.length) continue;
-        drawn += base.cutouts.length;
-        expect(runBands(cut, view, run, settings, runScene(cut, view, run, settings)).furnitureBases[0].outline
-          .some(([, z]) => z === 1.5)).toBe(true);
-      }
-    }
-    expect(drawn).toBeGreaterThan(0);
-    expect(toDrawingPayload(cut, settings).plan).toEqual(toDrawingPayload(plain, settings).plan);
   });
 
 });

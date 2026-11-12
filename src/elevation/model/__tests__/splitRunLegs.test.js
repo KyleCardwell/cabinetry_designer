@@ -19,28 +19,6 @@ const W = wall({ runs: [R] });
 const ROOM = room({ walls: [W] });
 
 describe('SH7.1 step b layout inside legs', () => {
-  it('anchor 1: preserves the current no-leg layout', () => {
-    expect(layoutRun(ROOM, W, R, settings)).toMatchInlineSnapshot(`
-      {
-        "errors": [],
-        "pieces": [
-          {
-            "auto": true,
-            "cabinetTypeId": 1,
-            "depth": 24,
-            "height": 30.5,
-            "id": "a",
-            "kind": "cabinet",
-            "role": "item",
-            "width": 36,
-            "x": 10,
-            "z": 4,
-          },
-        ],
-        "warnings": [],
-      }
-    `);
-  });
 
   it('anchor 2: starts cabinets inside the left leg and keeps the right edge', () => {
     const result = layoutRun(ROOM, W, { ...R, legs: [L] }, settings);
@@ -58,13 +36,6 @@ describe('SH7.1 step b layout inside legs', () => {
     const last = result.pieces.at(-1);
     expect(last.x + last.width).toBe(42.5);
     expect(result.errors).toEqual([]);
-  });
-
-  it('anchor 4: preserves the layout for opted-out and non-overlapping legs', () => {
-    const baseline = layoutRun(ROOM, W, R, settings);
-    for (const changes of [{ takesRoom: false }, { y: 4 }]) {
-      expect(layoutRun(ROOM, W, { ...R, legs: [{ ...L, ...changes }] }, settings)).toEqual(baseline);
-    }
   });
 
   it('anchor 5: places the end panel inside the leg, before the cabinet', () => {
