@@ -11,7 +11,7 @@ import { isElevationDocument, normalizeElevationDocument, toElevationDocument } 
 
 const defaultCorner = {
   type: 'corner', width: null,
-  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null },
+  corner: { kind: 90, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null, pulls: null },
 };
 const target = { wallId: 'wall-1', runId: 'run-1', side: 'left' };
 let state;
@@ -126,7 +126,7 @@ describe('corner end data (CC1)', () => {
       end: { type: 'corner', corner: { kind: 45, legB: 30, depthB: 15 } },
     }));
     expect(current(next).ends.left).toEqual({ type: 'corner', width: null,
-      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null } });
+      corner: { kind: 45, legB: 30, depthB: 15, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null, pulls: null } });
     for (const returnPiece of RETURN_PIECES) {
       expect(normalizeCornerEnd({ type: 'corner', width: 2, height: 'full', auto: true,
         extend: {}, styleId: 'old', sizes: {}, corner: { returnPiece } }))

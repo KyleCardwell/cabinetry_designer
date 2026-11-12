@@ -49,7 +49,7 @@ describe('corner run end fields (CC3)', () => {
   it('creates a 45 corner and a manual 36-inch root column', () => {
     corner(45);
     expect(run().ends.left).toEqual({ type: 'corner', width: null, corner: {
-      kind: 45, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null,
+      kind: 45, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null, pulls: null,
     } });
     expect(run().grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 36 });
     expect(field('type').props.value).toBe('corner:45');

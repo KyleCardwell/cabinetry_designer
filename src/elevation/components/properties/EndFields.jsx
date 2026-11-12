@@ -138,6 +138,17 @@ export default function EndFields({
             <option value="panel">Panel</option>
           </select>
         </Field>}
+        {resolved.kind === 90 && <Field label="Bi-fold pulls">
+          <select
+            value={end.corner?.pulls ?? 'one'}
+            onChange={(event) => updateCorner({ pulls: event.target.value === 'one' ? null : event.target.value })}
+            aria-label={`${side} end corner bi-fold pulls`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="one">One (free door)</option>
+            <option value="both">Both doors</option>
+          </select>
+        </Field>}
         <Field label="Return side">
           <select
             value={end.corner?.returnPiece ?? 'auto'}

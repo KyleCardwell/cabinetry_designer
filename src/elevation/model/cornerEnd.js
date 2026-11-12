@@ -31,6 +31,7 @@ export function normalizeCornerEnd(end) {
       returnWidth: end.corner?.returnWidth ?? null,
       doors: end.corner?.doors ?? null,
       legBFace: end.corner?.legBFace ?? null,
+      pulls: end.corner?.pulls ?? null,
     },
   };
 }

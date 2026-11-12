@@ -131,12 +131,13 @@ function isEnd(end) {
       && Object.keys(end).every((key) => ['type', 'width', 'corner'].includes(key))
       && end.width === null
       && isPlainObject(corner)
-      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth', 'doors', 'legBFace'].includes(key))
+      && Object.keys(corner).every((key) => ['kind', 'legB', 'depthB', 'returnPiece', 'returnWidth', 'doors', 'legBFace', 'pulls'].includes(key))
       && CORNER_KINDS.includes(corner.kind)
       && [corner.legB, corner.depthB, corner.returnWidth].every((value) => value === null
         || (isFiniteNumber(value) && value > 0))
       && RETURN_PIECES.includes(corner.returnPiece)
       && (corner.legBFace === undefined || corner.legBFace === null || LEG_B_FACES.includes(corner.legBFace))
+      && (corner.pulls === undefined || corner.pulls === null || corner.pulls === 'both')
       && (corner.doors === undefined || corner.doors === null
         || registryEntry('cornerDoors').choices.includes(corner.doors));
   }
