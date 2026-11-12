@@ -2,6 +2,7 @@ import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
+import { cornerLegBandEdge } from './cornerLegBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorEndOpen, floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
@@ -144,7 +145,7 @@ function bandPast(room, wall, run, side, band, settings) {
 }
 
 /** Where a band ends at a free end of a run. */
-function freeEdge(room, wall, run, side, band, settings) {
+export function freeEdge(room, wall, run, side, band, settings) {
   return side === 'left'
     ? run.x - bandPast(room, wall, run, side, band, settings)
     : run.x + run.width + bandPast(room, wall, run, side, band, settings);
@@ -317,9 +318,11 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height, s
    * return's band (SPEC-42.3); otherwise bandEdge.
    */
   const left = (panelStart === null ? null : { type: 'square', x: panelStart })
+    ?? cornerLegBandEdge(room, wall, run, 'left', kind, settings)
     ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
     ?? bandEdge(room, wall, run, 'left', kind, settings, z, height, shapes);
   const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
+    ?? cornerLegBandEdge(room, wall, run, 'right', kind, settings)
     ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
     ?? bandEdge(room, wall, run, 'right', kind, settings, z, height, shapes);
   return [left, right];

@@ -1,4 +1,5 @@
 import { cornerEnd } from './cornerEnd.js';
+import { cornerLegBands } from './cornerLegBands.js';
 import { cornerReturnPoint } from './corners.js';
 import { squashDoorDetails, squashFaceLayouts, squashPulls } from './cornerSquash.js';
 import { runDoorDetails } from './doorDetails.js';
@@ -11,6 +12,7 @@ import { wallViewForRun } from './wallSides.js';
 /** Drawing-only corner legs owned by runs on other wall faces. */
 export function cornerReturnLegs(room, wall, settings) {
   const legs = [];
+  const bands = cornerLegBands(room, wall, settings);
   const target = wall.sideSource ?? wall;
   for (const ownerWall of room.walls) {
     for (const run of ownerWall.runs) {
@@ -72,6 +74,7 @@ export function cornerReturnLegs(room, wall, settings) {
           key: `corner-leg:${ownerWall.id}:${run.id}:${side}`,
           ownerWallId: ownerWall.id, runId: run.id, side, columnId, kind,
           label: `Corner ${kind}`, rect, returnPanel, faceLayout, doorDetails, pulls,
+          bands: bands.filter((band) => band.ownerWallId === ownerWall.id && band.runId === run.id && band.side === side),
           ...(sideEdge ? { sideEdge } : {}),
           ...(frame ? { frame } : {}),
         });
