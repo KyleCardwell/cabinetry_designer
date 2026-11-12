@@ -23,7 +23,7 @@ const PART_KINDS = {
 
 // Resolve just the vertical bands and front sections. Calling the owner's runBands here would
 // recurse through cornerShapes; a leg also needs no cabinet scene of its own.
-function ownerBands(room, view, owner, settings) {
+export function ownerBands(room, view, owner, settings) {
   const profile = resolveProfile(settings, room, view);
   const base = runBaseProfile(room, view, owner, settings);
   const moldings = moldingProfiles(profile, settings, owner);

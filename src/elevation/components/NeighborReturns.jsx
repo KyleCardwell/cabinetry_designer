@@ -39,7 +39,7 @@ export default function NeighborReturns({
     .map((shape) => {
       const neighbor = room.walls.find((candidate) => candidate.id === shape.wallId);
       const name = neighbor ? wallLabel(room, neighbor) : '';
-      const label = shape.soffitId ? `${name} soffit`.trim() : name;
+      const label = shape.cornerOf ? '' : shape.soffitId ? `${name} soffit`.trim() : name;
       const parts = shape.parts.map((part) => ({
         ...part,
         rect: wallRectToScreen(part, transform),
@@ -192,7 +192,7 @@ export default function NeighborReturns({
               </Group>
             );
           })}
-          <Text
+          {entry.label && <Text
             {...entry.labelRect}
             text={entry.label}
             align="center"
@@ -200,7 +200,7 @@ export default function NeighborReturns({
             fontSize={10 * (transform.text?.label ?? 1)}
             fill="#e2e8f0"
             listening={false}
-          />
+          />}
         </Group>
       ))}
       {landings.map((entry) => (

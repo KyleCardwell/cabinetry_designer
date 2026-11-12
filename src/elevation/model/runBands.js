@@ -1,8 +1,9 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
-import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
-import { cornerLegBandEdge } from './cornerLegBands.js';
+import { cornerBandEdge, lazyCornerShapes, ownerBandTurnLines, profileBandJoint } from './cornerBands.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerLegBandEdge, ownerBands } from './cornerLegBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorEndOpen, floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
@@ -504,6 +505,21 @@ export function runBands(room, wall, run, settings, scene) {
     const edges = countertopEdges ?? [countertop.x, countertop.x + countertop.width]
       .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
     countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
+  }
+  let turnBands;
+  for (const side of ['left', 'right']) {
+    if (run.ends?.[side]?.corner?.kind !== 45) continue;
+    const corner = cornerEnd(room, wall, run, side, settings, scene.result);
+    if (!corner?.active || !corner.shape || !corner.columnId) continue;
+    turnBands ??= ownerBands(room, wall, run, settings);
+    const rects = { toeKick: toeKicks, furnitureBase: furnitureBases,
+      countertop: [countertop], topMold: [topMold], crown: [crown] };
+    for (const band of turnBands) {
+      for (const rect of rects[band.kind].filter(Boolean)) {
+        const lines = ownerBandTurnLines(corner, band, rect);
+        if (lines.length) rect.lines = [...(rect.lines ?? []), ...lines];
+      }
+    }
   }
   return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines,
     ...segmentedCountertop(run, scene, top, countertop) };

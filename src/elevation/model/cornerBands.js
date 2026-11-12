@@ -1,5 +1,5 @@
 import { cornerShapes } from './cornerParts.js';
-import { transformOutline } from './sectionProfileOutline.js';
+import { flattenOutline, transformOutline } from './sectionProfileOutline.js';
 
 const EPSILON = 1e-6;
 const PART_KINDS = {
@@ -24,6 +24,20 @@ export function cornerBandTurns(corner, kind, frontA) {
     a: [(line - normal[1] * frontA) / normal[0], frontA],
     b: [frontB, (line - normal[0] * frontB) / normal[1]],
   };
+}
+
+/** A 45 owner's miter shows the front contour squashed sideways, bottom to top. */
+export function ownerBandTurnLines(corner, band, rect) {
+  const { kind, front, z, height, contour } = band;
+  const turn = cornerBandTurns(corner, kind, front).a[0];
+  const x = corner.cornerX + corner.dir * turn;
+  if (x <= rect.x + EPSILON || x >= rect.x + rect.width - EPSILON) return [];
+  const tangent = Math.tan(corner.shape.miters.a * Math.PI / 180);
+  const points = contour ? flattenOutline(contour) : [[front, z], [front, z + height]];
+  const xOf = (depth) => corner.cornerX + corner.dir * (turn + (depth - front) * tangent);
+  return points.slice(1).map(([depth, z2], index) => ({
+    x1: xOf(points[index][0]), z1: points[index][1], x2: xOf(depth), z2,
+  }));
 }
 
 /** A touching end view carrying this band at this height, in the face's depth frame. */
@@ -89,6 +103,8 @@ export function cornerBandEdge(getShapes, run, side, band, z, height) {
   const edgeOf = (part) => side === 'left' ? part.x + part.width : part.x;
   const { shape, part } = parts.reduce((best, candidate) => (
     (side === 'left' ? edgeOf(candidate.part) > edgeOf(best.part) : edgeOf(candidate.part) < edgeOf(best.part))
+      || (Math.abs(edgeOf(candidate.part) - edgeOf(best.part)) <= EPSILON
+        && candidate.shape.cornerOf && !best.shape.cornerOf)
       ? candidate : best));
   return { type: 'cope', x: edgeOf(part), wallId: shape.wallId, runId: shape.runId,
     reach: side === 'left' ? part.x : part.x + part.width,

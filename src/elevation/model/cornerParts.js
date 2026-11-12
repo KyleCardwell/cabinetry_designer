@@ -1,7 +1,9 @@
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
-import { anchoredToCorner, cornerAt, crossingRuns, frontDepth, spanCorner } from './corners.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerLegBands } from './cornerLegBands.js';
+import { anchoredToCorner, cornerAt, cornerReturnPoint, crossingRuns, frontDepth, spanCorner } from './corners.js';
 import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
@@ -102,6 +104,35 @@ export function cornerShapes(room, wall, side, settings,
   const length = view.length;
   const depthOf = (point) => dot(subtract(point, frame.leftPoint), frame.n);
   const shapes = [];
+
+  // The owner's return leg is seen end-on even when no neighbouring run joins it.
+  const legBands = new Map();
+  for (const run of view.runs) {
+    for (const end of ['left', 'right']) {
+      const corner = cornerEnd(room, view, run, end, settings);
+      if (!corner?.active || !corner.shape || !corner.columnId) continue;
+      const point = cornerReturnPoint(room, view, run, end);
+      if (!point) continue;
+      const returnKey = elevationKey(point.wallId, point.wallSide);
+      if (!legBands.has(returnKey)) {
+        const neighbor = room.walls.find(({ id }) => id === point.wallId);
+        legBands.set(returnKey, cornerLegBands(room, wallSideView(neighbor, point.wallSide), settings));
+      }
+      const key = `${end}:corner:${run.id}`;
+      const parts = legBands.get(returnKey)
+        .filter((band) => band.ownerWallId === view.id && band.runId === run.id && band.side === end)
+        .map((band) => ({
+          id: `${key}:${band.kind}`, kind: band.kind, runId: run.id,
+          x: corner.cornerX + (end === 'left' ? 0 : -band.front),
+          z: band.z, width: band.front, height: band.height,
+          back: 0, front: Math.max(point.dir * (band.x - point.at),
+            point.dir * (band.x + band.width - point.at)),
+          coversBoxEdges: false, opaque: false,
+        }));
+      if (parts.length) shapes.push({ key, kind: 'return', wallId: point.wallId, runId: run.id,
+        cornerOf: { wallId: view.id, runId: run.id, side: end }, parts });
+    }
+  }
 
   /** An end-view end panel's door detail, mapped through the part's own depth → x and cut to its drawn range (DM8). */
   const endPanelDetail = (wallView, run, end, piece, xOf, x, width) => {
