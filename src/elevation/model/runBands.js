@@ -414,11 +414,11 @@ export function runBands(room, wall, run, settings, scene) {
     let edges;
     if (picked) {
       const loop = sectionProfileOutline(picked.geometry);
-      edges = endsFor(kind, rect.z).map((end, index) => {
+      edges = endsFor(kind, rect.z, rect.height).map((end, index) => {
         const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
           ? placeAtEnd(loop, end.side, kind === 'crown' && moldings.picked.topMold === 'none'
             ? 0 : moldings.overhang, reference, end.facing) : null);
-        const edge = (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+        const edge = end.edge ?? (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
           ?? [[end.x, rect.z, 0], [end.x, rect.z + rect.height, 0]];
         return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
       });
@@ -482,7 +482,7 @@ export function runBands(room, wall, run, settings, scene) {
       const loop = source.picked && sectionProfileOutline(source.picked.geometry);
       const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
         ? placeAtEnd(loop, end.side, overhang, source.reference, end.facing) : null);
-      const edge = (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+      const edge = end.edge ?? (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
         ?? [[end.x, z, 0], [end.x, reference, 0]];
       return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
     });

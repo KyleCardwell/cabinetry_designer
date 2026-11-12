@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { cove35 } from './fixtures/cove35.js';
 import { describe, expect, it } from 'vitest';
 import { connectWallStops } from './helpers/wallStops.js';
 import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
@@ -16,20 +17,6 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
 const document = normalizeElevationDocument(load('golden'));
 const tm3 = load('sectionProfiles').profiles.find(({ id }) => id === 'tm3');
-const cove35 = {
-  id: 'cove35', name: 'Cove 3 1/2', kind: 'crown',
-  geometry: {
-    units: 'in',
-    points: { a: [0, 0], b: [3, 0], c: [3, -0.5], d: [0.5, -3], e: [0.5, -3.5], f: [0, -3.5] },
-    loops: [{ closed: true, segs: [
-      { type: 'line', from: 'a', to: 'b' }, { type: 'line', from: 'b', to: 'c' },
-      { type: 'arc', from: 'c', to: 'd', center: [3, -3], ccw: true },
-      { type: 'line', from: 'd', to: 'e' }, { type: 'line', from: 'e', to: 'f' },
-      { type: 'line', from: 'f', to: 'a' },
-    ] }],
-  },
-  drawnPoints: { elevation: ['c', 'd'] },
-};
 const settings = { ...document.settings, sectionProfiles: [tm3, cove35] };
 const picks = { topMoldProfileId: 'tm3', crownProfileId: 'cove35' };
 const upper = document.rooms[0].walls[0].runs.find(({ id }) => id.startsWith('434f1164'));

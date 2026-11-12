@@ -165,7 +165,7 @@ export function furnitureBaseBand(base, ends) {
     const loop = source.picked && sectionProfileOutline(source.picked.geometry);
     const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
       ? placeAtEnd(loop, end.side, source.proud, source.height, end.facing) : null);
-    const edge = (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+    const edge = end.edge ?? (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
       ?? [[end.x, 0, 0], [end.x, base.height, 0]];
     return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
   });

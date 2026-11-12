@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { cove35 } from './fixtures/cove35.js';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
 import { cornerLegBands } from '../cornerLegBands.js';
 import { cornerReturnLegs } from '../cornerLegs.js';
+import { faceDrawing } from '../drawingPayload.js';
+import { effectiveSettings } from '../effectiveSettings.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBandEnds, runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
@@ -24,6 +28,65 @@ beforeEach(() => {
     connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } },
   });
   subject = room({ walls: [ownerWall, returnWall] });
+});
+
+describe('profiled return leg bands', () => {
+  const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
+  const tm3 = load('sectionProfiles').profiles.find(({ id }) => id === 'tm3');
+  const source = load('room8cc');
+  source.profile = { ...source.profile, topMoldProfileId: 'tm3', crownProfileId: 'cove35' };
+  const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS, sectionProfiles: [tm3, cove35] } }, source);
+  const synced = syncRoom(source, settings);
+  const anchorWall = synced.walls.find(({ name }) => name === 'Wall 2');
+  const parts = faceDrawing(synced, anchorWall, 'front', settings).parts;
+  const leg = (kind) => parts.find(({ id }) => id.startsWith('corner-leg:c8025fb2-')
+    && id.includes(':30580003-') && id.endsWith(`:left:${kind}`));
+  const carrier = (kind) => parts.find(({ id }) => id.startsWith('40329765-') && id.endsWith(`:${kind}`));
+  const edgePoints = (part, expected) => {
+    expect(part.outline).toBeDefined();
+    for (const [x, z] of expected) {
+      expect(part.outline.some(([px, pz]) => Math.abs(px - x) < 1e-3 && Math.abs(pz - z) < 1e-3)).toBe(true);
+    }
+  };
+
+  it.each([
+    ['ends the leg crown on its miter', () => {
+      edgePoints(leg('crown'), [[77.0913, 107.75], [77.0913, 108.25], [78.1268, 104.75], [78.1268, 105.25]]);
+    }],
+    ['mirrors the owner crown contour at the corner', () => {
+      edgePoints(leg('crown'), [[86.375, 107.75], [86.375, 108.25], [88.875, 104.75], [88.875, 105.25]]);
+    }],
+    ['stops leg crown drawn lines on its profile edges', () => {
+      expect(leg('crown').lines).toHaveLength(2);
+      for (const [z, x1, x2] of [[107.75, 77.0913, 86.375], [105.25, 78.1268, 88.875]]) {
+        const line = leg('crown').lines.find(({ z1, z2 }) => z1 === z && z2 === z);
+        expect(line.x1).toBeCloseTo(x1, 3);
+        expect(line.x2).toBeCloseTo(x2, 3);
+      }
+    }],
+    ['joins the carrier crown on the leg miter', () => {
+      edgePoints(carrier('crown'), [[77.0913, 107.75], [77.0913, 108.25], [78.1268, 104.75], [78.1268, 105.25]]);
+      expect(carrier('crown').x + carrier('crown').width).toBeCloseTo(78.1268, 3);
+      expect(carrier('crown').lines.find(({ z1 }) => z1 === 105.25).x2).toBeCloseTo(78.1268, 3);
+    }],
+    ['joins both top molds on the stepped miter', () => {
+      for (const part of [leg('top_mold'), carrier('top_mold')]) {
+        edgePoints(part, [[78.3339, 102], [78.3339, 102.75], [78.3857, 102.75], [78.3857, 105]]);
+      }
+    }],
+  ])('%s (CC7.1)', (_, check) => check());
+
+  it('keeps a joint square when the turn lies inside the leg (CC7.1)', () => {
+    owner.ends.left.corner.kind = 45;
+    owner.ends.left.corner.legB = 72;
+    returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
+      items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
+    const { synced, view, top } = resolved();
+    const other = view.runs[0];
+    expect(runBandEnds(synced, view, other, S, runScene(synced, view, other, S), 'countertop', 34.5, 1.5)[1])
+      .toEqual({ type: 'square', x: top.x });
+    expect(top.lines).toHaveLength(1);
+  });
 });
 
 function resolved(settings = S) {
@@ -256,7 +319,7 @@ describe('return leg bands (CC7)', () => {
         ] }] }, drawnPoints: { elevation: [] },
     }] };
     const { synced, top } = resolved(settings);
-    span(top, 106.6875, 118.625);
+    span(top, 106.6875, 118.875);
     expect(top).toMatchObject({ front: 25.375, z: 34, height: 2 });
     const view = resolveWall(synced, synced.walls[0], 'front');
     const corner = cornerEnd(synced, view, view.runs[0], 'left', settings);
