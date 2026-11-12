@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { cornerEnd } from '../../elevation/model/cornerEnd.js';
+import { cornerReturnLegs } from '../../elevation/model/cornerLegs.js';
+import { panelLevels, resolveDoorStyle } from '../../elevation/model/doorStyleResolve.js';
 import { effectiveSettings } from '../../elevation/model/effectiveSettings.js';
+import { partNumbers, wallBadgeGroups } from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
 import { doorOrder, doorOrderItems } from '../doorOrder.js';
@@ -11,6 +15,77 @@ import { shippingList } from '../shippingList.js';
 
 const BASE = 'b0505231-35e6-4630-8a1e-e9b2181d443c';
 const UPPER = 'a72f41f6-a4ab-4c0e-a91f-8b9d98590429';
+
+describe('corner return-side parts', () => {
+  it.each([
+    { name: 'an exposed end panel', emptyReturn: true, kind: 'end_panel', description: 'Base End Panel', width: 24 },
+    { name: 'a covered return', emptyReturn: false },
+    { name: 'a flat filler', emptyReturn: true, kind: 'filler', description: 'Base Filler', width: 3 },
+  ])('numbers and orders $name (CC9)', (anchor) => {
+    const source = JSON.parse(readFileSync(new URL('../../elevation/model/__tests__/fixtures/room8cc.json', import.meta.url), 'utf8'));
+    const storedWall = source.walls.find(({ name }) => name === 'Wall 3');
+    const storedRun = storedWall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === BASE));
+    if (anchor.emptyReturn) source.walls.find(({ name }) => name === 'Wall 4').runs = [];
+    if (anchor.kind === 'filler') Object.assign(storedRun.ends.right.corner, { returnPiece: 'filler', returnWidth: 3 });
+    const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS } }, source);
+    const room = syncRoom(source, settings);
+    const wall = room.walls.find(({ name }) => name === 'Wall 3');
+    const returnWall = room.walls.find(({ name }) => name === 'Wall 4');
+    const run = wall.runs.find(({ id }) => id === storedRun.id);
+    const key = `${BASE}:return`;
+    const { parts, byKey } = partNumbers(room, settings);
+    const part = parts.find((part) => part.key === key);
+    const row = shippingList(room, settings).rows.find((row) => row.key === key);
+    const order = doorOrder(room, settings);
+    const { items } = doorOrderItems(room, settings);
+    if (!anchor.kind) {
+      expect(parts.filter(({ source }) => source === 'corner_return')).toEqual([]);
+      expect(row).toBeUndefined();
+      expect(items.filter(({ key }) => key.endsWith(':return'))).toEqual([]);
+      return;
+    }
+    expect(part).toMatchObject({
+      kind: anchor.kind, source: 'corner_return', columnId: BASE, wallId: wall.id, side: 'front',
+      runId: run.id, pieceId: null, molding: null, z: 4, height: 30.5,
+      number: byKey.get(BASE) + 1,
+    });
+    expect(parts[parts.findIndex(({ key }) => key === BASE) + 1].key).toBe(key);
+    const scene = runScene(room, wall, run, settings);
+    const ownerBadges = wallBadgeGroups(room, wall, settings).flatMap(({ pieces }) => pieces)
+      .filter(({ id }) => id === key);
+    const returnBadges = wallBadgeGroups(room, returnWall, settings).flatMap(({ pieces }) => pieces)
+      .filter(({ id }) => id === key);
+    let thickness;
+    if (anchor.kind === 'end_panel') {
+      const corner = cornerEnd(room, wall, run, 'right', settings, scene.result);
+      const { style } = resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, run, run.ends.right));
+      thickness = style.id === 'sheet' ? corner.returnSide.width : Math.min(corner.returnSide.width, style.thickness);
+      const strip = scene.cornerPanels.find(({ columnId }) => columnId === BASE);
+      expect(part).toMatchObject({ x: strip.x, width: strip.width });
+      expect(ownerBadges).toEqual([expect.objectContaining({ id: key, x: strip.x, width: strip.width })]);
+      expect(returnBadges).toEqual([]);
+      expect(items.filter((item) => item.key === key)).toEqual([
+        expect.objectContaining({ kind: 'endPanel', pieceId: key, width: 24, height: 30.5, style }),
+      ]);
+      const lines = order.pages.flatMap(({ sections }) => sections.flatMap(({ lines }) => lines))
+        .filter(({ number }) => number === part.number);
+      expect(lines).toEqual([expect.objectContaining({ number: part.number, qty: 1, width: 24, height: 30.5 })]);
+    } else {
+      thickness = settings.fillerThickness;
+      const strip = cornerReturnLegs(room, returnWall, settings).find(({ columnId }) => columnId === BASE).returnPanel;
+      expect(part).toMatchObject({ x: strip.x, width: 3 });
+      expect(ownerBadges).toEqual([]);
+      expect(returnBadges).toEqual([expect.objectContaining({ id: key, x: strip.x, width: 3 })]);
+      expect(items.filter((item) => item.key === key)).toEqual([]);
+    }
+    const badgeWall = anchor.kind === 'end_panel' ? wall : returnWall;
+    expect(wallBadgeGroups(room, badgeWall, settings).find((group) => group.key === key).lift).toBe(3);
+    expect(row).toMatchObject({ number: part.number, description: anchor.description,
+      size: formatSize(anchor.width, 30.5, thickness) });
+    expect(row.notes.join(', ')).not.toMatch(/[TLU]-shape/);
+    expect(order.warnings.filter(({ code }) => code === 'report-part-unnumbered')).toEqual([]);
+  });
+});
 
 describe('corner face frame shipping rows', () => {
   it.each([

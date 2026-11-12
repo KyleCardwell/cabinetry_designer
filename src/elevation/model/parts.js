@@ -2,6 +2,9 @@ import { CABINET_TYPE_IDS } from './constants.js';
 import { blindPartWidths } from './blind.js';
 import { blindCellWidths, partPieces } from './cells.js';
 import { findLeaf } from './cellTree.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerReturnLegs } from './cornerLegs.js';
+import { cornerReturnPoint } from './corners.js';
 import { faceOutline } from './faceTree.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
@@ -146,9 +149,29 @@ function runParts(room, wall, side, settings) {
     const insideOwners = new Map(cells.pieces.filter((piece) => piece.inside)
       .map((piece) => [piece.id, piece.ownerId]));
     const fills = new Map(runLegFills(room, view, run, settings).map((fill) => [fill.leg.id, fill]));
+    const cornerReturns = new Map();
+    for (const [columnId, entry] of scene.faceLayouts) {
+      if (!entry.corner) continue;
+      const corner = cornerEnd(room, view, run, entry.corner.side, settings, layout);
+      if (!corner.active || !['end_panel', 'filler'].includes(corner.returnSide.type)) continue;
+      let strip = scene.cornerPanels.find((panel) => panel.columnId === columnId);
+      if (corner.returnSide.type === 'filler') {
+        const point = cornerReturnPoint(room, view, run, corner.side);
+        const returnWall = room.walls.find(({ id }) => id === point.wallId);
+        strip = cornerReturnLegs(room, wallSideView(returnWall, point.wallSide), settings)
+          .find((leg) => leg.columnId === columnId)?.returnPanel;
+      }
+      if (!strip) continue;
+      cornerReturns.set(columnId, {
+        key: `${columnId}:return`, kind: corner.returnSide.type, source: 'corner_return', columnId,
+        wallId: wall.id, side, runId: run.id, pieceId: null, molding: null,
+        x: strip.x, width: strip.width, z: run.z, height: run.height,
+      });
+    }
     return [
       ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
         part,
+        ...[cornerReturns.get(part.key)].filter(Boolean),
         ...pieceParts.filter((panel) => insideOwners.get(panel.key) === part.key),
         ...rotParts(part, run),
         ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),

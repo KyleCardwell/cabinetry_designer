@@ -221,6 +221,10 @@ export function wallBadgeGroups(room, wall, settings) {
         lift: 3,
         pieces: endPanels,
       },
+      ...scene.cornerPanels.map(({ columnId, x, width }) => ({
+        key: `${columnId}:return`, lift: 3,
+        pieces: [{ id: `${columnId}:return`, x, width, z: run.z, height: run.height }],
+      })),
       {
         key: `legs:${run.id}`,
         lift: 0,
@@ -240,6 +244,11 @@ export function wallBadgeGroups(room, wall, settings) {
     key: `${columnId}:frame`, lift: 2,
     pieces: [{ id: `${columnId}:frame`, ...frame, anchor: frameBadgeAnchor(frame, frame.members) }],
   })));
+  groups.push(...returnLegs.filter(({ returnPanel }) => returnPanel?.type === 'filler')
+    .map(({ columnId, returnPanel }) => ({
+      key: `${columnId}:return`, lift: 3,
+      pieces: [{ id: `${columnId}:return`, ...returnPanel }],
+    })));
 
   for (const panel of wallEndPanels(room, wall, settings)) {
     const side = panel[wall.side ?? 'front'];

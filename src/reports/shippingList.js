@@ -20,7 +20,7 @@ import {
 } from '../elevation/model/panelThickness.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
 import { carriesMolding } from '../elevation/model/parts.js';
-import { fillerOrderedDepth, fillerReturnDepth } from '../elevation/model/planPieces.js';
+import { fillerOrderedDepth, fillerReturnDepth, runFillerThickness } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runBands, waterfallEnds } from '../elevation/model/runBands.js';
@@ -209,6 +209,13 @@ function shippingContext(room, settings) {
     }
     if (!scenes.has(run)) scenes.set(run, runScene(room, view, run, settings));
     const scene = scenes.get(run);
+    if (part.source === 'corner_return') {
+      const side = scene.faceLayouts.get(part.columnId).corner.side;
+      const corner = cornerEnd(room, view, run, side, settings, scene.result);
+      const style = part.kind === 'end_panel' ? resolveDoorStyle(room, settings, 'panel',
+        panelLevels(room, view, run, run.ends[side])).style : undefined;
+      return { wall: view, run, scene, corner, style };
+    }
     if (part.kind === 'frame' && part.columnId) {
       return { wall: view, run, scene,
         cornerFrame: scene.cornerFrames.find(({ columnId }) => columnId === part.columnId) };
@@ -276,7 +283,9 @@ function describePart(room, settings, part, context) {
   const { run, scene, piece, blindPanel, shelfBack, style } = context;
   const type = TYPES[run?.cabinetTypeId];
   let description;
-  switch (part.kind) {
+  if (part.source === 'corner_return') {
+    description = `${type} ${part.kind === 'end_panel' ? 'End Panel' : 'Filler'}`;
+  } else switch (part.kind) {
     case 'cabinet': {
       const layout = scene.faceLayouts.get(part.key);
       description = layout?.corner ? `${TYPES[listedTypeId(run, piece)]} Corner ${layout.corner.kind}`
@@ -317,6 +326,12 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
+  if (part.source === 'corner_return') {
+    const { wall, run, corner, style } = context;
+    return part.kind === 'end_panel'
+      ? formatSize(corner.depthB, run.height, orderedThickness(corner.returnSide.width, style))
+      : formatSize(corner.returnSide.width, run.height, runFillerThickness(room, wall, run, settings));
+  }
   if (context.cornerFrame) {
     const { diagonal, frame } = context.cornerFrame;
     return diagonal ? formatSize(diagonal.frontWidth, frame.height, frame.thickness) : '';
@@ -526,7 +541,9 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       ...nosings];
   }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
-  if (part.kind === 'leg_panel' || part.kind === 'wall_end_panel') {
+  if (part.source === 'corner_return') {
+    groups[9] = endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
+  } else if (part.kind === 'leg_panel' || part.kind === 'wall_end_panel') {
     const count = (part.kind === 'leg_panel' ? context.fill.returns : context.fit.returns)?.length ?? 0;
     groups[8] = count === 2 ? 'C-shape' : count === 1 ? 'L-shape' : null;
   } else if (part.kind === 'leg_filler') {
@@ -566,7 +583,8 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   }
   if (style && style.id !== 'sheet') {
     let drawn;
-    if (part.kind === 'wall_end_panel') drawn = wallPanelThickness(room, wall, settings)[endpoint];
+    if (part.source === 'corner_return') drawn = context.corner.returnSide.width;
+    else if (part.kind === 'wall_end_panel') drawn = wallPanelThickness(room, wall, settings)[endpoint];
     else if (part.kind === 'end_panel' || context.blindPanel) drawn = runEndThickness(room, wall, run, settings)[end];
     else if (part.kind === 'panel') {
       const orientation = panelOrientation(piece);

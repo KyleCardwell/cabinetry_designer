@@ -1,6 +1,7 @@
 import { panelOrientation } from '../elevation/model/cells.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { panelMaterial } from '../elevation/model/constants.js';
+import { cornerEnd } from '../elevation/model/cornerEnd.js';
 import { cornerLegBDetails } from '../elevation/model/cornerLegs.js';
 import { runDoorDetails } from '../elevation/model/doorDetails.js';
 import { midDefaults, partSizes } from '../elevation/model/doorSizes.js';
@@ -148,6 +149,13 @@ export function doorOrderItems(room, settings) {
           add(part, part.kind !== 'face');
         }
         for (const [columnId, entry] of scene.faceLayouts) {
+          if (entry.corner) {
+            const corner = cornerEnd(room, view, run, entry.corner.side, settings, scene.result);
+            if (corner.active && corner.returnSide.type === 'end_panel') {
+              addPanel(view, run, run.ends[corner.side], { width: corner.depthB, height: run.height },
+                `${columnId}:return`, 'endPanel');
+            }
+          }
           if (entry.corner?.kind !== 90 || !entry.cornerReturn?.legB) continue;
           const { doorDetails } = cornerLegBDetails(room, view, run, settings, columnId, entry);
           for (const part of doorDetails.parts) {
