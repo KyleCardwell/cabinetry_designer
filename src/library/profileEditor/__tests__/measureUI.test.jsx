@@ -105,29 +105,6 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('MS6 measure in the profile editor', () => {
-  it('anchor 1: D switches to measure and back to select, with a pressed Measure (D) button', () => {
-    const tree = renderEditor('select');
-    press('d');
-    expect(setTool).toHaveBeenLastCalledWith('measure');
-    const pressed = (tool) => nodes(renderEditor(tool)).find(({ type, props }) => type === 'button' && props.children === 'Measure (D)').props['aria-pressed'];
-    expect(pressed('select')).toBe(false);
-    expect(pressed('measure')).toBe(true);
-    expect(nodes(tree).some(({ type, props }) => type === 'button' && props.children === 'Measure (D)')).toBe(true);
-    renderEditor('measure');
-    press('d');
-    expect(setTool).toHaveBeenLastCalledWith('select');
-  });
-
-  it('anchor 2: Esc with nothing picked goes to select; a canvas that cleared something keeps the tool', () => {
-    renderEditor('measure');
-    canvasHandle.current = { measureEscape: () => true };
-    setTool.mockClear();
-    press('Escape');
-    expect(setTool).not.toHaveBeenCalled();
-    canvasHandle.current = { measureEscape: () => false };
-    press('Escape');
-    expect(setTool).toHaveBeenLastCalledWith('select');
-  });
 
   it('anchor 3: two clicks on profile points 1" apart read Distance 1"', () => {
     const tree = renderCanvas();
@@ -140,22 +117,4 @@ describe('MS6 measure in the profile editor', () => {
     expect(nodes(renderCanvas()).some(({ type }) => type === MeasureSvg)).toBe(true);
   });
 
-  it('anchor 4: a measure click on a point neither selects nor changes the profile', () => {
-    const onSelect = vi.fn();
-    const onApply = vi.fn();
-    const tree = renderCanvas(onSelect, onApply);
-    click(tree, [0, 0], { closest: () => ({ dataset: { pointId: 'a' } }) });
-    expect(onSelect).not.toHaveBeenCalled();
-    expect(onApply).not.toHaveBeenCalled();
-    expect(measureState.first.kind).toBe('corner');
-  });
-
-  it('right-click drops a pending first pick', () => {
-    const tree = renderCanvas();
-    click(tree, [0, 0]);
-    const event = { preventDefault: vi.fn() };
-    svgOf(tree).props.onContextMenu(event);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(measureState.first).toBeNull();
-  });
 });

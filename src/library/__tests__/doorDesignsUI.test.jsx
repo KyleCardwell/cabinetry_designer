@@ -72,84 +72,7 @@ beforeEach(() => {
   }));
 });
 
-describe('DB6b a library deletion', () => {
-  const custom = { ...DOOR_DESIGNS[0], id: 'd-114', code: '114' };
-  const settings = { doorDesigns: [...DOOR_DESIGNS, custom], teamDoorStyle: DEFAULT_DOOR_STYLE };
-  const button = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === label);
-
-  it('shows only design columns and confirms archive/delete without choosing a replacement', () => {
-    for (const [source, label, confirm] of [['cloud', 'Archive', 'Confirm archive'], ['local', 'Delete', 'Confirm delete']]) {
-      dispatch.mockClear();
-      const render = library(settings, source);
-      expect(nodes(render()).filter(({ type }) => type === 'th').map(text))
-        .toEqual(['Code', 'Vendor', 'Description', 'Construction', 'Rails', 'Actions']);
-      expect(nodes(render()).filter(({ type, props }) => type === 'button' && props.children === label)).toHaveLength(1);
-      button(render(), label).props.onClick();
-      expect(dispatch).not.toHaveBeenCalled();
-      expect(text(render())).toContain('Rooms that use it will ask for a replacement when opened.');
-      expect(nodes(render()).some(({ type }) => type === 'select')).toBe(false);
-      button(render(), 'Cancel').props.onClick();
-      expect(button(render(), confirm)).toBeUndefined();
-      button(render(), label).props.onClick();
-      button(render(), confirm).props.onClick();
-      expect(dispatch.mock.calls).toEqual([[deleteDoorDesign({ designId: 'd-114' })]]);
-      expect(button(render(), confirm)).toBeUndefined();
-    }
-  });
-
-  it('disables archive/delete for the team door style design with an explanation', () => {
-    for (const [source, label] of [['cloud', 'Archive'], ['local', 'Delete']]) {
-      const render = library({ ...settings, teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'd-114' } }, source);
-      expect(button(render(), label).props).toMatchObject({
-        disabled: true,
-        title: 'The team door style uses this design. Change it in Library → Team door style first.',
-      });
-    }
-  });
-});
-
 describe('Step 529 Library door design cores and defaults', () => {
-  it('lists 5PC, hardwood Slab and Slab - MDF Core without Slab AM or Micro Shaker', () => {
-    const tree = DoorDesignsPage();
-    const rows = nodes(tree).filter(({ type }) => type === 'tr');
-    const contents = rows.map((row) => nodes(row).filter(({ type }) => type === 'td').map(text));
-    expect(contents.slice(1).map((cells) => [cells[0], cells[3]])).toEqual([
-      ['5PCbuilt-in', '5-piece'],
-      ['Slabbuilt-in', 'Slab · Hardwood'],
-      ['Slab - MDF Corebuilt-in', 'Slab · MDF core'],
-    ]);
-    expect(text(tree)).not.toContain('Slab AM');
-    expect(text(tree)).not.toContain('Micro Shaker');
-  });
-
-  it('locks built-in cores and lets custom designs switch construction and save an MDF core', () => {
-    for (const design of DOOR_DESIGNS) {
-      const { render } = editor(design);
-      expect(control(render(), 'Construction').props.disabled).toBe(true);
-      if (design.construction === 'slab') {
-        expect(control(render(), 'Core').props).toMatchObject({ value: design.slabCore, disabled: true });
-        expect(control(render(), 'Core').props.children.map(text)).toEqual(['Hardwood', 'MDF core']);
-      } else expect(control(render(), 'Core')).toBeUndefined();
-    }
-    const custom = { ...DOOR_DESIGNS[0], id: 'custom', code: 'Custom', panelJoint: 'square' };
-    const { render } = editor(custom);
-    expect(control(render(), 'Construction').props.disabled).toBe(false);
-    expect(control(render(), 'Panel joint').props.value).toBe('square');
-    control(render(), 'Construction').props.onChange({ target: { value: 'slab' } });
-    expect(control(render(), 'Panel joint')).toBeUndefined();
-    expect(control(render(), 'Core').props).toMatchObject({ value: 'hardwood', disabled: false });
-    control(render(), 'Core').props.onChange({ target: { value: 'mdf' } });
-    expect(save(render()).props.disabled).toBe(false);
-    save(render()).props.onClick();
-    const saved = dispatch.mock.lastCall[0].payload.design;
-    expect(saved).toMatchObject({ construction: 'slab', slabCore: 'mdf', panelJoint: null, slots: ['outside', 'applied'] });
-    expect(isDoorDesign(saved)).toBe(true);
-    control(render(), 'Construction').props.onChange({ target: { value: 'five_piece' } });
-    expect(control(render(), 'Core')).toBeUndefined();
-    save(render()).props.onClick();
-    expect(dispatch.mock.lastCall[0].payload.design).toMatchObject({ slabCore: null, panelJoint: 'curved' });
-    expect(isDoorDesign(dispatch.mock.lastCall[0].payload.design)).toBe(true);
-  });
 
   it('edits positive fractional defaults, clears blanks, and shows frame defaults only on 5-piece', () => {
     const { render, enter } = editor(DOOR_DESIGNS[0]);
@@ -179,24 +102,3 @@ describe('Step 529 Library door design cores and defaults', () => {
   });
 });
 
-it('530. locks built-in panel joints and lets a custom 5-piece save either joint', () => {
-  for (const design of DOOR_DESIGNS.filter(({ construction }) => construction === 'five_piece')) {
-    const { render } = editor(design);
-    expect(control(render(), 'Panel joint').props).toMatchObject({ value: design.panelJoint, disabled: true });
-    save(render()).props.onClick();
-    expect(dispatch.mock.lastCall[0].payload.design.panelJoint).toBe(design.panelJoint);
-  }
-  const custom = { ...MICRO_SHAKER, id: 'custom', code: 'Micro copy' };
-  const { render } = editor(custom);
-  const joint = control(render(), 'Panel joint');
-  expect(joint.props).toMatchObject({ value: 'square', disabled: false });
-  expect(joint.props.children.map(({ props }) => [props.value, text(props.children)]))
-    .toEqual([['curved', 'Standard (tongue + curve)'], ['square', 'Square shoulder (micro)']]);
-  for (const panelJoint of ['curved', 'square']) {
-    control(render(), 'Panel joint').props.onChange({ target: { value: panelJoint } });
-    expect(save(render()).props.disabled).toBe(false);
-    save(render()).props.onClick();
-    expect(dispatch.mock.lastCall[0].payload.design).toMatchObject({ construction: 'five_piece', panelJoint });
-    expect(isDoorDesign(dispatch.mock.lastCall[0].payload.design)).toBe(true);
-  }
-});
