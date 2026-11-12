@@ -6,6 +6,8 @@ import { wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
 import { soffitsOn } from './soffits.js';
 import { wallSideOf } from './wallSides.js';
+import { endPieceBottom, resolveStyle } from './styles.js';
+import { openBelowDrops } from './tees.js';
 
 /** Where a filler or panel can extend to, per direction (SPEC-35.3). */
 export const EXTEND_TARGETS = {
@@ -164,6 +166,23 @@ export function extendPieces(wall, run, pieces) {
     return extended.length > 0 ? { ...current, extended } : piece;
   });
   return { pieces: next, warnings };
+}
+
+/** The drawn spans: end drops first, then explicit extensions (CC9.1). */
+export function extendRunPieces(room, wall, run, cells, settings, pieces = cells.pieces) {
+  const { drop } = endPieceBottom(run, resolveStyle(settings, room, run), settings);
+  const openDrop = openBelowDrops(room, run, cells, settings);
+  const originals = new Map(cells.pieces.map((piece) => [piece.id, piece]));
+  const base = pieces.map((piece) => {
+    const runEnd = piece.role === 'end-left' || piece.role === 'end-right';
+    const pieceDrop = Math.max(drop, runEnd ? openDrop(originals.get(piece.id) ?? piece) : 0);
+    const dropped = pieceDrop > 0 && !piece.inside
+      && (piece.kind === 'filler' || piece.kind === 'end_panel')
+      ? { ...piece, z: piece.z - pieceDrop, height: piece.height + pieceDrop }
+      : piece;
+    return dropped;
+  });
+  return extendPieces(wall, run, base);
 }
 
 /** The extended end piece on one side of a run, or null when that end does not extend. */

@@ -3,6 +3,7 @@ import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerCabinetShape } from './cornerCabinet.js';
 import { cornerDepthBAuto, cornerEndActive, cornerLegs, cornerOwnersAt } from './corners.js';
+import { extendRunPieces } from './extensions.js';
 import { resolveFaces } from './faces.js';
 import { layoutFaces } from './faceLayouts.js';
 import { runItems } from './grid.js';
@@ -99,6 +100,57 @@ function boundsOf(pieces) {
   return { x: left, z: bottom, width: right - left, height: top - bottom };
 }
 
+/** Grow stiles with their end pieces, cutting away the space beyond the old frame edges. */
+function extendRegion(region, openings, ends) {
+  const bottom = region.z;
+  const top = bottom + region.height;
+  const extended = ends.filter((piece) => piece.z < bottom - EPSILON
+    || piece.z + piece.height > top + EPSILON);
+  if (!extended.length) return;
+  const members = frameMembers(region, openings) ?? [];
+  const low = Math.min(bottom, ...extended.map((piece) => piece.z));
+  const high = Math.max(top, ...extended.map((piece) => piece.z + piece.height));
+  const notches = [];
+  for (const edge of ['bottom', 'top']) {
+    const limit = edge === 'bottom' ? bottom : top;
+    const spans = extended.flatMap((piece) => {
+      const end = edge === 'bottom' ? piece.z : piece.z + piece.height;
+      if (edge === 'bottom' ? end >= limit - EPSILON : end <= limit + EPSILON) return [];
+      return members.filter((member) => member.kind !== 'rail'
+        && Math.abs((edge === 'bottom' ? member.z : member.z + member.height) - limit) <= EPSILON
+        && overlaps(member.x, member.x + member.width, piece.x, piece.x + piece.width))
+        .map((member) => ({ x: member.x, width: member.width, end }));
+    });
+    const steps = (region.notches ?? []).filter((notch) => notch.edge === edge);
+    const edges = [...new Set([region.x, region.x + region.width,
+      ...[...spans, ...steps].flatMap(({ x, width }) => [x, x + width])])].sort((a, b) => a - b);
+    for (let i = 1; i < edges.length; i += 1) {
+      const x = edges[i - 1];
+      const width = edges[i] - x;
+      const covers = (piece) => overlaps(x, x + width, piece.x, piece.x + piece.width);
+      const ends = spans.filter(covers).map(({ end }) => end);
+      const step = steps.find(covers);
+      let end = edge === 'bottom' ? Math.min(limit, ...ends) : Math.max(limit, ...ends);
+      if (step) end = edge === 'bottom' ? Math.max(end, step.z + step.height) : Math.min(end, step.z);
+      const z = edge === 'bottom' ? low : end;
+      const height = edge === 'bottom' ? end - low : high - end;
+      if (height <= EPSILON) continue;
+      const columnId = step?.columnId;
+      const last = notches.at(-1);
+      if (last?.edge === edge && last.columnId === columnId
+        && Math.abs(last.x + last.width - x) <= EPSILON
+        && Math.abs(last.z - z) <= EPSILON && Math.abs(last.height - height) <= EPSILON) {
+        last.width += width;
+      } else {
+        notches.push({ ...(columnId ? { columnId } : {}), edge, x, z, width, height });
+      }
+    }
+  }
+  region.z = low;
+  region.height = high - low;
+  region.notches = notches;
+}
+
 /**
  * Face frame regions for a run (SPEC-36). Each face frame cabinet, and each filler beside one,
  * joins a region with the boxes it touches or meets across a gap. A region is the rectangle
@@ -186,6 +238,12 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
       x, z: rect.z, width: lap, height: rect.height };
   });
   const panels = [...pieces.filter(isSidePanel), ...wallPanels, ...laps];
+  const wall = room.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
+  const extended = wall ? new Map(extendRunPieces(room, wallViewForRun(wall, run), run, cells, settings)
+    .pieces.filter((piece) => (piece.kind === 'filler' || isSidePanel(piece))
+      && piece.extended?.some((direction) => direction === 'up' || direction === 'down'))
+    .map((piece) => [piece.id, piece]))
+    : new Map();
   const pending = [];
   for (const group of groups.values()) {
     const boxes = group.filter((piece) => piece.kind === 'cabinet');
@@ -255,7 +313,8 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
           width: column.width, height: column.z - bounds.z }] : []),
       ];
     });
-    // The full column footprint includes the full-height stiles alongside the actual notch.
+    // Check the original box footprint; end extensions are filled by their stiles and notches below.
+    // The full column footprint includes the full-height stiles alongside the actual step notch.
     const filledSteps = steps.reduce((total, step) => total + overlapArea(step, bounds), 0);
     if (filled + filledSteps < areaOf(bounds) - EPSILON) {
       warnings.push({
@@ -264,7 +323,12 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
         message: 'These face frame cabinets don\'t make a rectangle, so one frame can\'t cover them.',
       });
     }
-    if (steps.length) pending.push({ region, boxes, steps, drop });
+    const ends = [...group.filter((piece) => piece.kind === 'filler'), ...covered]
+      .flatMap((piece) => extended.get(piece.id) ?? []);
+    if (steps.length || ends.some((piece) => piece.z < region.z - EPSILON
+      || piece.z + piece.height > region.z + region.height + EPSILON)) {
+      pending.push({ region, boxes, steps, drop, ends });
+    }
     regions.push(region);
     for (const id of region.fillerIds) fillerIds.add(id);
 
@@ -306,12 +370,11 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
   }
   const frames = { regions, fillerIds, freeSides, seamSides, overhangs, cornerLaps, warnings };
   if (pending.length) {
-    const wall = room.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
     const faces = faceLayouts ?? layoutFaces(room, wall, run, settings,
       { pieces: [...columns.values()] }, { cells: { ...cells, gaps }, frames });
     const stile = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
-    for (const { region, boxes, steps, drop } of pending) {
-      region.notches = steps.flatMap((step) => {
+    for (const { region, boxes, steps, drop, ends } of pending) {
+      const notches = steps.flatMap((step) => {
         const columnBoxes = boxes.filter((box) => (box.columnId ?? box.id) === step.columnId);
         const openings = columnBoxes.flatMap((box) => faces.get(box.id)?.openings ?? []);
         const column = columns.get(step.columnId);
@@ -326,7 +389,10 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
         return right - left > EPSILON && top - z > EPSILON
           ? [{ columnId: step.columnId, edge: step.edge, x: left, z, width: right - left, height: top - z }]
           : [];
-      }).sort((a, b) => (a.edge === b.edge ? a.x - b.x : a.edge === 'top' ? -1 : 1));
+      });
+      if (steps.length) region.notches = notches;
+      extendRegion(region, regionOpenings(region, faces), ends);
+      region.notches?.sort((a, b) => (a.edge === b.edge ? a.x - b.x : a.edge === 'top' ? -1 : 1));
     }
   }
   return frames;

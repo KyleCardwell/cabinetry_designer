@@ -3,11 +3,11 @@ import { blindCellWidths, cellPieces, floatingShelfLayout, panelOrientation, she
 import { cornerEnd } from './cornerEnd.js';
 import { cornerFrame } from './cornerFrame.js';
 import { squashRect } from './cornerSquash.js';
-import { extendPieces } from './extensions.js';
+import { extendRunPieces } from './extensions.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
 import { endPieceBottom, resolveStyle } from './styles.js';
-import { openBelowDrops, teeFillers } from './tees.js';
+import { teeFillers } from './tees.js';
 import { formatInches } from './units.js';
 import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
@@ -116,8 +116,6 @@ export function runScene(room, wall, run, settings) {
     if (entry.panel) panelBySide[entry.side] = entry.panel;
   }
   const endBottom = endPieceBottom(run, resolveStyle(settings, room, run), settings);
-  const { drop } = endBottom;
-  const openDrop = openBelowDrops(room, run, cells, settings);
   const shelves = cells.pieces.flatMap((piece) => shelfParts(piece, settings));
   const { tees, ells } = teeFillers(room, run, cells, settings);
   const endTees = new Map([
@@ -132,18 +130,12 @@ export function runScene(room, wall, run, settings) {
     const tee = endTees.get(piece.id);
     // A back panel mitered into a wall end panel runs over it (SPEC-43).
     const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : { ...piece, ...miteredSpan(piece, run, miters) };
-    const runEnd = piece.role === 'end-left' || piece.role === 'end-right';
-    const pieceDrop = Math.max(drop, runEnd ? openDrop(piece) : 0);
-    const dropped = pieceDrop > 0 && !shaped.inside
-      && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
-      ? { ...shaped, z: shaped.z - pieceDrop, height: shaped.height + pieceDrop }
-      : shaped;
-    return panelPieceIds.has(piece.id)
-      ? { ...dropped, kind: 'end_panel' }
-      : dropped;
+    return shaped;
   });
   const drawnPieces = [
-    ...extendPieces(wall, run, base).pieces.sort((a, b) => endTees.has(a.id) - endTees.has(b.id)),
+    ...extendRunPieces(room, wall, run, cells, settings, base).pieces
+      .map((piece) => panelPieceIds.has(piece.id) ? { ...piece, kind: 'end_panel' } : piece)
+      .sort((a, b) => endTees.has(a.id) - endTees.has(b.id)),
     ...seamTees,
   ];
   return {
