@@ -87,7 +87,7 @@ describe('elevation plan wall operations', () => {
     expect(result.find((item) => item.id === 'b').connections.start).toBeNull();
   });
 
-  it('6. lengthens a connected right end without changing the neighbor direction', () => {
+  it('lengthens a connected right end without changing the neighbor direction', () => {
     const room = roomR();
     const result = setWallLength(room, 'A', 132, 'right');
 
@@ -99,7 +99,7 @@ describe('elevation plan wall operations', () => {
     expect(wallLength(result.walls.find((item) => item.id === 'B'))).toBe(96);
   });
 
-  it('7. shortens a connected right end and translates its neighbor', () => {
+  it('shortens a connected right end and translates its neighbor', () => {
     const result = setWallLength(roomR(), 'A', 108, 'right');
 
     expect(result.walls.find((item) => item.id === 'A'))
@@ -108,7 +108,7 @@ describe('elevation plan wall operations', () => {
       .toMatchObject({ x1: 108, y1: 0, x2: 108, y2: 96 });
   });
 
-  it('8. moves a free left end without moving the connected neighbor', () => {
+  it('moves a free left end without moving the connected neighbor', () => {
     const room = roomR();
     const result = setWallLength(room, 'A', 132, 'left');
 
@@ -118,7 +118,7 @@ describe('elevation plan wall operations', () => {
       .toMatchObject({ x1: 120, y1: 0, x2: 120, y2: 96 });
   });
 
-  it('9. keeps the requested length at a 60-degree corner; the angled neighbor gives', () => {
+  it('keeps the requested length at a 60-degree corner; the angled neighbor gives', () => {
     const radians = Math.PI / 3;
     const neighbor = wall(
       'B',
@@ -155,7 +155,7 @@ describe('elevation plan wall operations', () => {
     expect(cross(beforeDirection, afterDirection)).not.toBeCloseTo(0, 6);
   });
 
-  it('10. rejects a length that would reverse a connected neighbor', () => {
+  it('rejects a length that would reverse a connected neighbor', () => {
     const radians = Math.PI / 3;
     const walls = connectWallEndpoints(
       [

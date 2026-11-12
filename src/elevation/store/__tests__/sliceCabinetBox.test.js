@@ -3,7 +3,7 @@ import elevationReducer, { setCabinetBox } from '../elevationSlice.js';
 import { gridFromItems, gridLeaves } from '../../model/grid.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('IN1b cabinet box overrides', () => {
+describe('cabinet box overrides (IN1b)', () => {
   // roomId is optional; the public action locates the active room by default.
   const at = { wallId: 'wall-1', runId: 'run-1' };
   const base = () => {
@@ -15,7 +15,7 @@ describe('IN1b cabinet box overrides', () => {
   };
   const leaves = (state) => gridLeaves(currentRun(state).grid);
 
-  it('sets root and nested cabinets and deletes the last override when cleared (anchors 1–2)', () => {
+  it('sets root and nested cabinets and deletes the last override when cleared', () => {
     const state = elevationReducer(base(), setCabinetBox({ ...at, itemIds: ['c1', 'c2', 'p1'], key: 'back', value: 'inset' }));
     expect(leaves(state).map(({ id, box }) => [id, box]))
       .toEqual([['c1', { back: 'inset' }], ['c2', { back: 'inset' }], ['c3', undefined], ['p1', undefined]]);
@@ -37,7 +37,7 @@ describe('IN1b cabinet box overrides', () => {
     expect(leaves(state)[0].purpose).toBe('sink');
   });
 
-  it('ignores invalid values and targets and respects room locks (anchor 3)', () => {
+  it('ignores invalid values and targets and respects room locks', () => {
     const state = base();
     const payload = { ...at, itemIds: ['c1'], key: 'back', value: 'inset' };
     for (const patch of [

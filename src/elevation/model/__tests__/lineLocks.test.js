@@ -48,8 +48,8 @@ function expectLock(result, subject, reason, message) {
   expect(result.room).toBe(subject);
 }
 
-describe('LL5 a moveLineTo anchors', () => {
-  it('1: moves the R8 line, hood, open column, neighbours and joints together', () => {
+describe('moveLineTo anchors (LL5)', () => {
+  it('moves the R8 line, hood, open column, neighbours and joints together', () => {
     const subject = r8Line();
     const before = structuredClone(subject);
     const result = moveLineTo(subject, WALL8, 'L1', 134, settings);
@@ -65,7 +65,7 @@ describe('LL5 a moveLineTo anchors', () => {
     expect(subject).toEqual(before);
   });
 
-  it('2: snaps at openingSnap unless exact', () => {
+  it('snaps at openingSnap unless exact', () => {
     const subject = r8Line();
     expect(moveLineTo(subject, WALL8, 'L1', 134.3, settings)).toMatchObject({ x: 134.5, value: 100.5 });
     const result = moveLineTo(subject, WALL8, 'L1', 134.3, settings, { exact: true });
@@ -74,12 +74,12 @@ describe('LL5 a moveLineTo anchors', () => {
     expect(wallOf(result.room).lines[0].value).toBeCloseTo(100.7);
   });
 
-  it('3: clamps to the framed wall length, allowing a squeeze', () => {
+  it('clamps to the framed wall length, allowing a squeeze', () => {
     expect(moveLineTo(r8Line(), WALL8, 'L1', 250, settings)).toMatchObject({ ok: true, x: 235, value: 0 });
     expect(moveLineTo(r8Line(), WALL8, 'L1', -10, settings)).toMatchObject({ ok: true, x: 0, value: 235 });
   });
 
-  it('4: matches Room 10’s window-moved golden spans and offset', () => {
+  it('matches Room 10’s window-moved golden spans and offset', () => {
     const s = { ...settings, ...room10.settingsOverrides };
     const result = moveLineTo(room10, WALL10, 'll4-r10-L1', 88, s);
     expect(result.ok).toBe(true);
@@ -107,8 +107,8 @@ describe('LL5 a moveLineTo anchors', () => {
   });
 });
 
-describe('LL5 a line lock anchors', () => {
-  it('5: refuses moving the attached hood before the anchored check', () => {
+describe('line lock anchors (LL5)', () => {
+  it('refuses moving the attached hood before the anchored check', () => {
     const subject = r8Line();
     expectLock(moveRun(subject, WALL8, HOOD, 90, settings), subject, 'line-attached',
       `${runShortLabel(runOf(subject, HOOD))} is attached to line L1: move the line, or detach.`);
@@ -118,26 +118,26 @@ describe('LL5 a line lock anchors', () => {
     expect(moveRun(anchored, 'wall-1', 'run-1', 10, settings).reason).toBe('line-attached');
   });
 
-  it('6: refuses moving a neighbour through the hood’s held joint', () => {
+  it('refuses moving a neighbour through the hood’s held joint', () => {
     const subject = r8Line();
     expectLock(moveRun(subject, WALL8, LEFT, 30, settings), subject, 'line-held-joint',
       `This joint follows line L1 (${runShortLabel(runOf(subject, HOOD))}): move L1, or detach that run.`);
   });
 
-  it('7: refuses moving a held joint and returns the original room and failure shape', () => {
+  it('refuses moving a held joint and returns the original room and failure shape', () => {
     const subject = r8Line();
     const result = moveJoint(subject, WALL8, JL, 90, settings);
     expectLock(result, subject, 'line-held-joint', jointLineLock(wallOf(subject), JL).message);
     expect(result).toMatchObject({ x: 90, range: null, limit: null });
   });
 
-  it('8: refuses stretching the neighbour’s held right joint', () => {
+  it('refuses stretching the neighbour’s held right joint', () => {
     const subject = r8Line();
     expectLock(stretchRun(subject, WALL8, LEFT, 'right', 90, settings), subject, 'line-held-joint',
       jointLineLock(wallOf(subject), JL).message);
   });
 
-  it('9: stretching the unheld left joint matches Room 8 without lines', () => {
+  it('stretching the unheld left joint matches Room 8 without lines', () => {
     const subject = r8Line();
     const result = stretchRun(subject, WALL8, LEFT, 'left', 36, settings);
     const bare = structuredClone(subject);
@@ -154,7 +154,7 @@ describe('LL5 a line lock anchors', () => {
       .toEqual(wallOf(expected.room).runs.map(({ id, x, width }) => [id, x, width]));
   });
 
-  it('10: resizes the attached hood without trying to drag its own held joints', () => {
+  it('resizes the attached hood without trying to drag its own held joints', () => {
     const subject = r8Line();
     const result = resizeRun(subject, WALL8, HOOD, 81, 'left', settings);
     expect(result.ok).toBe(true);
@@ -166,7 +166,7 @@ describe('LL5 a line lock anchors', () => {
     expect(runOf(subject, HOOD)).toMatchObject({ x: 96, width: 80 });
   });
 
-  it('11: Room 8 without lines still moves the joint and keeps the opposite edges', () => {
+  it('Room 8 without lines still moves the joint and keeps the opposite edges', () => {
     const result = moveJoint(room8, WALL8, JL, 94, settings);
     expect(result.ok).toBe(true);
     expect(runOf(result.room, LEFT)).toMatchObject({ x: 38, width: 56 });
@@ -174,7 +174,7 @@ describe('LL5 a line lock anchors', () => {
     expect(wallOf(result.room).joints.map(({ x }) => x)).toEqual([38, 94, 177]);
   });
 
-  it('12: stretching a free centre-attached run grows it about the line', () => {
+  it('stretching a free centre-attached run grows it about the line', () => {
     const subject = syncRoom(room({ walls: [wall({ x2: 240, lines: [line('L1', 100)],
       runs: [run({ x: 10, width: 30, attach: attach('L1') })],
     })] }), settings);
@@ -183,7 +183,7 @@ describe('LL5 a line lock anchors', () => {
     expect(onlyRun(result)).toMatchObject({ x: 82.5, width: 35 });
   });
 
-  it('13: locks the attached edge but permits stretching the opposite edge', () => {
+  it('locks the attached edge but permits stretching the opposite edge', () => {
     const subject = syncRoom(room({ walls: [wall({ x2: 240, lines: [line('L1', 100)],
       runs: [run({ x: 10, width: 30, attach: attach('L1', 'left') })],
     })] }), settings);
@@ -194,7 +194,7 @@ describe('LL5 a line lock anchors', () => {
     expect(onlyRun(result)).toMatchObject({ x: 100, width: 40 });
   });
 
-  it('14: locks stretch and width when the line sizes a run against an anchored end', () => {
+  it('locks stretch and width when the line sizes a run against an anchored end', () => {
     const subject = syncRoom(room({ walls: [wall({ x2: 240, lines: [line('L1', 50)],
       runs: [run({ width: 30, anchors: { left: true, right: false }, attach: attach('L1') })],
     })] }), settings);
@@ -204,7 +204,7 @@ describe('LL5 a line lock anchors', () => {
     expectLock(resizeRun(subject, 'wall-1', 'run-1', 60, 'right', settings), subject, 'line-sized', message);
   });
 
-  it('15: an interior column locks moving the run but allows stretching it', () => {
+  it('an interior column locks moving the run but allows stretching it', () => {
     const subject = syncRoom(room({ walls: [wall({ x2: 240, lines: [line('L1', 45)],
       runs: [run({ x: 0, width: 90, autoCount: false,
         items: [auto('a'), { ...auto('b'), attach: attach('L1') }, auto('c')],
@@ -216,7 +216,7 @@ describe('LL5 a line lock anchors', () => {
     expect(resizeRun(subject, 'wall-1', 'run-1', 100, 'right', settings).ok).toBe(true);
   });
 
-  it('17: Room 10c’s end column locks its right end and typed width, leaving the left end editable', () => {
+  it('Room 10c’s end column locks its right end and typed width, leaving the left end editable', () => {
     const target = wallOf(room10c, WALL10);
     const current = target.runs[0];
     expect(lineEndColumns(current, target)).toEqual({ right: '5ea196ac-4752-42e5-bf15-608401c0c086' });
@@ -227,7 +227,7 @@ describe('LL5 a line lock anchors', () => {
     expect(stretchRun(room10c, WALL10, current.id, 'left', 2, settings).reason?.startsWith('line-')).not.toBe(true);
   });
 
-  it('16: return pins alone never create line locks or change run moves', () => {
+  it('return pins alone never create line locks or change run moves', () => {
     const subject = room({ walls: [wall({ x2: 240, runs: [run({ width: 60, autoCount: false,
       items: [{ ...fixed('a', 30), pin: pin(0, { from: 'return', wallId: 'other', edge: 'left' }) }],
     })] })] });

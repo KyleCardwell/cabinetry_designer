@@ -13,8 +13,8 @@ const R = run({ x: 10, width: 36,
 const R4 = { ...R, endLegs: { left: E, right: E } };
 const L = { id: 'hand-leg', ...S, from: 'left', yFrom: 'front' };
 
-describe('SH7.5 step a run end legs data', () => {
-  it('anchor 1: derives four legs in corner order with default mirrors and no fills', () => {
+describe('run end legs data (SH7.5)', () => {
+  it('derives four legs in corner order with default mirrors and no fills', () => {
     const before = structuredClone(R4);
     expect(endLegList(R4)).toEqual([
       { id: `${R.id}:endleg:left-front`, ...Sf, from: 'left', yFrom: 'front',
@@ -29,7 +29,7 @@ describe('SH7.5 step a run end legs data', () => {
     expect(R4).toEqual(before);
   });
 
-  it('anchor 2: spec mirrors toggle side and edge defaults, omitting false keys', () => {
+  it('spec mirrors toggle side and edge defaults, omitting false keys', () => {
     const endLegs = Object.fromEntries(['left', 'right'].map((side) => [side, {
       ...E, front: { ...Sf, mirror: true, mirrorDepth: true },
       back: { ...S, mirrorDepth: true },
@@ -43,7 +43,7 @@ describe('SH7.5 step a run end legs data', () => {
     expect(legs[3]).not.toHaveProperty('mirrorDepth');
   });
 
-  it('anchor 3: puts hand legs last and derives a single front leg', () => {
+  it('puts hand legs last and derives a single front leg', () => {
     const legs = runLegList({ ...R4, legs: [L] });
     expect(legs).toEqual([...endLegList(R4), L]);
     expect(legs).toHaveLength(5);
@@ -54,7 +54,7 @@ describe('SH7.5 step a run end legs data', () => {
     expect(runLegList({ ...R, legs: [L] })).toEqual([L]);
   });
 
-  it('anchor 4: activates between only with end None and fills only the front leg', () => {
+  it('activates between only with end None and fills only the front leg', () => {
     const pick = { ...R4, endLegs: { ...R4.endLegs,
       left: { ...E, fit: 'between', panel: { returns: 'both' } } } };
     const before = structuredClone(pick);
@@ -72,7 +72,7 @@ describe('SH7.5 step a run end legs data', () => {
       .toEqual({ type: 'panel' });
   });
 
-  it('anchor 5: derives a filler behind the front leg while its fit is active', () => {
+  it('derives a filler behind the front leg while its fit is active', () => {
     const pick = { ...R, endLegs: { left: { legs: 'front', front: Sf, fit: 'behind' } } };
     expect(endLegList(pick)[0].fill).toEqual({ type: 'filler' });
     expect(endFit(pick, 'left')).toBe('behind');
@@ -87,7 +87,7 @@ describe('SH7.5 step a run end legs data', () => {
     expect(endPieceType(R, 'left')).toBe('none');
   });
 
-  it('anchor 6: validates exact leg presence and fit/panel combinations', () => {
+  it('validates exact leg presence and fit/panel combinations', () => {
     const cases = [
       [{ left: E }, true],
       [{}, false],
@@ -101,7 +101,7 @@ describe('SH7.5 step a run end legs data', () => {
     for (const [value, valid] of cases) expect(isEndLegs(value)).toBe(valid);
   });
 
-  it('anchor 7: rejects hand-leg fields, invalid specs and unknown sides', () => {
+  it('rejects hand-leg fields, invalid specs and unknown sides', () => {
     for (const front of [{ ...Sf, fill: { type: 'panel' } }, { ...Sf, from: 'left' },
       { ...Sf, height: 0 }, { shapeId: 'leg', square: {}, height: 'full', x: 0, y: 0 }]) {
       expect(isEndLegs({ left: { legs: 'front', front } })).toBe(false);
@@ -109,7 +109,7 @@ describe('SH7.5 step a run end legs data', () => {
     expect(isEndLegs({ left: E, middle: E })).toBe(false);
   });
 
-  it('anchor 8: flips ends without changing specs and keeps the fit active', () => {
+  it('flips ends without changing specs and keeps the fit active', () => {
     const end = { ...E, fit: 'between' };
     const source = wall({ runs: [{ ...R, endLegs: { left: end } }] });
     const before = structuredClone(source);
@@ -129,7 +129,7 @@ describe('SH7.5 step a run end legs data', () => {
     });
   });
 
-  it('anchor 9: room validation accepts R4, rejects empty end legs and keeps the field optional', () => {
+  it('room validation accepts R4, rejects empty end legs and keeps the field optional', () => {
     const source = room({ walls: [wall({ runs: [R4] })], wallOrder: ['wall-1'] });
     expect(isRoom(source)).toBe(true);
     for (const endLegs of [{}, null, { left: { ...E, front: { ...Sf, height: 0 } } }]) {
@@ -179,8 +179,8 @@ describe('SH7.5 step a run end legs data', () => {
   });
 });
 
-describe('SH7.5 step c end-leg presets', () => {
-  it('anchor 9: Three keeps the remaining corners without storing unused specs', () => {
+describe('end-leg presets (SH7.5)', () => {
+  it('Three keeps the remaining corners without storing unused specs', () => {
     const spec = { square: {}, height: 'full', x: 0, y: 0 };
     const both = { legs: 'both', front: spec, back: spec };
     expect(legPresetEnds('three', { square: {}, leaveOut: 'RB' })).toEqual({
@@ -202,7 +202,7 @@ describe('SH7.5 step c end-leg presets', () => {
     }
   });
 
-  it('anchor 10: Front two allows filler fits and omits panel fits', () => {
+  it('Front two allows filler fits and omits panel fits', () => {
     const spec = { ...S };
     for (const fit of [undefined, 'panel', 'filler']) {
       const end = { legs: 'front', front: spec, ...(fit === 'filler' ? { fit: 'behind' } : {}) };
@@ -214,7 +214,7 @@ describe('SH7.5 step c end-leg presets', () => {
     }
   });
 
-  it('anchor 11: One requests one id and creates a mirrored hand leg without an end or fill', () => {
+  it('One requests one id and creates a mirrored hand leg without an end or fill', () => {
     let calls = 0;
     const newId = () => { calls += 1; return 'h1'; };
     expect(legPresetEnds('one', { shapeId: 'leg', proud: 1 }, newId)).toEqual({ endLegs: {}, legs: [{

@@ -3,7 +3,7 @@ import elevationReducer, { setItemInterior } from '../elevationSlice.js';
 import { gridFromItems, gridLeaves } from '../../model/grid.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('IN2 setItemInterior', () => {
+describe('setItemInterior (IN2)', () => {
   const at = { wallId: 'wall-1', runId: 'run-1' };
   const tree = () => ({
     direction: 'horizontal',
@@ -37,7 +37,7 @@ describe('IN2 setItemInterior', () => {
     expect(first.interior.children[0].dividers[0].at).toBe(36);
   });
 
-  it('deletes the key for null and ignores an invalid tree with identical state (anchor 4)', () => {
+  it('deletes the key for null and ignores an invalid tree with identical state', () => {
     const before = elevationReducer(base(), setItemInterior({ ...at, itemIds: ['c1', 'c2'], interior: tree() }));
     const cleared = elevationReducer(before, setItemInterior({ ...at, itemIds: ['c1'], interior: null }));
     expect(leaves(cleared)[0]).not.toHaveProperty('interior');
@@ -59,7 +59,7 @@ describe('IN2 setItemInterior', () => {
     }
   });
 
-  it('IN7 anchors 3 and 4: stores independent empty sections and only null restores auto', () => {
+  it('stores independent empty sections and only null restores auto (IN7)', () => {
     const before = elevationReducer(base(), setItemInterior({ ...at, itemIds: ['c1'], interior: tree() }));
     const interior = {};
     const edited = elevationReducer(before, setItemInterior({ ...at, itemIds: ['c1', 'c2', 'p1', 'f1'], interior }));

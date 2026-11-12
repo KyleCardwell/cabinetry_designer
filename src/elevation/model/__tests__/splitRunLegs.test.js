@@ -18,9 +18,9 @@ const R = run({
 const W = wall({ runs: [R] });
 const ROOM = room({ walls: [W] });
 
-describe('SH7.1 step b layout inside legs', () => {
+describe('layout inside legs (SH7.1)', () => {
 
-  it('anchor 2: starts cabinets inside the left leg and keeps the right edge', () => {
+  it('starts cabinets inside the left leg and keeps the right edge', () => {
     const result = layoutRun(ROOM, W, { ...R, legs: [L] }, settings);
     expect(result.pieces[0].x).toBe(13.5);
     const last = result.pieces.at(-1);
@@ -28,7 +28,7 @@ describe('SH7.1 step b layout inside legs', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('anchor 3: reserves one leg width at each end for four proud corners', () => {
+  it('reserves one leg width at each end for four proud corners', () => {
     let id = 0;
     const legs = legPreset('four', { shapeId: LEG.id, proud: 0.5 }, () => `lg-${++id}`);
     const result = layoutRun(ROOM, W, { ...R, legs }, settings);
@@ -38,7 +38,7 @@ describe('SH7.1 step b layout inside legs', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('anchor 5: places the end panel inside the leg, before the cabinet', () => {
+  it('places the end panel inside the leg, before the cabinet', () => {
     const result = layoutRun(ROOM, W, {
       ...R, legs: [L], ends: { ...R.ends, left: { type: 'end_panel', width: 13 / 16 } },
     }, settings);
@@ -47,7 +47,7 @@ describe('SH7.1 step b layout inside legs', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('anchor 6: keeps the full free-end frame gap inside the leg', () => {
+  it('keeps the full free-end frame gap inside the leg', () => {
     const framed = { ...R, _frame: { thickness: 13 / 16, drop: 0, bead: 0.125 } };
     const baseline = layoutRun(ROOM, W, framed, settings);
     const gap = baseline.pieces[0].x - R.x;
@@ -58,7 +58,7 @@ describe('SH7.1 step b layout inside legs', () => {
     expect(last.x + last.width).toBe(R.x + R.width - gap);
   });
 
-  it('anchor 7: reports the same constraint as a 32 1/2-inch run for a fixed 36-inch cabinet', () => {
+  it('reports the same constraint as a 32 1/2-inch run for a fixed 36-inch cabinet', () => {
     const fixedRun = run({ ...R, items: [fixed('a', 36)] });
     const baseline = layoutRun(ROOM, W, { ...fixedRun, width: 32.5 }, settings);
     expect(baseline.errors).toEqual([{ code: 'over-constrained' }]);
@@ -68,7 +68,7 @@ describe('SH7.1 step b layout inside legs', () => {
     expect(result.pieces[0]).toMatchObject({ x: 13.5, width: 36 });
   });
 
-  it('anchor 8: includes leg room in contents width, width range and run flex', () => {
+  it('includes leg room in contents width, width range and run flex', () => {
     const current = run({ ...R, widthFrom: 'cells', legs: [L], items: [fixed('a', 30)] });
     const currentWall = wall({ runs: [current] });
     const currentRoom = room({ walls: [currentWall] });

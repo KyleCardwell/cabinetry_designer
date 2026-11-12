@@ -35,14 +35,14 @@ function addFiller(state, room) {
   }));
 }
 
-describe('DB1 d room settings overrides', () => {
-  it('adds fillers at width 2 in room A and the team width 3 in room B (anchor 1)', () => {
+describe('room settings overrides (DB1)', () => {
+  it('adds fillers at width 2 in room A and the team width 3 in room B', () => {
     let state = twoRooms();
     for (const room of state.rooms) state = addFiller(state, room);
     expect(state.rooms.map((room) => runItems(room.walls[0].runs[0])[0].width)).toEqual([2, 3]);
   });
 
-  it('keeps room A pinned at 2 while room B follows the team to 4 (anchor 4)', () => {
+  it('keeps room A pinned at 2 while room B follows the team to 4', () => {
     let state = elevationReducer(twoRooms(), updateSettings({ defaultInteriorFillerWidth: 4 }));
     for (const room of state.rooms) state = addFiller(state, room);
     expect(state.rooms.map((room) => runItems(room.walls[0].runs[0])[0].width)).toEqual([2, 4]);
@@ -54,7 +54,7 @@ describe('DB1 d room settings overrides', () => {
     expect(state.rooms[1].settingsOverrides).toEqual({ defaultInteriorFillerWidth: 4 });
   });
 
-  it('ignores team-only, managed, unknown and ill-typed edits without changing state (anchor 2)', () => {
+  it('ignores team-only, managed, unknown and ill-typed edits without changing state', () => {
     const state = twoRooms();
     for (const [key, value] of [
       ['doorPanelDefault', 0.75], ['doorPanelDefault', null],
@@ -68,7 +68,7 @@ describe('DB1 d room settings overrides', () => {
     expect(elevationReducer(state, setRoomSetting({ roomId: 'missing', key: 'roundTo', value: 1 }))).toBe(state);
   });
 
-  it('sets and clears nested leaves, prunes empty parents and syncs only that room (anchor 3)', () => {
+  it('sets and clears nested leaves, prunes empty parents and syncs only that room', () => {
     const initial = twoRooms();
     delete initial.rooms[0].settingsOverrides;
     let state = elevationReducer(initial, setRoomSetting({ roomId: 'room-1', key: 'insetFrame.stile', value: 1 }));
@@ -87,7 +87,7 @@ describe('DB1 d room settings overrides', () => {
     expect(state.rooms[0]).not.toHaveProperty('settingsOverrides');
   });
 
-  it('cleans stored overrides, rejects non-object containers and round-trips valid leaves (anchor 5)', () => {
+  it('cleans stored overrides, rejects non-object containers and round-trips valid leaves', () => {
     const document = toElevationDocument(createInitialElevationState(null));
     document.rooms[0].settingsOverrides = { roundTo: 0.25, bogus: 1 };
     vi.stubGlobal('window', { localStorage: {
@@ -114,7 +114,7 @@ describe('DB1 d room settings overrides', () => {
     expect(loadElevationDocument().rooms[0]).not.toHaveProperty('settingsOverrides');
   });
 
-  it('clones overrides deeply so either room can be edited independently (anchor 6)', () => {
+  it('clones overrides deeply so either room can be edited independently', () => {
     const room = twoRooms().rooms[0];
     room.settingsOverrides.insetFrame = { stile: 1 };
     const copy = cloneRoom(room);

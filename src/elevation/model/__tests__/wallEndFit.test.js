@@ -37,8 +37,8 @@ function inspect(input, options = settings) {
 const shipped = (synced, options = settings) => shippingList(synced, options).rows
   .find(({ key }) => key === 'w:endPanel:start');
 
-describe('SH7.6 step e wall end panel fit', () => {
-  it('anchor 1: fits one face, preserving negative back depth through elevation, plan and shipping', () => {
+describe('wall end panel fit (SH7.6)', () => {
+  it('fits one face, preserving negative back depth through elevation, plan and shipping', () => {
     const input = room({ walls: [W] });
     const before = structuredClone(input);
     const { synced, w, r, panel } = inspect(input);
@@ -57,7 +57,7 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(input).toEqual(before);
   });
 
-  it('anchor 2: fits across opposite faces and reserves each end once', () => {
+  it('fits across opposite faces and reserves each end once', () => {
     const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W, runs: [R, Rb],
       endLegs: { start: { faces: { front: { legs: 'front', front: Sf },
         back: { legs: 'front', front: Sf } }, fit: 'between', panel: {} } } })] }));
@@ -69,7 +69,7 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(shipped(synced).size).toBe('48 1/4 x 34 1/2 x 13/16');
   });
 
-  it('anchor 3: propagates top and bottom clearances to drawing, picking, numbering and reports', () => {
+  it('propagates top and bottom clearances to drawing, picking, numbering and reports', () => {
     const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start, panel: { top: 1, bottom: 0.5 } } } })] }));
     expect(panel).toMatchObject({ top: 33.5, bottom: 0.5 });
@@ -88,7 +88,7 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(doorOrderItems(synced, settings).items.find(({ pieceId }) => pieceId === 'w:endPanel:start').height).toBe(33);
   });
 
-  it('anchor 4: falls back inside the legs when they overlap', () => {
+  it('falls back inside the legs when they overlap', () => {
     const { synced, r, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start,
         faces: { front: { ...E, back: { ...S, y: -18.5 } } } } } })] }));
@@ -99,7 +99,7 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(shipped(synced)).toBeDefined();
   });
 
-  it('anchor 5: leaves fit dormant without the stored panel', () => {
+  it('leaves fit dormant without the stored panel', () => {
     const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W, endPanels: { start: null, end: null } })] }));
     expect(panel).toBeUndefined();
     expect(wallEndFit(synced, w, 'start', settings)).toEqual({ warnings: [] });
@@ -107,14 +107,14 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(runLegs(synced, w, r, settings)).toHaveLength(2);
   });
 
-  it('anchor 6: measures inset from the foremost leg outside face', () => {
+  it('measures inset from the foremost leg outside face', () => {
     const { r, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start, faces: { front: { ...E, front: { ...Sf, x: 1 } } } } } })] }));
     expect(panel.front.x).toBe(-0.75);
     expect(r.x).toBe(3.5);
   });
 
-  it('anchor 7: falls back inside when the fitted panel has no height', () => {
+  it('falls back inside when the fitted panel has no height', () => {
     const { r, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start, panel: { bottom: 100 } } } })] }));
     expect(panel).toMatchObject({ top: 34.5, bottom: 0, front: { x: 3.5 },
@@ -179,8 +179,8 @@ describe('SH7.6 step e wall end panel fit', () => {
 });
 
 
-describe('SH7.6 step f wall end panel returns', () => {
-  it('anchor 1: reserves both returns, emits elevation outlines and ships one C-shape', () => {
+describe('wall end panel returns (SH7.6)', () => {
+  it('reserves both returns, emits elevation outlines and ships one C-shape', () => {
     const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' } } } })] }));
     expect(r.x).toBe(4.75);
@@ -202,7 +202,7 @@ describe('SH7.6 step f wall end panel returns', () => {
     expect(syncRoom(synced, settings)).toEqual(synced);
   });
 
-  it('anchor 2: ships a single front or back return as an L-shape', () => {
+  it('ships a single front or back return as an L-shape', () => {
     for (const edge of ['front', 'back']) {
       const { synced, r, panel } = inspect(room({ walls: [wall({ ...W,
         endLegs: { start: { ...W.endLegs.start, panel: { returns: edge } } } })] }));
@@ -213,7 +213,7 @@ describe('SH7.6 step f wall end panel returns', () => {
     }
   });
 
-  it('anchor 3: warns and keeps a plain panel for returns no deeper than thickness', () => {
+  it('warns and keeps a plain panel for returns no deeper than thickness', () => {
     for (const returnDepth of [0.75, 0.8125, 0.8125 + 0.5e-6]) {
       const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
         endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both', returnDepth } } } })] }));
@@ -229,7 +229,7 @@ describe('SH7.6 step f wall end panel returns', () => {
     }
   });
 
-  it('anchor 4: draws a C in plan while dimensions and clearances retain the panel rectangle', () => {
+  it('draws a C in plan while dimensions and clearances retain the panel rectangle', () => {
     const { synced, w, panel } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' } } } })] }));
     const parts = planParts(synced, settings).filter(({ kind }) => kind === 'wall_end_panel');

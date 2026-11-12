@@ -27,7 +27,7 @@ const linesTable = (value) => nodes(value).find((node) => node.table?.headerRows
 const checkboxes = (value) => nodes(value).filter((node) => node.columns?.[0]?.canvas);
 
 describe('ProBox order PDF', () => {
-  it('renders the two Euro sample forms and centred, alternating line rows (anchor 1)', () => {
+  it('renders the two Euro sample forms and centred, alternating line rows', () => {
     const before = structuredClone(order);
     const doc = proBoxOrderDocument(order, header, ['order', 'master', 'master']);
     expect(doc).toMatchObject({ pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [18, 18, 18, 36] });
@@ -55,7 +55,7 @@ describe('ProBox order PDF', () => {
     expect(order).toEqual(before);
   });
 
-  it('draws every fixed option as a black 9pt square, adding two X lines only when checked (anchor 2)', () => {
+  it('draws every fixed option as a black 9pt square, adding two X lines only when checked', () => {
     const form = proBoxOrderDocument(order, header, ['master']).content[0];
     const boxes = checkboxes(form).filter((node) => node.columns[1].text);
     expect(boxes.filter((node) => node.columns[0].canvas.length === 3).map((node) => node.columns[1].text)).toEqual([
@@ -94,7 +94,7 @@ describe('ProBox order PDF', () => {
     expect(proBoxOrderDocument(order, header, []).content).toEqual([]);
   });
 
-  it('uses the shared filename and per-copy footer on overflow pages (anchor 3)', () => {
+  it('uses the shared filename and per-copy footer on overflow pages', () => {
     expect(proBoxOrderFileName(header, 'Kitchen')).toBe('Cardwell - Kitchen - ProBox Drawer Box Order.pdf');
     expect(proBoxOrderFileName({ job: '' }, 'A/B')).toBe('Room - A-B - ProBox Drawer Box Order.pdf');
     const { footer } = proBoxOrderDocument(order, header, ['master', 'order']);

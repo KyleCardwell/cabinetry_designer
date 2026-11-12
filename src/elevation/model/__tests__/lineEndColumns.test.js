@@ -34,7 +34,7 @@ function withoutLine(stored) {
 
 const piece = (pieces, id) => pieces.find((candidate) => candidate.id === id);
 
-describe('LL4.1 b end columns follow the normal run rules', () => {
+describe('end columns follow the normal run rules (LL4.1)', () => {
   it('b1. Kyle\'s Room 10 at 1/2" rounding: filler 2 1/2, two 37" cabinets, same as without the line', () => {
     const { run: laid, pieces } = layout(K, kyle);
     expect(pieces[0]).toMatchObject({ kind: 'filler', x: 0, width: 2.5 });

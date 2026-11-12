@@ -44,39 +44,39 @@ function pieces(state) {
 }
 const typedB = () => reduce(initial(), setItemWidth({ ...at, itemId: 'B', width: 24 }));
 
-describe('LL6 b width from cabinets on and off', () => {
-  it('anchor 1: typing the last auto width turns it on and shrinks the run', () => {
+describe('width from cabinets on and off (LL6)', () => {
+  it('typing the last auto width turns it on and shrinks the run', () => {
     const state = typedB();
     expect(runOf(state)).toMatchObject({ widthFrom: 'cells', width: 55.5 });
     expect(pieces(state)['end-left'].width).toBe(1.5);
   });
 
-  it('anchor 2: no free end leaves it off', () => {
+  it('no free end leaves it off', () => {
     const state = reduce(initial({ anchors: { left: true, right: true } }), setItemWidth({ ...at, itemId: 'B', width: 24 }));
     expect(runOf(state).widthFrom).toBeUndefined();
     expect(runOf(state).width).toBe(120);
   });
 
-  it('anchor 3: another auto left leaves it off', () => {
+  it('another auto left leaves it off', () => {
     const state = reduce(initial({}, [fixed('A', 30), auto('B'), auto('C')]), setItemWidth({ ...at, itemId: 'B', width: 24 }));
     expect(runOf(state).widthFrom).toBeUndefined();
     expect(runOf(state).width).toBe(80);
   });
 
-  it('anchor 4: clearing a width keeps the flag and the width', () => {
+  it('clearing a width keeps the flag and the width', () => {
     const state = reduce(typedB(), setItemWidth({ ...at, itemId: 'B', width: null }));
     expect(runOf(state)).toMatchObject({ widthFrom: 'cells', width: 55.5 });
     expect(pieces(state).B.width).toBe(24);
   });
 
-  it('anchor 5: a typed run width turns it off; the filler takes the rest', () => {
+  it('a typed run width turns it off; the filler takes the rest', () => {
     const state = reduce(typedB(), updateRun({ ...at, changes: { width: 70 } }));
     expect(runOf(state).widthFrom).toBeUndefined();
     expect(runOf(state).width).toBe(70);
     expect(pieces(state)['end-left'].width).toBe(16);
   });
 
-  it('anchor 6: stretching or resizing the run turns it off', () => {
+  it('stretching or resizing the run turns it off', () => {
     const base = typedB();
     const stretched = stretchRun(base.rooms[0], 'H', 'S', 'right', 60, settings, { exact: true });
     expect(stretched.ok).toBe(true);
@@ -88,7 +88,7 @@ describe('LL6 b width from cabinets on and off', () => {
     expect(runOf(resized).width).toBe(60);
   });
 
-  it('anchor 7: the toggle turns it off, and is ignored while blocked', () => {
+  it('the toggle turns it off, and is ignored while blocked', () => {
     const off = reduce(typedB(), setRunWidthFrom({ ...at, value: null }));
     expect(runOf(off).widthFrom).toBeUndefined();
     expect(runOf(off).width).toBe(55.5);
@@ -98,7 +98,7 @@ describe('LL6 b width from cabinets on and off', () => {
     expect(runOf(on)).toMatchObject({ widthFrom: 'cells', width: 55.5 });
   });
 
-  it('anchor 8: lock leaves the flag alone', () => {
+  it('lock leaves the flag alone', () => {
     const state = reduce(typedB(), lockItem({ ...at, itemId: 'A', width: 30 }));
     expect(runOf(state).widthFrom).toBe('cells');
     expect(runItems(runOf(state)).map(({ width }) => width)).toEqual([30, 24]);

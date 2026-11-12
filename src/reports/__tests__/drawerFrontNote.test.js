@@ -8,13 +8,13 @@ const fronts = [
 ];
 const depths = (top, mid, btm) => new Map([['top', top], ['mid', mid], ['btm', btm]]);
 
-describe('IN10 step a drawer-front depths', () => {
-  it('ends the height groups with the common depth (anchor 13)', () => {
+describe('drawer-front depths (IN10)', () => {
+  it('ends the height groups with the common depth', () => {
     expect(drawerFrontNote(fronts, new Map(), depths(21, 21, 21)))
       .toBe('DF\'s (1 - 5 7/8", 2 - 12", 21" drws)');
   });
 
-  it('tags exceptional depths and combines slide and depth tags (anchor 14)', () => {
+  it('tags exceptional depths and combines slide and depth tags', () => {
     expect(drawerFrontNote(fronts, new Map(), depths(19, 21, 21)))
       .toBe('DF\'s (1 - 5 7/8" (19" deep), 2 - 12", 21" drws)');
     const names = new Map([['btm', 'Accuride 3832']]);
@@ -25,7 +25,7 @@ describe('IN10 step a drawer-front depths', () => {
     expect({ fronts, names, sizes }).toEqual(before);
   });
 
-  it('uses singular for one front and preserves rounded groups without depths (anchor 15)', () => {
+  it('uses singular for one front and preserves rounded groups without depths', () => {
     expect(drawerFrontNote([fronts[1]], new Map(), new Map([['top', 18]])))
       .toBe('DF\'s (1 - 5 7/8", 18" drw)');
     const faces = [

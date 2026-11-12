@@ -45,7 +45,7 @@ function nestedInput() {
   return data;
 }
 
-describe('IN15b step b physical-section notes', () => {
+describe('physical-section notes (IN15b)', () => {
   const as = (count, extra = {}) => ({ shelves: { count, ...extra } });
   const ro = () => ({ shelves: { count: 0 }, rollouts: { count: 2, items: [{ depth: 18 }, { depth: 18 }] } });
   const zones = (...children) => ({ direction: 'vertical', children,
@@ -112,7 +112,7 @@ describe('IN15b step b physical-section notes', () => {
   });
 });
 
-describe('IN13b step c shoe shelf notes', () => {
+describe('shoe shelf notes (IN13b)', () => {
   it('orders flat shelves, shoes, third-row line bore, roll-outs and accessories without changing inputs', () => {
     const data = input(null, [['r', S(2, { shoe: { count: 4, nosing: { kind: 'folded' } } })]]);
     data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
@@ -136,8 +136,8 @@ describe('IN13b step c shoe shelf notes', () => {
   });
 });
 
-describe('IN13a step e accessory notes', () => {
-  it('anchor 6: preserves notes without length or line-bore effects, including legacy entries', () => {
+describe('accessory notes (IN13a)', () => {
+  it('preserves notes without length or line-bore effects, including legacy entries', () => {
     const data = input(null, [['r', S(2)]]);
     data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
     const plain = { dividers: [], sections: ['2 as', '1 ro - 18"'], fronts: null };
@@ -157,7 +157,7 @@ describe('IN13a step e accessory notes', () => {
   });
 });
 
-describe('IN12b step g accessory notes', () => {
+describe('accessory notes (IN12b)', () => {
   it('keeps stored order in one note after roll-outs regardless of sizing or whole-section warnings', () => {
     const data = input();
     data.rollouts.set('r', { rollouts: [rollout(21, 60), rollout(21, 80)] });
@@ -171,7 +171,7 @@ describe('IN12b step g accessory notes', () => {
     expect(data).toEqual(before);
   });
 
-  it('anchor 4: omits missing and wrong-place items without changing other notes', () => {
+  it('omits missing and wrong-place items without changing other notes', () => {
     const data = input();
     const withoutAccessories = interiorNotes(data);
     data.accessories = new Map([['r', { whole: null, warnings: [], items: [
@@ -183,7 +183,7 @@ describe('IN12b step g accessory notes', () => {
   });
 });
 
-describe('IN12c step f drawer accessory tags', () => {
+describe('drawer accessory tags (IN12c)', () => {
   it('passes tags to section and cabinet fronts, separating equal heights by tag in top-down order', () => {
     const data = input();
     data.faces = [
@@ -201,23 +201,23 @@ describe('IN12c step f drawer accessory tags', () => {
   });
 });
 
-describe('IN10 step a interior notes', () => {
-  it('prints a single unwrapped section (anchor 1)', () => {
+describe('interior notes (IN10)', () => {
+  it('prints a single unwrapped section', () => {
     expect(interiorNotes(input())).toMatchObject({ dividers: [], sections: ['1 as'] });
   });
 
-  it('prints the resolved open-box flags (anchor 2)', () => {
+  it('prints the resolved open-box flags', () => {
     expect(interiorNotes(input(null, [['r', S(0, { lineBore: false, hinges: false })]])))
       .toMatchObject({ dividers: [], sections: ['NLB, NPH (No Doors)'] });
   });
 
-  it('prints a fixed shelf and top/bottom sections (anchor 3)', () => {
+  it('prints a fixed shelf and top/bottom sections', () => {
     expect(interiorNotes(input(vertical(2), [['r.0', S(3)], ['r.1', S(1)]],
       [divider('fixed', { fromBottom: 42 })])))
       .toMatchObject({ dividers: ['fs up 42" oc'], sections: ['Top Sec (3 as)', 'Btm Sec (1 as)'] });
   });
 
-  it('prints both shelf centres lower first and no banding (anchor 4)', () => {
+  it('prints both shelf centres lower first and no banding', () => {
     const data = input(vertical(2), [], [divider('double_fixed', { fromBottom: 12.5, banding: false })]);
     expect(interiorNotes(data).dividers).toEqual(['2 fs (up 12 1/8", 12 7/8"), no banding']);
     data.settings = { sheetThickness: 0.5 };
@@ -226,7 +226,7 @@ describe('IN10 step a interior notes', () => {
     expect(interiorNotes(data).dividers).toEqual(['fs up 42" oc, no banding']);
   });
 
-  it('uses the partition dimension origin (anchor 5)', () => {
+  it('uses the partition dimension origin', () => {
     const data = input(group('horizontal', [{}, {}]), [['r.0', S(1)], ['r.1', S(1)]],
       [divider('partition', { fromLeft: 21, dimFrom: 'left' })]);
     expect(interiorNotes(data)).toMatchObject({ dividers: ['pt 21" oc from L'],
@@ -235,7 +235,7 @@ describe('IN10 step a interior notes', () => {
     expect(interiorNotes(data).dividers).toEqual(['dbl pt 20 1/4" oc from R']);
   });
 
-  it('nests group notes and suppresses auto flags for every drawer kind (anchor 6)', () => {
+  it('nests group notes and suppresses auto flags for every drawer kind', () => {
     const data = nestedInput();
     const before = structuredClone(data);
     for (const kind of ['drawer', 'rot', 'hamper']) {
@@ -247,7 +247,7 @@ describe('IN10 step a interior notes', () => {
     expect(data).toEqual(before);
   });
 
-  it('retains manual flags in drawer sections (anchor 7)', () => {
+  it('retains manual flags in drawer sections', () => {
     const data = nestedInput();
     data.shelves.get('r.1').lineBoreSource = 'manual';
     expect(interiorNotes(data).sections).toEqual([
@@ -257,7 +257,7 @@ describe('IN10 step a interior notes', () => {
     expect(interiorNotes(data).sections.at(-1)).toBe('Btm Sec (NLB, NPH (No Doors))');
   });
 
-  it('names all siblings, including empty sections (anchor 8)', () => {
+  it('names all siblings, including empty sections', () => {
     for (const [direction, expected] of [
       ['vertical', ['Top Sec (1 as)', 'Mid Sec (1 as)', 'Mid Btm Sec (1 as)', 'Btm Sec (1 as)']],
       ['vertical', ['Sec 1 (1 as)', 'Sec 2 (1 as)', 'Sec 3 (1 as)', 'Sec 4 (1 as)', 'Sec 5 (1 as)']],
@@ -273,7 +273,7 @@ describe('IN10 step a interior notes', () => {
     }
   });
 
-  it('prints hardwood, folded and glass shelf notes (anchor 9)', () => {
+  it('prints hardwood, folded and glass shelf notes', () => {
     const data = input(null, [['r', S(2, { nosing: { kind: 'hardwood' } })]]);
     expect(interiorNotes(data).sections).toEqual(['2 as, no banding - add 1 1/2" nosing']);
     data.shelves.get('r').nosing.kind = 'folded';
@@ -282,13 +282,13 @@ describe('IN10 step a interior notes', () => {
     expect(interiorNotes(data).sections).toEqual(['2 as (1/4" glass)']);
   });
 
-  it('groups roll-outs before the section flags (anchor 10)', () => {
+  it('groups roll-outs before the section flags', () => {
     const data = input(null, [['r', S(0, { lineBore: false })]]);
     data.rollouts.set('r', { rollouts: [rollout(18, 60), rollout(18, 80)] });
     expect(interiorNotes(data).sections).toEqual(['NLB', '2 ro - 18"']);
   });
 
-  it('lists roll-out groups top-down and tags other slides (anchor 11)', () => {
+  it('lists roll-out groups top-down and tags other slides', () => {
     const data = input();
     data.rollouts.set('r', { rollouts: [rollout(21, 60), rollout(22, 80, {
       slideId: 'accuride-3832', slide: { name: 'Accuride 3832' },
@@ -301,7 +301,7 @@ describe('IN10 step a interior notes', () => {
       .toEqual(['1 as', '1 ro - 22", 1 ro - 21" (Blum Tandem 562H)']);
   });
 
-  it('prints stretcher centres and keeps empty siblings in naming (anchor 12)', () => {
+  it('prints stretcher centres and keeps empty siblings in naming', () => {
     const data = input(vertical(2), [
       ['r.0', S(0, { lineBore: false, hinges: false, lineBoreSource: 'auto', hingesSource: 'auto' })],
       ['r.1', S(1)],
@@ -335,7 +335,7 @@ describe('IN10 step a interior notes', () => {
     expect(interiorNotes(data).sections).toEqual(['Top Sec (NLB, 1 ro, 1 ro - 18")']);
   });
 
-  describe('IN10.1 drawer fronts in their section, flags first', () => {
+  describe('drawer fronts in their section, flags first (IN10.1)', () => {
     const front = (path, height, z) => ({ type: 'drawer_front', path, x: 105, width: 20, height, z });
 
     it('prints a tall\'s bottom drawers inside Btm Sec, with the depth', () => {

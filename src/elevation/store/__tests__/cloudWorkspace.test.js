@@ -13,7 +13,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const VIEW_ONLY = { view: true, edit: false, manage: false };
 
-describe('DB4 e shop workspace', () => {
+describe('shop workspace (DB4)', () => {
   it('opens an empty team on the code defaults and writes the three built-in designs once', async () => {
     const api = fakeDesignApi();
     const store = cloudStore(api);

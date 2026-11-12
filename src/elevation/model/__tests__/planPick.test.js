@@ -43,7 +43,7 @@ describe('planPickStack', () => {
     expect(keys(planPickStack(model, point(model, x, off), settings, { tolerance }))).toEqual(expected);
   });
 
-  it('anchor 9: supplies labels, selections, host ids and plan outlines', () => {
+  it('supplies labels, selections, host ids and plan outlines', () => {
     model = syncRoom(model, settings);
     const host = model.walls[0];
     expect(planPickStack(model, point(model, 40, 12), settings)).toEqual([
@@ -59,7 +59,7 @@ describe('planPickStack', () => {
     ]);
   });
 
-  it('anchor 10: lists a nearby adjoining wall before the run host', () => {
+  it('lists a nearby adjoining wall before the run host', () => {
     model.walls[0].runs = [run({ id: 'R', x: 90, width: 30, depth: 24 })];
     model.walls[0].connections.end = { wallId: 'W2', endpoint: 'start' };
     model.walls.push(wall({
@@ -71,7 +71,7 @@ describe('planPickStack', () => {
       .toEqual(['run:R', 'wall:W2', 'wall:W1']);
   });
 
-  it('anchor 11: picks a back-side run on a mid-room wall', () => {
+  it('picks a back-side run on a mid-room wall', () => {
     model.walls[0].runs[0].wallSide = 'back';
     model = syncRoom(model, settings);
     expect(keys(planPickStack(model, point(model, 40, 12, 'back'), settings)))

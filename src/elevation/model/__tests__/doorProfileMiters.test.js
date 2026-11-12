@@ -17,21 +17,21 @@ function build(design, part, picks = {}, appliedMoldings = [], sizes, library = 
 }
 
 describe('Step 481 profile miters', () => {
-  it('anchor 1: inside span runs from the opening to the outer profile edge', () => {
+  it('inside span runs from the opening to the outer profile edge', () => {
     expect(build(FIVE, rect(18, 30), { inside: 'in58' }).fit.miters).toEqual(segments([
       [3, 3, 2.375, 2.375], [15, 3, 15.625, 2.375],
       [15, 27, 15.625, 27.625], [3, 27, 2.375, 27.625],
     ]));
   });
 
-  it('anchor 2: outside span runs from the inner profile edge to the outline', () => {
+  it('outside span runs from the inner profile edge to the outline', () => {
     expect(build(FIVE, rect(18, 30), { outside: 'out38' }).fit.miters).toEqual(segments([
       [0.375, 0.375, 0, 0], [17.625, 0.375, 18, 0],
       [17.625, 29.625, 18, 30], [0.375, 29.625, 0, 30],
     ]));
   });
 
-  it('anchor 3: covered applied moldings draw miters in list order at their offsets', () => {
+  it('covered applied moldings draw miters in list order at their offsets', () => {
     const { fit } = build(SLAB_AM, rect(15, 15), {}, [am(1), am(2.5)]);
     expect(fit.openingsShown).toBe(false);
     expect(fit.miters).toEqual(segments([
@@ -41,7 +41,7 @@ describe('Step 481 profile miters', () => {
     ]));
   });
 
-  it('anchor 4: each mid-rail opening has four miters', () => {
+  it('each mid-rail opening has four miters', () => {
     const { detail, fit } = build(FIVE, rect(18, 40), { inside: 'in58' }, [], {
       layout: { split: 'rows', children: [{ size: 15.5 }, {}], mids: [{ width: 3 }] },
     });
@@ -56,7 +56,7 @@ describe('Step 481 profile miters', () => {
     ]));
   });
 
-  it('anchor 5: plain moldings and square profiles draw no miters', () => {
+  it('plain moldings and square profiles draw no miters', () => {
     expect(build(SLAB_AM, rect(15, 15), {}, [{ profileId: null, offset: 1 }]).fit.miters).toEqual([]);
     for (const design of DOOR_DESIGNS) expect(build(design, rect(18, 30)).fit.miters).toEqual([]);
   });

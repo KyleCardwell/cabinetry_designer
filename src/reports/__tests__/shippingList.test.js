@@ -56,7 +56,7 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
-describe('FX4 step f wood tops on the shipping list', () => {
+describe('wood tops on the shipping list (FX4)', () => {
   const stored = JSON.parse(readFileSync(new URL('../../elevation/model/__tests__/fixtures/room9.json', import.meta.url), 'utf8'));
   const using = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
   const deskId = '0f8a2992-b035-45af-9dcb-88e9196b28a8';
@@ -64,14 +64,14 @@ describe('FX4 step f wood tops on the shipping list', () => {
   const wood = { top: 'wood', autoCount: false,
     ends: { left: { type: 'none' }, right: { type: 'none' } } };
 
-  it('anchor 1: prints the Room 9 description, W x D x T and no notes', () => {
+  it('prints the Room 9 description, W x D x T and no notes', () => {
     // The stored fixture has no nosing profile, so its free end gets the default 3/4-inch overhang.
     expect(row(syncRoom(stored, using), key, using)).toMatchObject({
       description: 'Wood Top', size: '60 15/16 x 25 5/8 x 1 1/2', notes: [],
     });
   });
 
-  it('anchor 2: prints one island top across the front run and back panel, with Both faces', () => {
+  it('prints one island top across the front run and back panel, with Both faces', () => {
     const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const r = buildRoom({ walls: [buildWall({ id: 'island', x2: 96, thickness: 0, runs: [
       buildRun({ ...wood, id: 'front', width: 96, items: [auto('cabinet')] }),
@@ -85,7 +85,7 @@ describe('FX4 step f wood tops on the shipping list', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 3: notes the Room 9 right waterfall and keeps the top thickness', () => {
+  it('notes the Room 9 right waterfall and keeps the top thickness', () => {
     const r = structuredClone(stored);
     const desk = r.walls.flatMap(({ runs }) => runs).find(({ id }) => id === deskId);
     desk.waterfall = { right: {} };
@@ -94,7 +94,7 @@ describe('FX4 step f wood tops on the shipping list', () => {
     });
   });
 
-  it('anchor 4: includes the picked nosing name, resolving run overrides before wall and room picks', () => {
+  it('includes the picked nosing name, resolving run overrides before wall and room picks', () => {
     const s = { ...using, sectionProfiles: [{ id: 'nosing', kind: 'nosing', name: 'Desk bullnose',
       drawnPoints: { elevation: [], plan: [] },
       geometry: { points: { a: [0, 0], b: [1, 0], c: [0, -1.5] },
@@ -145,7 +145,7 @@ describe('FX4 step f wood tops on the shipping list', () => {
   });
 });
 
-describe('FX4 step g ordered wood top size', () => {
+describe('ordered wood top size (FX4)', () => {
   it('prints ordered dimensions without a scribe note and honors zero scribe', () => {
     const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const r = buildRoom({ walls: [buildWall({ id: 'w', x2: 96, thickness: 4.5, runs: [
@@ -162,7 +162,7 @@ describe('FX4 step g ordered wood top size', () => {
     });
   });
 
-  it('PT2 a anchor 7: notes the left and right miters on separate wood top rows', () => {
+  it('notes the left and right miters on separate wood top rows (PT2)', () => {
     const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const wood = { top: 'wood', autoCount: false,
       ends: { left: { type: 'none' }, right: { type: 'none' } } };
@@ -189,7 +189,7 @@ describe('FX4 step g ordered wood top size', () => {
   });
 });
 
-describe('IE1 step d shipping inside panels', () => {
+describe('shipping inside panels (IE1)', () => {
   it('lists both sides like run-end panels with their style, thickness and notes', () => {
     for (const styleId of ['default', 'sheet']) {
       const r = room([run('run', [cabinet('a'), { id: 'gap', kind: 'void', width: 20 }, cabinet('c')], {
@@ -214,7 +214,7 @@ describe('IE1 step d shipping inside panels', () => {
   });
 });
 
-describe('IN13b step c shipping shoe shelf notes', () => {
+describe('shipping shoe shelf notes (IN13b)', () => {
   const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
     size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
     effects: [{ kind: 'line_bore_row' }] };
@@ -223,7 +223,7 @@ describe('IN13b step c shipping shoe shelf notes', () => {
     id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }), interior, ...leaf,
   }], { width: 24, z: 0, ...overrides })], {}, {}, s);
 
-  it('anchor 1: prints shoe-only base sections without nosing text', () => {
+  it('prints shoe-only base sections without nosing text', () => {
     for (const nosing of ['none', 'hardwood', 'folded']) {
       const r = fixture({ shelves: { shoe: 2 } }, {}, { shelves: { nosing } });
       expect(row(r, 'cab', s).notes).toEqual(['full top', '2 shoe shelves', 'hl']);
@@ -237,19 +237,19 @@ describe('IN13b step c shipping shoe shelf notes', () => {
     expect(row(r, 'cab', s).notes).toEqual(['full top', '1 shoe shelf', 'hl']);
   });
 
-  it('anchor 2: prints the auto flat count before four shoe shelves in an 84-inch base', () => {
+  it('prints the auto flat count before four shoe shelves in an 84-inch base', () => {
     const r = fixture({ shelves: { shoe: 4 } }, { height: 84 });
     const before = structuredClone({ r, s });
     expect(row(r, 'cab', s).notes).toEqual(['full top', '4 as', '4 shoe shelves', 'hl']);
     expect({ r, s }).toEqual(before);
   });
 
-  it('anchor 4: keeps glass material on the typed flat shelf only', () => {
+  it('keeps glass material on the typed flat shelf only', () => {
     const r = fixture({ shelves: { glass: true, count: 1, shoe: 2 } });
     expect(row(r, 'cab', s).notes).toEqual(['full top', '1 as (1/4" glass)', '2 shoe shelves', 'hl']);
   });
 
-  it('anchors 5 and 6: adds third-row line bore for shoe-only sections unless line bore is manually off', () => {
+  it('adds third-row line bore for shoe-only sections unless line bore is manually off', () => {
     for (const [flags, notes] of [
       [{}, ['2 shoe shelves', '3rd row lb', 'fixed rod - 22 1/4"']],
       [{ lineBore: false }, ['NLB', '2 shoe shelves', 'fixed rod - 22 1/4"']],
@@ -260,7 +260,7 @@ describe('IN13b step c shipping shoe shelf notes', () => {
     }
   });
 
-  it('anchor 7: keeps flat and shoe shelf counts inside the named top section above a fixed shelf', () => {
+  it('keeps flat and shoe shelf counts inside the named top section above a fixed shelf', () => {
     const interior = splitSection({}, 'r', 'vertical', 2);
     interior.children[0] = { shelves: { count: 2, shoe: 3 } };
     const r = fixture(interior, { cabinetTypeId: 3, height: 84 });
@@ -268,7 +268,7 @@ describe('IN13b step c shipping shoe shelf notes', () => {
   });
 });
 
-describe('IN13a step e shipping accessory notes', () => {
+describe('shipping accessory notes (IN13a)', () => {
   const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
     size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
     effects: [{ kind: 'line_bore_row' }] };
@@ -279,24 +279,24 @@ describe('IN13a step e shipping accessory notes', () => {
     face: face('door', { hinge: 'left' }), interior }],
     { cabinetTypeId: 3, width: 24, height: 84, z: 0 })], {}, {}, s);
 
-  it('anchor 1: puts third-row line bore immediately after shelves and prints the ordered rod length', () => {
+  it('puts third-row line bore immediately after shelves and prints the ordered rod length', () => {
     const r = fixture({ shelves: { count: 2 }, accessories: [{ accessoryId: 'FR' }] });
     const before = structuredClone({ r, s });
     expect(row(r, 'cab', s).notes).toEqual(['2 as', '3rd row lb', 'fixed rod - 22 1/4"', 'hl']);
     expect({ r, s }).toEqual(before);
   });
 
-  it('anchor 2: prints rod quantity and length with NLB and no third row when there are no shelves', () => {
+  it('prints rod quantity and length with NLB and no third row when there are no shelves', () => {
     const r = fixture({ shelves: { count: 0 }, accessories: [{ accessoryId: 'FR', qty: 2 }] });
     expect(row(r, 'cab', s).notes).toEqual(['NLB', '2 fixed rod - 22 1/4"', 'hl']);
   });
 
-  it('anchor 3: omits the third row when line bore is manually disabled', () => {
+  it('omits the third row when line bore is manually disabled', () => {
     const r = fixture({ shelves: { count: 2 }, lineBore: false, accessories: [{ accessoryId: 'FR' }] });
     expect(row(r, 'cab', s).notes).toEqual(['NLB', '2 as', 'fixed rod - 22 1/4"', 'hl']);
   });
 
-  it('anchor 4: keeps shelves, third row and rod length together inside the named top section', () => {
+  it('keeps shelves, third row and rod length together inside the named top section', () => {
     const interior = splitSection({}, 'r', 'vertical', 2);
     interior.children[0] = { shelves: { count: 2 }, accessories: [{ accessoryId: 'FR' }] };
     const r = fixture(interior);
@@ -304,13 +304,13 @@ describe('IN13a step e shipping accessory notes', () => {
     expect(row(r, 'cab', s).notes.filter((note) => note.includes('3rd row lb'))).toHaveLength(1);
   });
 
-  it('anchor 5: prints a placed hook without length or position', () => {
+  it('prints a placed hook without length or position', () => {
     const r = fixture({ shelves: { count: 2 }, accessories: [{ accessoryId: 'HK', fromBottom: 60 }] });
     expect(row(r, 'cab', s).notes).toEqual(['2 as', 'robe hook', 'hl']);
   });
 });
 
-describe('IN4c step c shipping cabinet back notch notes', () => {
+describe('shipping cabinet back notch notes (IN4c)', () => {
   const notchedDrawers = { ...drawers, children: drawers.children.map((front, index) =>
     index === 0 ? { ...front, drawerBox: { depth: 21 } } : front) };
   const fixture = (leaf = {}, overrides = {}, s = settings) => room([
@@ -319,7 +319,7 @@ describe('IN4c step c shipping cabinet back notch notes', () => {
   const notches = (r, s = settings) => row(r, 'cab', s).notes
     .filter((note) => note.startsWith('notch back for slides'));
 
-  it('anchor 1: prints the quarter-inch notch after drawer rule notes', () => {
+  it('prints the quarter-inch notch after drawer rule notes', () => {
     const r = fixture({}, { width: 42 });
     const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', settings);
     expect(data.boxes.get('cab').boxes[0]).toMatchObject({
@@ -329,7 +329,7 @@ describe('IN4c step c shipping cabinet back notch notes', () => {
     expect(row(r).notes.slice(-2)).toEqual(['drawer stabilizers', 'notch back for slides (1/4")']);
   });
 
-  it('anchor 2: prints one largest notch across drawer boxes and roll-outs', () => {
+  it('prints one largest notch across drawer boxes and roll-outs', () => {
     const slide = { ...settings.slides[0], id: 'extra-clearance', backClearance: 1.25 };
     const s = { ...settings, slides: [...settings.slides, slide] };
     const r = fixture({
@@ -352,13 +352,13 @@ describe('IN4c step c shipping cabinet back notch notes', () => {
       .toEqual(['notch back for slides (1/4")']);
   });
 
-  it('anchor 3: places the sink plumbing and stabilizer rules before the back notch', () => {
+  it('places the sink plumbing and stabilizer rules before the back notch', () => {
     expect(row(fixture({ purpose: 'sink' }, { width: 42 })).notes.slice(-3)).toEqual([
       'notch drw around plumbing', 'drawer stabilizers', 'notch back for slides (1/4")',
     ]);
   });
 
-  it('anchor 4: omits the note without notches and preserves the ProBox order', () => {
+  it('omits the note without notches and preserves the ProBox order', () => {
     const r = fixture({ face: { direction: 'vertical', size: null, children: [
       face('drawer_front', { size: 5.875 }), face('door', { hinge: 'left' }),
     ] }, interior: { rollouts: { count: 1 } } });
@@ -372,7 +372,7 @@ describe('IN4c step c shipping cabinet back notch notes', () => {
   });
 });
 
-describe('IN12c step f drawer accessory tags', () => {
+describe('drawer accessory tags (IN12c)', () => {
   const cu = { ...newAccessory([], 'CU'), name: 'Charging unit', reportText: 'charging unit',
     attachesTo: 'drawer_box', effects: [{ kind: 'clear_behind', inches: 2 }] };
   const knife = { ...newAccessory([], 'KN'), name: 'Knife insert', reportText: '',
@@ -398,13 +398,13 @@ describe('IN12c step f drawer accessory tags', () => {
     expect({ r, s }).toEqual(before);
   });
 
-  it('anchor 3: groups equal quantity tags and uses the name when report text is empty', () => {
+  it('groups equal quantity tags and uses the name when report text is empty', () => {
     const r = fixture([[], [{ accessoryId: 'KN', qty: 2 }], [{ accessoryId: 'KN', qty: 2 }]]);
     expect(row(r, 'cab', s).notes)
       .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12 1/16" (2 Knife insert), 21" drws)']);
   });
 
-  it('anchor 5: omits missing and wrong-place items and keeps counted items in stored order', () => {
+  it('omits missing and wrong-place items and keeps counted items in stored order', () => {
     const section = { ...newAccessory([], 'section'), name: 'Section only' };
     const library = { ...s, accessories: [...s.accessories, section] };
     const missing = [{ accessoryId: 'gone' }];
@@ -421,8 +421,8 @@ describe('IN12c step f drawer accessory tags', () => {
   });
 });
 
-describe('IN12b step g shipping accessory notes', () => {
-  it('anchor 1: prints NLB then the Susan report text in a single-section 24-inch base', () => {
+describe('shipping accessory notes (IN12b)', () => {
+  it('prints NLB then the Susan report text in a single-section 24-inch base', () => {
     const susan = { ...newAccessory([], 'susan'), name: 'Susan', reportText: '6472-28 lazy susan', wholeSection: true };
     const s = { ...settings, accessories: [susan] };
     const r = room([run('run', [{ id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }),
@@ -433,7 +433,7 @@ describe('IN12b step g shipping accessory notes', () => {
     expect(data.shelves.get('cab').get('r').count).toBe(0);
   });
 
-  it('anchors 2–3: prints tall section shelves, then roll-outs, then accessory quantity and fallback name', () => {
+  it('prints tall section shelves, then roll-outs, then accessory quantity and fallback name', () => {
     const tray = { ...newAccessory([], 'tray'), name: 'Tray dividers' };
     const s = { ...settings, accessories: [tray] };
     for (const count of [0, 2]) {
@@ -450,13 +450,13 @@ describe('IN12b step g shipping accessory notes', () => {
   });
 });
 
-describe('IN10 step b interior shipping notes', () => {
+describe('interior shipping notes (IN10)', () => {
   const fixture = (leaf = {}, overrides = {}, s = settings) => room([
     run('run', [{ id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }), ...leaf }],
       { width: 24, ...overrides }),
   ], {}, {}, s);
 
-  it('IN15b anchor 1: prints one combined physical section for shelves above zone-separated roll-outs', () => {
+  it('prints one combined physical section for shelves above zone-separated roll-outs (IN15b)', () => {
     const r = fixture({ interior: {
       direction: 'vertical', dividers: [{ kind: 'zone' }], children: [
         { shelves: { count: 2 } },
@@ -468,37 +468,37 @@ describe('IN10 step b interior shipping notes', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 1: puts one adjustable shelf between the full top and left hinge', () => {
+  it('puts one adjustable shelf between the full top and left hinge', () => {
     expect(row(fixture()).notes).toEqual(['full top', '1 as', 'hl']);
   });
 
-  it('anchor 2: adds the common drawer depth without automatic section flags', () => {
+  it('adds the common drawer depth without automatic section flags', () => {
     expect(row(fixture({ face: drawers }, { width: 18 })).notes)
       .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)']);
   });
 
-  it('anchor 3: keeps the shelf below the single drawer and prints singular depth', () => {
+  it('keeps the shelf below the single drawer and prints singular depth', () => {
     expect(row(fixture({ face: { direction: 'vertical', size: null,
       children: [face('drawer_front', { size: 5.875 }), face('door', { hinge: 'left' })] } })).notes)
       .toEqual(['full top', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', 'hl']);
   });
 
-  it('anchor 4: puts the automatic partition before its left and right sections', () => {
+  it('puts the automatic partition before its left and right sections', () => {
     expect(row(fixture({ face: face('pair_door') }, { width: 42 })).notes)
       .toEqual(['full top', 'pt 21" oc from L', 'Left Sec (1 as)', 'Right Sec (1 as)']);
   });
 
-  it('anchor 5: groups the sink pair roll-outs and keeps its automatic NLB', () => {
+  it('groups the sink pair roll-outs and keeps its automatic NLB', () => {
     expect(row(fixture({ purpose: 'sink', face: face('pair_door'), interior: { rollouts: { count: 2 } } },
       { width: 36 })).notes).toEqual(['NLB', '2 ro - 18"']);
   });
 
-  it('anchor 6: tags a cabinet-picked roll-out relative to the room slide', () => {
+  it('tags a cabinet-picked roll-out relative to the room slide', () => {
     expect(row(fixture({ drawerSlideId: 'accuride-3832', interior: { rollouts: { count: 1 } } })).notes)
       .toEqual(['full top', '1 as', '1 ro - 22" (Accuride 3832)', 'hl']);
   });
 
-  it('anchor 7: prints resolved tall shelf positions and section counts in Euro and face frame', () => {
+  it('prints resolved tall shelf positions and section counts in Euro and face frame', () => {
     for (const cabinetStyleId of [13, 14]) {
       const r = fixture({ face: { direction: 'vertical', size: null,
         children: [face('door', { hinge: 'left' }), face('door', { hinge: 'left' })] } },
@@ -545,7 +545,7 @@ describe('IN10 step b interior shipping notes', () => {
   });
 });
 
-describe('IN6 step f ROT rows and cabinet rule notes', () => {
+describe('ROT rows and cabinet rule notes (IN6)', () => {
   const pullout = (drawerBox) => face('door', { action: 'pullout', ...(drawerBox ? { drawerBox } : {}) });
   const trash = (width = 18, drawerBox) => ({ id: 'T', kind: 'cabinet', width, purpose: 'trash',
     face: { direction: 'vertical', size: null,
@@ -554,7 +554,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
     { ...cabinet('A'), width: 18 }, t, { id: 'B', kind: 'cabinet', face: face('door') },
   ], { width: 72 })]);
 
-  it('anchor 1: ships the ROT and outside-sized lid after the trash cabinet', () => {
+  it('ships the ROT and outside-sized lid after the trash cabinet', () => {
     const r = fixture();
     const before = structuredClone(r);
     const rows = shippingList(r, settings).rows;
@@ -571,7 +571,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 2: uses the narrow depth row and tags a box slide that differs from the room', () => {
+  it('uses the narrow depth row and tags a box slide that differs from the room', () => {
     const narrow = shippingList(fixture(trash(15)), settings).rows.find(({ kind }) => kind === 'rot');
     expect(narrow).toMatchObject({ size: '13 x 15 1/8 x 21', notes: [] });
     const r = fixture(trash(18, { slideId: 'accuride-3832' }));
@@ -583,7 +583,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
       .toBe('15 5/8 x 22 x 11/16');
   });
 
-  it('anchor 3: places sink and stabilizer notes immediately after the drawer front note', () => {
+  it('places sink and stabilizer notes immediately after the drawer front note', () => {
     // The model anchors use 1/8-inch Euro reveals, including the top.
     const s = { ...settings, stoneTopReveal: 0.125 };
     const r = room([run('run', [{ ...cabinet('A'), purpose: 'sink' }])], {}, {}, s);
@@ -598,7 +598,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
     expect(row(both, 'A').notes.slice(-2)).toEqual(['notch drw around plumbing', 'drawer stabilizers']);
   });
 
-  it('anchor 4: retains the drawer front slide tag when a file rule picks the slide', () => {
+  it('retains the drawer front slide tag when a file rule picks the slide', () => {
     const s = { ...settings, stoneTopReveal: 0.125 };
     const r = room([run('run', [{ ...cabinet(), purpose: 'file', face: {
       direction: 'vertical', size: null,
@@ -647,13 +647,13 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
   });
 });
 
-describe('IN5 step f shipping slide tags', () => {
+describe('shipping slide tags (IN5)', () => {
   const picked = () => ({ ...cabinet(), face: { ...drawers, children: [
     face('drawer_front', { size: 5.875 }), face('drawer_front'),
     face('drawer_front', { drawerBox: { slideId: 'accuride-3832' } }),
   ] } });
 
-  it('keeps the room slide untagged and splits a picked bottom box (anchors 1, 2)', () => {
+  it('keeps the room slide untagged and splits a picked bottom box', () => {
     expect(row(room()).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)']);
     const r = room([run('run', [picked()])]);
     const before = structuredClone(r);
@@ -661,14 +661,14 @@ describe('IN5 step f shipping slide tags', () => {
     expect(r).toEqual(before);
   });
 
-  it('tags every cabinet-picked front relative to the room slide (anchor 3)', () => {
+  it('tags every cabinet-picked front relative to the room slide', () => {
     const r = room([run('run', [{ ...cabinet(), face: structuredClone(drawers), drawerSlideId: 'accuride-3832' }])]);
     expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 2 - 12" (Accuride 3832), 22" drws)']);
     r.walls[0].runs[0].grid.cells[0].node.face.children[2].drawerBox = { slideId: 'blum-562h' };
     expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 1 - 12" (Accuride 3832), 1 - 12" (21" deep), 22" drws)']);
   });
 
-  it('uses the resolved room slide and current library name (anchor 4)', () => {
+  it('uses the resolved room slide and current library name', () => {
     const s = { ...settings, drawerSlideId: 'accuride-3832' };
     expect(row(room(undefined, {}, {}, s), 'cab', s).notes)
       .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 22" drws)']);
@@ -712,7 +712,7 @@ describe('IN5 step f shipping slide tags', () => {
   });
 });
 
-describe('RP2.4 step d face frame reasons', () => {
+describe('face frame reasons (RP2.4)', () => {
   const flat = { ...settings, defaultStyle: { ...settings.defaultStyle, cabinetStyleId: 14 } };
   const door = (id, extra = {}) => ({ id, kind: 'cabinet', face: face('door'), ...extra });
   const notes = (r, s = flat, shop = s) => shippingList(r, s, shop).rows
@@ -815,7 +815,7 @@ describe('RP2.4 step d face frame reasons', () => {
   });
 });
 
-describe('RP2.4 step c shipping face frame notes', () => {
+describe('shipping face frame notes (RP2.4)', () => {
   function fixture(insetFrame = {}, cabinetStyleId = 14, reveals = []) {
     const s = { ...settings, insetFrame: { ...settings.insetFrame, ...insetFrame },
       defaultStyle: { ...settings.defaultStyle, cabinetStyleId } };
@@ -868,7 +868,7 @@ describe('RP2.4 step c shipping face frame notes', () => {
   });
 });
 
-describe('FL1 step a ordered filler depths', () => {
+describe('ordered filler depths (FL1)', () => {
   const endRun = (overrides = {}) => run('run', undefined, {
     width: 19.625, ends: { ...ends(), left: { type: 'filler', width: 1.625 } }, ...overrides,
   });
@@ -907,13 +907,13 @@ describe('FL1 step a ordered filler depths', () => {
   });
 });
 
-describe('HP1 step d shipping hinge notes', () => {
-  it('keeps a left swing note and omits plain pairs (anchors 1 and 6)', () => {
+describe('shipping hinge notes (HP1)', () => {
+  it('keeps a left swing note and omits plain pairs', () => {
     expect(hingeNote([face('door', { hinge: 'left' })])).toBe('hl');
     expect(hingeNote(['left', 'right'].map((half) => face('pair_door', { path: 'r', half })))).toBeNull();
   });
 
-  it('spells out vertical hinges and orders mixed notes top-down (anchors 2 and 3)', () => {
+  it('spells out vertical hinges and orders mixed notes top-down', () => {
     expect(hingeNote([face('door', { hinge: 'top' })])).toBe('hinge top');
     expect(hingeNote([face('door', { hinge: 'bottom' })])).toBe('hinge bottom');
     const faces = [face('door', { z: 0, height: 10, hinge: 'left' }),
@@ -923,14 +923,14 @@ describe('HP1 step d shipping hinge notes', () => {
     expect(faces).toEqual(before);
   });
 
-  it('names flipper and pocket actions with their side hinges (anchor 4)', () => {
+  it('names flipper and pocket actions with their side hinges', () => {
     expect(hingeNote([face('door', { action: 'flipper', hinge: 'right' })])).toBe('flipper door hr');
     expect(hingeNote([face('door', { action: 'flipper', hinge: 'left' })])).toBe('flipper door hl');
     expect(hingeNote([face('door', { action: 'pocket', hinge: 'left' })])).toBe('pocket door hl');
     expect(hingeNote([face('door', { action: 'pocket', hinge: 'right' })])).toBe('pocket door hr');
   });
 
-  it('notes each action pair once by path in face order (anchor 5)', () => {
+  it('notes each action pair once by path in face order', () => {
     const pair = (action, path, x) => ['right', 'left'].map((half) => face('pair_door', {
       action, path, half, x: x + (half === 'right' ? 10 : 0), z: 0, height: 10,
     }));
@@ -943,7 +943,7 @@ describe('HP1 step d shipping hinge notes', () => {
       .toBe('flipper doors, pocket doors, sliding doors, flipper doors');
   });
 
-  it('notes a pull-out above drawer fronts without a hinge (anchor 7)', () => {
+  it('notes a pull-out above drawer fronts without a hinge', () => {
     expect(hingeNote([face('drawer_front', { z: 0, height: 10 }),
       face('drawer_front', { z: 10, height: 10 }), face('door', { action: 'pullout', z: 20, height: 10 })]))
       .toBe('pull-out');
@@ -952,7 +952,7 @@ describe('HP1 step d shipping hinge notes', () => {
     expect(row(r).notes).toContain('pull-out');
   });
 
-  it('collapses repeated sliding notes and passes pair actions into report rows (anchor 8)', () => {
+  it('collapses repeated sliding notes and passes pair actions into report rows', () => {
     expect(hingeNote([face('door', { action: 'sliding' }), face('door', { action: 'sliding' })]))
       .toBe('sliding door');
     const r = room([run('run', [{ ...cabinet(), face: face('pair_door', { action: 'flipper' }) }])]);
@@ -960,33 +960,33 @@ describe('HP1 step d shipping hinge notes', () => {
   });
 });
 
-describe('IN1b step c box construction notes', () => {
+describe('box construction notes (IN1b)', () => {
   const fixture = (leaf = {}, runOverrides = {}, wallOverrides = {}, roomOverrides = {}) => room([
     run('run', [{ ...cabinet(), face: face('open'), ...leaf }], runOverrides),
   ], roomOverrides, wallOverrides);
 
-  it('prints full top for a standard base (anchor 1)', () => {
+  it('prints full top for a standard base', () => {
     expect(row(fixture()).notes).toEqual(['full top', 'NPH (No Doors)', '1 as']);
   });
 
-  it('omits the standard base sink spreaders note (anchor 2)', () => {
+  it('omits the standard base sink spreaders note', () => {
     expect(row(fixture({ purpose: 'sink' })).notes).toEqual(['NLB, NPH (No Doors)']);
     expect(row(fixture({ purpose: 'cooktop' })).notes).toEqual(['NLB, NPH (No Doors)']);
   });
 
-  it('combines upper overlays before the finished bottom note (anchor 3)', () => {
+  it('combines upper overlays before the finished bottom note', () => {
     const r = fixture({ box: { top: 'overlay', bottom: 'overlay', finBottom: true } },
       { cabinetTypeId: 2, z: 54, depth: 12 });
     expect(row(r).notes).toEqual(['top & bottom overlay sides', 'fin bottom (dowel front holes)', 'NPH (No Doors)', '1 as']);
   });
 
-  it('orders full top, reveals, no deck, inset back and missing side (anchor 4)', () => {
+  it('orders full top, reveals, no deck, inset back and missing side', () => {
     const r = fixture({ box: { bottom: 'none', right: false }, reveals: { left: 0.125 } },
       {}, { thickness: 0 });
     expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L)', 'no deck', '3/4" inset back', 'no right side', 'NPH (No Doors)', '1 as']);
   });
 
-  it('prints tall spreaders before an applied back (anchor 5)', () => {
+  it('prints tall spreaders before an applied back', () => {
     const r = fixture({ box: { top: 'spreaders', back: 'applied' } },
       { cabinetTypeId: 3, z: 0, height: 84 });
     expect(row(r).notes).toEqual(['top spreaders', '1/4" applied back', 'NPH (No Doors)', '6 as']);
@@ -1026,8 +1026,8 @@ describe('IN1b step c box construction notes', () => {
   });
 });
 
-describe('RP2 step d cabinet notes', () => {
-  it('groups working drawer heights top-down (anchor 1)', () => {
+describe('cabinet notes (RP2)', () => {
+  it('groups working drawer heights top-down', () => {
     const faces = [face('drawer_front', { z: 0, height: 12 }),
       face('drawer_front', { z: 24, height: 5.875 }), face('drawer_front', { z: 12, height: 12 })];
     const before = structuredClone(faces);
@@ -1037,19 +1037,19 @@ describe('RP2 step d cabinet notes', () => {
     expect(faces).toEqual(before);
   });
 
-  it('counts identical fronts and groups to the nearest thirty-second (anchor 2)', () => {
+  it('counts identical fronts and groups to the nearest thirty-second', () => {
     expect(drawerFrontNote([6, 6, 6].map((height) => face('drawer_front', { height })))).toBe('DF\'s (3 - 6")');
     expect(drawerFrontNote([6.001, 5.999, 6.032].map((height, index) => face('drawer_front', { height, z: 20 - index * 10 }))))
       .toBe('DF\'s (2 - 6", 1 - 6 1/32")');
     expect(drawerFrontNote([face('false_front', { height: 6 }), face('door')])).toBeNull();
   });
 
-  it('prints a right hinge and collapses repeated known sides (anchor 3)', () => {
+  it('prints a right hinge and collapses repeated known sides', () => {
     expect(hingeNote([face('door', { hinge: 'right' })])).toBe('hr');
     expect(hingeNote([face('door', { hinge: 'left' }), face('door', { hinge: 'left' })])).toBe('hl');
   });
 
-  it('prints mixed hinges top-down, then left-right (anchor 4)', () => {
+  it('prints mixed hinges top-down, then left-right', () => {
     const faces = [face('door', { z: 0, height: 10, hinge: 'right' }),
       face('door', { z: 10, height: 10, hinge: 'left' })];
     const before = structuredClone(faces);
@@ -1059,14 +1059,14 @@ describe('RP2 step d cabinet notes', () => {
       .toBe('hl, hr');
   });
 
-  it('marks each unknown hinge and excludes pair halves (anchor 5)', () => {
+  it('marks each unknown hinge and excludes pair halves', () => {
     expect(hingeNote([face('door')])).toBe('hinge?');
     expect(hingeNote([face('pair_door', { half: 'left' }), face('pair_door', { half: 'right' })])).toBeNull();
     expect(hingeNote([face('door'), face('door', { hinge: 'right' }), face('door')])).toBe('hinge?, hr, hinge?');
     expect(hingeNote([])).toBeNull();
   });
 
-  it('prints only reveals differing from the standard in T, B, L, R, H, V order (anchor 6)', () => {
+  it('prints only reveals differing from the standard in T, B, L, R, H, V order', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('open'), reveals: { top: 0.25, bottom: 0.125 } }])]);
     expect(row(r).notes).toEqual(['full top', 'NPH (No Doors)', '1 as']);
     r.walls[0].runs[0].grid.cells[0].node.reveals = {
@@ -1079,7 +1079,7 @@ describe('RP2 step d cabinet notes', () => {
     expect(row(r).notes).toEqual(['full top', 'NPH (No Doors)', '1 as']);
   });
 
-  it('prints an override only when it differs from room Boxes (anchor 7)', () => {
+  it('prints an override only when it differs from room Boxes', () => {
     const s = { ...settings, report: { ...settings.report, boxMaterial: 'WHITE MELAMINE' } };
     const r = room([run('run', [{ ...cabinet(), face: face('open') }])], {
       reportParts: { cab: { boxes: 'MAPLE PLY' } },
@@ -1091,7 +1091,7 @@ describe('RP2 step d cabinet notes', () => {
     expect(row(r, 'cab', s).notes).toEqual(['full top', 'NPH (No Doors)', '1 as']);
   });
 
-  it('uses the widest resolved single door and the blind extension (anchor 8)', () => {
+  it('uses the widest resolved single door and the blind extension', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('door') }], {
       width: 24, blind: { left: 39.5, right: null }, ends: { ...ends(), left: { type: 'blind', width: 6 } },
     })]);
@@ -1109,7 +1109,7 @@ describe('RP2 step d cabinet notes', () => {
       'pt 9" oc from L', 'Left Sec (1 as)', 'Right Sec (1 as)']);
   });
 
-  it('passes through the right-side T-filler rabbet note (anchor 9)', () => {
+  it('passes through the right-side T-filler rabbet note', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('open') }], {
       width: 21, ends: { ...ends(), right: { type: 'filler', width: 3 } },
       endFiller: { right: { tFiller: true } },
@@ -1118,7 +1118,7 @@ describe('RP2 step d cabinet notes', () => {
     expect(row(r, 'run:right').notes).toEqual(['T-shape - 3/4" left offset']);
   });
 
-  it('keeps box, drawer, hinge and free-text notes in order (anchor 10)', () => {
+  it('keeps box, drawer, hinge and free-text notes in order', () => {
     const r = room([run('run', [{ ...cabinet(), face: { direction: 'vertical', size: null,
       children: [face('drawer_front', { size: 5.875 }), face('door', { hinge: 'left' })] } }])], {
       reportParts: { cab: { boxes: 'MAPLE PLY', note: ' x ' } },
@@ -1127,7 +1127,7 @@ describe('RP2 step d cabinet notes', () => {
       notes: ['MAPLE PLY BOX', 'full top', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', 'hl', 'x'] });
   });
 
-  it('counts false fronts separately from drawers and ignores pair hinges (anchor 11)', () => {
+  it('counts false fronts separately from drawers and ignores pair hinges', () => {
     const sink = { ...cabinet(), face: { direction: 'vertical', size: null,
       children: [face('false_front', { size: 5.875 }), face('pair_door')] } };
     expect(row(room([run('run', [sink])])).notes).toEqual(['full top', 'false front', '1 as']);
@@ -1151,14 +1151,14 @@ describe('RP2 step d cabinet notes', () => {
   });
 });
 
-describe('RP2.2 step b reveal notes', () => {
+describe('reveal notes (RP2.2)', () => {
   const revealNotes = (r, s = settings) => row(r, 'cab', s).notes.filter((note) => note.startsWith("RV's"));
   const uncaptured = (overrides = {}, reveals, roomOverrides = {}) => room([run('run', [
     { ...cabinet(), width: 24, face: face('door', { hinge: 'left' }), reveals },
     { ...cabinet('cab2'), width: 24, face: face('door', { hinge: 'left' }) },
   ], { width: 48, ...overrides })], roomOverrides);
 
-  it('ST5 step b anchor 3: prints the Euro stone overlap top reveal for B', () => {
+  it('prints the Euro stone overlap top reveal for B (ST5)', () => {
     const r = room([run('run', ['A', 'B', 'C'].map((id) => ({
       id, kind: 'cabinet', width: 30, face: face('door', { hinge: 'left' }),
     })), {
@@ -1174,7 +1174,7 @@ describe('RP2.2 step b reveal notes', () => {
     expect(r).toEqual(before);
   });
 
-  it('compares final base reveals against the stone standard (anchors 3, 4, 6, 7)', () => {
+  it('compares final base reveals against the stone standard', () => {
     for (const [top, reveals, expected] of [
       [undefined, undefined, []],
       ['wood', undefined, ['RV\'s (1/8" T)']],
@@ -1188,12 +1188,12 @@ describe('RP2.2 step b reveal notes', () => {
     }
   });
 
-  it('uses each tall and upper type standard (anchors 5, 9)', () => {
+  it('uses each tall and upper type standard', () => {
     expect(revealNotes(uncaptured({ cabinetTypeId: 3, height: 84, z: 0, top: 'wood' }))).toEqual([]);
     expect(revealNotes(uncaptured({ cabinetTypeId: 2, z: 54, depth: 12 }))).toEqual([]);
   });
 
-  it('prints rule-made captured side reveals (anchor 8)', () => {
+  it('prints rule-made captured side reveals', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('door', { hinge: 'left' }) }], {
       width: 36, ends: {
         left: { type: 'filler', width: 3 }, right: { type: 'filler', width: 3 },
@@ -1202,7 +1202,7 @@ describe('RP2.2 step b reveal notes', () => {
     expect(revealNotes(r)).toEqual(['RV\'s (3/32" L & R)']);
   });
 
-  it('keeps inset notes typed-only and resolves room, run and leaf styles (anchor 10)', () => {
+  it('keeps inset notes typed-only and resolves room, run and leaf styles', () => {
     const insetRoom = { style: { cabinetStyleId: 14 } };
     const r = uncaptured({}, { top: 0.25 }, insetRoom);
     expect(revealNotes(r)).toEqual(['RV\'s (1/4" T)']);
@@ -1246,29 +1246,29 @@ describe('RP2.2 step b reveal notes', () => {
   });
 });
 
-describe('RP2 step c cabinet descriptions', () => {
-  it('counts working drawer fronts (anchor 1)', () => {
+describe('cabinet descriptions (RP2)', () => {
+  it('counts working drawer fronts', () => {
     expect(cabinetDescription(1, Array.from({ length: 3 }, () => face('drawer_front')))).toBe('Base 3 Drawers');
   });
 
-  it('recognizes a drawer above every door (anchor 2)', () => {
+  it('recognizes a drawer above every door', () => {
     expect(cabinetDescription(1, [face('drawer_front', { z: 24.5, height: 5.875 }),
       face('door', { z: 0, height: 24.375 })])).toBe('Base Top Drawer');
   });
 
-  it('implies doors for every run type, including resolved pair halves and panels (anchor 3)', () => {
+  it('implies doors for every run type, including resolved pair halves and panels', () => {
     expect(cabinetDescription(1, [face('pair_door', { half: 'L' }), face('pair_door', { half: 'R' })])).toBe('Base');
     expect(cabinetDescription(3, Array.from({ length: 6 }, () => face('door')))).toBe('Tall');
     expect(cabinetDescription(2, [face('door')])).toBe('Upper');
     expect(cabinetDescription(1, [face('panel')])).toBe('Base');
   });
 
-  it('calls open or absent faces Open (anchor 4)', () => {
+  it('calls open or absent faces Open', () => {
     expect(cabinetDescription(1, [face('open')])).toBe('Base Open');
     expect(cabinetDescription(1, [])).toBe('Base Open');
   });
 
-  it('handles singular, multiple top drawers and other mixes (anchor 5)', () => {
+  it('handles singular, multiple top drawers and other mixes', () => {
     expect(cabinetDescription(1, [face('drawer_front')])).toBe('Base 1 Drawer');
     const two = [face('drawer_front', { z: 25, height: 5 }), face('drawer_front', { z: 25, height: 5 })];
     expect(cabinetDescription(1, [...two, face('door', { z: 0, height: 24 }), face('door', { z: 0, height: 24 })]))
@@ -1281,15 +1281,15 @@ describe('RP2 step c cabinet descriptions', () => {
       .toBe('Base Drawers & Doors');
   });
 
-  it('ignores false fronts above pairs (anchor 6)', () => {
+  it('ignores false fronts above pairs', () => {
     expect(cabinetDescription(1, [face('false_front', { z: 25 }), face('pair_door', { half: 'L' }),
       face('pair_door', { half: 'R' })])).toBe('Base');
     expect(cabinetDescription(1, [face('false_front'), face('open')])).toBe('Base Open');
   });
 });
 
-describe('RP2 step c shipping list rows', () => {
-  it('uses resolved cabinet faces and box depth without mutating the room (anchor 7)', () => {
+describe('shipping list rows (RP2)', () => {
+  it('uses resolved cabinet faces and box depth without mutating the room', () => {
     const r = room();
     const before = structuredClone(r);
     expect(row(r)).toEqual({ number: 1, key: 'cab', kind: 'cabinet',
@@ -1299,7 +1299,7 @@ describe('RP2 step c shipping list rows', () => {
     expect(r).toEqual(before);
   });
 
-  it('lets the typed name replace the entire description and keeps free text last (anchor 8)', () => {
+  it('lets the typed name replace the entire description and keeps free text last', () => {
     const r = room(undefined, { reportParts: { cab: { name: 'Pencil Base', note: 'check pulls', shopBuilt: true } } });
     expect(row(r)).toMatchObject({ description: 'Pencil Base', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)', 'check pulls'] });
     r.reportParts.cab.name = '  ';
@@ -1307,26 +1307,26 @@ describe('RP2 step c shipping list rows', () => {
     expect(row(r)).toMatchObject({ description: 'Shop-built Base 3 Drawers', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)'] });
   });
 
-  it('adds the normal filler return to its thickness (anchor 9)', () => {
+  it('adds the normal filler return to its thickness', () => {
     const r = room([run('run', undefined, { width: 19.625,
       ends: { ...ends('filler'), left: { type: 'filler', width: 1.625 } } })]);
     expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '1 5/8 x 30 1/2 x 3 3/16' });
   });
 
-  it('orders the blind filler six inches wide with no return (anchor 10)', () => {
+  it('orders the blind filler six inches wide with no return', () => {
     const r = room([run('run', undefined, { width: 48, blind: { left: 42, right: null },
       ends: ends('blind') })]);
     expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '6 x 30 1/2 x 13/16' });
   });
 
-  it('orders a free end by depth and accepts the explicit Shop-built flag (anchors 11, 13)', () => {
+  it('orders a free end by depth and accepts the explicit Shop-built flag', () => {
     const r = room([run('run', undefined, { width: 18.75, ends: ends('none', 'end_panel') })]);
     expect(row(r, 'run:right')).toMatchObject({ description: 'Base End Panel', size: '24 7/8 x 30 1/2 x 13/16' });
     r.reportParts = { 'run:right': { shopBuilt: true } };
     expect(row(r, 'run:right').description).toBe('Shop-built Base End Panel');
   });
 
-  it('recognizes a joined end as sheet, unless its own style overrides it (anchor 12)', () => {
+  it('recognizes a joined end as sheet, unless its own style overrides it', () => {
     const r = room([
       run('run', undefined, { width: 18.75, ends: ends('end_panel'),
         anchors: { left: { to: 'follow', runId: 'other', side: 'right', offset: 0 }, right: false } }),
@@ -1337,27 +1337,27 @@ describe('RP2 step c shipping list rows', () => {
     expect(row(syncRoom(r, settings), 'run:left').description).toBe('Base End Panel');
   });
 
-  it('prints a flush side cell with the drawing depth and its resolved style (anchor 14)', () => {
+  it('prints a flush side cell with the drawing depth and its resolved style', () => {
     const r = room([run('run', [{ id: 'panel', kind: 'panel', width: 0.75, styleId: 'default' }, cabinet()], { width: 18.75 })]);
     expect(row(r, 'panel')).toMatchObject({ description: 'Base Side Panel', size: '24 7/8 x 30 1/2 x 3/4' });
     r.walls[0].runs[0].grid.cells[0].node.styleId = 'sheet';
     expect(row(syncRoom(r, settings), 'panel').description).toBe('Shop-built Base Side Panel');
   });
 
-  it('prints a wall end panel using its part width, top and resolved thickness (anchor 15)', () => {
+  it('prints a wall end panel using its part width, top and resolved thickness', () => {
     const r = room([run('run', undefined, { z: 6, anchors: { left: true, right: false } })], {},
       { endPanels: { start: { width: 25 }, end: null } });
     expect(row(r, 'wall:endPanel:start')).toMatchObject({ description: 'Wall End Panel', size: '25 x 36 1/2 x 13/16' });
   });
 
-  it('uses ordered furniture base dimensions (anchor 16)', () => {
+  it('uses ordered furniture base dimensions', () => {
     const r = room([run('run', undefined, { width: 96.5 })], {
       profile: { ...settings.defaultProfile, baseKind: 'furniture_base', furnitureBaseProud: 0 },
     });
     expect(row(r, 'furniture_base:run')).toMatchObject({ description: 'Furniture Base', size: '96 1/2 x 4 1/2 x 24 7/8' });
   });
 
-  it('retains Toe Kick and Crown molding rows at their part numbers (anchor 17)', () => {
+  it('retains Toe Kick and Crown molding rows at their part numbers', () => {
     const r = room([run('run', undefined, { top: 'crown' })]);
     const rows = shippingList(r, settings).rows;
     expect(rows.filter(({ key }) => ['molding:toeKick', 'molding:crown'].includes(key)))
@@ -1370,13 +1370,13 @@ describe('RP2 step c shipping list rows', () => {
     expect(rows.slice(1, -1).map(({ description }) => description)).toEqual(['Toe Kick', 'Top Mold', 'Crown']);
   });
 
-  it('always ends with Adjustable Shelves and trims the room note (anchor 18)', () => {
+  it('always ends with Adjustable Shelves and trims the room note', () => {
     expect(shippingList(room(undefined, { reportNote: ' Ship Fri ' }), settings)).toMatchObject({ roomNote: 'Ship Fri' });
     expect(shippingList(room(), settings).rows.at(-1)).toEqual(adjustable);
     expect(shippingList(room(undefined, { reportNote: '   ' }), settings).roomNote).toBeNull();
   });
 
-  it('sorts overrides numerically and preserves part order for duplicate numbers (anchor 19)', () => {
+  it('sorts overrides numerically and preserves part order for duplicate numbers', () => {
     const r = room([run('run', [cabinet('a'), cabinet('b'), cabinet('c')], { width: 54 })], {
       partNumberOverrides: { c: 40 },
     });
@@ -1389,7 +1389,7 @@ describe('RP2 step c shipping list rows', () => {
     expect(result.warnings).toEqual([{ code: 'duplicate-part-number', number: 2, keys: ['a', 'c'] }]);
   });
 
-  it('returns only Adjustable Shelves for an empty room (anchor 20)', () => {
+  it('returns only Adjustable Shelves for an empty room', () => {
     expect(shippingList(room([]), settings)).toEqual({ rows: [adjustable], wallNotes: [], roomNote: null, warnings: [] });
   });
 
@@ -1491,23 +1491,23 @@ describe('RP2 step c shipping list rows', () => {
   });
 });
 
-describe('RP2 step e panel, filler and base notes', () => {
-  it('labels a one-return run end filler L-shape (anchor 1)', () => {
+describe('panel, filler and base notes (RP2)', () => {
+  it('labels a one-return run end filler L-shape', () => {
     const r = room([run('run', undefined, { width: 21, ends: { ...ends(), right: { type: 'filler', width: 3 } } })]);
     expect(row(r, 'run:right').notes).toEqual(['L-shape']);
   });
 
-  it('labels a filler between two cabinets U-shape (anchor 2)', () => {
+  it('labels a filler between two cabinets U-shape', () => {
     const r = room([run('run', [cabinet('a'), { id: 'fill', kind: 'filler', width: 3 }, cabinet('b')], { width: 39 })]);
     expect(row(r, 'fill').notes).toEqual(['U-shape']);
   });
 
-  it('leaves a blind filler with no return unannotated (anchor 3)', () => {
+  it('leaves a blind filler with no return unannotated', () => {
     const r = room([run('run', undefined, { width: 48, blind: { left: 42, right: null }, ends: ends('blind') })]);
     expect(row(r, 'run:left').notes).toEqual([]);
   });
 
-  it('retains T-filler notes at ends and seams, before free text (anchor 4)', () => {
+  it('retains T-filler notes at ends and seams, before free text', () => {
     const r = room([run('run', [cabinet('a'), cabinet('b')], { cabinetTypeId: 2, z: 54, depth: 12,
       width: 40, tFiller: 'seams', ends: { ...ends(), left: { type: 'filler', width: 3 } },
       endFiller: { left: { tFiller: true } },
@@ -1516,7 +1516,7 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(r, 'tee:a|b').notes).toEqual(['T-shape', 'return up 1/8"']);
   });
 
-  it('puts an upper return after shape and omits it when extended down (anchor 5)', () => {
+  it('puts an upper return after shape and omits it when extended down', () => {
     const r = room([run('run', undefined, { cabinetTypeId: 2, z: 54, depth: 12, width: 21,
       ends: { ...ends(), left: { type: 'filler', width: 3 } },
     })]);
@@ -1525,7 +1525,7 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(syncRoom(r, settings), 'run:left').notes).toEqual(['L-shape']);
   });
 
-  it('copies door panel notes including a scribe before free text (anchor 6)', () => {
+  it('copies door panel notes including a scribe before free text', () => {
     const r = room([run('run', undefined, { width: 18.75, ends: { ...ends(), right: {
       type: 'end_panel', width: null, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' } },
     } } })], { reportParts: { 'run:right': { note: 'last' } } });
@@ -1536,7 +1536,7 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(r).notes).not.toContain('1 7/8" TR & BR');
   });
 
-  it('leaves joined sheet panels off the vendor notes (anchor 7)', () => {
+  it('leaves joined sheet panels off the vendor notes', () => {
     const r = room([
       run('run', undefined, { ends: ends('end_panel'),
         anchors: { left: { to: 'follow', runId: 'other', side: 'right', offset: 0 }, right: false } }),
@@ -1545,7 +1545,7 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(r, 'run:left').notes).toEqual([]);
   });
 
-  it('adds nosing to a thick side panel and prints the style thickness (anchor 8)', () => {
+  it('adds nosing to a thick side panel and prints the style thickness', () => {
     const r = room([run('run', [{ id: 'side', kind: 'panel', width: 1.5625, styleId: 'default' }, cabinet()], { width: 19.5625 })]);
     expect(row(r, 'side')).toMatchObject({ size: '24 7/8 x 30 1/2 x 13/16',
       notes: ['do not sand edges', 'add 3/4" square nosing, mitered (1 9/16" thick)'] });
@@ -1561,7 +1561,7 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(r, 'furniture_base:run', s)).toMatchObject({ size: '18 x 4 x 24 7/8', notes: [] });
   });
 
-  it('keeps a shop-built end panel on shipping with its prefix (anchor 10)', () => {
+  it('keeps a shop-built end panel on shipping with its prefix', () => {
     const r = room([run('run', undefined, { ends: ends('none', 'end_panel') })], {
       reportParts: { 'run:right': { shopBuilt: true } },
     });
@@ -1579,7 +1579,7 @@ describe('RP2 step e panel, filler and base notes', () => {
   });
 });
 
-describe('FS1 b deep top mold notes', () => {
+describe('deep top mold notes (FS1)', () => {
   const s = { ...settings, runFlex: 0,
     defaultProfile: { ...settings.defaultProfile, topMoldProfileId: 'deep-top', topMoldOverhang: 0.25 },
     sectionProfiles: [...settings.sectionProfiles, { id: 'deep-top', name: 'Top Mold', kind: 'top_mold',
@@ -1594,7 +1594,7 @@ describe('FS1 b deep top mold notes', () => {
   const shelves = { id: 'shelves', x: 144, width: 96, depth: 12, top: 'crown', ends: ends(),
     items: [{ ...auto('shelf-cell'), kind: 'shelves', shelves: { count: 2 } }] };
 
-  it('anchor 1: adds 13-inch depth over shelves, retaining their length and other molding notes', () => {
+  it('adds 13-inch depth over shelves, retaining their length and other molding notes', () => {
     const r = buildRoom({ walls: [buildWall({ x2: 288,
       runs: [buildRun(upper), buildRun(shelves)] })] });
     const before = structuredClone(r);
@@ -1605,7 +1605,7 @@ describe('FS1 b deep top mold notes', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 2: omits the deep note for a nested Top / bottom panel over or under shelves', () => {
+  it('omits the deep note for a nested Top / bottom panel over or under shelves', () => {
     for (const panelRow of [0, 1]) {
       const r = buildRoom({ walls: [buildWall({ x2: 288, runs: [buildRun(upper), buildRun({ ...shelves,
         items: [{ ...auto('stack'), grid: { id: 'stack', cols: [{ id: 'col', size: null, sizeMode: 'auto' }],
@@ -1621,7 +1621,7 @@ describe('FS1 b deep top mold notes', () => {
     }
   });
 
-  it('anchor 3: sorts depths numerically and deduplicates their formatted inch values', () => {
+  it('sorts depths numerically and deduplicates their formatted inch values', () => {
     for (const [depths, note] of [
       [[15, 12], '13" & 16"'],
       [[15, 8, 12, 12.001, 12.25], '9" & 13" & 13 1/4" & 16"'],
@@ -1636,7 +1636,7 @@ describe('FS1 b deep top mold notes', () => {
     }
   });
 
-  it('anchor 4: excludes shelves with Top None from the top mold row and depth note', () => {
+  it('excludes shelves with Top None from the top mold row and depth note', () => {
     const r = buildRoom({ walls: [buildWall({ x2: 288,
       runs: [buildRun(upper), buildRun({ ...shelves, top: 'none' })] })] });
     expect(row(r, 'molding:topMold', s)).toMatchObject({ size: 'Lineal Feet: 16',
@@ -1646,7 +1646,7 @@ describe('FS1 b deep top mold notes', () => {
   });
 });
 
-describe('RP2 step f molding rows', () => {
+describe('molding rows (RP2)', () => {
   function upper(width = 96, anchors = { left: true, right: true }, wallLength = width, extra = {}) {
     const stored = room([run('upper', [cabinet()], { cabinetTypeId: 2, x: 0, width, depth: 12,
       z: 54, height: 36, top: 'crown', anchors, ...extra })], {}, { x2: wallLength });
@@ -1671,11 +1671,11 @@ describe('RP2 step f molding rows', () => {
     return syncRoom(first, settings);
   }
 
-  it('rounds the extra two feet into eight-foot stock lengths (anchor 1)', () => {
+  it('rounds the extra two feet into eight-foot stock lengths', () => {
     expect([0, 72, 73, 264].map(linealFeet)).toEqual([8, 8, 16, 24]);
   });
 
-  it('sums 117 and 58 inches of toe kick before rounding (anchor 2)', () => {
+  it('sums 117 and 58 inches of toe kick before rounding', () => {
     const r = twoWalls(117, 58);
     expect(bandsOf(r).bands.toeKicks.map(({ width }) => width)).toEqual([117]);
     const wall = resolveWall(r, r.walls[1]);
@@ -1685,7 +1685,7 @@ describe('RP2 step f molding rows', () => {
     expect(row(r, 'molding:toeKick').size).toBe('Lineal Feet: 24');
   });
 
-  it('uses the band width of a square-ended 96-inch crown (anchor 3)', () => {
+  it('uses the band width of a square-ended 96-inch crown', () => {
     const r = upper();
     const { wall, run, scene, bands } = bandsOf(r);
     expect(bands.crown.width).toBe(96);
@@ -1696,7 +1696,7 @@ describe('RP2 step f molding rows', () => {
     }
   });
 
-  it('adds the 12 7/8-inch face depth and 3-inch crown past at a return (anchor 4)', () => {
+  it('adds the 12 7/8-inch face depth and 3-inch crown past at a return', () => {
     const r = upper(96, { left: true, right: false }, 144);
     const { run, bands } = bandsOf(r);
     expect(frontDepth(run, settings) - runBackOffset(run)).toBe(12.875);
@@ -1712,13 +1712,13 @@ describe('RP2 step f molding rows', () => {
     expect(row(both, 'molding:crown').size).toBe('Lineal Feet: 16');
   });
 
-  it('uses the unpicked toe-kick profile height less the top gap (anchor 5)', () => {
+  it('uses the unpicked toe-kick profile height less the top gap', () => {
     expect(row(room(), 'molding:toeKick').notes).toEqual(['3 7/8" tall']);
     expect(row(room(), 'molding:toeKick', { ...settings, toeKickTopGap: 0 }).notes).toEqual(['4" tall']);
     expect(row(room(), 'molding:toeKick', { ...settings, toeKickTopGap: 0.25 }).notes).toEqual(['3 3/4" tall']);
   });
 
-  it('prints the picked CV10 height and bounds depth (anchor 6)', () => {
+  it('prints the picked CV10 height and bounds depth', () => {
     const s = { ...settings, sectionProfiles: [{ id: 'cv10', name: 'CV10', kind: 'crown',
       drawnPoints: { elevation: [], plan: [] }, geometry: {
         points: { a: [0, 0], b: [4.625, 0], c: [0, -4.625] },
@@ -1731,13 +1731,13 @@ describe('RP2 step f molding rows', () => {
       notes: ['4 5/8" tall x 4 5/8" deep'] });
   });
 
-  it('joins distinct wall heights and omits repeated heights (anchor 7)', () => {
+  it('joins distinct wall heights and omits repeated heights', () => {
     const r = twoWalls(117, 58, { toeKickHeight: 3.5 });
     r.walls[0].runs.push(run('repeat', [cabinet('c')], { wallSide: 'back' }));
     expect(row(syncRoom(r, settings), 'molding:toeKick').notes).toEqual(['3 7/8" & 3 3/8" tall']);
   });
 
-  it('puts the free-text molding note last (anchor 8)', () => {
+  it('puts the free-text molding note last', () => {
     const r = room(undefined, { reportParts: { 'molding:toeKick': { note: ' add scribe if necessary ' } } });
     expect(row(r, 'molding:toeKick').notes).toEqual(['3 7/8" tall', 'add scribe if necessary']);
   });
@@ -1760,7 +1760,7 @@ describe('RP2 step f molding rows', () => {
   });
 });
 
-describe('FX2 stacked tall cabinets on the shipping list', () => {
+describe('stacked tall cabinets on the shipping list (FX2)', () => {
   // Kyle's Room 9: a face frame tall run, an open cabinet over a 30 1/2" box under one shared rail.
   const stacked = () => ({
     id: 'tall:grid', cols: [{ id: 'col', size: null, sizeMode: 'auto' }], rows: [{ id: 'row', size: null, sizeMode: 'auto' }],

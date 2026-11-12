@@ -41,7 +41,7 @@ describe('SPEC-46.2 door details on or off, style tags', () => {
       .toEqual([false, false]);
   });
 
-  it('HP2 anchor 7: stores swing marks only when on, rejects invalid choices, and saves the boolean', () => {
+  it('stores swing marks only when on, rejects invalid choices, and saves the boolean (HP2)', () => {
     const state = golden;
     const roomId = state.rooms[0].id;
     const on = apply(state, setRoomDoorDrawing({ roomId, swingMarks: true }));
@@ -66,7 +66,7 @@ describe('SPEC-46.2 door details on or off, style tags', () => {
     expect(isRoom(state.rooms[0])).toBe(true);
   });
 
-  it('HP5 anchor 7: defaults pulls on, stores only off, and validates and saves the switch', () => {
+  it('defaults pulls on, stores only off, and validates and saves the switch (HP5)', () => {
     const roomId = golden.rooms[0].id;
     expect(doorDrawing({}).pulls).toBe(true);
     expect(doorDrawing({ showPulls: false }).pulls).toBe(false);

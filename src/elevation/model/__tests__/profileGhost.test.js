@@ -242,7 +242,7 @@ describe('SPEC-50.1 panel thickness drives the door ghost', () => {
 });
 
 
-describe('MR6a mid ghost', () => {
+describe('mid ghost (MR6a)', () => {
   it('merges curved, square and rabbet stiles and mirrors the panel geometry', () => {
     for (const joint of ['curved', 'square']) {
       for (const thickness of [0.25, 0.5]) {

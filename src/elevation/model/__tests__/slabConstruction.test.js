@@ -23,7 +23,7 @@ function build(design, { outside = null, appliedMoldings = [], thickness = 0.812
 }
 
 describe('528 one slab construction with two cores', () => {
-  it('anchor 2: draws hardwood moldings with the same lines and four miters as MDF', () => {
+  it('draws hardwood moldings with the same lines and four miters as MDF', () => {
     const picks = { appliedMoldings: [{ profileId: 'am1', offset: 2 }] };
     const hardwood = build(HARDWOOD, picks);
     expect(hardwood.fit).toMatchObject({ lines: [box(2, 2, 11, 11), box(3, 3, 9, 9)], warnings: [], openingsShown: false });
@@ -32,7 +32,7 @@ describe('528 one slab construction with two cores', () => {
     expect(hardwood.section).toEqual(build(MDF, picks).section);
   });
 
-  it('anchor 3: retains slab regions without moldings and draws a plain outline', () => {
+  it('retains slab regions without moldings and draws a plain outline', () => {
     expect(partSizes(DEFAULT_DOOR_STYLE, HARDWOOD, rect)).toEqual({
       construction: 'slab', slab: 'design', molding: true, designId: 'slab',
       midRails: [], midStiles: [], panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 15 }], layoutWarnings: [], opening: { width: 15, height: 15 },
@@ -40,7 +40,7 @@ describe('528 one slab construction with two cores', () => {
     expect(build(HARDWOOD).fit).toEqual({ lines: [], miters: [], warnings: [], openingsShown: false });
   });
 
-  it('anchor 4: reports a short five-piece drawer front as hardwood and excludes it from stacking warnings', () => {
+  it('reports a short five-piece drawer front as hardwood and excludes it from stacking warnings', () => {
     const part = box(0, 0, 24, 4.5);
     const short = build(FIVE, { appliedMoldings: [{ profileId: 'am1', offset: 0 }] }, part);
     const sizes = partSizes(short.style, FIVE, part);
@@ -55,7 +55,7 @@ describe('528 one slab construction with two cores', () => {
     expect(partSizes(short.style, MDF, part)).toEqual({ construction: 'slab', slab: 'design', molding: false, designId: 'slab-mdf' });
   });
 
-  it('anchor 5: skips a routed MDF outside edge without shrinking the core or making a section cut', () => {
+  it('skips a routed MDF outside edge without shrinking the core or making a section cut', () => {
     const picks = { outside: 'out38', thickness: 0.75 };
     const mdf = build(MDF, picks);
     expect(mdf.offsets.warnings).toEqual([routedWarning]);
@@ -74,7 +74,7 @@ describe('528 one slab construction with two cores', () => {
     expect(build(HARDWOOD, picks).offsets.warnings).toEqual([{ code: 'door-profile-too-deep', slot: 'outside' }]);
   });
 
-  it('anchor 6: draws a closed MDF outside bead exactly as it does on hardwood', () => {
+  it('draws a closed MDF outside bead exactly as it does on hardwood', () => {
     const picks = { outside: 'bead5', thickness: 0.75 };
     const mdf = build(MDF, picks);
     const hardwood = build(HARDWOOD, picks);

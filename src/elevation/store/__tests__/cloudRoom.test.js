@@ -62,7 +62,7 @@ const elevationOf = (store) => store.getState().elevation;
 const draftOf = (drafts, id = 'rm-1') => drafts.get(id);
 const draftWritten = (drafts) => vi.waitFor(async () => expect(await draftOf(drafts)).not.toBeNull());
 
-describe('DB6a opening a room', () => {
+describe('opening a room (DB6a)', () => {
   it('loads one room with the shop settings, library and its project / phase overrides', async () => {
     const ctx = await setup();
     const reply = await ctx.store.dispatch(openCloudRoom({ estProjectId: 42, roomId: 'rm-1' }));
@@ -124,7 +124,7 @@ describe('DB6a opening a room', () => {
   });
 });
 
-describe('DB6a saving a room', () => {
+describe('saving a room (DB6a)', () => {
   it('saves an edit against the loaded version and moves on to the next version', async () => {
     const ctx = await setup();
     await open(ctx);
@@ -298,7 +298,7 @@ describe('DB6a saving a room', () => {
   });
 });
 
-describe('DB6a draft recovery', () => {
+describe('draft recovery (DB6a)', () => {
   const seedDraft = async (drafts, patch = {}, edit = (document) => ({ ...document, partNumberStart: 12 })) => {
     const { document } = newRoomDocument('Kitchen');
     await drafts.put({ roomId: 'rm-1', teamId: TEAM_ID, baseVersion: 5, schemaVersion: ELEVATION_SCHEMA_VERSION,
@@ -385,7 +385,7 @@ describe('DB6a draft recovery', () => {
     expect(await draftOf(drafts)).not.toBeNull();
   });
 
-describe('DB6a review fixes', () => {
+describe('review fixes (DB6a)', () => {
   it('a slow reply for a room the user already left is dropped', async () => {
     const ctx = await setup({ api: roomApi([roomRow('rm-1', 'Kitchen'), roomRow('rm-2', 'Bath')]) });
     await ctx.store.dispatch(openCloudWorkspace());
@@ -445,7 +445,7 @@ describe('DB6a review fixes', () => {
   });
 });
 
-describe('DB6a save timing', () => {
+describe('save timing (DB6a)', () => {
   it('waits 15 s of quiet by default, and a hidden tab sends at once', async () => {
     vi.useFakeTimers();
     const listeners = {};

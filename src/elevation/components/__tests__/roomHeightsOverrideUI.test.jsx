@@ -101,9 +101,9 @@ const room = () => state.rooms.find(({ id }) => id === state.activeRoomId);
 const soffitGroup = () => field(render(ElevationToolbar), 'Default soffit molding');
 const soffitButton = (label) => nodes(soffitGroup()).find(({ type, props }) => type === 'button' && props.children === label);
 
-describe('DB2 e room heights and soffit overrides', () => {
+describe('room heights and soffit overrides (DB2)', () => {
 
-  it('stores typed wall height 100, with teal, Reset and the inherited title (anchor 2)', () => {
+  it('stores typed wall height 100, with teal, Reset and the inherited title', () => {
     const tree = commit('Room Wall height', '100');
     expect(room().profile).toEqual({ wallHeight: 100 });
     expect(field(tree, 'Room Wall height').props.value).toBe('100');

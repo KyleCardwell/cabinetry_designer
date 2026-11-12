@@ -48,8 +48,8 @@ const piecesOf = (run, opts) => splitRun(run, settings, opts).pieces;
 const pieceB = (run, opts) => piecesOf(run, opts).find(({ id }) => id === 'B');
 const pin = { anchor: 'left', from: 'left', openingId: null, openingAnchor: 'center', value: 0 };
 
-describe('ST1 step b column steps', () => {
-  it('anchor 1: drops B by 2 without changing A, C, x, widths, or the stored run', () => {
+describe('column steps (ST1)', () => {
+  it('drops B by 2 without changing A, C, x, widths, or the stored run', () => {
     const run = makeRun({ top: manual(2) });
     const before = structuredClone(run);
     const layout = splitRun(run, settings);
@@ -63,16 +63,16 @@ describe('ST1 step b column steps', () => {
     expect(run).toEqual(before);
   });
 
-  it('anchor 2: raises B bottom by 3', () => {
+  it('raises B bottom by 3', () => {
     expect(pieceB(makeRun({ bottom: manual(3) }))).toMatchObject({ x: 30, width: 30, z: 7, height: 27.5 });
   });
 
-  it('anchor 3: combines B top 2 and bottom 3', () => {
+  it('combines B top 2 and bottom 3', () => {
     expect(pieceB(makeRun({ top: manual(2), bottom: manual(3) })))
       .toMatchObject({ x: 30, width: 30, z: 7, height: 25.5 });
   });
 
-  it('anchor 4: keeps a manual top row at 6 and shrinks the auto bottom row to 22.5', () => {
+  it('keeps a manual top row at 6 and shrinks the auto bottom row to 22.5', () => {
     const run = nestedRun();
     const cells = cellPieces(run, splitRun(run, settings));
     expect(cells.pieces.find(({ id }) => id === 'B-top')).toMatchObject({ z: 26.5, height: 6 });
@@ -81,7 +81,7 @@ describe('ST1 step b column steps', () => {
     expect(cells.warnings).toEqual([]);
   });
 
-  it('anchor 5: ignores a top drop of 29.75 and warns on B', () => {
+  it('ignores a top drop of 29.75 and warns on B', () => {
     const layout = splitRun(makeRun({ top: manual(29.75) }), settings);
     expect(layout.pieces[1]).toMatchObject({ z: 4, height: 30.5 });
     expect(layout.warnings).toEqual([{
@@ -91,7 +91,7 @@ describe('ST1 step b column steps', () => {
     expect(layout.errors).toEqual([]);
   });
 
-  it('anchor 6: keeps the stone-top reveal at 0.25 on B and A', () => {
+  it('keeps the stone-top reveal at 0.25 on B and A', () => {
     const run = makeRun({ top: manual(2) });
     const room = makeRoom(run);
     const faces = runFaceLayouts(room, room.walls[0], run, settings);
@@ -102,7 +102,7 @@ describe('ST1 step b column steps', () => {
     expect(faces.get('B').box).toMatchObject({ z: 4, height: 28.5 });
   });
 
-  it('anchor 7: leaves the step empty and derives no inside ends through syncRoom', () => {
+  it('leaves the step empty and derives no inside ends through syncRoom', () => {
     const room = syncRoom(makeRoom(makeRun({ top: manual(2) })), settings);
     const run = room.walls[0].runs[0];
     expect(run).not.toHaveProperty('_insideEnds');
@@ -112,7 +112,7 @@ describe('ST1 step b column steps', () => {
     expect(syncRoom(room, settings)).toEqual(room);
   });
 
-  it('anchor 8: drops B on the pinned path with A pinned', () => {
+  it('drops B on the pinned path with A pinned', () => {
     const run = makeRun({ top: manual(2) });
     run.grid = updateRootItem(run.grid, 'A', { pin });
     const layout = splitRun(run, settings, { pinTargets: { A: 0 } });

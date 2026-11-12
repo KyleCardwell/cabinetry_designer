@@ -17,7 +17,7 @@ describe('Step 530 Micro Shaker', () => {
     expect(isDoorDesignList([...DOOR_DESIGNS, micro])).toBe(true);
   });
 
-  it('applies the Micro Shaker defaults to the standard 5PC style (anchor 2)', () => {
+  it('applies the Micro Shaker defaults to the standard 5PC style', () => {
     expect(micro).toMatchObject({
       code: 'Micro Shaker', description: 'Micro shaker, 1 1/2" stiles & rails',
       construction: 'five_piece', slabCore: null, panelJoint: 'square',
@@ -33,7 +33,7 @@ describe('Step 530 Micro Shaker', () => {
     });
   });
 
-  it('keeps 1 1/2" rails and stiles on a 24 × 4 front (anchor 3)', () => {
+  it('keeps 1 1/2" rails and stiles on a 24 × 4 front', () => {
     const style = microStyle();
     expect(style.shortFace).toEqual({ minPanel: 2.125, minRail: 1.625, slabBelow: 3.9375, step: 0.0625 });
     expect(partSizes(style, micro, { width: 24, height: 4 })).toMatchObject({
@@ -45,7 +45,7 @@ describe('Step 530 Micro Shaker', () => {
     expect(partSizes(style, micro, { width: 24, height: 3.9375 }).construction).toBe('five_piece');
   });
 
-  it('uses hardwood Slab below the editable threshold on a 24 × 3.875 front (anchor 4)', () => {
+  it('uses hardwood Slab below the editable threshold on a 24 × 3.875 front', () => {
     const style = microStyle();
     expect(partSizes(style, micro, { width: 24, height: 3.875 })).toEqual({
       construction: 'slab', slab: 'rule', molding: false, designId: 'slab',

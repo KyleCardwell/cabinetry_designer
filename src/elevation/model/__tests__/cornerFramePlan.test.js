@@ -41,8 +41,8 @@ function expectPolygon(actual, expected) {
   });
 }
 
-describe('CC6 step g corner frames in plan', () => {
-  it('anchor 1: joins Room B’s leg strips to the neighbour and miters the return panel', () => {
+describe('corner frames in plan (CC6)', () => {
+  it('joins Room B’s leg strips to the neighbour and miters the return panel', () => {
     const { boxes, faces } = resolved(ROOM_B);
     const frames = faces.filter(({ key }) => key === 'cc:frame');
     expect(frames).toHaveLength(2);
@@ -61,7 +61,7 @@ describe('CC6 step g corner frames in plan', () => {
     expect(faces.find(({ key }) => key === 'cc:B:r').end).toBe(24.8125);
   });
 
-  it('anchor 2: overhangs the free return by a lap when there is no panel', () => {
+  it('overhangs the free return by a lap when there is no panel', () => {
     const source = structuredClone(ROOM_B);
     source.walls[0].runs[0].ends.left.corner.returnPiece = 'none';
     const { faces } = resolved(source);
@@ -70,7 +70,7 @@ describe('CC6 step g corner frames in plan', () => {
     expect(faces.some(({ key }) => key === 'cc:return')).toBe(false);
   });
 
-  it('anchor 3: draws Room C’s trapezoid, inset box and the neighbour’s miter cut', () => {
+  it('draws Room C’s trapezoid, inset box and the neighbour’s miter cut', () => {
     const { boxes, faces } = resolved(ROOM_C);
     const frames = faces.filter(({ key }) => key === 'cc:frame');
     expect(frames).toHaveLength(1);
@@ -97,7 +97,7 @@ describe('CC6 step g corner frames in plan', () => {
     expect(144 - returning.boxes.find(({ key }) => key === 'r').end).toBeCloseTo(37.0865, 3);
   });
 
-  it('anchor 4: stops Room D’s return leg at the lapping return run’s strip', () => {
+  it('stops Room D’s return leg at the lapping return run’s strip', () => {
     const { faces } = resolved(ROOM_D);
     expectPolygon(faces.filter(({ key }) => key === 'cc:frame')[1].polygon,
       [[24.8125, 24.8125], [24.8125, 35.25], [24, 35.25], [24, 24.8125]]);
@@ -108,7 +108,7 @@ describe('CC6 step g corner frames in plan', () => {
     expect(returning.front).toBe(24.8125);
   });
 
-  it('anchor 5: exports both legs with the frame kind and top and retains corner picking', () => {
+  it('exports both legs with the frame kind and top and retains corner picking', () => {
     for (const source of [ROOM_B, ROOM_C]) {
       const { subject, view } = resolved(source);
       const frames = planParts(subject, S).filter(({ id }) => id === 'cc:frame');
@@ -125,7 +125,7 @@ describe('CC6 step g corner frames in plan', () => {
     }
   });
 
-  it('anchor 6: preserves Euro, beaded, inactive and ordinary plan geometry', () => {
+  it('preserves Euro, beaded, inactive and ordinary plan geometry', () => {
     for (const kind of [90, 45]) {
       const source = structuredClone(kind === 90 ? ROOM_B : ROOM_C);
       source.style.cabinetStyleId = 13;

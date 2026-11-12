@@ -5,7 +5,7 @@ import { ELEVATION_SCHEMA_VERSION, roomFromDocument, toElevationDocument, toRoom
 
 const settings = () => createInitialElevationState(null).settings;
 
-describe('DB6a room documents', () => {
+describe('room documents (DB6a)', () => {
   it('toRoomDocument is exactly what the full document stores for a room', () => {
     const state = createInitialElevationState(null);
     expect(toElevationDocument(state).rooms).toEqual(state.rooms.map(toRoomDocument));

@@ -84,7 +84,7 @@ function commit(scope, settingKey, value) {
   return render(SettingField, props);
 }
 
-describe('DB5 d setting field scopes', () => {
+describe('setting field scopes (DB5)', () => {
 
   it('rejects negative cutout feet and nonpositive cutout heights in both layer scopes', () => {
     for (const scope of ['project', 'phase']) {
@@ -102,7 +102,7 @@ describe('DB5 d setting field scopes', () => {
   });
 });
 
-describe('RP1 a report field scopes', () => {
+describe('report field scopes (RP1)', () => {
   it('inherits text in project, phase and room, commits trimmed pins, and resets or clears to inherit', () => {
     state.settings.report = { ...state.settings.report, wood: 'PAINT GRADE' };
     for (const scope of ['project', 'phase', 'room']) {

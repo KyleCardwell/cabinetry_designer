@@ -13,7 +13,7 @@ describe('part number badge layout', () => {
       .toMatchObject({ width: 6, level: 0 });
   });
 
-  it('204. sizes badges and assigns lift levels in a single left-to-right sweep', () => {
+  it('sizes badges and assigns lift levels in a single left-to-right sweep', () => {
     const entries = [
       { key: 'wide', text: '1', left: 0, right: 100 },
       { key: 'thin-a', text: '2', left: 100, right: 108 },

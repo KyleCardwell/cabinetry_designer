@@ -4,7 +4,7 @@ import {
   isAccessory, isAccessoryEffect, isEffectList, newAccessory,
 } from '../index.js';
 
-it('IN12c a anchor 1: validates the exact effect vocabulary, keys and value limits', () => {
+it('validates the exact effect vocabulary, keys and value limits (IN12c)', () => {
   expect(ACCESSORY_EFFECT_KINDS).toEqual([
     'clear_behind', 'max_depth', 'max_height', 'fixed_height', 'slide', 'probox_note', 'line_bore_row',
   ]);
@@ -27,7 +27,7 @@ it('IN12c a anchor 1: validates the exact effect vocabulary, keys and value limi
   ]) expect(isAccessoryEffect(effect)).toBe(false);
 });
 
-it('IN13a a anchor 3: allows a single kind-only line bore effect on section accessories', () => {
+it('allows a single kind-only line bore effect on section accessories (IN13a)', () => {
   const effect = { kind: 'line_bore_row' };
   expect(isAccessoryEffect(effect)).toBe(true);
   expect(isEffectList([effect], 'section')).toBe(true);
@@ -41,7 +41,7 @@ it('IN13a a anchor 3: allows a single kind-only line bore effect on section acce
   expect(effectText(effect)).toBe('3rd row lb');
 });
 
-it('IN12c a anchor 2: permits effects only on drawer boxes, without duplicates or conflicting heights', () => {
+it('permits effects only on drawer boxes, without duplicates or conflicting heights (IN12c)', () => {
   const effects = [{ kind: 'clear_behind', inches: 2 }, { kind: 'slide', slideId: 'accuride-3832' }];
   const accessory = { ...newAccessory([], 'a'), attachesTo: 'drawer_box', effects };
   expect(isAccessory(accessory)).toBe(true);
@@ -60,7 +60,7 @@ it('IN12c a anchor 2: permits effects only on drawer boxes, without duplicates o
   for (const list of [null, {}, Array(1), [null]]) expect(isEffectList(list, 'drawer_box')).toBe(false);
 });
 
-it('IN12c a anchor 3: formats each effect and finds one kind or null', () => {
+it('formats each effect and finds one kind or null (IN12c)', () => {
   const examples = [
     [{ kind: 'clear_behind', inches: 2 }, '2" clear behind'],
     [{ kind: 'max_depth', inches: 18 }, 'max 18" deep'],

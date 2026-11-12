@@ -20,7 +20,7 @@ const box = { id: 'c1', kind: 'cabinet', auto: true, x: 0, z: 4, width: 28.5, he
 
 afterEach(() => hideHoverLabel());
 
-describe('EC2 hover size label', () => {
+describe('hover size label (EC2)', () => {
   it('formats W × H, with run flex after the width', () => {
     expect(pieceSizeText(box)).toBe('28 1/2 × 30 1/2');
     expect(pieceSizeText({ ...box, width: 30.125, absorbed: 0.125 })).toBe('30 1/8 (+1/8) × 30 1/2');

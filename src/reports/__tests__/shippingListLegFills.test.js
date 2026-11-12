@@ -9,8 +9,8 @@ import { shippingDescription, shippingList } from '../shippingList.js';
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };
 const R = run({ x: 10, width: 36 });
 
-describe('SH7.2 step b leg fill shipping list', () => {
-  it('anchor 2: lists the panel at its placed depth, height and thickness with report overrides', () => {
+describe('leg fill shipping list (SH7.2)', () => {
+  it('lists the panel at its placed depth, height and thickness with report overrides', () => {
     const endLegs = { ...fourEndLegs, left: { ...E, fit: 'between' } };
     const input = room({ walls: [wall({ runs: [{ ...R, legs: undefined, ends: noEnds, endLegs }] })] });
     const part = roomParts(input, settings).find(({ key }) => key === 'run-1:endleg:left-front:fill');
@@ -35,8 +35,8 @@ describe('SH7.2 step b leg fill shipping list', () => {
   });
 });
 
-describe('SH7.3 step b leg fill shipping list', () => {
-  it('anchors 1–2: keeps one panel part, ordering C/L returns by overall depth and plain panels by thickness', () => {
+describe('leg fill shipping list (SH7.3)', () => {
+  it('keeps one panel part, ordering C/L returns by overall depth and plain panels by thickness', () => {
     for (const [returns, returnDepth, depth, notes] of [
       ['both', undefined, 4.5, ['C-shape']], ['front', undefined, 4.5, ['L-shape']],
       ['back', undefined, 4.5, ['L-shape']], [undefined, undefined, 0.8125, []],

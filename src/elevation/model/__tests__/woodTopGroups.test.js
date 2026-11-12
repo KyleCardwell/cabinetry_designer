@@ -21,8 +21,8 @@ const touching = room({ walls: [wall({ id: 'w', runs: [
   run({ ...wood, id: 'right', x: 40, width: 30, items: [auto('R')] }),
 ] })] });
 
-describe('FX4 step d wood top groups', () => {
-  it('anchor 1: sizes the Room 9 wood top with its settings overrides', () => {
+describe('wood top groups (FX4)', () => {
+  it('sizes the Room 9 wood top with its settings overrides', () => {
     const stored = JSON.parse(readFileSync(new URL('./fixtures/room9.json', import.meta.url), 'utf8'));
     const using = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
     const groups = woodTopGroups(syncRoom(stored, using), using);
@@ -34,7 +34,7 @@ describe('FX4 step d wood top groups', () => {
       scribe: { left: false, right: false, back: false } });
   });
 
-  it('anchor 2: joins a zero-thickness island front and back panel at the same top surface', () => {
+  it('joins a zero-thickness island front and back panel at the same top surface', () => {
     const [group] = woodTopGroups(island, settings);
     const fronts = ['front', 'back'].map((side) => bandParts(island, island.walls[0], side, settings)
       .find(({ kind }) => kind === 'countertop').front);
@@ -53,7 +53,7 @@ describe('FX4 step d wood top groups', () => {
       scribe: { left: false, right: false, back: false } });
   });
 
-  it('anchor 3: adds wall thickness to a two-face group depth', () => {
+  it('adds wall thickness to a two-face group depth', () => {
     const stored = structuredClone(island);
     stored.walls[0].thickness = 4.5;
     const groups = woodTopGroups(stored, settings);
@@ -61,14 +61,14 @@ describe('FX4 step d wood top groups', () => {
     expect(groups[0].depth).toBe(woodTopGroups(island, settings)[0].depth + 4.5);
   });
 
-  it('anchor 4: separates opposite faces whose top surfaces differ by half an inch', () => {
+  it('separates opposite faces whose top surfaces differ by half an inch', () => {
     const stored = structuredClone(island);
     stored.walls[0].runs[1].height -= 0.5;
     expect(woodTopGroups(stored, settings).map(({ key }) => key))
       .toEqual(['wood_top:front', 'wood_top:back']);
   });
 
-  it('anchor 5: joins touching wood spans on one face, including the drawn outside overhangs', () => {
+  it('joins touching wood spans on one face, including the drawn outside overhangs', () => {
     expect(woodTopGroups(touching, settings)).toEqual([{
       key: 'wood_top:left', runIds: ['left', 'right'],
       bandRefs: [
@@ -81,20 +81,20 @@ describe('FX4 step d wood top groups', () => {
     }]);
   });
 
-  it('anchor 6: keeps runs with a one-inch gap separate even when their overhangs overlap', () => {
+  it('keeps runs with a one-inch gap separate even when their overhangs overlap', () => {
     const stored = structuredClone(touching);
     stored.walls[0].runs[1].x += 1;
     expect(woodTopGroups(stored, settings).map(({ runIds }) => runIds)).toEqual([['left'], ['right']]);
   });
 
-  it('anchor 7: excludes stone tops and handles an empty room', () => {
+  it('excludes stone tops and handles an empty room', () => {
     const stored = structuredClone(touching);
     stored.walls[0].runs.forEach((run) => { run.top = 'stone'; });
     expect(woodTopGroups(stored, settings)).toEqual([]);
     expect(woodTopGroups(room())).toEqual([]);
   });
 
-  it('anchor 8: keeps a wood insert in a stone top as its own band-sized part', () => {
+  it('keeps a wood insert in a stone top as its own band-sized part', () => {
     const stored = room({ walls: [wall({ id: 'w', runs: [run({ ...wood, id: 'r', top: 'stone',
       width: 90, items: [fixed('A', 30), fixed('B', 30), fixed('C', 30)],
       topSegments: [{ id: 'insert', from: 'B', to: 'B', kind: 'wood', drop: 2, mode: 'box' }],
@@ -175,13 +175,13 @@ describe('FX4 step d wood top groups', () => {
 });
 
 
-describe('FX4 step g wood top scribe', () => {
+describe('wood top scribe (FX4)', () => {
   const stopped = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
     run({ ...wood, id: 'base', width: 96, anchors: { left: true, right: true }, items: [auto('C')] }),
   ] })] });
   connectWallStops(stopped, stopped.walls[0]);
 
-  it('anchor 2: adds half an inch at each wall edge without changing drawn dimensions', () => {
+  it('adds half an inch at each wall edge without changing drawn dimensions', () => {
     expect(DEFAULT_SETTINGS.woodTopScribe).toBe(0.5);
     const before = structuredClone(stopped);
     const [group] = woodTopGroups(stopped, settings);
@@ -195,13 +195,13 @@ describe('FX4 step g wood top scribe', () => {
     expect(stopped).toEqual(before);
   });
 
-  it('anchor 3: honors zero scribe while retaining the wall contact flags', () => {
+  it('honors zero scribe while retaining the wall contact flags', () => {
     expect(woodTopGroups(stopped, { ...settings, woodTopScribe: 0 })[0]).toMatchObject({
       orderedWidth: 96, orderedDepth: 25.625, scribe: { left: true, right: true, back: true },
     });
   });
 
-  it('anchor 5: leaves an end meeting a return wall top unscribed', () => {
+  it('leaves an end meeting a return wall top unscribed', () => {
     const stored = structuredClone(stopped);
     stored.walls[1].runs = [run({ ...wood, id: 'return', x: 84, width: 36,
       anchors: { right: true }, items: [auto('R')] })];
@@ -257,7 +257,7 @@ describe('FX4 step g wood top scribe', () => {
   });
 });
 
-describe('PT2 step a mitered wood top corners', () => {
+describe('mitered wood top corners (PT2)', () => {
   const stopped = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
     run({ ...wood, id: 'base', width: 96, anchors: { left: true, right: true }, items: [auto('C')] }),
   ] })] });
@@ -266,7 +266,7 @@ describe('PT2 step a mitered wood top corners', () => {
     anchors: { right: true }, items: [auto('R')] })];
   const butt = { ...settings, woodTopCorner: 'butt' };
 
-  it('anchors 1–3: extends the base to the return wall and flags both unscribed miter ends', () => {
+  it('extends the base to the return wall and flags both unscribed miter ends', () => {
     expect(DEFAULT_SETTINGS.woodTopCorner).toBe('miter');
     const before = structuredClone(stopped);
     const [base, returned] = woodTopGroups(stopped, settings);
@@ -285,7 +285,7 @@ describe('PT2 step a mitered wood top corners', () => {
     expect(stopped).toEqual(before);
   });
 
-  it('anchor 4: runs the butt return into the corner without miter flags', () => {
+  it('runs the butt return into the corner without miter flags', () => {
     const [base, returned] = woodTopGroups(stopped, butt);
     expect(base).toMatchObject({ start: 25.625, end: 96, width: 70.375, orderedWidth: 70.875,
       depth: 25.625, orderedDepth: 26.125, scribe: { left: false, right: true, back: true },
@@ -301,14 +301,14 @@ describe('PT2 step a mitered wood top corners', () => {
     }]);
   });
 
-  it('anchor 5: keeps the cope when the return top is stone', () => {
+  it('keeps the cope when the return top is stone', () => {
     const stored = structuredClone(stopped);
     stored.walls[1].runs[0].top = 'stone';
     expect(woodTopMiters(stored, settings)).toEqual([]);
     expect(woodTopGroups(stored, settings)).toEqual([woodTopGroups(stopped, butt)[0]]);
   });
 
-  it('anchor 6: exports one pair in wall walk order with face-local ends and reach', () => {
+  it('exports one pair in wall walk order with face-local ends and reach', () => {
     expect(woodTopMiters(stopped)).toEqual([{
       mode: 'miter',
       x: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left', reach: 0 },
@@ -356,8 +356,8 @@ describe('PT2 step a mitered wood top corners', () => {
   });
 });
 
-describe('CC7 step e wood tops at corner cabinets', () => {
-  it.each([90, 45])('anchor 7: skips a %s corner cabinet in either wall walk order and corner mode', (kind) => {
+describe('wood tops at corner cabinets (CC7)', () => {
+  it.each([90, 45])('skips a %s corner cabinet in either wall walk order and corner mode', (kind) => {
     const owner = run({ top: 'wood', autoCount: false, items: [fixed('cc', 36), auto('a')],
       anchors: { left: true, right: false },
       ends: { left: normalizeCornerEnd({ corner: { kind } }), right: { type: 'none' } },

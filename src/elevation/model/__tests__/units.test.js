@@ -77,7 +77,7 @@ describe('formatInches with a finer step', () => {
     expect(formatInches(15, 1 / 48)).toBe('15"');
   });
 
-  it('50. formats thirty-seconds when asked', () => {
+  it('formats thirty-seconds when asked', () => {
     expect(formatInches(0.09375, 1 / 32)).toBe('3/32"');
     expect(formatInches(1.09375, 1 / 32)).toBe('1 3/32"');
     expect(formatInches(-0.125, 1 / 32)).toBe('-1/8"');
@@ -87,7 +87,7 @@ describe('formatInches with a finer step', () => {
 });
 
 describe('SPEC-21 inch math', () => {
-  it('180. evaluates inch expressions', () => {
+  it('evaluates inch expressions', () => {
     const cases = [
       ['30 1/2 + 3/4', 31.25],
       ['30-1/2', 29.5],
@@ -113,14 +113,14 @@ describe('SPEC-21 inch math', () => {
     }
   });
 
-  it('181. rejects invalid inch expressions', () => {
+  it('rejects invalid inch expressions', () => {
     for (const input of ['', 'abc', '1/0', '2 2/2', '3 feet', '30 +', '(30', '30)', '2(3)', '1..5', "8''", '5 5']) {
       expect(parseInches(input), input).toBeNull();
     }
   });
 });
 
-describe('AU8 shared six-place rounding', () => {
+describe('shared six-place rounding (AU8)', () => {
   it('round6 uses toFixed and drops negative zero', () => {
     expect(round6(1.23456749)).toBe(1.234567);
     expect(round6(-0.0000001)).toBe(0);

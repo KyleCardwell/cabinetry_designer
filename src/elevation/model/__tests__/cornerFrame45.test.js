@@ -35,8 +35,8 @@ function expectPoint(actual, expected, precision = 3) {
   expected.forEach((value, i) => expect(actual[i]).toBeCloseTo(value, precision));
 }
 
-describe('CC6 step c Corner 45 frame', () => {
-  it('anchors 1–2: makes a true miter with standard visible stiles and true-length rails', () => {
+describe('Corner 45 frame (CC6)', () => {
+  it('makes a true miter with standard visible stiles and true-length rails', () => {
     const { frame } = resolved(ROOM_C);
     expect(frame).toMatchObject({ columnId: 'cc', kind: 45, side: 'left',
       frame: { z: 4, height: 30.5, thickness: 0.8125 }, warnings: [] });
@@ -71,7 +71,7 @@ describe('CC6 step c Corner 45 frame', () => {
     }
   });
 
-  it('anchor 3: projects the true frame on each elevation about its front miter point', () => {
+  it('projects the true frame on each elevation about its front miter point', () => {
     const { diagonal: d, members } = resolved(ROOM_C).frame;
     const k = (d.a[0] - d.b[0]) / d.trueWidth;
     const shownA = (p) => d.pa[0] - p * k;
@@ -90,7 +90,7 @@ describe('CC6 step c Corner 45 frame', () => {
     expect(shownB(d.frontWidth)).toBeCloseTo(d.pb[1], 10);
   });
 
-  it('anchor 4: uses each half-angle on an uneven diagonal', () => {
+  it('uses each half-angle on an uneven diagonal', () => {
     const subject = structuredClone(ROOM_C);
     subject.walls[0].runs[0].ends.left.corner.depthB = 15;
     const d = resolved(subject).frame.diagonal;
@@ -102,7 +102,7 @@ describe('CC6 step c Corner 45 frame', () => {
     expect(d.pb[0]).toBeCloseTo(15.8125, 10);
   });
 
-  it('anchor 5: cuts the owner neighbour and narrows its box behind a wider stile', () => {
+  it('cuts the owner neighbour and narrows its box behind a wider stile', () => {
     const { frames, cells, faces } = resolved(ROOM_C);
     expect(frames.cornerLaps).toEqual([]);
     const region = frames.regions[0];
@@ -115,7 +115,7 @@ describe('CC6 step c Corner 45 frame', () => {
     expect(box.x + boxInsets(frames, cells, S).get('a').left).toBeCloseTo(37.0865, 3);
   });
 
-  it('anchor 6: cuts the return neighbour in its own wall frame', () => {
+  it('cuts the return neighbour in its own wall frame', () => {
     const subject = structuredClone(ROOM_C);
     subject.walls[1].runs = [run({ id: 'return', width: 108, autoCount: false,
       items: [auto('r')], anchors: { left: false, right: true },
@@ -143,7 +143,7 @@ describe('CC6 step c Corner 45 frame', () => {
     expect(uneven.sideLongPoints.b[0]).toBeCloseTo(16.7118, 3);
   });
 
-  it('anchor 7: leaves Euro, inactive, beaded and Corner 90 behaviour intact', () => {
+  it('leaves Euro, inactive, beaded and Corner 90 behaviour intact', () => {
     for (const cabinetStyleId of [13, 15]) {
       const result = resolved({ ...ROOM_C, style: { cabinetStyleId } });
       expect(result.frame).toBeNull();

@@ -58,7 +58,7 @@ const framed = { ...settings, defaultStyle: { ...settings.defaultStyle, cabinetS
 afterEach(() => vi.restoreAllMocks());
 
 describe('ProBox order model', () => {
-  it('IN12c step f anchor 4: carries the accessory slide and note onto the top box line', () => {
+  it('carries the accessory slide and note onto the top box line (IN12c)', () => {
     const po = { ...newAccessory([], 'PO'), name: 'Pot organizer', attachesTo: 'drawer_box', effects: [
       { kind: 'slide', slideId: 'accuride-4034' }, { kind: 'probox_note', text: '1/2" bottom' },
     ] };
@@ -73,7 +73,7 @@ describe('ProBox order model', () => {
     expect({ r, s }).toEqual(before);
   });
 
-  it('anchor 1: groups and orders the Euro sample with the default form spec', () => {
+  it('groups and orders the Euro sample with the default form spec', () => {
     const r = sample();
     const before = structuredClone(r);
     const result = order(r);
@@ -92,7 +92,7 @@ describe('ProBox order model', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 2: uses adjustable header clips and standard roll-out clips in the face frame sample', () => {
+  it('uses adjustable header clips and standard roll-out clips in the face frame sample', () => {
     const result = order(sample(framed, true), framed);
     expect(tuples(result)).toEqual([
       [102, 1, 3.25, 16, 21, ''], [105, 1, 3.25, 16, 21, ''],
@@ -104,7 +104,7 @@ describe('ProBox order model', () => {
     expect(result.jobName).toBe('Cardwell - 573 KITCHEN - FACE FRAME');
   });
 
-  it('anchor 3: adds standard clip instructions for a Euro cabinet in a face frame room', () => {
+  it('adds standard clip instructions for a Euro cabinet in a face frame room', () => {
     const r = sample(framed, true, [run('euro', 19.5, { style: { cabinetStyleId: 13 } }, { x: 130 })]);
     const result = order(r, framed);
     expect(tuples(result).filter(([cab]) => cab === 103)).toEqual([
@@ -113,7 +113,7 @@ describe('ProBox order model', () => {
     ]);
   });
 
-  it('anchor 4: uses the ROT part number and retains its bottom-placement note', () => {
+  it('uses the ROT part number and retains its bottom-placement note', () => {
     const r = room([run('trash', 18, { purpose: 'trash',
       face: stack(face('drawer_front', 5.875), face('door', null, { action: 'pullout' })) })],
     { partNumberStart: 7 });
@@ -122,7 +122,7 @@ describe('ProBox order model', () => {
     ]);
   });
 
-  it('anchor 5: adds no-notch and no-clips instructions for side-mount cabinet overrides', () => {
+  it('adds no-notch and no-clips instructions for side-mount cabinet overrides', () => {
     const r = room([run('cab', 18, { drawerSlideId: 'accuride-3832' })], { partNumberStart: 3 });
     const result = order(r);
     expect(tuples(result)).toEqual([
@@ -131,7 +131,7 @@ describe('ProBox order model', () => {
     expect(result.options.brand).toBe('STANDARD BLUM');
   });
 
-  it('anchor 6: leaves a side-mount room header blank and notes its undermount box override', () => {
+  it('leaves a side-mount room header blank and notes its undermount box override', () => {
     const s = { ...settings, drawerSlideId: 'accuride-3832' };
     const fronts = drawers();
     fronts.children[0].drawerBox = { slideId: 'blum-562h' };
@@ -144,7 +144,7 @@ describe('ProBox order model', () => {
     ]);
   });
 
-  it('anchor 7: preserves sink roll-out sizes and the sink drawer plumbing note', () => {
+  it('preserves sink roll-out sizes and the sink drawer plumbing note', () => {
     const r = room([
       run('sink', 36, { purpose: 'sink', face: face('pair_door'), interior: splitSinkRollouts({}, 'r', 'r:pair') }),
       run('drawers', 18, { purpose: 'sink' }, { x: 90 }),
@@ -155,7 +155,7 @@ describe('ProBox order model', () => {
     ]);
   });
 
-  it('anchor 8: omits unsized boxes with a warning, handles empty rooms and writes in Poplar', () => {
+  it('omits unsized boxes with a warning, handles empty rooms and writes in Poplar', () => {
     const result = order(room([run('tiny', 18, { face: face('drawer_front') }, { height: 3.5 })],
       { partNumberStart: 3 }));
     expect(result.lines).toEqual([]);

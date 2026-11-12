@@ -21,14 +21,14 @@ const door = {
 };
 
 describe('position readouts', () => {
-  it('11. returns edge and center positions from both wall ends', () => {
+  it('returns edge and center positions from both wall ends', () => {
     expect(positionReadouts(24, 36, 120)).toEqual({
       left: { edge: 24, center: 42 },
       right: { edge: 60, center: 78 },
     });
   });
 
-  it('12. round-trips spans at, inside, and past both wall ends', () => {
+  it('round-trips spans at, inside, and past both wall ends', () => {
     const spans = [
       { start: 0, width: 36, wallLength: 120 },
       { start: 84, width: 36, wallLength: 120 },
@@ -53,7 +53,7 @@ describe('position readouts', () => {
     }
   });
 
-  it('13. changes an opening offset anchor without changing its geometry', () => {
+  it('changes an opening offset anchor without changing its geometry', () => {
     const originalGeometry = openingGeometry(door, 120, DEFAULT_SETTINGS);
     const centered = setOffsetAnchor(door, 'center', 120, DEFAULT_SETTINGS);
     expect(centered).toMatchObject({ offsetAnchor: 'center', offset: 42 });
@@ -64,7 +64,7 @@ describe('position readouts', () => {
     expect(openingGeometry(edged, 120, DEFAULT_SETTINGS)).toEqual(originalGeometry);
   });
 
-  it('14. returns nested jamb and casing offsets', () => {
+  it('returns nested jamb and casing offsets', () => {
     expect(openingGeometry(door, 120, DEFAULT_SETTINGS).offsets).toEqual({
       left: {
         jamb: { edge: 24, center: 42 },

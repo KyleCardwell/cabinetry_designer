@@ -10,7 +10,7 @@ import { pickStack } from '../pick.js';
 import { runScene } from '../runScene.js';
 import { formatInches } from '../units.js';
 
-describe('CC3 corner face boxes and scene', () => {
+describe('corner face boxes and scene (CC3)', () => {
   let subject, ownerWall, returnWall, owner;
   beforeEach(() => {
     owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
@@ -26,7 +26,7 @@ describe('CC3 corner face boxes and scene', () => {
     subject = room({ walls: [ownerWall, returnWall] });
   });
 
-  it('anchor 1: uses the true 90 span and ordinary side reveals', () => {
+  it('uses the true 90 span and ordinary side reveals', () => {
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     expect(entry).toMatchObject({ box: { x: 24, width: 12 }, squash: null,
       corner: { side: 'left', kind: 90 }, style: { cabinetStyleId: 13 } });
@@ -36,13 +36,13 @@ describe('CC3 corner face boxes and scene', () => {
       .toBeCloseTo(entry.reveals.values.right, 10);
   });
 
-  it('anchor 2: starts the 90 face at the return run box depth', () => {
+  it('starts the 90 face at the return run box depth', () => {
     returnWall.runs = [run({ id: 'return', depth: 21, anchors: { left: false, right: true } })];
     expect(runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc').box)
       .toMatchObject({ x: 21, width: 15 });
   });
 
-  it('anchor 3: lays out the base 45 at true width before drawing projection', () => {
+  it('lays out the base 45 at true width before drawing projection', () => {
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     expect(entry.box.x).toBeCloseTo(20.241, 3);
@@ -57,7 +57,7 @@ describe('CC3 corner face boxes and scene', () => {
     expect(drawn.x + drawn.width).toBeCloseTo(36.0625, 3);
   });
 
-  it('anchor 4: keeps uneven 45 faces and reveals at true width', () => {
+  it('keeps uneven 45 faces and reveals at true width', () => {
     owner.ends.left.corner = { ...owner.ends.left.corner, kind: 45, depthB: 15 };
     owner.grid.cells[0].node.face = { type: 'door' };
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
@@ -72,7 +72,7 @@ describe('CC3 corner face boxes and scene', () => {
       .toBeCloseTo(23.0802, 3);
   });
 
-  it('anchor 5: projects an upper 45 without changing its vertical dimensions', () => {
+  it('projects an upper 45 without changing its vertical dimensions', () => {
     Object.assign(owner, { cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12 });
     owner.grid.cols[0].size = 24;
     owner.ends.left.corner.kind = 45;
@@ -85,7 +85,7 @@ describe('CC3 corner face boxes and scene', () => {
     expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(11.1875, 3);
   });
 
-  it('anchor 6: projects a right host corner from the door-face pivot (Room P1)', () => {
+  it('projects a right host corner from the door-face pivot (Room P1)', () => {
     const hostRun = run({ id: 'host-run', x: 0, width: 72, autoCount: false,
       items: [auto('a'), fixed('cc', 36)], anchors: { left: false, right: { to: 'wall', wallId: 'pen' } },
       ends: { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) },
@@ -122,7 +122,7 @@ describe('CC3 corner face boxes and scene', () => {
     expect(exposed.subLabels.get('cc')).toBe('Corner 45');
   });
 
-  it('anchor 7: leaves inactive corner entries ordinary', () => {
+  it('leaves inactive corner entries ordinary', () => {
     owner.ends.left.corner.kind = 45;
     owner.anchors.left = false;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
@@ -131,7 +131,7 @@ describe('CC3 corner face boxes and scene', () => {
     expect(entry).not.toHaveProperty('corner');
   });
 
-  it('anchor 8: does not hinge an unspecified corner door toward the inside corner', () => {
+  it('does not hinge an unspecified corner door toward the inside corner', () => {
     owner.grid.cells[0].node.face = { type: 'door' };
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     expect(entry.faces[0].hinge).not.toBe('left');
@@ -152,14 +152,14 @@ describe('CC3 corner face boxes and scene', () => {
     expect([...scene.subLabels.values()].some((label) => label.startsWith('Corner'))).toBe(false);
   });
 
-  it('anchor 9: changes only the corner column when changing kind', () => {
+  it('changes only the corner column when changing kind', () => {
     const before = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS);
     owner.ends.left.corner.kind = 45;
     const after = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS);
     expect(after.get('a')).toEqual(before.get('a'));
   });
 
-  it('anchor 11: resolves auto depth from compatible return runs, else the owner', () => {
+  it('resolves auto depth from compatible return runs, else the owner', () => {
     expect(cornerDepthBAuto(subject, ownerWall, owner, 'left')).toBe(24);
     returnWall.runs = [run({ id: 'return', depth: 21, anchors: { left: false, right: true } })];
     expect(cornerDepthBAuto(subject, ownerWall, owner, 'left')).toBe(21);
@@ -259,7 +259,7 @@ describe('CC3 corner face boxes and scene', () => {
       .toMatchObject({ rect: { x: 0, width: 36 } });
   });
 
-  describe('CC3.1 step b door-face sizing', () => {
+  describe('door-face sizing (CC3.1)', () => {
     beforeEach(() => {
       owner.grid.cells[0].node.face = { type: 'door', hinge: 'right' };
     });
@@ -306,7 +306,7 @@ describe('CC3 corner face boxes and scene', () => {
       if (!upper && depthB === 24) expect(drawn.width).toBeCloseTo(11.1875, 3);
     });
 
-    it('anchor 17: pair doors share the ordered span with their centre gap', () => {
+    it('pair doors share the ordered span with their centre gap', () => {
       owner.ends.left.corner.kind = 45;
       owner.grid.cells[0].node.face = { type: 'pair_door' };
       const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');

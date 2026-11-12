@@ -114,7 +114,7 @@ beforeEach(() => {
   useShopReadOnly.mockReturnValue(false);
 });
 
-it('anchor 1: moves the four left bracket corners by fractional X through the shape adapter, in one undo entry', () => {
+it('moves the four left bracket corners by fractional X through the shape adapter, in one undo entry', () => {
   pick(shapeEditor, { kind: 'points', ids: ['a', 'b', 'c', 'd'] });
   expect(text(shapeMove())).toContain('Move selected (4 points)');
   expect(nodes(shapeMove()).filter((node) => node.type === CoordInput).map((node) => node.props['aria-label']))
@@ -130,7 +130,7 @@ it('anchor 1: moves the four left bracket corners by fractional X through the sh
   expect(draft().views.front).toEqual(ROD.views.front);
 });
 
-it('anchor 2: middle-middle moves the rod centre to zero, with that spot current and the full shape transformed', () => {
+it('middle-middle moves the rod centre to zero, with that spot current and the full shape transformed', () => {
   expect(middle().props['aria-pressed']).toBe(false);
   middle().props.onClick();
   expect(draft().box).toEqual({ x: -15, y: 0, z: -1.5, w: 30, h: 3, d: 2 });
@@ -144,7 +144,7 @@ it('anchor 2: middle-middle moves the rod centre to zero, with that spot current
   expect(histories.get(ShapeEditor).past).toHaveLength(1);
 });
 
-it('anchor 3: typed X 15, Z 1 1/2 gives the same origin and the undrawn Plan starts at x -15', () => {
+it('typed X 15, Z 1 1/2 gives the same origin and the undrawn Plan starts at x -15', () => {
   typeCoord(origin(), 'Set 0,0 at X', '15');
   typeCoord(origin(), 'Set 0,0 at Z', '1 1/2');
   button(origin(), 'Set').props.onClick();

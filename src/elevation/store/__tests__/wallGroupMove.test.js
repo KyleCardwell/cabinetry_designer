@@ -28,8 +28,8 @@ const held = reduce(initial,
   updateRoomLine({ roomLineId: 'R1', value: 110 }),
   setWallAttachment({ wallId: 'wall-2', attach: attach('R1') }));
 
-describe('LL8 d group moves and wall attachments in the store', () => {
-  it('anchor 1: moves along the front frame and re-places the sink on R1', () => {
+describe('group moves and wall attachments in the store (LL8)', () => {
+  it('moves along the front frame and re-places the sink on R1', () => {
     expect(wallFrame(roomI, roomI.walls[1])).toMatchObject({ r: { x: -1, y: 0 }, n: { x: 0, y: -1 } });
     const state = reduce({ ...initial, message: 'old' }, moveWallGroup({ wallId: 'wall-2', along: 10 }));
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 170, y1: 96, x2: 50, y2: 96, runs: [{ x: 32 }] });
@@ -38,12 +38,12 @@ describe('LL8 d group moves and wall attachments in the store', () => {
     expect(roomI.walls[1]).toMatchObject({ x1: 180, x2: 60, runs: [{ x: 42 }] });
   });
 
-  it('anchor 2: moves across toward W1 and keeps the sink face position', () => {
+  it('moves across toward W1 and keeps the sink face position', () => {
     const state = reduce(initial, moveWallGroup({ wallId: 'wall-2', across: 6 }));
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 180, y1: 90, x2: 60, y2: 90, runs: [{ x: 42 }] });
   });
 
-  it('anchor 3: carries an unattached run without compensation', () => {
+  it('carries an unattached run without compensation', () => {
     const subject = syncRoom({ ...roomI, walls: roomI.walls.map((entry) => entry.id === 'wall-2'
       ? { ...entry, runs: [run({ x: 10, width: 36,
         ends: { left: { type: 'none' }, right: { type: 'none' } } })] } : entry) }, DEFAULT_SETTINGS);
@@ -51,7 +51,7 @@ describe('LL8 d group moves and wall attachments in the store', () => {
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 170, x2: 50, runs: [{ x: 10 }] });
   });
 
-  it('anchor 4: re-references R2 and reports its new reference wall', () => {
+  it('re-references R2 and reports its new reference wall', () => {
     const subject = syncRoom({ ...roomI,
       roomLines: [...roomI.roomLines, roomLine('R2', { wallId: 'wall-2', value: 5 })],
     }, DEFAULT_SETTINGS);
@@ -60,7 +60,7 @@ describe('LL8 d group moves and wall attachments in the store', () => {
     expect(state.message).toBe('R2 is now measured from Wall 1.');
   });
 
-  it('anchor 5: attaches the island, refuses along moves atomically and permits across moves', () => {
+  it('attaches the island, refuses along moves atomically and permits across moves', () => {
     expect(held.rooms[0].walls[1]).toMatchObject({ x1: 190, y1: 96, x2: 70, y2: 96, attach: attach('R1') });
     const refused = reduce(held, moveWallGroup({ wallId: 'wall-2', along: 10 }));
     expect(refused.rooms).toBe(held.rooms);
@@ -70,17 +70,17 @@ describe('LL8 d group moves and wall attachments in the store', () => {
     expect(across.message).toBeNull();
   });
 
-  it('anchor 6: follows an edited room line with the sink still centred', () => {
+  it('follows an edited room line with the sink still centred', () => {
     const state = reduce(held, updateRoomLine({ roomLineId: 'R1', value: 100 }));
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 200, y1: 96, x2: 80, y2: 96, runs: [{ x: 42 }] });
   });
 
-  it('anchor 7: grows a held wall around its centre', () => {
+  it('grows a held wall around its centre', () => {
     const state = reduce(held, setWallLength({ wallId: 'wall-2', length: 132, growEnd: 'right' }));
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 196, y1: 96, x2: 64, y2: 96, runs: [{ x: 48 }] });
   });
 
-  it('anchor 8: rejects non-square attachments, whole-room moves and invalid distances', () => {
+  it('rejects non-square attachments, whole-room moves and invalid distances', () => {
     expect(reduce(initial, setWallAttachment({ wallId: 'wall-3', attach: attach('R1') }))).toBe(initial);
     const subject = room({ walls: [wall()] });
     const whole = { ...initial, rooms: [subject], activeRoomId: subject.id };
@@ -96,7 +96,7 @@ describe('LL8 d group moves and wall attachments in the store', () => {
     }
   });
 
-  it('anchor 9: detaches without changing the island position', () => {
+  it('detaches without changing the island position', () => {
     const state = reduce(held, setWallAttachment({ wallId: 'wall-2', attach: null }));
     expect(state.rooms[0].walls[1]).not.toHaveProperty('attach');
     expect(state.rooms[0].walls[1]).toMatchObject({ x1: 190, y1: 96, x2: 70, y2: 96 });

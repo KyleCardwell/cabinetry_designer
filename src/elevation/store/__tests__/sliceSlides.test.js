@@ -4,7 +4,7 @@ import { isUuid } from '../../model/cloudRows.js';
 import elevationReducer, { addSlide, updateSlide, deleteSlide } from '../elevationSlice.js';
 import { stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('IN4b step b slide reducers', () => {
+describe('slide reducers (IN4b)', () => {
   it('deep copies the first or chosen slide with fresh UUIDs, unique names and no estimator link', () => {
     const initial = stateWithRun();
     const linked = { ...initial, settings: { ...initial.settings, slides: BUILT_IN_SLIDES.map((slide) => ({ ...slide, hardwareSlideId: 42 })) } };

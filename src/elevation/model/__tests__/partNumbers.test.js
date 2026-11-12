@@ -9,7 +9,7 @@ import { splitGridCell } from '../cellTree.js';
 
 const DEFAULT_SETTINGS = pickedMoldings(UNPICKED_SETTINGS);
 
-describe('IE1 step d inside panel numbering', () => {
+describe('inside panel numbering (IE1)', () => {
   it('numbers each inside panel after its owner while retaining run-end order', () => {
     const { room } = room8Upper();
     const result = partNumbers(room, insideSettings);
@@ -179,7 +179,7 @@ const panelRoom = () => {
 };
 
 describe('partNumbers', () => {
-  it('198. walks walls, bands, runs, and pieces in shop order', () => {
+  it('walks walls, bands, runs, and pieces in shop order', () => {
     const result = partNumbers(partRoom(), DEFAULT_SETTINGS);
 
     expect(result.parts.map(({ key }) => key)).toEqual([
@@ -203,13 +203,13 @@ describe('partNumbers', () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it('199. starts numbering at the room setting', () => {
+  it('starts numbering at the room setting', () => {
     const result = partNumbers(partRoom({ partNumberStart: 101 }), DEFAULT_SETTINGS);
     expect(result.parts.map(({ number }) => number))
       .toEqual([101, 102, 103, 104, 105, 106, 107, 108, 109]);
   });
 
-  it('200. reserves matched overrides before filling the remaining numbers', () => {
+  it('reserves matched overrides before filling the remaining numbers', () => {
     const overridden = partNumbers(partRoom({
       partNumberOverrides: { a1: 5, 'A-base:right': 1 },
     }), DEFAULT_SETTINGS);
@@ -233,7 +233,7 @@ describe('partNumbers', () => {
     expect(stale.overrideKeys.size).toBe(0);
   });
 
-  it('201. follows wall number overrides when ordering walls', () => {
+  it('follows wall number overrides when ordering walls', () => {
     const room = partRoom({ walls: partWalls({ wallB: { numberOverride: 1 } }) });
     const result = partNumbers(room, DEFAULT_SETTINGS);
 
@@ -244,7 +244,7 @@ describe('partNumbers', () => {
     expect(result.parts.map(({ number }) => number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
-  it('202. numbers present moldings and places one badge per elevation', () => {
+  it('numbers present moldings and places one badge per elevation', () => {
     const room = partRoom({ walls: partWalls({ upper: { heightMode: 'auto' } }) });
     const result = partNumbers(room, DEFAULT_SETTINGS);
     const wallA = room.walls.find(({ id }) => id === 'A');
@@ -267,7 +267,7 @@ describe('partNumbers', () => {
     ]);
   });
 
-  it('203. brackets a wall with its left and right wall end panels', () => {
+  it('brackets a wall with its left and right wall end panels', () => {
     const room = panelRoom();
     const result = partNumbers(room, DEFAULT_SETTINGS);
 
@@ -280,7 +280,7 @@ describe('partNumbers', () => {
     });
   });
 
-  it('205. groups run and wall end-panel badges in elevation draw order', () => {
+  it('groups run and wall end-panel badges in elevation draw order', () => {
     const roomP = partRoom();
     const wallA = roomP.walls.find(({ id }) => id === 'A');
     const groupsA = wallBadgeGroups(
@@ -311,7 +311,7 @@ describe('partNumbers', () => {
     ]);
   });
 
-  it('212. reports blind cabinet and filler part widths without changing numbering', () => {
+  it('reports blind cabinet and filler part widths without changing numbering', () => {
     const room = syncRoom({
       id: 'K',
       name: 'Room K',

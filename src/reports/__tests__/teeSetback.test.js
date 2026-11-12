@@ -22,8 +22,8 @@ function cabinetRows(overrides = {}, roomOverrides = {}, settings = S) {
   return shippingList(current, settings).rows.filter(({ kind }) => kind === 'cabinet');
 }
 
-describe('FX9 b: T-run cabinet setback notes', () => {
-  it('anchor 1: puts a 1/16-inch setback beside each cabinet rabbet note in group 7', () => {
+describe('T-run cabinet setback notes (FX9)', () => {
+  it('puts a 1/16-inch setback beside each cabinet rabbet note in group 7', () => {
     const rows = cabinetRows({}, { reportParts: { a: { note: 'last' }, b: { note: 'last' } } });
     expect(rows).toHaveLength(2);
     for (const row of rows) {
@@ -35,7 +35,7 @@ describe('FX9 b: T-run cabinet setback notes', () => {
     }
   });
 
-  it('anchor 2: prints a 1/4-inch setback for 1-inch doors', () => {
+  it('prints a 1/4-inch setback for 1-inch doors', () => {
     const rows = cabinetRows({ doorStyleId: thick.id }, { doorStyles: [thick] });
     expect(rows.map(setbackNotes)).toEqual([
       ['deck, fixed shelves & top set back 1/4"'],
@@ -43,13 +43,13 @@ describe('FX9 b: T-run cabinet setback notes', () => {
     ]);
   });
 
-  it('anchor 3: omits the setback only on the Open cabinet', () => {
+  it('omits the setback only on the Open cabinet', () => {
     const rows = cabinetRows({ items: [{ ...auto('a'), face: { type: 'open', size: null } }, auto('b')] });
     expect(rows.map(({ key }) => key)).toEqual(['a', 'b']);
     expect(rows.map(setbackNotes)).toEqual([[], ['deck, fixed shelves & top set back 1/16"']]);
   });
 
-  it('anchor 4: omits the setback without run Ts', () => {
+  it('omits the setback without run Ts', () => {
     expect(cabinetRows({ tFiller: undefined }).map(setbackNotes)).toEqual([[], []]);
   });
 

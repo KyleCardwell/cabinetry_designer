@@ -104,9 +104,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('MS6 measure in the profile editor', () => {
+describe('measure in the profile editor (MS6)', () => {
 
-  it('anchor 3: two clicks on profile points 1" apart read Distance 1"', () => {
+  it('two clicks on profile points 1" apart read Distance 1"', () => {
     const tree = renderCanvas();
     click(tree, [0, 0]);
     click(tree, [1, 0]);

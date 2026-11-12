@@ -14,7 +14,7 @@ function withLayers(project = {}, phase = {}) {
   return state;
 }
 
-describe('DB4 d project and phase layers', () => {
+describe('project and phase layers (DB4)', () => {
   it('leaves local rooms exactly as before when no layers are loaded', () => {
     expect(createInitialElevationState(null).layers).toEqual({ project: null, phase: null });
     const state = stateWithRun(run({ autoCount: false }));

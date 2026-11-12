@@ -80,10 +80,10 @@ it('setCellBaseUnder sets and clears only void and panel leaves', () => {
   expect(leaf(cabinet)).not.toHaveProperty('baseUnder');
 });
 
-describe('FS1 a shelves-only runs', () => {
+describe('shelves-only runs (FS1)', () => {
   const at = { wallId: 'wall-1', runId: 'run-1' };
 
-  it('anchors 1 and 6: collapses auto cabinets into one full-width shelves piece with no ends or Top', () => {
+  it('collapses auto cabinets into one full-width shelves piece with no ends or Top', () => {
     let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
     state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
@@ -103,7 +103,7 @@ describe('FS1 a shelves-only runs', () => {
     expect(scene.drawnPieces).toEqual([expect.objectContaining({ id: 'a', kind: 'shelves', width: 72 })]);
   });
 
-  it('anchor 2: preserves a second cabinet with a face and leaves ends and Top unchanged', () => {
+  it('preserves a second cabinet with a face and leaves ends and Top unchanged', () => {
     let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
     state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
@@ -120,7 +120,7 @@ describe('FS1 a shelves-only runs', () => {
     expect(changed.autoCount).toBe(false);
   });
 
-  it('anchor 3: keeps a manual-count run intact when its fixed-width cabinet becomes shelves', () => {
+  it('keeps a manual-count run intact when its fixed-width cabinet becomes shelves', () => {
     const state = stateWithRun(run({ autoCount: false, top: 'crown', items: [fixed('a', 30), auto('b')] }));
     const next = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
     expect(runItems(currentRun(next))).toEqual([
@@ -132,7 +132,7 @@ describe('FS1 a shelves-only runs', () => {
     expect(currentRun(next).autoCount).toBe(false);
   });
 
-  it('anchor 4: leaves joint and follow ends to their existing rules', () => {
+  it('leaves joint and follow ends to their existing rules', () => {
     for (const to of ['joint', 'follow']) {
       let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
         x: 24, width: 72, z: 54, height: 36, depth: 12, top: 'crown',
@@ -159,7 +159,7 @@ describe('FS1 a shelves-only runs', () => {
     }
   });
 
-  it('anchor 7: keeps None ends and Top after changing shelves back to a cabinet', () => {
+  it('keeps None ends and Top after changing shelves back to a cabinet', () => {
     let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
     state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
@@ -215,7 +215,7 @@ describe('cabinet faces', () => {
     return runItems(currentRun(state)).find((entry) => entry.id === id);
   }
 
-  it('23. setItemFace sets cabinets only, with copies', () => {
+  it('setItemFace sets cabinets only, with copies', () => {
     const face = { type: 'pair_door', size: null };
     const next = elevationReducer(faceState(), setItemFace({
       wallId: 'wall-1', runId: 'run-1', itemIds: ['a', 'b', 'f'], face,
@@ -227,7 +227,7 @@ describe('cabinet faces', () => {
     expect(item(next, 'f').face).toBeUndefined();
   });
 
-  it('24. a null face resets only the listed cabinets', () => {
+  it('a null face resets only the listed cabinets', () => {
     const face = { type: 'pair_door', size: null };
     const set = elevationReducer(faceState(), setItemFace({
       wallId: 'wall-1', runId: 'run-1', itemIds: ['a', 'b', 'f'], face,
@@ -240,7 +240,7 @@ describe('cabinet faces', () => {
     expect(item(reset, 'b').face).toEqual(face);
   });
 
-  it('25. facePath is cleared by selection changes', () => {
+  it('facePath is cleared by selection changes', () => {
     let state = elevationReducer(faceState(), setFacePath('r.1'));
     expect(state.facePath).toBe('r.1');
 
@@ -277,7 +277,7 @@ describe('styles and reveals', () => {
     return runItems(currentRun(state)).find((entry) => entry.id === id);
   }
 
-  it('46. setRoomStyle and setRunStyle store cleaned partials', () => {
+  it('setRoomStyle and setRunStyle store cleaned partials', () => {
     let state = elevationReducer(styleState(), setRoomStyle({
       roomId: 'room-1', style: { cabinetStyleId: 14, beadWidth: null, finish: 'paint' },
     }));
@@ -293,7 +293,7 @@ describe('styles and reveals', () => {
     expect('style' in currentRun(state)).toBe(false);
   });
 
-  it('47. setRunFaceOptions sets, ignores and clears', () => {
+  it('setRunFaceOptions sets, ignores and clears', () => {
     let state = elevationReducer(styleState(), setRunFaceOptions({ ...at, upperBottom: 'flush', top: 'wood' }));
     expect(currentRun(state)).toMatchObject({ upperBottom: 'flush', top: 'wood' });
     state = elevationReducer(state, setRunFaceOptions({ ...at, upperBottom: 'floating' }));
@@ -312,7 +312,7 @@ describe('styles and reveals', () => {
     expect('hanging' in currentRun(state)).toBe(false);
   });
 
-  it('48. setItemStyle and setItemReveals touch listed cabinets only', () => {
+  it('setItemStyle and setItemReveals touch listed cabinets only', () => {
     let state = elevationReducer(styleState(), setItemStyle({
       ...at, itemIds: ['a', 'b', 'f'], style: { cabinetStyleId: 15 },
     }));
@@ -357,7 +357,7 @@ describe('standard drawers on style switch', () => {
     return runItems(currentRun(state)).find((entry) => entry.id === id).face.children[0].size;
   }
 
-  it('IN7.4 anchor 6: room, run and item style switches preserve typed 5 3/4 fronts', () => {
+  it('room, run and item style switches preserve typed 5 3/4 fronts (IN7.4)', () => {
     let state = elevationReducer(drawerState(), setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 14 } }));
     expect(topSize(state, 'a')).toBe(5.75);
     expect(topSize(state, 'b')).toBe(5.75);
@@ -688,8 +688,8 @@ describe('SPEC-35.3 extension reducers', () => {
   });
 });
 
-describe('FX5 panel-only run depth reducers', () => {
-  it('anchor 6: restores the base depth when Room 9b panel e5806f5c becomes a cabinet', () => {
+describe('panel-only run depth reducers (FX5)', () => {
+  it('restores the base depth when Room 9b panel e5806f5c becomes a cabinet', () => {
     const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room9b.json', import.meta.url), 'utf8'));
     const state = stateWithRun();
     state.rooms = [syncRoom(stored, { ...state.settings, ...stored.settingsOverrides })];
@@ -704,7 +704,7 @@ describe('FX5 panel-only run depth reducers', () => {
     expect(changed.depth).toBe(24);
   });
 
-  it('anchor 7: accepts Room 9b panel depth 1.5 and syncs the run on growth and shrinkage', () => {
+  it('accepts Room 9b panel depth 1.5 and syncs the run on growth and shrinkage', () => {
     const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room9b.json', import.meta.url), 'utf8'));
     let state = stateWithRun();
     state.rooms = [syncRoom(stored, { ...state.settings, ...stored.settingsOverrides })];

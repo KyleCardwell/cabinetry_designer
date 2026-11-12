@@ -26,8 +26,8 @@ function room9b(edit = () => {}) {
   return { synced, back, using, scene: runScene(synced, view, back, using) };
 }
 
-describe('FX5 mitered auto panel sharing', () => {
-  it('anchor 1: shares Room 9b Wall 4 including the left miter, with the last auto taking the remainder', () => {
+describe('mitered auto panel sharing (FX5)', () => {
+  it('shares Room 9b Wall 4 including the left miter, with the last auto taking the remainder', () => {
     const { synced, back, using, scene } = room9b();
     expect(back._panelMiters).toEqual({ left: 0.8125, right: 0 });
     expect(rows(scene.drawnPieces)).toEqual([[LEFT, 0, 30.125], [RIGHT, 30.125, 30.0625]]);
@@ -35,14 +35,14 @@ describe('FX5 mitered auto panel sharing', () => {
     expect(syncRoom(synced, using)).toEqual(synced);
   });
 
-  it('anchor 2: keeps a typed right panel at 20 and gives the left auto the remaining drawn span', () => {
+  it('keeps a typed right panel at 20 and gives the left auto the remaining drawn span', () => {
     const { scene } = room9b((back) => {
       back.grid = setGridTrackSize(back.grid, back.grid.cols[1].id, 20);
     });
     expect(rows(scene.drawnPieces)).toEqual([[LEFT, 0, 40.1875], [RIGHT, 40.1875, 20]]);
   });
 
-  it('anchor 3: keeps the left typed in-run width at 30 and adds its miter only when drawn', () => {
+  it('keeps the left typed in-run width at 30 and adds its miter only when drawn', () => {
     const { scene } = room9b((back) => {
       back.grid = setGridTrackSize(back.grid, back.grid.cols[0].id, 30);
     });
@@ -50,7 +50,7 @@ describe('FX5 mitered auto panel sharing', () => {
     expect(scene.result.pieces.find(({ id }) => id === LEFT).width).toBe(30);
   });
 
-  it('anchor 4: a butt wall end panel leaves the original in-run sharing', () => {
+  it('a butt wall end panel leaves the original in-run sharing', () => {
     const { back, scene } = room9b((back, sourceWall) => {
       sourceWall.endPanels.end.frame = 'butt';
     });
@@ -58,7 +58,7 @@ describe('FX5 mitered auto panel sharing', () => {
     expect(rows(scene.drawnPieces)).toEqual([[LEFT, 0.8125, 29.6875], [RIGHT, 30.5, 29.6875]]);
   });
 
-  it('anchor 5: preserves the island fixture without a wall end panel', () => {
+  it('preserves the island fixture without a wall end panel', () => {
     const wood = { top: 'wood', autoCount: false,
       ends: { left: { type: 'none' }, right: { type: 'none' } } };
     const source = room({ walls: [wall({ id: 'island', x2: 96, thickness: 0, runs: [

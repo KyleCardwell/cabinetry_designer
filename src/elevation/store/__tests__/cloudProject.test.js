@@ -39,7 +39,7 @@ function setup() {
   return { api, store: cloudStore(api) };
 }
 
-describe('RP1 c project info', () => {
+describe('project info (RP1)', () => {
   it('keeps the nested project row when opening a room and replaces it on reopen', async () => {
     const { api, store } = setup();
     expect((await open(store)).ok).toBe(true);

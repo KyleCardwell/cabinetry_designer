@@ -55,7 +55,7 @@ const handlers = (overrides = {}) => usePlanSelectHandlers({
   pickAt, closePicker, showMessage: vi.fn(), messageTimeoutRef: { current: null }, ...overrides,
 });
 
-it('anchor 3: adds W2 front at world (100, 96), 40 from the right, then selects and resets the tool', () => {
+it('adds W2 front at world (100, 96), 40 from the right, then selects and resets the tool', () => {
   const event = {};
   handlers().handleWallSelect('wall-2', event);
   expect(event.cancelBubble).toBe(true);
@@ -68,7 +68,7 @@ it('anchor 3: adds W2 front at world (100, 96), 40 from the right, then selects 
   expect(pickAt).not.toHaveBeenCalled();
 });
 
-it('anchor 4: chooses W2 back at world (100, 99.5), 40 from the left', () => {
+it('chooses W2 back at world (100, 99.5), 40 from the left', () => {
   pointer = { x: 100, y: 99.5 };
   handlers().handleWallSelect('wall-2', {});
   expect(dispatch.mock.calls[0][0].payload).toEqual({

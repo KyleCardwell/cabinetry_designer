@@ -5,8 +5,8 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../elevation/model/consta
 import { syncRoom } from '../../elevation/model/room.js';
 import { shippingList } from '../shippingList.js';
 
-describe('FX14 step a deck up notes', () => {
-  it('anchor 1: notes Room 10 FF tall #32 deck centre before reveals', () => {
+describe('deck up notes (FX14)', () => {
+  it('notes Room 10 FF tall #32 deck centre before reveals', () => {
     const stored = JSON.parse(readFileSync(
       new URL('../../../../specs/fixtures/room10ff.json', import.meta.url), 'utf8',
     ));
@@ -22,7 +22,7 @@ describe('FX14 step a deck up notes', () => {
     }
   });
 
-  it('anchor 2: follows the quarter-inch bead to a 1 3/8-inch deck centre', () => {
+  it('follows the quarter-inch bead to a 1 3/8-inch deck centre', () => {
     const built = syncRoom(room({ walls: [wall({ runs: [run({
       width: 30, autoCount: false, style: { cabinetStyleId: 15, beadWidth: 0.25 },
       items: [auto('cab')],
@@ -31,7 +31,7 @@ describe('FX14 step a deck up notes', () => {
     expect(entry.notes).toContain('deck up 1 3/8" (with supports)');
   });
 
-  it('anchor 3: notes a typed 2-inch bottom reveal at 1 5/8 inches on centre', () => {
+  it('notes a typed 2-inch bottom reveal at 1 5/8 inches on centre', () => {
     const built = syncRoom(room({ walls: [wall({ runs: [run({
       width: 30, autoCount: false, style: { cabinetStyleId: 14 },
       items: [{ ...auto('cab'), reveals: { bottom: 2 } }],
@@ -42,7 +42,7 @@ describe('FX14 step a deck up notes', () => {
       .toBeLessThan(entry.notes.indexOf('RV\'s (2" B)'));
   });
 
-  it('anchor 4: omits notes without a raised standard inset deck and keeps no deck', () => {
+  it('omits notes without a raised standard inset deck and keeps no deck', () => {
     for (const [runOverrides, leaf] of [
       [{ cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, depth: 12 }, {}],
       [{}, { box: { bottom: 'none' } }],
@@ -64,7 +64,7 @@ describe('FX14 step a deck up notes', () => {
   });
 });
 
-describe('FX14 step b box style notes', () => {
+describe('box style notes (FX14)', () => {
   it('anchors 1/2: puts the differing Room 10 FF style first and omits the matching Euro style', () => {
     const stored = JSON.parse(readFileSync(
       new URL('../../../../specs/fixtures/room10ff.json', import.meta.url), 'utf8',
@@ -77,7 +77,7 @@ describe('FX14 step b box style notes', () => {
       .not.toContain('EUROPEAN BOX');
   });
 
-  it('anchor 3: omits matching room/run styles, including bead-only differences', () => {
+  it('omits matching room/run styles, including bead-only differences', () => {
     for (const cabinetStyleId of [14, 15]) {
       const built = syncRoom(room({
         style: { cabinetStyleId, beadWidth: 0.25 },
@@ -91,7 +91,7 @@ describe('FX14 step b box style notes', () => {
     }
   });
 
-  it('anchor 4: labels beaded and European runs in an inset room and resolves leaf overrides', () => {
+  it('labels beaded and European runs in an inset room and resolves leaf overrides', () => {
     const built = syncRoom(room({
       style: { cabinetStyleId: 14 },
       walls: [wall({ runs: [

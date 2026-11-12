@@ -67,8 +67,8 @@ const expectedGroups = [
   ]],
 ];
 
-describe('DB2 b setting groups and choice labels', () => {
-  it('partitions every registry key exactly once with 37 ungrouped keys after FX4 c3 (anchor 1)', () => {
+describe('setting groups and choice labels (DB2)', () => {
+  it('partitions every registry key exactly once with 37 ungrouped keys after FX4 c3', () => {
     const keys = [...SETTING_GROUPS.flatMap((group) => group.keys), ...UNGROUPED_KEYS];
     expect(keys.toSorted()).toEqual(SETTINGS_REGISTRY.map(({ key }) => key).toSorted());
     expect(new Set(keys).size).toBe(keys.length);
@@ -104,7 +104,7 @@ describe('DB2 b setting groups and choice labels', () => {
     expect(groupsFor('unknown')).toEqual([]);
   });
 
-  it('labels opening measurement choices in registry order (anchor 4)', () => {
+  it('labels opening measurement choices in registry order', () => {
     expect(choiceOptions('woodTopCorner')).toEqual([
       { value: 'miter', label: 'Miter' }, { value: 'butt', label: 'Butt' },
     ]);
@@ -113,13 +113,13 @@ describe('DB2 b setting groups and choice labels', () => {
     ]);
   });
 
-  it('offers boolean On and Off choices (anchor 5)', () => {
+  it('offers boolean On and Off choices', () => {
     expect(choiceOptions('openingsHaveCasing')).toEqual([
       { value: true, label: 'On' }, { value: false, label: 'Off' },
     ]);
   });
 
-  it('labels default ends in registry order (anchor 6)', () => {
+  it('labels default ends in registry order', () => {
     expect(choiceOptions('defaultEnds.left')).toEqual([
       { value: 'filler', label: 'Filler' }, { value: 'end_panel', label: 'End panel' },
       { value: 'none', label: 'None' },

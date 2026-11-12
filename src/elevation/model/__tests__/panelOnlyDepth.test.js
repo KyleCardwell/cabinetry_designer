@@ -9,8 +9,8 @@ import { isPanelOnlyRun, panelRunFace } from '../wallEndPanels.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 
-describe('FX5 panel-only run depth', () => {
-  it('anchor 1: corrects Room 9b back run from 24 to 13/16', () => {
+describe('panel-only run depth (FX5)', () => {
+  it('corrects Room 9b back run from 24 to 13/16', () => {
     const stored = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', import.meta.url), 'utf8'));
     const back = stored.walls.flatMap(({ runs }) => runs)
       .find(({ id }) => id === 'c3e90115-6035-4641-b50b-a0b5ba4079dc');
@@ -20,7 +20,7 @@ describe('FX5 panel-only run depth', () => {
     expect(back.depth).toBe(24);
   });
 
-  it('anchor 2: corrects the woodTopGroups island back run from 24 to 3/4', () => {
+  it('corrects the woodTopGroups island back run from 24 to 3/4', () => {
     const wood = { top: 'wood', autoCount: false,
       ends: { left: { type: 'none' }, right: { type: 'none' } } };
     const island = room({ walls: [wall({ id: 'island', x2: 96, thickness: 0, runs: [
@@ -32,7 +32,7 @@ describe('FX5 panel-only run depth', () => {
     expect(synced.walls[0].runs.map(({ depth }) => depth)).toEqual([24, 0.75]);
   });
 
-  it('anchor 3: follows the deepest panel, including nested split leaves', () => {
+  it('follows the deepest panel, including nested split leaves', () => {
     const panels = run({ autoCount: false,
       items: [{ ...auto('panel'), kind: 'panel', depth: 0.75 }] });
     let id = 0;
@@ -44,7 +44,7 @@ describe('FX5 panel-only run depth', () => {
     expect(syncRoom(synced, settings)).toEqual(synced);
   });
 
-  it('anchor 4: leaves two side panels at the stored run depth', () => {
+  it('leaves two side panels at the stored run depth', () => {
     const panels = run({ autoCount: false, items: [
       { ...auto('left'), kind: 'panel' }, { ...auto('right'), kind: 'panel' },
     ] });
@@ -55,7 +55,7 @@ describe('FX5 panel-only run depth', () => {
       .walls[0].runs[0].depth).toBe(24);
   });
 
-  it('anchor 5: follows a panel alongside a void, ignoring any void depth', () => {
+  it('follows a panel alongside a void, ignoring any void depth', () => {
     const panels = run({ autoCount: false, items: [
       { ...auto('panel'), kind: 'panel', depth: 0.75 },
       { ...auto('gap'), kind: 'void', depth: 30 },

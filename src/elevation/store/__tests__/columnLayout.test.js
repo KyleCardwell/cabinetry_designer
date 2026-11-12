@@ -15,7 +15,7 @@ const setup = (existingRun = columnRun()) => ({
 });
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 
-describe('DR1 column reducers', () => {
+describe('column reducers (DR1)', () => {
   it('pastes a column clipboard across runs, preserves the clipboard, and skips invalid requests', () => {
     const layout = columnLayoutOf(columnRun().grid, 'B2');
     let state = setup(run({ autoCount: false, items: [auto('target')] }));
@@ -39,7 +39,7 @@ describe('DR1 column reducers', () => {
     expect(elevationReducer(same, pasteColumn({ ...at, cellId: 'B2' }))).toBe(same);
   });
 
-  it('anchor 5: applies B1 to A and C together, preserving widths, the source and filler, without using the clipboard', () => {
+  it('applies B1 to A and C together, preserving widths, the source and filler, without using the clipboard', () => {
     const existingRun = columnRun();
     const filler = run({ items: [{ id: 'F', kind: 'filler', width: 3 }] }).grid;
     existingRun.grid.cols.splice(2, 0, filler.cols[0]);
@@ -69,7 +69,7 @@ describe('DR1 column reducers', () => {
     expect(currentRun(next).autoCount).toBe(false);
   });
 
-  it('anchor 6: removes the root containing B2, clears any selection inside it, and follows removeItem for the last column', () => {
+  it('removes the root containing B2, clears any selection inside it, and follows removeItem for the last column', () => {
     for (const selected of ['B', 'B1', 'B2', 'A']) {
       const state = setup(columnRun({ autoCount: true }));
       state.selection = { runId: 'run-1', pieceId: selected, openingId: null, soffitId: null,

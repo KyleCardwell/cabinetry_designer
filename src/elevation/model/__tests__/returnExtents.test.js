@@ -25,8 +25,8 @@ beforeEach(() => {
   ] });
 });
 
-describe('DR3b landed return extents', () => {
-  it('anchor 1: spans the Euro box and 13/16 inch doors, independently of run length', () => {
+describe('landed return extents (DR3b)', () => {
+  it('spans the Euro box and 13/16 inch doors, independently of run length', () => {
     const synced = syncRoom(stored, settings);
     const view = resolveWall(synced, synced.walls[0], 'front');
     expect(returnExtents(synced, view, settings)).toEqual(expected);
@@ -37,7 +37,7 @@ describe('DR3b landed return extents', () => {
     expect(returnExtents(shorter, resolveWall(shorter, shorter.walls[0], 'front'), settings)).toEqual(expected);
   });
 
-  it('anchor 2: ignores a wood top overhanging one inch', () => {
+  it('ignores a wood top overhanging one inch', () => {
     stored.walls[1].runs[0].top = 'wood';
     stored.walls[1].runs[0].topOverhang = { front: 1 };
     const synced = syncRoom(stored, settings);
@@ -47,13 +47,13 @@ describe('DR3b landed return extents', () => {
     expect(returnExtents(synced, resolveWall(synced, synced.walls[0], 'front'), settings)).toEqual(expected);
   });
 
-  it('anchor 3: excludes a run whose end is not anchored into the host', () => {
+  it('excludes a run whose end is not anchored into the host', () => {
     stored.walls[1].runs[0].anchors.left = false;
     const synced = syncRoom(stored, settings);
     expect(returnExtents(synced, resolveWall(synced, synced.walls[0], 'front'), settings)).toEqual([]);
   });
 
-  it('anchor 4: keeps the box back at the near face of a 4.5 inch wall', () => {
+  it('keeps the box back at the near face of a 4.5 inch wall', () => {
     stored.walls[1].thickness = 4.5;
     stored.walls[1].thicknessOverride = 4.5;
     const synced = syncRoom(stored, settings);

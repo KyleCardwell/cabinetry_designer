@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { PRICING_UNITS, PRICING_UNIT_LABELS, formatPrice, isLabor, isMoney } from '../index.js';
 import { withPricingDefaults } from '../libraryPricing.js';
 
-it('LP1 anchor 2: defaults only missing pricing fields without mutating the input', () => {
+it('defaults only missing pricing fields without mutating the input (LP1)', () => {
   const input = { id: 'x', price: 3 };
   expect(withPricingDefaults(input)).toEqual({ id: 'x', price: 3, actualCost: null, labor: {} });
   expect(input).toEqual({ id: 'x', price: 3 });
@@ -17,7 +17,7 @@ it('LP1 anchor 2: defaults only missing pricing fields without mutating the inpu
   for (const invalid of [null, undefined, [], 'x']) expect(withPricingDefaults(invalid)).toBe(invalid);
 });
 
-it('IN12b anchor 5b: shares pricing units and formats each, pair, size and unpriced amounts', () => {
+it('anchor 5b: shares pricing units and formats each, pair, size and unpriced amounts (IN12b)', () => {
   expect(PRICING_UNITS).toEqual(['unit', 'area', 'length', 'perimeter', 'volume']);
   expect(PRICING_UNIT_LABELS).toEqual({
     unit: 'each', area: 'sq ft', length: 'ft', perimeter: 'ft of perimeter', volume: 'cu ft',
@@ -31,7 +31,7 @@ it('IN12b anchor 5b: shares pricing units and formats each, pair, size and unpri
   }
 });
 
-it('IN12b validates finite nonnegative money and up to twenty service minute entries', () => {
+it('validates finite nonnegative money and up to twenty service minute entries (IN12b)', () => {
   for (const value of [null, 0, 112.4]) expect(isMoney(value)).toBe(true);
   for (const value of [undefined, -1, Infinity, NaN, '15', true, {}]) expect(isMoney(value)).toBe(false);
   const twenty = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [String(i + 1), i / 2]));

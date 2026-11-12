@@ -22,7 +22,7 @@ const row = ({
 const ROWS = ['lower.inner', 'lower.outer', 'openings', 'wall', 'upper.inner', 'upper.outer'];
 const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
 
-describe('ST6 step b internal step dimensions', () => {
+describe('internal step dimensions (ST6)', () => {
   const manual = (value) => ({ value, source: 'manual' });
   function fixture(offsets = {}, overrides = {}) {
     const room = topSegmentRoom({ topSegments: [], ...overrides });
@@ -92,7 +92,7 @@ describe('ST6 step b internal step dimensions', () => {
   });
 });
 
-describe('DM7 centred dimension text', () => {
+describe('centred dimension text (DM7)', () => {
   it.each([
     [30, 3.15, true],
     [8, 1.575, true],
@@ -110,7 +110,7 @@ describe('DM7 centred dimension text', () => {
     }
   });
 
-  it('anchor 4: levels start and advance by height + gap on either side, scaled to the drawing', () => {
+  it('levels start and advance by height + gap on either side, scaled to the drawing', () => {
     for (const scale of [24, 48]) {
       for (const outward of [-1, 1]) {
         const { placed, levels, step } = placeLabels([
@@ -208,7 +208,7 @@ describe('SPEC-43 elevation dimensions', () => {
     expect(dimensions).toHaveLength(14);
   });
 
-  it('DM3: dimensions the wall below when there are no uppers; recesses only on faces without runs (G1 island, G5)', () => {
+  it('dimensions the wall below when there are no uppers; recesses only on faces without runs (G1 island, G5) (DM3)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(3)).toEqual([
       ['lower.outer', 'open', 0, 0.8125, 0, -18, '13/16', 0.40625, -21.75],

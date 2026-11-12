@@ -41,7 +41,7 @@ function expectFiller(plan, key, face, ret) {
   for (const piece of returns) expect([piece.back, piece.front]).toEqual(ret);
 }
 
-describe('FL1 step b filler face lines and return tongues', () => {
+describe('filler face lines and return tongues (FL1)', () => {
   it('uses the run face line with independent filler thickness (P2, P3, P10)', () => {
     expectFiller(planOf({ run: { _doorThickness: 1 } }), 'r:left',
       [24.25, 25.0625], [21.875, 24.375]);

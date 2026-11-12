@@ -26,7 +26,7 @@ import {
 const PID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const DID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c';
 
-it('IN4c a anchors 2 and 3: defaults missing slide back clearance by seedId, else zero', () => {
+it('defaults missing slide back clearance by seedId, else zero (IN4c)', () => {
   for (const [base, expected] of [
     [BUILT_IN_SLIDES[0], 0.75], [BUILT_IN_SLIDES[1], 0], [BUILT_IN_SLIDES[2], 0],
     [{ ...BUILT_IN_SLIDES[0], id: DID, name: 'Custom slide' }, 0],
@@ -48,7 +48,7 @@ it('IN4c a anchors 2 and 3: defaults missing slide back clearance by seedId, els
   }
 });
 
-it('LP1 anchor 6: writes priced pulls and slides with unchanged hardware link columns', () => {
+it('writes priced pulls and slides with unchanged hardware link columns (LP1)', () => {
   for (const [base, toRow, fromRow, idKey, linkKey, column] of [
     [BUILT_IN_PULLS[0], pullToRow, pullFromRow, 'pull_id', 'hardwarePullId', 'hardware_pull_id'],
     [BUILT_IN_SLIDES[0], slideToRow, slideFromRow, 'slide_id', 'hardwareSlideId', 'hardware_slide_id'],
@@ -72,7 +72,7 @@ function leafKeys(value, prefix = '') {
 }
 
 describe('cloudRows', () => {
-  it('HP3b c maps built-in and custom pulls without losing the estimator link (anchor 1)', () => {
+  it('maps built-in and custom pulls without losing the estimator link (HP3b)', () => {
     expect(pullToRow(BUILT_IN_PULLS[0])).toEqual({
       name: '4" pull', data: { kind: 'pull', length: 4.75, centers: 4, width: 0.375, projection: 1.25, price: null, actualCost: null, labor: {}, seedId: 'pull-4' },
       hardware_pull_id: null,
@@ -88,7 +88,7 @@ describe('cloudRows', () => {
     }
   });
 
-  it('HP3b c validates pull rows and restores seed ids (anchor 2)', () => {
+  it('validates pull rows and restores seed ids (HP3b)', () => {
     const row = { pull_id: DID, name: 'Bar', data: { kind: 'pull', length: 5, width: 0.375, projection: 1.25 },
       hardware_pull_id: null, version: 2, archived_at: null };
     expect(pullFromRow(row)).toEqual({ id: DID, name: 'Bar', kind: 'pull', length: 5, width: 0.375, projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {} });
@@ -101,7 +101,7 @@ describe('cloudRows', () => {
       { ...knob, data: { ...knob.data, seedId: 'pull-4' } }]) expect(pullFromRow(invalid)).toBeNull();
   });
 
-  it('IN4b c maps built-in and uuid slides, preserving lengths and estimator links (anchor 1)', () => {
+  it('maps built-in and uuid slides, preserving lengths and estimator links (IN4b)', () => {
     const expectedData = {
       brand: 'Blum', model: '562H', description: 'Blum Tandem 562H soft-close',
       mount: 'undermount',
@@ -119,7 +119,7 @@ describe('cloudRows', () => {
     expect(slideFromRow({ slide_id: DID, ...slideToRow(custom) })).toEqual(custom);
   });
 
-  it('IN4b c validates slide rows and restores built-in ids and mounts (anchor 2)', () => {
+  it('validates slide rows and restores built-in ids and mounts (IN4b)', () => {
     const { data } = slideToRow({ ...BUILT_IN_SLIDES[1], id: DID });
     const row = { slide_id: DID, name: 'Hettich', data, hardware_slide_id: null, version: 2, archived_at: null };
     expect(slideFromRow(row)).toEqual({ ...BUILT_IN_SLIDES[1], id: DID, name: 'Hettich', hardwareSlideId: null });
@@ -135,7 +135,7 @@ describe('cloudRows', () => {
       { ...seedRow, data: { ...seedRow.data, mount: 'undermount' } }]) expect(slideFromRow(invalid)).toBeNull();
   });
 
-  it('IN4b c keeps slides out of the shop-standard row and defaults clone (anchor 6)', () => {
+  it('keeps slides out of the shop-standard row and defaults clone (IN4b)', () => {
     expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES })).not.toHaveProperty('slides');
     expect(teamSettingsFromRow({})).not.toHaveProperty('slides');
     expect(teamSettingsFromRow({ slides: BUILT_IN_SLIDES })).not.toHaveProperty('slides');
@@ -209,7 +209,7 @@ describe('cloudRows', () => {
 
 
 
-it('IN4b d round-trips the default slide and replaces an empty stored ID (anchor 4)', () => {
+it('round-trips the default slide and replaces an empty stored ID (IN4b)', () => {
   for (const drawerSlideId of ['blum-562h', 'accuride-3832', 'gone']) {
     const row = teamSettingsToRow({ ...DEFAULT_SETTINGS, drawerSlideId });
     expect(row.drawerSlideId).toBe(drawerSlideId);
@@ -228,7 +228,7 @@ const susan = {
   ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
 };
 
-it('IN12b c maps every accessory field except id and name into data (anchor 1)', () => {
+it('maps every accessory field except id and name into data (IN12b)', () => {
   const expectedData = {
     brand: 'Rev-A-Shelf', model: '6472-28', description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
     attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
@@ -244,7 +244,7 @@ it('IN12b c maps every accessory field except id and name into data (anchor 1)',
   expect(susan.minOpening.width).toBe(27);
 });
 
-it('IN12b c validates accessory rows and restores their uuid (anchor 2)', () => {
+it('validates accessory rows and restores their uuid (IN12b)', () => {
   const row = { accessory_id: DID, ...accessoryToRow(susan), version: 2, archived_at: null };
   const loaded = accessoryFromRow(row);
   expect(loaded).toEqual(susan);
@@ -256,7 +256,7 @@ it('IN12b c validates accessory rows and restores their uuid (anchor 2)', () => 
   }
 });
 
-it('IN12b c keeps accessories out of the shop standard and defaults clone (anchor 6)', () => {
+it('keeps accessories out of the shop standard and defaults clone (IN12b)', () => {
   expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, accessories: [susan] })).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({})).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({ accessories: [susan] })).not.toHaveProperty('accessories');

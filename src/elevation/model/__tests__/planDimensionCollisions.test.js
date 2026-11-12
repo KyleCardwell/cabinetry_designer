@@ -46,7 +46,7 @@ function lineThroughText(line, box) {
 }
 const conflicts = (a, b) => overlaps(a, b) || lineThroughText(a.line, b) || lineThroughText(b.line, a);
 
-it('PD3 anchor 3: all golden and fixture dimensions clear other text, except Room 8 wall rows 28 / 36', () => {
+it('all golden and fixture dimensions clear other text, except Room 8 wall rows 28 / 36 (PD3)', () => {
   const inputs = [
     ...document.rooms.map((room) => ({ room, settings })),
     ...fixtures.map((room) => ({ room, settings: { ...DEFAULT_SETTINGS, ...room.settingsOverrides } })),
@@ -72,7 +72,7 @@ it('PD3 anchor 3: all golden and fixture dimensions clear other text, except Roo
   expect(skipped).toEqual(['Room 8: 28 / 36']);
 });
 
-it('PD3 anchor 1: G1 moves 44 9/16 four inches toward the span start, the nearest clear candidate', () => {
+it('G1 moves 44 9/16 four inches toward the span start, the nearest clear candidate (PD3)', () => {
   const room = golden('G1');
   const before = planClearances(room, settings).find(({ length }) => length === 44.5625);
   const after = planPlacedClearances(room, settings).find(({ length }) => length === before.length);
@@ -92,7 +92,7 @@ it('PD3 anchor 1: G1 moves 44 9/16 four inches toward the span start, the neares
   expect(Math.hypot(after.to.x - after.from.x, after.to.y - after.from.y)).toBe(before.length);
 });
 
-it('PD3 anchor 2: preserves the captured G2–G6 and Room 9 clearance records (all empty)', () => {
+it('preserves the captured G2–G6 and Room 9 clearance records (all empty) (PD3)', () => {
   const room9 = fixtures.find(({ name }) => name === 'Room 9');
   for (const room of [...document.rooms.slice(1), room9]) {
     const config = room === room9 ? { ...DEFAULT_SETTINGS, ...room9.settingsOverrides } : settings;
@@ -100,14 +100,14 @@ it('PD3 anchor 2: preserves the captured G2–G6 and Room 9 clearance records (a
   }
 });
 
-it('PD3 anchor 4: a wholly blocked span stays in the middle', () => {
+it('a wholly blocked span stays in the middle (PD3)', () => {
   const clearance = { kind: 'island', from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, length: 40,
     along: { start: { x: 0, y: -20 }, end: { x: 0, y: 20 } } };
   const obstacles = [{ start: [20, -20], end: [20, 20], offset: 0, text: 'blocked entire span', textAt: [20, 0] }];
   expect(placePlanClearance(clearance, obstacles, settings)).toBe(clearance);
 });
 
-it('PD3 keeps the scale-dependent end margin and prefers the span start on a tie', () => {
+it('keeps the scale-dependent end margin and prefers the span start on a tie (PD3)', () => {
   const clearance = { kind: 'aisle', from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, length: 40,
     along: { start: { x: 0, y: -8 }, end: { x: 0, y: 8 } } };
   const obstacle = { start: [5, -8], end: [5, 8], offset: 0, text: '1' };
@@ -117,7 +117,7 @@ it('PD3 keeps the scale-dependent end margin and prefers the span start on a tie
   expect(placePlanClearance(clearance, [], settings)).toBe(clearance);
 });
 
-it('PD3 clears its own text from obstacle lines and offset or moved text boxes, also when rotated', () => {
+it('clears its own text from obstacle lines and offset or moved text boxes, also when rotated (PD3)', () => {
   for (const angle of [0, Math.PI / 5, Math.PI / 2]) {
     const point = ([x, y]) => [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)];
     const canvas = (p) => { const [x, y] = point(p); return { x, y: -y }; };

@@ -34,8 +34,8 @@ function geometry(overrides = {}, roomOverrides = {}) {
 
 const bands = (faces) => faces.filter(({ kind }) => kind === 'face').map(({ back, front }) => [back, front]);
 
-describe('FX9 a: Euro T-run faces line up with the T fronts', () => {
-  it('anchor 1: aligns doors, seam T and end Ts at 24 13/16', () => {
+describe('Euro T-run faces line up with the T fronts (FX9)', () => {
+  it('aligns doors, seam T and end Ts at 24 13/16', () => {
     const { run: subject, plan, parts } = geometry();
     expect(frontDepth(subject, S)).toBe(24.8125);
     expect(bands(plan.faces)).toEqual([[24, 24.8125], [24, 24.8125]]);
@@ -45,14 +45,14 @@ describe('FX9 a: Euro T-run faces line up with the T fronts', () => {
     expect(plan.boxes.every(({ back, front }) => back === 0 && front === 24)).toBe(true);
   });
 
-  it('anchor 2: keeps the bumper and own face thickness without a run T choice', () => {
+  it('keeps the bumper and own face thickness without a run T choice', () => {
     const { run: subject, plan, parts } = geometry({ tFiller: undefined });
     expect(frontDepth(subject, S)).toBe(24.875);
     expect(bands(plan.faces)).toEqual([[24.0625, 24.875], [24.0625, 24.875]]);
     expect(bands(parts)).toEqual([[24.0625, 24.875], [24.0625, 24.875]]);
   });
 
-  it('anchor 3: sinks 1-inch doors behind the T front', () => {
+  it('sinks 1-inch doors behind the T front', () => {
     const { run: subject, plan, parts } = geometry({ doorStyleId: thick.id }, { doorStyles: [thick] });
     expect(subject._doorThickness).toBe(1);
     expect(frontDepth(subject, S)).toBe(24.8125);
@@ -60,7 +60,7 @@ describe('FX9 a: Euro T-run faces line up with the T fronts', () => {
     expect(bands(parts)).toEqual([[23.8125, 24.8125], [23.8125, 24.8125]]);
   });
 
-  it('anchor 4: keeps face frame doors at the frame front', () => {
+  it('keeps face frame doors at the frame front', () => {
     const { run: subject, plan, parts } = geometry({
       style: { cabinetStyleId: CABINET_STYLE_IDS.INSET }, doorStyleId: thick.id,
     }, { doorStyles: [thick] });
@@ -73,7 +73,7 @@ describe('FX9 a: Euro T-run faces line up with the T fronts', () => {
       .toBe(true);
   });
 
-  it('anchor 5: brings a flush side panel to the T front with its back at zero', () => {
+  it('brings a flush side panel to the T front with its back at zero', () => {
     const { plan, parts } = geometry({ items: [auto('a'),
       { ...auto('panel'), kind: 'panel', width: 0.75 }, auto('b')] });
     expect(plan.faces.find(({ key }) => key === 'panel')).toMatchObject({ back: 0, front: 24.8125 });

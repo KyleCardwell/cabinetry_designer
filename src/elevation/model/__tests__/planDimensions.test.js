@@ -20,7 +20,7 @@ const WALL_ROWS = ['front', 'back', 'wall'];
 const wallRows = (room) => dimensions(room).filter(({ row }) => WALL_ROWS.includes(row));
 const wall = (start, end, offset, text) => ({ row: 'wall', kind: 'wall', start, end, offset, text });
 
-it('PT1 anchor 6: emits one overhang row with text 12 for the 12 inch front overhang', () => {
+it('emits one overhang row with text 12 for the 12 inch front overhang (PT1)', () => {
   const room = buildRoom({ walls: [buildWall({ runs: [buildRun({
     x: 24, width: 60, depth: 24, top: 'wood', autoCount: false,
     ends: { left: { type: 'none' }, right: { type: 'none' } },
@@ -187,14 +187,14 @@ function lineEnds({ start, end, offset }) {
 const dm1Rows = (room) => planDimensions(room, settings).filter(({ row }) => WALL_ROWS.includes(row));
 const through = (room) => planDimensions(room, settings).filter(({ row }) => row === 'through');
 
-describe('DM1 step a anchors', () => {
-  it('1: keeps a perimeter wall row at 13 1/2 and marker A at 41 3/8', () => {
+describe('anchors (DM1)', () => {
+  it('keeps a perimeter wall row at 13 1/2 and marker A at 41 3/8', () => {
     const room = dm1Room({ back: false });
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 13.5], [96, 13.5]]]);
     expect(planMarks(room, settings)).toContainEqual(markerAt([48, -41.375], 'A'));
   });
 
-  it('2: puts island rows at 38 3/8 and the back marker at 57 7/8', () => {
+  it('puts island rows at 38 3/8 and the back marker at 57 7/8', () => {
     const room = dm1Room();
     expect(planSideReach(room, room.walls[0], 'back', settings)).toBe(24.875);
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 38.375], [96, 38.375]]]);
@@ -202,7 +202,7 @@ describe('DM1 step a anchors', () => {
     expect(through(room)).toEqual([]);
   });
 
-  it('3: labels the window at depth -32, rows at 38 3/8 and 47 3/8, marker at 66 7/8', () => {
+  it('labels the window at depth -32, rows at 38 3/8 and 47 3/8, marker at 66 7/8', () => {
     const room = dm1Room({ window: true });
     const rows = dm1Rows(room);
     expect(rows.filter(({ row }) => row === 'front').map((row) => lineEnds(row)[0][1]))
@@ -214,14 +214,14 @@ describe('DM1 step a anchors', () => {
     expect(planMarks(room, settings)).toContainEqual(markerAt([48, 66.875], 'B', [0, -1]));
   });
 
-  it('4: measures through the start panel from -29 3/8 to +24 7/8, 9 past its outer edge', () => {
+  it('measures through the start panel from -29 3/8 to +24 7/8, 9 past its outer edge', () => {
     expect(through(dm1Room({ panels: ['start'] }))).toEqual([{
       row: 'through', kind: 'through', start: [-9, -24.875], end: [-9, 29.375],
       offset: 0, text: '54 1/4',
     }]);
   });
 
-  it('5: draws only the start panel through dimension when both ends have equal totals', () => {
+  it('draws only the start panel through dimension when both ends have equal totals', () => {
     expect(through(dm1Room({ panels: ['start', 'end'] })))
       .toEqual(through(dm1Room({ panels: ['start'] })));
   });

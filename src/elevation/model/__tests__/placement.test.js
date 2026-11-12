@@ -40,7 +40,7 @@ function applyStage(stage, state) {
   return result;
 }
 
-describe('LL1 placement stages', () => {
+describe('placement stages (LL1)', () => {
   it('exports the frozen stage order and each stage function', () => {
     expect(PLACEMENT_STAGES.map(({ name }) => name))
       .toEqual(['return-pins', 'soffits', 'cell-widths', 'run-edges', 'line-runs', 'pin-growth']);
@@ -113,7 +113,7 @@ describe('LL1 placement stages', () => {
   });
 });
 
-describe('LL1 splitOptionsForRun', () => {
+describe('splitOptionsForRun (LL1)', () => {
   it('matches the room-aware options and line labels for the synced Room 10 Wall 2 base', () => {
     expect(fromRoom).toBe(splitOptionsForRun);
     expect(fromIndex).toBe(splitOptionsForRun);

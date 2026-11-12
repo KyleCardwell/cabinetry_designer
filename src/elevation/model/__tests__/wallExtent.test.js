@@ -83,7 +83,7 @@ function view(room, wallId) {
 }
 
 describe('profileReach and wallExtent', () => {
-  it('189. reaches neighbour runs across a straight joint, not ones behind it or round a corner (SPEC-43.4)', () => {
+  it('reaches neighbour runs across a straight joint, not ones behind it or round a corner (SPEC-43.4)', () => {
     const room = straightRoom({
       wallA: { runs: [base('A1', { x: 90 })] },
       wallB: { runs: [base('B1')] },
@@ -129,7 +129,7 @@ describe('profileReach and wallExtent', () => {
     expect(profileReach(cornerRoom, view(cornerRoom, 'A'), 'front', DEFAULT_SETTINGS)).toEqual([]);
   });
 
-  it('191. grows wall extents for runs, molding, and neighbour profiles', () => {
+  it('grows wall extents for runs, molding, and neighbour profiles', () => {
     const neighborRoom = straightRoom({
       wallA: { runs: [base('A1', { x: 90 })] },
       wallB: { runs: [base('B1')] },
@@ -160,7 +160,7 @@ describe('profileReach and wallExtent', () => {
     });
   });
 
-  it('214. grows the extent for a neighbour\'s crown', () => {
+  it('grows the extent for a neighbour\'s crown', () => {
     const crownRoom = straightRoom({
       wallA: { height: 90 },
       wallB: {

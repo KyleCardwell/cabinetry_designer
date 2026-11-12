@@ -56,7 +56,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     expect(cornerShapes(room, wall, 'front', settings)).toEqual([]);
   });
 
-  it('places picked lines, front depths and whole side outlines (anchors 2 and 5)', () => {
+  it('places picked lines, front depths and whole side outlines', () => {
     const { bands, parts, pieces } = setup();
     expect(bands.topMold).toEqual({ x: 19.75, z: 90, width: 60.5, height: 3, lines: lines(19.75, 80.25, 90.75),
       ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })],
@@ -78,7 +78,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     ]);
   });
 
-  it('stretches an eight-inch top mold from the lower box top (anchor 3)', () => {
+  it('stretches an eight-inch top mold from the lower box top', () => {
     const { run, bands, pieces } = setup({ ...picks, crownStackHeight: 11, topMoldHeight: 8 });
     expect(run.z + run.height).toBe(85);
     expect(bands.topMold).toMatchObject({ z: 85, height: 8, lines: lines(19.75, 80.25, 85.75) });
@@ -87,7 +87,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     expect(pieces[3].outline).toEqual(CROWN_OUTLINE);
   });
 
-  it('returns by the resolved overhang and profile projection, omitting crown when None (anchor 4)', () => {
+  it('returns by the resolved overhang and profile projection, omitting crown when None', () => {
     for (const overhang of [0.25, 0]) {
       const { bands, parts } = setup({ ...picks, topMoldOverhang: overhang });
       expect(20 - bands.topMold.x).toBe(overhang);

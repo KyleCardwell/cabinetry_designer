@@ -132,7 +132,7 @@ const rightRun = (blind) => base('R', {
 });
 
 describe('blind overlay model', () => {
-  it('208. builds exposed left and right blind entries', () => {
+  it('builds exposed left and right blind entries', () => {
     const room = blindRoom([
       leftRun({ left: 42, right: null }),
       rightRun({ left: null, right: 42 }),
@@ -172,7 +172,7 @@ describe('blind overlay model', () => {
     });
   });
 
-  it('209. reports blind width and missing end-piece warnings', () => {
+  it('reports blind width and missing end-piece warnings', () => {
     const shortRoom = blindRoom([leftRun({ left: 21, right: null })]);
     const shortWall = wallSideView(shortRoom.walls[0], 'front');
     expect(blindEntries(shortRoom, shortWall, shortWall.runs[0], DEFAULT_SETTINGS)).toMatchObject({
@@ -203,7 +203,7 @@ describe('blind overlay model', () => {
     });
   });
 
-  it('210. determines whether merged ranges cover a blind', () => {
+  it('determines whether merged ranges cover a blind', () => {
     expect(isBlindCovered([[4, 34.5]], 4, 34.5)).toBe(true);
     expect(isBlindCovered([[4, 34.5]], 4, 90)).toBe(false);
     expect(isBlindCovered([[4, 34.5], [54, 90]], 4, 90)).toBe(false);
@@ -212,7 +212,7 @@ describe('blind overlay model', () => {
     expect(isBlindCovered([[0, 96]], 4, 34.5)).toBe(true);
   });
 
-  it('211. returns blind cabinet and panel part widths', () => {
+  it('returns blind cabinet and panel part widths', () => {
     const room = blindRoom([leftRun({ left: 42, right: null })]);
     const wall = wallSideView(room.walls[0], 'front');
     expect(blindPartWidths(room, wall, wall.runs[0], DEFAULT_SETTINGS)).toEqual(
@@ -229,7 +229,7 @@ describe('blind overlay model', () => {
     )).toEqual(new Map());
   });
 
-  it('220. uses ordered filler width only for a covered blind', () => {
+  it('uses ordered filler width only for a covered blind', () => {
     const coveredRun = leftRun({ left: 42, right: null });
     coveredRun.endFiller = { left: { width: 6 }, right: null };
     const coveredRoom = syncRoom({
@@ -270,7 +270,7 @@ describe('blind overlay model', () => {
     ).get('T:left')).toBe(27.875);
   });
 
-  it('225. defaults covered blind ordered width without changing exposed width', () => {
+  it('defaults covered blind ordered width without changing exposed width', () => {
     const coveredRun = leftRun({ left: 42, right: null });
     const coveredRoom = syncRoom({
       id: 'K',
@@ -309,7 +309,7 @@ describe('blind overlay model', () => {
     ).get('T:left')).toBe(27.875);
   });
 
-  it('230. sizes the panel from the deepest overlapping neighbour plus the filler', () => {
+  it('sizes the panel from the deepest overlapping neighbour plus the filler', () => {
     const room = cornerRoom(tallBlind(), [neighborBase(), neighborUpper()]);
     const wall = wallSideView(room.walls[0], 'front');
     const host = wall.runs[0];
@@ -333,7 +333,7 @@ describe('blind overlay model', () => {
     expect(panelDepth(room, wall, host, 'right', DEFAULT_SETTINGS)).toBe(0);
   });
 
-  it('231. uses vertical overlap to choose panel neighbours', () => {
+  it('uses vertical overlap to choose panel neighbours', () => {
     const room = cornerRoom(lowUpperBlind(), [neighborBase(), neighborUpper()]);
     const wall = wallSideView(room.walls[0], 'front');
     const host = wall.runs[0];

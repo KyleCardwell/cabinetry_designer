@@ -31,7 +31,7 @@ const badges = (room, wall, side, result = partNumbers(room, settings)) => wallM
 ).filter(({ label }) => label === 'FB');
 
 describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
-  it('keeps golden parts and numbers unchanged (anchor 1)', () => {
+  it('keeps golden parts and numbers unchanged', () => {
     const counts = [33, 21, 12, 12, 12, 19];
     for (const [index, stored] of document.rooms.entries()) {
       const room = syncRoom(stored, settings);
@@ -46,7 +46,7 @@ describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
     }
   });
 
-  it('places one FB before its first touching run and badges only that run (anchor 2)', () => {
+  it('places one FB before its first touching run and badges only that run', () => {
     const room = goldenWithBase();
     const result = partNumbers(room, settings);
     const before = partNumbers(syncRoom(document.rooms[0], settings), settings);
@@ -64,7 +64,7 @@ describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
     ]);
   });
 
-  it('uses the FB key override and allocates the other numbers in walk order (anchor 3)', () => {
+  it('uses the FB key override and allocates the other numbers in walk order', () => {
     const room = goldenWithBase();
     const before = partNumbers(syncRoom(document.rooms[0], settings), settings);
     room.partNumberOverrides = { ...room.partNumberOverrides, [KEY]: 99 };

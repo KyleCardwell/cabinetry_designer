@@ -38,7 +38,7 @@ describe('Step 497.1 profile draft top gap tracking', () => {
   });
 });
 
-it('SH2 d tracks the optional shape key across header and geometry edits, undo, redo and Save', () => {
+it('tracks the optional shape key across header and geometry edits, undo, redo and Save (SH2)', () => {
   const original = newShape([], 'shape');
   const key = (shape) => JSON.stringify([shape.name, shape.kind, shape.notes, shape.box, shape.views, shape.stretch]);
   for (const patch of [

@@ -76,7 +76,7 @@ describe('SPEC-46.3 the team\'s door designs and default door style live in sett
 
 describe('Step 527 door design migration and shape', () => {
 
-  it('validates core/joint exclusivity and strict positive design defaults (anchor 6)', () => {
+  it('validates core/joint exclusivity and strict positive design defaults', () => {
     for (const design of [
       { ...ARCHED, construction: 'slab_applied' },
       { ...ARCHED, slabCore: 'mdf' },

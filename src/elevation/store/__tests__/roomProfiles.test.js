@@ -23,8 +23,8 @@ function storeDocument(document) {
   } });
 }
 
-describe('DB1 e room profile overrides', () => {
-  it('starts initial and added rooms empty and resolves the team wall height 96 (anchor 1)', () => {
+describe('room profile overrides (DB1)', () => {
+  it('starts initial and added rooms empty and resolves the team wall height 96', () => {
     const state = elevationReducer(createInitialElevationState(null), addRoom({ name: 'Room 2' }));
     expect(state.settings.defaultProfile.wallHeight).toBe(96);
     for (const room of state.rooms) {
@@ -33,7 +33,7 @@ describe('DB1 e room profile overrides', () => {
     }
   });
 
-  it('follows team height 108 while a room pinned at 100 keeps its override (anchor 2)', () => {
+  it('follows team height 108 while a room pinned at 100 keeps its override', () => {
     let state = elevationReducer(createInitialElevationState(null), addRoom());
     const roomId = state.rooms[1].id;
     state = elevationReducer(state, updateRoomProfile({ roomId, key: 'wallHeight', value: 100 }));
@@ -45,7 +45,7 @@ describe('DB1 e room profile overrides', () => {
     expect(settingsFor(state, state.rooms[1]).defaultProfile.wallHeight).toBe(108);
   });
 
-  it('stores height 100 then deletes it on null, and clears numeric keys on null and every key on undefined (anchor 3)', () => {
+  it('stores height 100 then deletes it on null, and clears numeric keys on null and every key on undefined', () => {
     let state = createInitialElevationState(null);
     const roomId = state.rooms[0].id;
     state = elevationReducer(state, updateRoomProfile({ roomId, key: 'wallHeight', value: 100 }));
@@ -66,7 +66,7 @@ describe('DB1 e room profile overrides', () => {
     }
   });
 
-  it('loads a full copy as only upperClearance 20 against the team 18 (anchor 4)', () => {
+  it('loads a full copy as only upperClearance 20 against the team 18', () => {
     let state = createInitialElevationState(null);
     state = elevationReducer(state, updateSettings({ defaultProfile: { wallHeight: 108, upperClearance: 18 } }));
     state = elevationReducer(state, addWall());
@@ -83,7 +83,7 @@ describe('DB1 e room profile overrides', () => {
     expect(settingsFor(restored, restored.rooms[0]).defaultProfile).toMatchObject({ wallHeight: 108, upperClearance: 20 });
   });
 
-  it('adds walls and segments at override height 100 or the resolved team height (anchor 5)', () => {
+  it('adds walls and segments at override height 100 or the resolved team height', () => {
     for (const add of [addWall, addWallSegment]) {
       for (const [profile, expected] of [[{}, 108], [{ wallHeight: 100 }, 100]]) {
         let state = createInitialElevationState(null);

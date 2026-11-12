@@ -30,8 +30,8 @@ beforeEach(() => {
 
 const current = (subject) => subject.rooms[0].walls[0].runs[0];
 
-describe('CC4 step a stored leg B face', () => {
-  it('anchor 11: defaults to inheritance, loads valid faces and rejects invalid faces', () => {
+describe('stored leg B face (CC4)', () => {
+  it('defaults to inheritance, loads valid faces and rejects invalid faces', () => {
     expect(normalizeCornerEnd({}).corner.legBFace).toBeNull();
     for (const legBFace of [null, 'door', 'panel']) {
       const next = elevationReducer(state, setRunEnd({ ...target,
@@ -53,15 +53,15 @@ describe('CC4 step a stored leg B face', () => {
   });
 });
 
-describe('CC3.1 step a stored corner doors', () => {
-  it('anchor 2: defaults to inheritance and preserves explicit choices', () => {
+describe('stored corner doors (CC3.1)', () => {
+  it('defaults to inheritance and preserves explicit choices', () => {
     expect(normalizeCornerEnd({}).corner.doors).toBeNull();
     for (const doors of [null, 'equal', 'a_long', 'b_long']) {
       expect(normalizeCornerEnd({ corner: { doors } }).corner.doors).toBe(doors);
     }
   });
 
-  it('anchor 3: loads valid overrides and rejects invalid corner door settings', () => {
+  it('loads valid overrides and rejects invalid corner door settings', () => {
     for (const doors of [null, 'equal', 'a_long', 'b_long']) {
       const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner', corner: { doors } } }));
       const document = toElevationDocument(next);
@@ -100,28 +100,28 @@ describe('CC3.1 step a stored corner doors', () => {
   });
 });
 
-describe('CC1 step a corner end data', () => {
-  it('anchor 1: replaces an auto left track with the default 36-inch manual leg', () => {
+describe('corner end data (CC1)', () => {
+  it('replaces an auto left track with the default 36-inch manual leg', () => {
     current(state).autoCount = true;
     const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }));
     expect(current(next).ends.left).toEqual(defaultCorner);
     expect(current(next).grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 36 });
   });
 
-  it('anchor 2: defaults an upper leg to 24 inches', () => {
+  it('defaults an upper leg to 24 inches', () => {
     current(state).cabinetTypeId = CABINET_TYPE_IDS.UPPER;
     const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }));
     expect(current(next).grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 24 });
     expect(defaultLegA(run({ cabinetTypeId: CABINET_TYPE_IDS.TALL }))).toBe(36);
   });
 
-  it('anchor 3: keeps a manual 30-inch column', () => {
+  it('keeps a manual 30-inch column', () => {
     state.rooms[0].walls[0].runs = [run({ autoCount: false, items: [fixed('left', 30), auto('right')] })];
     const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }));
     expect(current(next).grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 30 });
   });
 
-  it('anchor 4: stores typed 45-degree dimensions with the default return piece', () => {
+  it('stores typed 45-degree dimensions with the default return piece', () => {
     const next = elevationReducer(state, setRunEnd({ ...target,
       end: { type: 'corner', corner: { kind: 45, legB: 30, depthB: 15 } },
     }));
@@ -134,7 +134,7 @@ describe('CC1 step a corner end data', () => {
     }
   });
 
-  it('anchor 5: clears old end details, filler, legs and the grid blind', () => {
+  it('clears old end details, filler, legs and the grid blind', () => {
     state.rooms[0].walls[0].runs = [run({ autoCount: false,
       items: [auto('left'), auto('right')], blind: { left: 42 },
       ends: { left: { type: 'filler', width: 2, height: 'full', auto: true,
@@ -150,14 +150,14 @@ describe('CC1 step a corner end data', () => {
     expect(runBlind(current(next))).toBeUndefined();
   });
 
-  it('anchor 6: drops corner data when switching to filler without changing the column', () => {
+  it('drops corner data when switching to filler without changing the column', () => {
     const corner = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }));
     const next = elevationReducer(corner, setRunEnd({ ...target, end: { type: 'filler', width: null } }));
     expect(current(next).ends.left).toEqual({ type: 'filler', width: null });
     expect(current(next).grid.cols[0]).toEqual(current(corner).grid.cols[0]);
   });
 
-  it('anchor 7: keeps corner and filler ends when anchoring inside, and resets end panels', () => {
+  it('keeps corner and filler ends when anchoring inside, and resets end panels', () => {
     for (const end of [defaultCorner, { type: 'filler', width: null }, { type: 'end_panel', width: null }]) {
       const initial = structuredClone(state);
       current(initial).ends.left = end;
@@ -167,7 +167,7 @@ describe('CC1 step a corner end data', () => {
     }
   });
 
-  it('anchor 8: keeps a corner on a wall-face anchor while a blind becomes filler', () => {
+  it('keeps a corner on a wall-face anchor while a blind becomes filler', () => {
     const anchor = { to: 'wall', wallId: 'wall-2' };
     for (const end of [defaultCorner, { type: 'blind', width: null }]) {
       const initial = structuredClone(state);
@@ -178,7 +178,7 @@ describe('CC1 step a corner end data', () => {
     }
   });
 
-  it('anchor 9: loads valid corner ends and rejects malformed ends and corner defaults', () => {
+  it('loads valid corner ends and rejects malformed ends and corner defaults', () => {
     const next = elevationReducer(state, setRunEnd({ ...target, end: { type: 'corner' } }));
     const document = toElevationDocument(next);
     expect(isElevationDocument(document)).toBe(true);
@@ -224,7 +224,7 @@ describe('CC1 step a corner end data', () => {
     expect(current(next).endLegs).toEqual({ left: { legs: 'front' } });
   });
 
-  it('CC2 anchor 11: defaults returnWidth, loads null and positive widths, and rejects invalid widths', () => {
+  it('defaults returnWidth, loads null and positive widths, and rejects invalid widths (CC2)', () => {
     expect(normalizeCornerEnd({}).corner.returnWidth).toBeNull();
     for (const returnWidth of [null, 3]) {
       const next = elevationReducer(state, setRunEnd({ ...target,

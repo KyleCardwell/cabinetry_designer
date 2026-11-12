@@ -26,7 +26,7 @@ function deskRoom(host = {}) {
 
 const desk = (synced) => synced.walls[1].runs[0];
 
-describe('DR5 a return lands on the front of a host run that crosses its wall', () => {
+describe('return lands on the front of a host run that crosses its wall (DR5)', () => {
   it('starts the return at the crossing run\'s front, not the wall', () => {
     const synced = syncRoom(deskRoom(), settings);
     const depth = frontDepth(synced.walls[0].runs[0], settings);
@@ -52,7 +52,7 @@ describe('DR5 a return lands on the front of a host run that crosses its wall', 
   });
 });
 
-describe('DR5 the crossing run is a return on the landed wall', () => {
+describe('the crossing run is a return on the landed wall (DR5)', () => {
   it('cuts the crossing run as a section at the landed wall\'s end, keyed like a corner return', () => {
     const synced = syncRoom(deskRoom(), settings);
     const shapes = cornerShapes(synced, synced.walls[1], 'front', settings, { returns: 'end' });
@@ -96,7 +96,7 @@ function floatingDesk(panelHeight) {
   return runBands(synced, view, current, settings, runScene(synced, view, current, settings));
 }
 
-describe('DR5 no floor base under end pieces that stop above the floor', () => {
+describe('no floor base under end pieces that stop above the floor (DR5)', () => {
   it('drops the base under a matching filler and end panel over a void', () => {
     expect(floatingDesk('cabinets').furnitureBases).toEqual([]);
   });

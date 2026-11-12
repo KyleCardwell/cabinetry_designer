@@ -83,7 +83,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('SH2 drawing helper controls', () => {
+describe('drawing helper controls (SH2)', () => {
   it('rectangle picks snap to points and the grid, reject a zero side, and clear pending picks on Escape', () => {
     states = [size, view];
     refs = [{ current: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } }];

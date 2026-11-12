@@ -32,7 +32,7 @@ const runOf = (room, id) => room.walls.flatMap((wall) => wall.runs).find((run) =
 const leafOf = (run, id) => gridLeaves(run.grid).find((node) => node.id === id);
 const part = (result, key) => result.parts.find((entry) => entry.key === key);
 
-describe('IN14 panel material door details', () => {
+describe('panel material door details (IN14)', () => {
   const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
   const outside = profiles.find(({ kind }) => kind === 'door_outside');
   const inside = profiles.find(({ kind }) => kind === 'door_inside');
@@ -62,7 +62,7 @@ describe('IN14 panel material door details', () => {
     return runDoorDetails(synced, view, view.runs.find((entry) => entry.id === G1_BASE), config);
   }
 
-  it('anchor 6: glass replaces only panel-slot lines and miters on the 24-inch Euro base and pair halves', () => {
+  it('glass replaces only panel-slot lines and miters on the 24-inch Euro base and pair halves', () => {
     const plain = materialDetails();
     const glass = materialDetails({ glass: true });
     const frameOnly = materialDetails({ panelProfile: false });
@@ -79,7 +79,7 @@ describe('IN14 panel material door details', () => {
     expect(glass.warnings.filter(({ code }) => code === 'panel-material-needs-frame')).toEqual([]);
   });
 
-  it('anchor 7: warns and retains the slab drawing for slab styles and doors below the slab cutoff', () => {
+  it('warns and retains the slab drawing for slab styles and doors below the slab cutoff', () => {
     for (const options of [{ slab: true }, { cutoff: true }]) {
       const plain = materialDetails(options);
       const glass = materialDetails({ ...options, glass: true });

@@ -29,8 +29,8 @@ function resolved(subject) {
   return { subject: synced, owner, returning, scene: runScene(synced, owner, owner.runs[0], S) };
 }
 
-describe('CC6 step e corner frame parts', () => {
-  it('anchor 1: exposes Room B’s separate frame and lists it after pieces, before region frames', () => {
+describe('corner frame parts (CC6)', () => {
+  it('exposes Room B’s separate frame and lists it after pieces, before region frames', () => {
     const { subject, scene } = resolved(ROOM_B);
     expect(scene.cornerFrames).toHaveLength(1);
     expect(scene.frames.cornerFrames).toBe(scene.cornerFrames);
@@ -44,14 +44,14 @@ describe('CC6 step e corner frame parts', () => {
       .toEqual(['cc', 'a', 'cc:frame', 'frame:a']);
   });
 
-  it('anchor 2: uses Room C’s front-line elevation extent for the frame part', () => {
+  it('uses Room C’s front-line elevation extent for the frame part', () => {
     const { subject } = resolved(ROOM_C);
     const frame = roomParts(subject, S).find(({ key }) => key === 'cc:frame');
     expect(frame).toMatchObject({ kind: 'frame', source: 'frame', x: 24.8125, z: 4, height: 30.5 });
     expect(frame.width).toBeCloseTo(11.5240, 3);
   });
 
-  it('anchor 3: numbers the corner frame after the corner, neighbour and its region frame', () => {
+  it('numbers the corner frame after the corner, neighbour and its region frame', () => {
     const { subject } = resolved(ROOM_B);
     expect(partNumbers(subject, S).parts.map(({ key, number }) => [key, number]))
       .toEqual([['cc', 1], ['a', 2], ['frame:a', 3], ['cc:frame', 4], ['molding:toeKick', 5]]);
@@ -61,7 +61,7 @@ describe('CC6 step e corner frame parts', () => {
     ]));
   });
 
-  it('anchor 4: retains Room B and C’s true-size members and miter cuts', () => {
+  it('retains Room B and C’s true-size members and miter cuts', () => {
     const b = resolved(ROOM_B).scene.cornerFrames[0];
     expect(b.members).toHaveLength(5);
     expect(b.members.filter(({ kind, side }) => kind === 'rail' && side === 'A'))
@@ -100,7 +100,7 @@ describe('CC6 step e corner frame parts', () => {
       .toEqual([['cc', 1], ['a', 2], ['cc2', 3], ['frame:a', 4], ['cc:frame', 5], ['cc2:frame', 6]]);
   });
 
-  it('anchor 5: builds shipping lists for both corners, with region frames and no corner-frame row', () => {
+  it('builds shipping lists for both corners, with region frames and no corner-frame row', () => {
     for (const source of [ROOM_B, ROOM_C]) {
       const { subject } = resolved(source);
       const result = shippingList(subject, S);

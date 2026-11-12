@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readableFlip, readableRotation } from '../textRotation.js';
 
 describe('textRotation', () => {
-  it('187. folds rotations into [-90, 90)', () => {
+  it('folds rotations into [-90, 90)', () => {
     const cases = [
       [0, 0],
       [45, 45],
@@ -25,7 +25,7 @@ describe('textRotation', () => {
     });
   });
 
-  it('188. reports whether the readable rotation flipped', () => {
+  it('reports whether the readable rotation flipped', () => {
     expect([0, 45, -45, -90, 270, 315].map(readableFlip)).toEqual([
       1, 1, 1, 1, 1, 1,
     ]);

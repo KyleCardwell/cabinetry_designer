@@ -5,8 +5,8 @@ import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { selectSettings } from '../selectors.js';
 import { settingsFor } from '../slices/helpers.js';
 
-describe('DB1 c room settings entry points', () => {
-  it('lays prefs over settings for any room, including inside reducers (anchor 1)', () => {
+describe('room settings entry points (DB1)', () => {
+  it('lays prefs over settings for any room, including inside reducers', () => {
     const state = {
       settings: { ...DEFAULT_SETTINGS },
       prefs: { ...DEFAULT_PREFS, orthoWalls: false },
@@ -22,7 +22,7 @@ describe('DB1 c room settings entry points', () => {
     expect(state.settings).not.toHaveProperty('orthoWalls');
   });
 
-  it('memoizes active room settings across repeated and unrelated state changes (anchor 2)', () => {
+  it('memoizes active room settings across repeated and unrelated state changes', () => {
     const elevation = {
       settings: { ...DEFAULT_SETTINGS },
       prefs: { ...DEFAULT_PREFS },

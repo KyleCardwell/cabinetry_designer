@@ -22,8 +22,8 @@ const R = run({ x: 10, width: 36 });
 const W = wall({ runs: [R] });
 const ROOM = room({ walls: [W] });
 
-describe('SH7 step a run leg placement and presets', () => {
-  it('anchor 1: places the built LEG at the left door-face corner, including its plan circle', () => {
+describe('run leg placement and presets (SH7)', () => {
+  it('places the built LEG at the left door-face corner, including its plan circle', () => {
     const [placed] = runLegs(ROOM, W, { ...R, legs: [leg] }, settings);
     expect(placed).toMatchObject({ leg, index: 1, shapeName: 'Leg', stretched: false,
       bounds: { x: 10, z: 0, width: 3.5, height: 34.5 }, front: 24.875, back: 21.375,
@@ -39,7 +39,7 @@ describe('SH7 step a run leg placement and presets', () => {
     ]);
   });
 
-  it('anchor 2: places a right/back leg flush with both run faces', () => {
+  it('places a right/back leg flush with both run faces', () => {
     const [placed] = runLegs(ROOM, W, { ...R, legs: [{ ...leg, from: 'right', yFrom: 'back' }] }, settings);
     expect(placed).toMatchObject({ bounds: { x: 42.5 }, front: 3.5, back: 0 });
     const [offset] = runLegs(ROOM, W, { ...R, outset: 2, _plane: { offset: -1 },
@@ -47,7 +47,7 @@ describe('SH7 step a run leg placement and presets', () => {
     expect(offset).toMatchObject({ bounds: { x: 44.5 }, front: 5.5, back: 2 });
   });
 
-  it('anchor 3: stretches the top block at 30 and retains own height for feet below the fixed parts', () => {
+  it('stretches the top block at 30 and retains own height for feet below the fixed parts', () => {
     const pick = { ...leg, x: -2, y: 0.75, height: 30 };
     const [placed] = runLegs(ROOM, W, { ...R, legs: [pick] }, settings);
     expect(placed).toMatchObject({ bounds: { x: 12, height: 30 }, front: 25.625, stretched: true,
@@ -59,7 +59,7 @@ describe('SH7 step a run leg placement and presets', () => {
     expect(legWarningText(feet.warnings[0])).toBe('Leg 1 can\'t be 4" tall: its fixed parts are 26 1/2". Drawn at 34 1/2".');
   });
 
-  it('anchor 4: uses the fixed FOOT height and fallback plan rectangle, warning only for full height', () => {
+  it('uses the fixed FOOT height and fallback plan rectangle, warning only for full height', () => {
     const [feet] = runLegs(ROOM, W, { ...R, legs: [{ ...leg, shapeId: FOOT.id, height: 'feet' }] }, settings);
     expect(feet).toMatchObject({ bounds: { height: 4 }, size: { w: 2.5, h: 4, d: 2.5 }, warnings: [] });
     expect(feet.plan).toEqual({ top: 4, loops: [{ closed: true,
@@ -70,7 +70,7 @@ describe('SH7 step a run leg placement and presets', () => {
     expect(legWarningText(full.warnings[0])).toBe('Leg 1 doesn\'t stretch: drawn at its own height, 4".');
   });
 
-  it('anchor 5: generates three corners in order, and all other additive presets with fresh ids', () => {
+  it('generates three corners in order, and all other additive presets with fresh ids', () => {
     let id = 0;
     const newId = () => `lg-${++id}`;
     const options = { shapeId: LEG.id, height: 'feet', proud: 0.5, backOffset: 1, leaveOut: 'RB' };
@@ -104,7 +104,7 @@ describe('SH7 step a run leg placement and presets', () => {
     }
   });
 
-  it('anchor 6: omits missing/no-height legs but keeps their warnings and original list indices', () => {
+  it('omits missing/no-height legs but keeps their warnings and original list indices', () => {
     const picks = [{ ...leg, shapeId: 'zz' }, { ...leg, id: 'lg-2', height: 'feet' }, { ...leg, id: 'lg-3' }];
     const result = runLegs(ROOM, W, { ...R, z: 0, legs: picks }, settings);
     expect(result).toHaveLength(1);
@@ -116,7 +116,7 @@ describe('SH7 step a run leg placement and presets', () => {
     expect(isLegList([leg, leg])).toBe(false);
   });
 
-  it('SH7.1 step c: every preset carries its selected support and omits the key for Floor', () => {
+  it('every preset carries its selected support and omits the key for Floor (SH7.1)', () => {
     let id = 0;
     for (const preset of ['four', 'front', 'three', 'left', 'right']) {
       for (const sitsOn of [undefined, 'base', 'countertop']) {
@@ -130,7 +130,7 @@ describe('SH7 step a run leg placement and presets', () => {
     }
   });
 
-  it('SH7.5 step b: additive hand-leg presets ignore the obsolete fill option', () => {
+  it('additive hand-leg presets ignore the obsolete fill option (SH7.5)', () => {
     let id = 0;
     for (const preset of ['four', 'front', 'three', 'left', 'right']) {
       for (const fill of [undefined, 'panel', 'filler']) {
@@ -167,8 +167,8 @@ describe('SH7 step a run leg placement and presets', () => {
   });
 });
 
-describe('SH5.1 step d handed legs', () => {
-  it('anchors 1–2: mirrors the KNEE foot pad front–back and left–right about its size box', () => {
+describe('handed legs (SH5.1)', () => {
+  it('mirrors the KNEE foot pad front–back and left–right about its size box', () => {
     const KNEE = {
       ...FOOT, id: 'knee', name: 'Knee', box: { x: -1, y: -1, z: 0, w: 2, h: 30, d: 2 },
       views: {
@@ -219,7 +219,7 @@ describe('SH5.1 step d handed legs', () => {
     expect(LEG).toEqual(original);
   });
 
-  it('anchor 4: accepts only true or absent mirrorDepth', () => {
+  it('accepts only true or absent mirrorDepth', () => {
     expect(isLegList([leg])).toBe(true);
     expect(isLegList([{ ...leg, mirrorDepth: true }])).toBe(true);
     for (const mirrorDepth of [false, null, 0, 1, 'true']) {
@@ -228,35 +228,35 @@ describe('SH5.1 step d handed legs', () => {
   });
 });
 
-describe('SH7.1 step a leg room, supports and wall flips', () => {
-  it('anchor 1: reserves the left leg width', () => {
+describe('leg room, supports and wall flips (SH7.1)', () => {
+  it('reserves the left leg width', () => {
     expect(legRoom({ ...R, legs: [leg] }, settings)).toEqual({ left: 3.5, right: 0 });
   });
 
-  it('anchor 2: reserves both ends for four corners, including proud front legs', () => {
+  it('reserves both ends for four corners, including proud front legs', () => {
     let id = 0;
     const legs = legPreset('four', { shapeId: LEG.id, proud: 0.5 }, () => `lg-${++id}`);
     expect(legRoom({ ...R, legs }, settings)).toEqual({ left: 3.5, right: 3.5 });
   });
 
-  it('anchor 3: ignores legs outside the depth and legs that do not take room', () => {
+  it('ignores legs outside the depth and legs that do not take room', () => {
     for (const changes of [{ y: 4 }, { yFrom: 'back', y: 12 }, { takesRoom: false }]) {
       expect(legRoom({ ...R, legs: [{ ...leg, ...changes }] }, settings)).toEqual({ left: 0, right: 0 });
     }
   });
 
-  it('anchor 4: measures the inside face from the run end with signed offsets', () => {
+  it('measures the inside face from the run end with signed offsets', () => {
     for (const [x, left] of [[1, 2.5], [4, 0], [-2, 5.5]]) {
       expect(legRoom({ ...R, legs: [{ ...leg, x }] }, settings)).toEqual({ left, right: 0 });
     }
   });
 
-  it('anchor 5: ignores split ends and missing shapes', () => {
+  it('ignores split ends and missing shapes', () => {
     expect(legRoom({ ...R, legs: [leg], _pinSplit: { left: true } }, settings)).toEqual({ left: 0, right: 0 });
     expect(legRoom({ ...R, legs: [{ ...leg, shapeId: 'missing' }] }, settings)).toEqual({ left: 0, right: 0 });
   });
 
-  it('anchor 6: seats and stretches a full leg on the furniture base, lifting all front geometry', () => {
+  it('seats and stretches a full leg on the furniture base, lifting all front geometry', () => {
     const supported = { ...R, overrides: { baseKind: 'furniture_base', toeKickHeight: 4 },
       legs: [{ ...leg, sitsOn: 'base' }] };
     expect(legBottom(ROOM, W, supported, settings, supported.legs[0], 10, 3.5)).toEqual({ z: 4 });
@@ -268,7 +268,7 @@ describe('SH7.1 step a leg room, supports and wall flips', () => {
     ]);
   });
 
-  it('anchor 7: warns for feet on the base and falls back to the floor without a base', () => {
+  it('warns for feet on the base and falls back to the floor without a base', () => {
     const supported = { ...R, overrides: { baseKind: 'furniture_base', toeKickHeight: 4 },
       legs: [{ ...leg, sitsOn: 'base', height: 'feet' }] };
     const feet = runLegs(ROOM, W, supported, settings);
@@ -283,7 +283,7 @@ describe('SH7.1 step a leg room, supports and wall flips', () => {
     ]);
   });
 
-  it('anchor 8: stands on a lower countertop, targets full 48 / feet 18, and warns without overlap', () => {
+  it('stands on a lower countertop, targets full 48 / feet 18, and warns without overlap', () => {
     const upper = run({ id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 10, width: 36, z: 54, height: 30,
       legs: [{ ...leg, sitsOn: 'countertop' }] });
     const view = wall({ runs: [R, upper] });
@@ -302,7 +302,7 @@ describe('SH7.1 step a leg room, supports and wall flips', () => {
     ]);
   });
 
-  it('anchor 9: accepts only false/absent takesRoom and base/countertop/absent sitsOn', () => {
+  it('accepts only false/absent takesRoom and base/countertop/absent sitsOn', () => {
     expect(isLegList([{ ...leg, takesRoom: false, sitsOn: 'base' }])).toBe(true);
     expect(isLegList([{ ...leg, sitsOn: 'countertop' }])).toBe(true);
     expect(isLegList([{ ...leg, takesRoom: undefined, sitsOn: undefined }])).toBe(true);
@@ -310,7 +310,7 @@ describe('SH7.1 step a leg room, supports and wall flips', () => {
     for (const sitsOn of ['floor', null, false, 0, '']) expect(isLegList([{ ...leg, sitsOn }])).toBe(false);
   });
 
-  it('anchor 10: mirrors four-corner legs, their hand and placements, and round-trips the wall', () => {
+  it('mirrors four-corner legs, their hand and placements, and round-trips the wall', () => {
     let id = 0;
     const legs = legPreset('four', { shapeId: LEG.id, proud: 0.5, backOffset: 1 }, () => `lg-${++id}`);
     const original = wall({ runs: [{ ...R, legs }] });

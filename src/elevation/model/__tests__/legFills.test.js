@@ -11,8 +11,8 @@ const W = wall({ runs: [R4] });
 const ROOM = room({ walls: [W] });
 const leftId = `${R.id}:endleg:left-front`;
 
-describe('SH7.5 step b legs and fills from the run end', () => {
-  it('anchors 1–3: places and names four end legs, then indexes hand legs independently', () => {
+describe('legs and fills from the run end (SH7.5)', () => {
+  it('places and names four end legs, then indexes hand legs independently', () => {
     const before = structuredClone(R4);
     const legs = runLegs(ROOM, W, R4, settings);
     expect(legs).toHaveLength(4);
@@ -30,7 +30,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     expect(R4).toEqual(before);
   });
 
-  it('anchors 4 and 7: places left and right panels between their own end legs', () => {
+  it('places left and right panels between their own end legs', () => {
     for (const [side, x] of [['left', 10.25], ['right', 44.9375]]) {
       const input = { ...R4, endLegs: { ...fourEndLegs, [side]: { ...E, fit: 'between' } } };
       const before = structuredClone(input);
@@ -48,7 +48,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 5: an end piece suppresses its fit without suppressing its leg room', () => {
+  it('an end piece suppresses its fit without suppressing its leg room', () => {
     for (const fit of ['between', 'behind']) {
       const input = { ...R4, ends: { ...noEnds, left: { type: 'end_panel', width: null } },
         endLegs: { ...fourEndLegs, left: { ...E, fit } } };
@@ -58,7 +58,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 6: plans both returns at either end and reserves their room', () => {
+  it('plans both returns at either end and reserves their room', () => {
     for (const [side, x, start, end] of [['left', 10.25, 11.0625, 14.75], ['right', 44.9375, 41.25, 44.9375]]) {
       const input = { ...R4, endLegs: { ...fourEndLegs, [side]: { ...E, fit: 'between', panel: { returns: 'both' } } } };
       const returns = [
@@ -73,7 +73,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 8: front fillers use the run face, cabinet-side return and box height', () => {
+  it('front fillers use the run face, cabinet-side return and box height', () => {
     for (const [side, x, start, end] of [['left', 10, 12.75, 13.5], ['right', 42.5, 42.5, 43.25]]) {
       const input = { ...R, endLegs: { [side]: { legs: 'front', front: Sf, fit: 'behind' } } };
       const before = structuredClone(input);
@@ -89,7 +89,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 9: missing back shapes fall back to B and warn with the end-leg name', () => {
+  it('missing back shapes fall back to B and warn with the end-leg name', () => {
     const input = { ...R4, endLegs: { ...fourEndLegs,
       left: { ...E, fit: 'between', back: { ...S, shapeId: 'gone' } } } };
     expect(runLegFills(ROOM, W, input, settings)[0]).toMatchObject({ back: 0, front: 21.875, depth: 21.875 });
@@ -98,7 +98,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     expect(warnings.map(legWarningText)).toEqual(["Left back leg: its shape isn't in the library."]);
   });
 
-  it('anchor 10: touching or overlapping end legs retain a named no-depth warning', () => {
+  it('touching or overlapping end legs retain a named no-depth warning', () => {
     for (const y of [-18.5, -18.375, -18.375 + 0.5e-6]) {
       const input = { ...R4, endLegs: { ...fourEndLegs, left: { ...E, fit: 'between', back: { ...S, y } } } };
       const fills = runLegFills(ROOM, W, input, settings);
@@ -108,7 +108,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 11: rejects every hand-leg fill, including an explicitly undefined key', () => {
+  it('rejects every hand-leg fill, including an explicitly undefined key', () => {
     const L = { ...S, id: 'L', from: 'left', yFrom: 'front' };
     expect(isLegList([L])).toBe(true);
     for (const fill of [{ type: 'panel' }, { type: 'filler' }, undefined, null]) {
@@ -116,7 +116,7 @@ describe('SH7.5 step b legs and fills from the run end', () => {
     }
   });
 
-  it('anchor 12: warning text prefers names and preserves hand-leg wording', () => {
+  it('warning text prefers names and preserves hand-leg wording', () => {
     expect(legWarningText({ code: 'leg-no-height', name: 'Right back leg' }))
       .toBe('Right back leg has no height (the run sits on the floor).');
     expect(legWarningText({ code: 'leg-no-height', index: 2 }))

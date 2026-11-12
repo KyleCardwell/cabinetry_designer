@@ -10,8 +10,8 @@ const segmentParts = (overrides) => {
   return bandParts(room, room.walls[0], 'front', topSegmentSettings).filter(({ kind }) => kind === 'countertop');
 };
 
-describe('ST4 step c top segment parts', () => {
-  it('anchors 1–2: draws the dropped insert and splits the main top with its outer ends unchanged', () => {
+describe('top segment parts (ST4)', () => {
+  it('draws the dropped insert and splits the main top with its outer ends unchanged', () => {
     const original = segmentParts({ topSegments: [] })[0];
     const parts = segmentParts();
     expect(parts.map(row)).toEqual([
@@ -21,7 +21,7 @@ describe('ST4 step c top segment parts', () => {
     ]);
   });
 
-  it('anchor 3: covers A–C and leaves only the end overhangs, or no main top without overhangs', () => {
+  it('covers A–C and leaves only the end overhangs, or no main top without overhangs', () => {
     const topSegments = [{ ...topSegment, from: 'C', to: 'A' }];
     expect(segmentParts({ topSegments }).map(({ id, x, width }) => [id, x, width])).toEqual([
       ['r:countertop', -0.75, 0.75], ['r:countertop:2', 90, 0.75], ['r:top-s', 0, 90],

@@ -83,8 +83,8 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('IN4b step b Slides page and editor', () => {
-  it('IN4c a: edits fractional back clearance, permits zero and rejects negatives', () => {
+describe('Slides page and editor (IN4b)', () => {
+  it('edits fractional back clearance, permits zero and rejects negatives (IN4c)', () => {
     const edit = editor(BUILT_IN_SLIDES[0], BUILT_IN_SLIDES);
     const label = 'Back clearance (behind box)';
     expect(control(edit.render(), label).props.value).toBe(0.75);

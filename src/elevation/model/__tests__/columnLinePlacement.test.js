@@ -23,8 +23,8 @@ beforeEach(() => {
   stored = room({ walls: [w] });
 });
 
-describe('LL4 d layout lines win for columns', () => {
-  it('anchor 1: places B at 65 and gives C the remaining five inches', () => {
+describe('layout lines win for columns (LL4)', () => {
+  it('places B at 65 and gives C the remaining five inches', () => {
     const opts = splitOptionsForRun(stored, w, r, settings);
     expect(opts.lineLabels).toEqual({ B: 'L1' });
     const result = splitRun(r, settings, opts);
@@ -42,7 +42,7 @@ describe('LL4 d layout lines win for columns', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('anchor 4: keeps the drawn right span when an auto cabinet or void follows B', () => {
+  it('keeps the drawn right span when an auto cabinet or void follows B', () => {
     r.anchors.right = false;
     r.grid.cols[1].attach.at = 'right';
     w.lines[0].value = 60;
@@ -58,7 +58,7 @@ describe('LL4 d layout lines win for columns', () => {
     }
   });
 
-  it('anchor 5: shrinks the right free end exactly, including a typed outer column', () => {
+  it('shrinks the right free end exactly, including a typed outer column', () => {
     for (const trailing of [[], [fixed('C', 12)]]) {
       const source = run({
         ...r, anchors: { left: true, right: false },
@@ -122,7 +122,7 @@ describe('LL4 d layout lines win for columns', () => {
       .toEqual(['left', 'right']);
   });
 
-  it('anchor 6: Room 9b still clamps an unreachable return pin', () => {
+  it('Room 9b still clamps an unreachable return pin', () => {
     const source = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', import.meta.url), 'utf8'));
     const sourceWall = source.walls.find((w) => w.runs.some((r) => r.grid.cols.some((col) => col.pin?.from === 'return')));
     const sourceRun = sourceWall.runs.find((r) => r.grid.cols.some((col) => col.pin?.from === 'return'));

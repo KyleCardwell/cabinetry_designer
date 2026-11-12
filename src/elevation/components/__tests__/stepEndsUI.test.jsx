@@ -60,7 +60,7 @@ beforeEach(() => {
   state.rooms[0] = syncRoom(room(), state.settings);
 });
 
-describe('ST3 step d step ends properties', () => {
+describe('step ends properties (ST3)', () => {
 
   it('commits inch widths, Panel and None, clears to Return and rejects invalid widths without moving boxes', () => {
     const boxes = props().cells.pieces.filter((piece) => piece.kind === 'cabinet');

@@ -32,7 +32,7 @@ const stepped = () => {
 };
 
 describe('SPEC-50.7 step 495 furniture base groups', () => {
-  it('orders one free 24-inch run with returned ends (anchor 1)', () => {
+  it('orders one free 24-inch run with returned ends', () => {
     expect(groups(room([wall('A', [run('base')])]))).toEqual([{
       key: 'furniture_base:base', runIds: ['base'], height: 4, orderedHeight: 4.5,
       width: 37.625, orderedWidth: 37.625, depth: 25.6875,
@@ -41,7 +41,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
     }]);
   });
 
-  it('joins a tall and shallower base, records the depth seam, and scribes the wall end (anchor 2)', () => {
+  it('joins a tall and shallower base, records the depth seam, and scribes the wall end', () => {
     expect(groups(stepped())).toEqual([{
       key: 'furniture_base:T', runIds: ['T', 'B'], height: 4, orderedHeight: 4.5,
       width: 66.8125, orderedWidth: 67.3125, depth: 25.6875,
@@ -52,7 +52,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
     }]);
   });
 
-  it('separates touching bases with different heights (anchor 3)', () => {
+  it('separates touching bases with different heights', () => {
     const stored = stepped();
     stored.walls[0].runs[0].overrides.toeKickHeight = 6;
     expect(groups(stored).map(({ runIds, height, orderedHeight }) => ({ runIds, height, orderedHeight })))
@@ -60,7 +60,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
         { runIds: ['B'], height: 6, orderedHeight: 6.5 }]);
   });
 
-  it('keeps inside corners separate and orders the cope to the return at the floor (anchor 4)', () => {
+  it('keeps inside corners separate and orders the cope to the return at the floor', () => {
     // The exposed blind panel takes A's base square to the wall; B copes to A's return.
     const a = wall('A', [run('long', { x: 84, width: 36, anchors: { right: true },
       cabinetTypeId: CABINET_TYPE_IDS.TALL, height: 86, heightMode: 'manual',
@@ -75,7 +75,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
       steps: [{ wallId: 'B', side: 'front', x1: 25.6875, x2: 40.8125, depth: 25.6875 }] });
   });
 
-  it('wraps both island faces and end panels without depth scribe (anchor 5)', () => {
+  it('wraps both island faces and end panels without depth scribe', () => {
     const t = 4.5;
     const endPanelWidth = 0.75;
     const result = groups(room([wall('island', [
@@ -90,7 +90,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
         { wallId: 'island', side: 'back', runIds: ['back'] }] });
   });
 
-  it('returns no groups for toe kicks or an empty room (anchor 6)', () => {
+  it('returns no groups for toe kicks or an empty room', () => {
     expect(groups(room([wall('A', [run('toe', { overrides: { baseKind: 'toe_kick' } })])]))).toEqual([]);
     expect(furnitureBaseGroups({ walls: [] }, settings)).toEqual([]);
   });

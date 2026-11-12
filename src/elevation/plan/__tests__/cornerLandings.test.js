@@ -7,7 +7,7 @@ import { wallSideFrame } from '../../model/wallSides.js';
 import { canExtendPast, extendPastCorner, makeWallCorner, wallCornerEnd } from '../cornerLandings.js';
 import { setWallLength } from '../wallOps.js';
 
-describe('WL3 a: make a landing into a corner', () => {
+describe('make a landing into a corner (WL3)', () => {
   it('keeps the shared K and KC frame anchors', () => {
     const back = wallSideFrame(K, K.walls[2], 'back');
     expect(back).toMatchObject({
@@ -25,7 +25,7 @@ describe('WL3 a: make a landing into a corner', () => {
     ]);
   });
 
-  it('anchor 1: moves only the host end to make KC, preserving untouched objects', () => {
+  it('moves only the host end to make KC, preserving untouched objects', () => {
     const before = structuredClone(K);
     const result = makeWallCorner(K, 'wall-2', 'end', { move: 'host' });
     expect(result).toEqual({ ok: true, reason: null, message: null, walls: KC.walls });
@@ -34,7 +34,7 @@ describe('WL3 a: make a landing into a corner', () => {
     expect(K).toEqual(before);
   });
 
-  it('anchor 2: slides the landed wall square and extends its joined neighbour', () => {
+  it('slides the landed wall square and extends its joined neighbour', () => {
     const ownRun = run({ id: 'own', anchors: { left: true, right: true } });
     const subject = room({ ...K, walls: K.walls.map((entry) => entry.id === 'wall-2'
       ? { ...entry, runs: [ownRun] } : entry) });
@@ -51,13 +51,13 @@ describe('WL3 a: make a landing into a corner', () => {
     expect(result.walls[3]).toBe(K.walls[3]);
   });
 
-  it('anchor 3: selects the free start of K wall-3', () => {
+  it('selects the free start of K wall-3', () => {
     expect(wallCornerEnd(K, 'wall-2', 'end')).toBe('start');
     expect(wallCornerEnd(K, 'wall-2', 'start')).toBeNull();
     expect(wallCornerEnd(K, 'missing', 'end')).toBeNull();
   });
 
-  it('anchor 4: refuses when neither host end is free', () => {
+  it('refuses when neither host end is free', () => {
     const subject = room({ ...K, walls: [
       ...K.walls.map((entry) => entry.id === 'wall-3' ? {
         ...entry, connections: {
@@ -78,13 +78,13 @@ describe('WL3 a: make a landing into a corner', () => {
     expect(result.walls).toBe(subject.walls);
   });
 
-  it('anchor 5: refuses an explicitly chosen joined host end', () => {
+  it('refuses an explicitly chosen joined host end', () => {
     const result = makeWallCorner(K, 'wall-2', 'end', { move: 'host', hostEndpoint: 'end' });
     expect(result.reason).toBe('no-free-end');
     expect(result.walls).toBe(K.walls);
   });
 
-  it('anchor 6: turns the host face anchor into a corner and releases all other references before moving', () => {
+  it('turns the host face anchor into a corner and releases all other references before moving', () => {
     const reference = { to: 'wall', wallId: 'wall-2' };
     const r1 = run({ id: 'r1', wallSide: 'back', x: 20, width: 50,
       anchors: { left: false, right: reference } });
@@ -124,7 +124,7 @@ describe('WL3 a: make a landing into a corner', () => {
       .toBe('landing-off-host');
   });
 
-  it('anchor 7: offers the free end passed by a host shrink', () => {
+  it('offers the free end passed by a host shrink', () => {
     const after = room({ ...K, walls: setWallLength(K, 'wall-3', 84, 'left').walls });
     expect(heldLandingCorner(K, after)).toEqual({
       wallId: 'wall-2', endpoint: 'end', hostEndpoint: 'start',
@@ -134,13 +134,13 @@ describe('WL3 a: make a landing into a corner', () => {
     }).walls).toEqual(KC.walls);
   });
 
-  it('anchor 8: does not offer a joined end passed on the other side', () => {
+  it('does not offer a joined end passed on the other side', () => {
     const after = room({ ...K, walls: setWallLength(K, 'wall-3', 43, 'right').walls });
     expect(landingInterval(after, after.walls[1], 'end').a).toBe(-0.5);
     expect(heldLandingCorner(K, after)).toBeNull();
   });
 
-  it('anchor 9: no host edit gives no offer and preserves the exact hold result', () => {
+  it('no host edit gives no offer and preserves the exact hold result', () => {
     expect(heldLandingCorner(K, { ...K })).toBeNull();
     expect(holdLandedWalls(K, { ...K })).toEqual({
       ok: true, reason: null, message: null, walls: K.walls,
@@ -214,8 +214,8 @@ describe('WL3 a: make a landing into a corner', () => {
   });
 });
 
-describe('WL3 b: extend past a corner', () => {
-  it('anchor 1: extends KC back into K without mutating the room', () => {
+describe('extend past a corner (WL3)', () => {
+  it('extends KC back into K without mutating the room', () => {
     const before = structuredClone(KC);
     const result = extendPastCorner(KC, 'wall-3', 'start', 39);
     expect(result).toEqual({ ok: true, reason: null, message: null, walls: K.walls });
@@ -224,7 +224,7 @@ describe('WL3 b: extend past a corner', () => {
     expect(KC).toEqual(before);
   });
 
-  it('anchor 2: zero extension still pulls B back onto the back face', () => {
+  it('zero extension still pulls B back onto the back face', () => {
     const result = extendPastCorner(KC, 'wall-3', 'start', 0);
     expect(result.ok).toBe(true);
     expect(result.walls[2]).toEqual({ ...KC.walls[2], connections: K.walls[2].connections });
@@ -233,7 +233,7 @@ describe('WL3 b: extend past a corner', () => {
     });
   });
 
-  it('anchor 3: extends wall-2 and lands wall-3 on its back face', () => {
+  it('extends wall-2 and lands wall-3 on its back face', () => {
     const result = extendPastCorner(KC, 'wall-2', 'end', 10);
     expect(result.ok).toBe(true);
     expect(result.walls[1]).toEqual({ ...K.walls[1], y2: -1, landings: { start: null, end: null } });
@@ -245,7 +245,7 @@ describe('WL3 b: extend past a corner', () => {
       .toMatchObject({ a: 10, b: 14.5 });
   });
 
-  it('anchor 4: grows the opposite end past the front-face landing thickness', () => {
+  it('grows the opposite end past the front-face landing thickness', () => {
     const result = extendPastCorner(K, 'wall-3', 'end', 5);
     expect(result.ok).toBe(true);
     expect(result.walls[2]).toEqual({ ...K.walls[2], x2: -133, connections: { start: null, end: null } });
@@ -258,13 +258,13 @@ describe('WL3 b: extend past a corner', () => {
     expect(result.walls[1]).toBe(K.walls[1]);
   });
 
-  it('anchor 5: refuses an endpoint that is already landed', () => {
+  it('refuses an endpoint that is already landed', () => {
     expect(extendPastCorner(K, 'wall-2', 'end', 5)).toEqual({
       ok: false, reason: 'not-corner', message: null, walls: K.walls,
     });
   });
 
-  it('anchor 6: refuses an in-line wall using its numbered label', () => {
+  it('refuses an in-line wall using its numbered label', () => {
     const subject = room({ ...K, walls: [
       ...K.walls.map((entry) => entry.id === 'wall-3' ? {
         ...entry, connections: { ...entry.connections, start: { wallId: 'wall-5', endpoint: 'start' } },
@@ -279,7 +279,7 @@ describe('WL3 b: extend past a corner', () => {
     });
   });
 
-  it('anchor 7: reanchors only the growing end on each face without compensating runs', () => {
+  it('reanchors only the growing end on each face without compensating runs', () => {
     const back = run({ id: 'back', wallSide: 'back', x: 20, width: 50,
       anchors: { left: false, right: true } });
     const front = run({ id: 'front', x: 0, width: 30, anchors: { left: true, right: false } });
@@ -303,13 +303,13 @@ describe('WL3 b: extend past a corner', () => {
     expect(subject.walls[2].runs).toEqual([back, front, otherAnchor]);
   });
 
-  it('anchor 8: makes the extended landing a corner again to recover KC', () => {
+  it('makes the extended landing a corner again to recover KC', () => {
     const extended = extendPastCorner(KC, 'wall-3', 'start', 39);
     const result = makeWallCorner({ ...KC, walls: extended.walls }, 'wall-2', 'end', { move: 'host' });
     expect(result).toEqual({ ok: true, reason: null, message: null, walls: KC.walls });
   });
 
-  it('anchor 9: offers extension only on a connected corner', () => {
+  it('offers extension only on a connected corner', () => {
     expect(canExtendPast(KC, 'wall-3', 'start')).toBe(true);
     expect(canExtendPast(K, 'wall-3', 'start')).toBe(false);
     expect(canExtendPast(KC, 'missing', 'start')).toBe(false);

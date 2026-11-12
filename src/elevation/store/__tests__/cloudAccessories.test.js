@@ -33,8 +33,8 @@ async function open(options = {}, permissions = ALL, syncEnabled = false) {
   return { api, store, sync };
 }
 
-describe('IN12b c shop accessories', () => {
-  it('loads an empty library and services without seeding, with or without manage permission (anchor 3)', async () => {
+describe('shop accessories (IN12b)', () => {
+  it('loads an empty library and services without seeding, with or without manage permission', async () => {
     for (const manage of [true, false]) {
       const { api, store, sync } = await open({}, { ...ALL, manage }, true);
       expect(store.getState().elevation.settings.accessories).toEqual([]);
@@ -54,7 +54,7 @@ describe('IN12b c shop accessories', () => {
     expect(store.getState().elevation.message).toBe("The shop's services couldn't be loaded, so labour minutes can't be added right now.");
   });
 
-  it('loads valid live rows in row order and notes skipped rows in singular and plural (anchor 4)', async () => {
+  it('loads valid live rows in row order and notes skipped rows in singular and plural', async () => {
     const first = susan();
     const second = { ...susan(), name: 'Tray divider' };
     const invalid = { ...rowFor(susan()), data: {} };
@@ -84,7 +84,7 @@ describe('IN12b c shop accessories', () => {
     expect(store.getState().elevation.workspace.error).toContain('two accessories share a name');
   });
 
-  it('saves new accessories and edits after 15 seconds, then flushes archiving (anchor 5)', async () => {
+  it('saves new accessories and edits after 15 seconds, then flushes archiving', async () => {
     vi.useFakeTimers();
     const original = susan();
     const { api, store, sync } = await open({ accessories: [rowFor(original)] }, ALL, true);
@@ -112,7 +112,7 @@ describe('IN12b c shop accessories', () => {
     expect(api.calls.some(([name]) => name === 'saveTeamSettings')).toBe(false);
   });
 
-  it('pauses a conflict with the accessory name until reloading (anchor 5)', async () => {
+  it('pauses a conflict with the accessory name until reloading', async () => {
     const original = susan();
     const { api, store, sync } = await open({ accessories: [rowFor(original)] }, ALL, true);
     api.db.accessories[0].version = 3;

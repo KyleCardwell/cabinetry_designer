@@ -24,7 +24,7 @@ const load = (saved) => {
 
 afterEach(() => { delete globalThis.window; });
 
-describe('ST4 step a top segment data', () => {
+describe('top segment data (ST4)', () => {
   it('accepts the wood box segment (anchor 1) and round-trips both kinds and modes', () => {
     const saved = savedDocument();
     expect(isElevationDocument(saved)).toBe(true);
@@ -59,7 +59,7 @@ describe('ST4 step a top segment data', () => {
     }
   });
 
-  it('keeps missing column references on load and save (anchor 3)', () => {
+  it('keeps missing column references on load and save', () => {
     const saved = savedDocument();
     currentRun(saved).topSegments = [{ ...segment, from: 'gone' }];
     expect(isElevationDocument(saved)).toBe(true);

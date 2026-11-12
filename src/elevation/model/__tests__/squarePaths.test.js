@@ -13,15 +13,15 @@ const STACK = {
   children: [{ type: 'drawer_front', size: 6 }, DOOR],
 };
 
-describe('FX4 c1 square leaf paths', () => {
-  it('anchor 1: preserves profiled fit when squarePaths is absent', () => {
+describe('c1 square leaf paths (FX4)', () => {
+  it('preserves profiled fit when squarePaths is absent', () => {
     expect(resolveFaces(DOOR, AREA, REVEALS)).toEqual({
       faces: [{ path: 'r', type: 'door', x: 3 / 32, z: 3 / 32, width: 29.8125, height: 29.8125 }],
       warnings: [],
     });
   });
 
-  it('anchor 2: passes squarePaths through cabinetFaces so a square door fills its slot', () => {
+  it('passes squarePaths through cabinetFaces so a square door fills its slot', () => {
     expect(cabinetFaces({ face: DOOR }, AREA, CABINET_TYPE_IDS.BASE, DEFAULT_SETTINGS, {
       ...REVEALS, squarePaths: new Set(['r']),
     })).toEqual({
@@ -29,7 +29,7 @@ describe('FX4 c1 square leaf paths', () => {
     });
   });
 
-  it('anchor 3: removes side fit, height fit and the pair gap from both square halves', () => {
+  it('removes side fit, height fit and the pair gap from both square halves', () => {
     expect(resolveFaces({ type: 'pair_door', size: null }, AREA, {
       ...REVEALS, squarePaths: new Set(['r']),
     })).toEqual({
@@ -41,7 +41,7 @@ describe('FX4 c1 square leaf paths', () => {
     });
   });
 
-  it('anchor 4: changes leaf fit without moving the slots around a rail', () => {
+  it('changes leaf fit without moving the slots around a rail', () => {
     const profiled = resolveFaces(STACK, AREA, REVEALS);
     const mixed = resolveFaces(STACK, AREA, { ...REVEALS, squarePaths: new Set(['r.0']) });
     expect(mixed).toEqual({
@@ -55,7 +55,7 @@ describe('FX4 c1 square leaf paths', () => {
     expect(profiled.faces[0]).toMatchObject({ z: 24 + 3 / 32, height: 6 - 3 / 16 });
   });
 
-  it('anchor 5: keeps the shared gap beside a profiled face and fits only its uncut edges', () => {
+  it('keeps the shared gap beside a profiled face and fits only its uncut edges', () => {
     expect(resolveFaces({ ...STACK, noRail: [0] }, AREA, {
       ...REVEALS, squarePaths: new Set(['r.0']),
     })).toEqual({
@@ -67,7 +67,7 @@ describe('FX4 c1 square leaf paths', () => {
     });
   });
 
-  it('anchor 6: removes the shared gap when both faces are square', () => {
+  it('removes the shared gap when both faces are square', () => {
     expect(resolveFaces({ ...STACK, noRail: [0] }, AREA, {
       ...REVEALS, squarePaths: new Set(['r.0', 'r.1']),
     })).toEqual({

@@ -5,7 +5,7 @@ import elevationReducer, { addPull, updatePull, deletePull, setCabinetPullHeight
 import { gridLeaves } from '../../model/grid.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('HP4 step a cabinet pull heights', () => {
+describe('cabinet pull heights (HP4)', () => {
   const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
   const base = () => {
     const state = stateWithRun(run({ autoCount: false, items: [auto('c1'), auto('c2'), { id: 'p1', kind: 'panel', width: 1 }] }));
@@ -51,7 +51,7 @@ describe('HP4 step a cabinet pull heights', () => {
   });
 });
 
-describe('HP3b step b pull reducers', () => {
+describe('pull reducers (HP3b)', () => {
   it('copies the first or chosen pull with unique names, fresh UUIDs and no estimator link, without touching rooms', () => {
     const initial = stateWithRun();
     const linked = { ...initial, settings: { ...initial.settings, pulls: BUILT_IN_PULLS.map((pull) => ({ ...pull, hardwarePullId: 42 })) } };

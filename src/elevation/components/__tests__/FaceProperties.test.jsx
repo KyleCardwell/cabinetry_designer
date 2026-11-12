@@ -57,7 +57,7 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('IN7.3 step b match base drawers', () => {
+describe('match base drawers (IN7.3)', () => {
   const tick = (checked) => picker('Match base drawers').props.onChange({ target: { checked } });
   const tallStack = () => {
     run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
@@ -66,7 +66,7 @@ describe('IN7.3 step b match base drawers', () => {
     state.facePath = 'r.1';
   };
 
-  it('anchors 1–2: ticking matches the bank; typing 29 clears the match and tick', () => {
+  it('ticking matches the bank; typing 29 clears the match and tick', () => {
     tallStack();
     expect(picker('Match base drawers').props.checked).toBe(false);
     tick(true);
@@ -104,14 +104,14 @@ function preset(label) {
   state = structuredClone(state);
 }
 
-describe('IN7.4 step b rule-made sizes in the face list', () => {
+describe('rule-made sizes in the face list (IN7.4)', () => {
   beforeEach(() => {
     run().top = 'wood';
     preset('4Df');
     state = { ...state, facePath: 'r.0' };
   });
 
-  it('anchor 2: typing 5 7/8 pins the white value and the canvas height', () => {
+  it('typing 5 7/8 pins the white value and the canvas height', () => {
     sizeInput('r.0', '5 7/8').input.props.onBlur();
     expect(item().face.children[0]).toEqual({ type: 'drawer_front', size: 5.875 });
     const input = sizeInput('r.0').input;
@@ -120,7 +120,7 @@ describe('IN7.4 step b rule-made sizes in the face list', () => {
     expect(faceLayouts().faces.find(({ path }) => path === 'r.0').height).toBe(5.875);
   });
 
-  it.each(['std', 'standard', ' StD ', ' STANDARD '])('anchor 3: typing %s restores standard', (typed) => {
+  it.each(['std', 'standard', ' StD ', ' STANDARD '])('typing %s restores standard', (typed) => {
     sizeInput('r.0', '5 7/8').input.props.onBlur();
     const { input, setText } = sizeInput('r.0', typed);
     input.props.onBlur();

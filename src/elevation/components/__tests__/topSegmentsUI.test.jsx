@@ -56,7 +56,7 @@ beforeEach(() => {
   useState.mockImplementation((initial) => [typeof initial === 'function' ? initial() : initial, vi.fn()]);
 });
 
-describe('ST4 step d top segment properties', () => {
+describe('top segment properties (ST4)', () => {
 
   it('edits endpoints, kind and inch drops, rejects invalid drops and preserves box mode', () => {
     add();

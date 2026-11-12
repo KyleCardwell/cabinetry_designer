@@ -45,7 +45,7 @@ function manual(run, side, cornerLap) {
   run.endFiller = { [side]: { cornerLap } };
 }
 
-describe('FL2 step a corner filler laps', () => {
+describe('corner filler laps (FL2)', () => {
   it.each([
     ['C1', 24.0625, 24.875, true, 'free-end'],
     ['C2', 24.0625, 24.875, true, 'shorter'],
@@ -201,7 +201,7 @@ describe('FL2 step a corner filler laps', () => {
   });
 });
 
-describe('FL2.1 step a face frame corner lap amount', () => {
+describe('face frame corner lap amount (FL2.1)', () => {
   it.each([
     ['F1', 0.8125, false, 24.8125],
     ['F2', 1, false, 25],

@@ -9,7 +9,7 @@ import usePlanKeys from '../../plan/usePlanKeys.js';
 vi.mock('react', async (original) => ({ ...await original(), useEffect: vi.fn() }));
 vi.mock('react-redux', () => ({ useSelector: vi.fn() }));
 
-it('anchor 5: Escape clears the face, then interior selection, then the cabinet selection', () => {
+it('Escape clears the face, then interior selection, then the cabinet selection', () => {
   let state = elevationReducer(stateWithRun(run({ items: [auto('c1')] })),
     setSelection({ runId: 'run-1', pieceId: 'c1' }));
   state = elevationReducer(state, setInteriorPath({ path: 'r.1', divider: 0 }));
@@ -50,7 +50,7 @@ it('anchor 5: Escape clears the face, then interior selection, then the cabinet 
   }
 });
 
-describe.each(['elevation', 'plan'])('MS2a %s keys', (view) => {
+describe.each(['elevation', 'plan'])('%s keys (MS2a)', (view) => {
   const useKeys = view === 'elevation' ? useElevationKeys : usePlanKeys;
   let state, dispatch, listener, cleanup, props;
   function TestKeys() {
@@ -87,7 +87,7 @@ describe.each(['elevation', 'plan'])('MS2a %s keys', (view) => {
     vi.unstubAllGlobals();
   });
 
-  it('anchors 2–3: toggles Measure with D and respects entry, inputs, modifiers and repeat guards', () => {
+  it('toggles Measure with D and respects entry, inputs, modifiers and repeat guards', () => {
     expect(key('d').preventDefault).toHaveBeenCalledOnce();
     expect(state.tool).toBe('measure');
     key('D');
@@ -108,7 +108,7 @@ describe.each(['elevation', 'plan'])('MS2a %s keys', (view) => {
     expect(state.tool).toBe('measure');
   });
 
-  it('anchors 8–9: lets Measure consume Escape, then returns to Select when nothing is cleared', () => {
+  it('lets Measure consume Escape, then returns to Select when nothing is cleared', () => {
     key('d');
     props.onMeasureEscape = vi.fn(() => true);
     TestKeys();

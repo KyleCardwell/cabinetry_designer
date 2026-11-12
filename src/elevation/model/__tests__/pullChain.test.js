@@ -12,8 +12,8 @@ const resolve = (partType, nodes = {}, settings = DEFAULT_SETTINGS, pulls) =>
 const leaf = (type, patch = {}) => ({ type, size: null, ...patch });
 const noPull = { pullId: 'none', pull: null, source: { level: 'default', key: null }, warnings: [] };
 
-describe('HP3c step a pull chain', () => {
-  it('defaults both independent chains to the 4-inch pull (anchor 1)', () => {
+describe('pull chain (HP3c)', () => {
+  it('defaults both independent chains to the 4-inch pull', () => {
     expect(PULL_KEYS).toEqual({ door: 'doorPullId', drawer: 'drawerPullId' });
     for (const [partType, key] of Object.entries(PULL_KEYS)) {
       expect(resolve(partType)).toEqual({
@@ -25,7 +25,7 @@ describe('HP3c step a pull chain', () => {
     }
   });
 
-  it('takes cabinet door picks without falling back across to drawers (anchor 2)', () => {
+  it('takes cabinet door picks without falling back across to drawers', () => {
     const nodes = { face: leaf('door'), cabinet: { doorPullId: 'knob-1-25' }, run: { doorPullId: 'none' } };
     expect(resolve('door', nodes)).toEqual({
       pullId: 'knob-1-25', pull: BUILT_IN_PULLS[1],
@@ -38,7 +38,7 @@ describe('HP3c step a pull chain', () => {
     expect(resolve('door', { cabinet: { drawerPullId: 'none' } }).pullId).toBe('pull-4');
   });
 
-  it('lets none win, skips null and absent picks, and honors every node level (anchor 3)', () => {
+  it('lets none win, skips null and absent picks, and honors every node level', () => {
     expect(resolve('door', { face: leaf('door'), cabinet: {}, run: { doorPullId: 'none' } })).toEqual({
       pullId: 'none', pull: null, source: { level: 'run', key: 'doorPullId' }, warnings: [],
     });
@@ -53,7 +53,7 @@ describe('HP3c step a pull chain', () => {
     expect(resolve('door', nodes).source.level).toBe('settings');
   });
 
-  it('keeps missing winners and warns while using the built-in fallback (anchors 4–5)', () => {
+  it('keeps missing winners and warns while using the built-in fallback', () => {
     expect(resolve('door', { face: leaf('door', { pullId: 'gone' }), cabinet: { doorPullId: 'knob-1-25' } })).toEqual({
       pullId: 'gone', pull: BUILT_IN_PULLS[0], source: { level: 'face', key: 'pullId' },
       warnings: [{ code: 'pull-missing', level: 'face', id: 'gone' }],
@@ -67,7 +67,7 @@ describe('HP3c step a pull chain', () => {
     expect(resolve('door', { run: { doorPullId: 'gone' } }, { ...DEFAULT_SETTINGS, pulls: [] }).pull).toBe(BUILT_IN_PULLS[0]);
   });
 
-  it('maps face types and permits only pull-bearing leaves to store pull ids (anchor 6)', () => {
+  it('maps face types and permits only pull-bearing leaves to store pull ids', () => {
     expect(['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open', 'unknown'].map(pullPartType))
       .toEqual(['door', 'door', 'drawer', 'false_front', null, null, null]);
     for (const type of ['door', 'pair_door', 'drawer_front', 'false_front']) {
@@ -83,7 +83,7 @@ describe('HP3c step a pull chain', () => {
     expect(resolve(pullPartType('door'), { face: leaf('door', { action: 'pullout' }) }).pullId).toBe('pull-4');
   });
 
-  it('sets and clears nested picks, preserves allowed type changes, and clears split leaves (anchor 6)', () => {
+  it('sets and clears nested picks, preserves allowed type changes, and clears split leaves', () => {
     const face = leaf('door', { pullId: 'knob-1-25' });
     const before = structuredClone(face);
     for (const type of ['door', 'pair_door', 'drawer_front', 'false_front']) {
@@ -121,7 +121,7 @@ describe('HP3c step a pull chain', () => {
       .toEqual([{ code: 'pull-missing', level: 'face', id: 'gone' }]);
   });
 
-  it('registers and validates picks and includes them in shop-standard rows (anchor 7)', () => {
+  it('registers and validates picks and includes them in shop-standard rows', () => {
     for (const [key, label] of [['doorPullId', 'Door pull'], ['drawerPullId', 'Drawer pull']]) {
       expect(registryEntry(key)).toEqual({ key, label, kind: 'pull', lowest: 'room' });
       for (const value of ['none', 'knob-1-25', 'gone']) expect(isValidSettingValue(key, value)).toBe(true);

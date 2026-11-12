@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { shippingList } from '../shippingList.js';
 
-it('FX14 step d: combines only equal printed sides in every RV note', () => {
+it('combines only equal printed sides in every RV note (FX14)', () => {
   const stored = JSON.parse(readFileSync(new URL('./fixtures/room10ff.json', import.meta.url), 'utf8'));
   const settings = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
   const { rows } = shippingList(syncRoom(stored, settings), settings);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatInch, formatSize } from '../format.js';
 
 describe('report fractions', () => {
-  it('formats the two- and three-dimensional sizes and inch values (anchor 1)', () => {
+  it('formats the two- and three-dimensional sizes and inch values', () => {
     expect(formatSize(25.375, 30.5)).toBe('25 3/8 x 30 1/2');
     expect(formatSize(18, 30.5, 24)).toBe('18 x 30 1/2 x 24');
     expect(formatInch(1.875)).toBe('1 7/8"');

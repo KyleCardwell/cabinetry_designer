@@ -129,7 +129,7 @@ function fixture() {
 
 const component = (tree, type) => nodes(tree).find((node) => node.type === type);
 
-describe('DB5 c project page', () => {
+describe('project page (DB5)', () => {
   it('prefills Edit info and saves only changed trimmed fields, including cleared fields', async () => {
     const page = renderComponent(ProjectPage);
     await page.flush();

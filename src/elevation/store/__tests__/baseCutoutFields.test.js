@@ -25,7 +25,7 @@ const load = (saved) => {
 afterEach(() => { delete globalThis.window; });
 
 describe('SPEC-50.6.1 step 494.1 base cutout clearance data', () => {
-  it('round-trips valid clearances and rejects invalid dimensions on load (anchor 5)', () => {
+  it('round-trips valid clearances and rejects invalid dimensions on load', () => {
     for (const dimensions of [
       { left: 0 }, { right: 0 }, { left: 2, right: 5 },
       { width: 24, left: 0 }, { width: 24, right: 4 },

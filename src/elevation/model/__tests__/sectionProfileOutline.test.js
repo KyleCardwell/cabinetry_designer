@@ -16,13 +16,13 @@ const cove35 = {
 };
 
 describe('SPEC-50.3 step 475 true arc outlines', () => {
-  it('keeps the cove arc and its inward bounds (anchors 1 and 3)', () => {
+  it('keeps the cove arc and its inward bounds', () => {
     const outline = sectionProfileOutline(cove35.geometry);
     expect(outline).toEqual([[0, 0, 0], [3, 0, 0], [3, -0.5, 0.414214], [0.5, -3, 0], [0.5, -3.5, 0], [0, -3.5, 0]]);
     expect(outlineBounds(outline)).toEqual({ minX: 0, maxX: 3, minY: -3.5, maxY: 0 });
   });
 
-  it('splits a 270-degree arc into two 135-degree bulges (anchor 2)', () => {
+  it('splits a 270-degree arc into two 135-degree bulges', () => {
     const geometry = { points: { a: [1, 0], b: [0, -1] }, loops: [{ closed: true, segs: [
       { type: 'arc', from: 'a', to: 'b', center: [0, 0], ccw: true },
       { type: 'line', from: 'b', to: 'a' },

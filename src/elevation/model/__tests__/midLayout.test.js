@@ -24,16 +24,16 @@ describe('mid layout edits', () => {
     return result;
   };
 
-  it('anchor 1: splits an absent root into three auto rows', () => {
+  it('splits an absent root into three auto rows', () => {
     expect(edit(splitLayout, undefined, 'root', 'rows', 3)).toEqual(rows([{}, {}, {}]));
   });
 
-  it('anchor 2: preserves a typed size when nesting the other split', () => {
+  it('preserves a typed size when nesting the other split', () => {
     expect(edit(splitLayout, rows([{}, { size: 9 }, {}]), 'root.1', 'cols', 2))
       .toEqual(rows([{}, cols([{}, {}], { size: 9 }), {}]));
   });
 
-  it('anchor 3: flattens a matching split and shifts existing mids', () => {
+  it('flattens a matching split and shifts existing mids', () => {
     const layout = rows([{}, {}, {}], { mids: [{ width: 4 }, {}] });
     expect(edit(splitLayout, layout, 'root.1', 'rows', 2))
       .toEqual(rows([{}, {}, {}, {}], { mids: [{ width: 4 }, {}, {}] }));
@@ -42,21 +42,21 @@ describe('mid layout edits', () => {
       .toEqual(rows([{}, {}, {}, {}], { mids: [{ width: 4 }, {}, { width: 5 }] }));
   });
 
-  it('anchor 4: removes the middle row', () => {
+  it('removes the middle row', () => {
     expect(edit(removeLayoutChild, rows([{}, {}, {}]), 'root.1')).toEqual(rows([{}, {}]));
   });
 
-  it('anchor 5: promotes the remaining columns at root and drops their size', () => {
+  it('promotes the remaining columns at root and drops their size', () => {
     expect(edit(removeLayoutChild, rows([{}, cols([{}, {}], { size: 12 })]), 'root.0'))
       .toEqual(cols([{}, {}]));
   });
 
-  it('anchor 6: collapses nested columns with the former group size', () => {
+  it('collapses nested columns with the former group size', () => {
     const layout = rows([{}, cols([{ size: 5 }, {}], { size: 12 })]);
     expect(edit(removeLayoutChild, layout, 'root.1.0')).toEqual(rows([{}, { size: 12 }]));
   });
 
-  it('anchor 7: moves the first mid to 16 and re-shares the remaining rows', () => {
+  it('moves the first mid to 16 and re-shares the remaining rows', () => {
     const layout = rows([{}, {}, {}]);
     const resolved = resolve(layout);
     expect(resolved.mids.map(({ at }) => at)).toEqual([13.5, 25.5]);
@@ -65,21 +65,21 @@ describe('mid layout edits', () => {
     expect(resolve(result).mids.map(({ at }) => at)).toEqual([16, 26.75]);
   });
 
-  it('anchor 8: preserves identity when positioning would leave no positive panel', () => {
+  it('preserves identity when positioning would leave no positive panel', () => {
     const layout = rows([{}, {}, {}]);
     for (const at of [4, 4.5, 4.5 + 0.5e-6]) {
       expect(edit(setMidPosition, layout, 'root', 0, at, resolve(layout).nodes, 3)).toBe(layout);
     }
   });
 
-  it('anchor 9: equalizes direct children while preserving deeper sizes', () => {
+  it('equalizes direct children while preserving deeper sizes', () => {
     const layout = rows([{ size: 5 }, cols([{ size: 2 }, {}])]);
     const result = edit(equalizeLayout, layout, 'root');
     expect(result).toEqual(rows([{}, cols([{ size: 2 }, {}])]));
     expect(edit(equalizeLayout, result, 'root')).toBe(result);
   });
 
-  it('anchor 10: collapses the root to the absent single panel', () => {
+  it('collapses the root to the absent single panel', () => {
     expect(edit(setLayoutCount, rows([{}, {}, {}]), 'root', 1)).toBeUndefined();
   });
 
@@ -171,12 +171,12 @@ describe('mid layout edits', () => {
 });
 
 describe('mid layout resolver', () => {
-  it('anchor 1: absent layout is one panel covering the area', () => {
+  it('absent layout is one panel covering the area', () => {
     const root = panel('root', 3, 3, 24, 33);
     expect(resolve()).toEqual({ nodes: [root], panels: [root], mids: [], warnings: [] });
   });
 
-  it('anchor 2: shares rows bottom to top around a full mid rail', () => {
+  it('shares rows bottom to top around a full mid rail', () => {
     const result = resolve(rows([{}, {}]));
     const panels = [panel('root.0', 3, 3, 24, 15), panel('root.1', 3, 21, 24, 15)];
     expect(result).toEqual({
@@ -185,7 +185,7 @@ describe('mid layout resolver', () => {
     });
   });
 
-  it('anchor 3: resolves nested columns and names stiles by their true x positions', () => {
+  it('resolves nested columns and names stiles by their true x positions', () => {
     const layout = rows([cols([{}, { size: 8 }, {}]), cols([{}, {}]), {}]);
     const result = resolve(layout);
     expect(result.panels).toEqual([
@@ -207,7 +207,7 @@ describe('mid layout resolver', () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it('anchor 4: a nested rail butts into its containing stile', () => {
+  it('a nested rail butts into its containing stile', () => {
     const result = resolve(cols([rows([{}, {}]), {}]));
     expect(result.panels).toEqual([
       panel('root.0.0', 3, 3, 10.5, 15), panel('root.0.1', 3, 21, 10.5, 15),
@@ -219,13 +219,13 @@ describe('mid layout resolver', () => {
     ]);
   });
 
-  it('anchor 5: mirrored columns place child zero on the right', () => {
+  it('mirrored columns place child zero on the right', () => {
     const result = resolve(cols([{ size: 8 }, {}]), WIDTHS, { mirror: true });
     expect(result.panels).toEqual([panel('root.0', 19, 3, 8, 33), panel('root.1', 3, 3, 13, 33)]);
     expect(result.mids).toEqual([mid('stile', 'root', 0, 17.5, 'MS1', 'BR', 'TR', true)]);
   });
 
-  it('anchor 6: a typed mid width changes sharing and has part source', () => {
+  it('a typed mid width changes sharing and has part source', () => {
     const result = resolve(rows([{}, {}], { mids: [{ width: 4 }] }));
     expect(result.panels).toEqual([panel('root.0', 3, 3, 24, 14.5), panel('root.1', 3, 21.5, 24, 14.5)]);
     expect(result.mids).toEqual([
@@ -233,21 +233,21 @@ describe('mid layout resolver', () => {
     ]);
   });
 
-  it('anchor 7: the last typed child gives when the node is overfull', () => {
+  it('the last typed child gives when the node is overfull', () => {
     const result = resolve(rows([{ size: 20 }, { size: 20 }]));
     expect(result.panels).toEqual([panel('root.0', 3, 3, 24, 20), panel('root.1', 3, 26, 24, 10)]);
     expect(result.mids).toEqual([mid('rail', 'root', 0, 24.5, 'MR1', 'LS', 'RS', true)]);
     expect(result.warnings).toEqual([{ code: 'mid-layout-overfull', path: 'root' }]);
   });
 
-  it('anchor 8: the last typed child grows when all typed sizes are underfull', () => {
+  it('the last typed child grows when all typed sizes are underfull', () => {
     const result = resolve(rows([{ size: 10 }, { size: 10 }]));
     expect(result.panels).toEqual([panel('root.0', 3, 3, 24, 10), panel('root.1', 3, 16, 24, 20)]);
     expect(result.mids).toEqual([mid('rail', 'root', 0, 14.5, 'MR1', 'LS', 'RS', true)]);
     expect(result.warnings).toEqual([]);
   });
 
-  it('anchor 9: molding adds overall width without changing the opening or center', () => {
+  it('molding adds overall width without changing the opening or center', () => {
     const result = resolve(cols([{}, {}]), { ...WIDTHS, stile: 3.25, over: 0.5 });
     expect(result.mids).toEqual([
       mid('stile', 'root', 0, 15, 'MS1', 'BR', 'TR', true, { width: 3.25, overall: 4.25 }),
@@ -257,7 +257,7 @@ describe('mid layout resolver', () => {
     ]);
   });
 
-  it('anchor 10: validates alternating splits, child counts, mid counts, and positive sizes', () => {
+  it('validates alternating splits, child counts, mid counts, and positive sizes', () => {
     expect(MAX_MID_SPLIT).toBe(8);
     for (const layout of [
       rows([rows([{}, {}]), {}]), rows([{}]), rows(Array.from({ length: 9 }, () => ({}))),

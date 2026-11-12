@@ -70,8 +70,8 @@ beforeEach(() => {
   });
 });
 
-describe('SH7 step b Legs panel', () => {
-  it('anchors 2–3: switches X to Right -32 1/2 and Back to Front -21 3/8 without moving the leg', () => {
+describe('Legs panel (SH7)', () => {
+  it('switches X to Right -32 1/2 and Back to Front -21 3/8 without moving the leg', () => {
     addCorners();
     const placement = () => runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings);
     const before = placement();
@@ -95,8 +95,8 @@ describe('SH7 step b Legs panel', () => {
 
 });
 
-describe('SH7.4 step b square legs panel', () => {
-  it('anchor 1: switches a library leg to Square and stores Width 2.5 without shapeId', () => {
+describe('square legs panel (SH7.4)', () => {
+  it('switches a library leg to Square and stores Width 2.5 without shapeId', () => {
     addCorners();
     expect(field(renderLeg(), 'Leg 1 Width')).toBeUndefined();
     expect(nodes(field(renderLeg(), 'Leg 1 Shape')).filter(({ type }) => type === 'option')
@@ -128,7 +128,7 @@ describe('SH7.4 step b square legs panel', () => {
     expect(runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings)[0].bounds).toEqual(bounds);
   });
 
-  it('anchor 4: refuses Width 0 and other nonpositive or nonfinite square dimensions without changing the leg', () => {
+  it('refuses Width 0 and other nonpositive or nonfinite square dimensions without changing the leg', () => {
     addCorners();
     change(field(renderLeg(), 'Leg 1 Shape'), '');
     field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5);

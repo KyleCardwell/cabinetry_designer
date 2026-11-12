@@ -59,8 +59,8 @@ beforeEach(() => {
   useReducer.mockImplementation((reducer, initial, init) => [init(initial), vi.fn()]);
 });
 
-describe('RP1 b door style material', () => {
-  it('trims material on blur, removes blanks and rejects overlong text in room and team styles (anchor 3)', () => {
+describe('door style material (RP1)', () => {
+  it('trims material on blur, removes blanks and rejects overlong text in room and team styles', () => {
     for (const base of [DEFAULT_DOOR_STYLE, { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A' }]) {
       let draft = structuredClone(base);
       let typed = '';
@@ -98,13 +98,13 @@ describe('RP1 b door style material', () => {
   });
 });
 
-describe('MR1c mid width fields', () => {
+describe('mid width fields (MR1c)', () => {
   const field = (tree, label) => {
     const component = find(tree, ({ props }) => props.label === label);
     return find(component.type(component.props), ({ type }) => type === InchInput);
   };
 
-  it('anchor 4: commits positive mid widths and removes cleared keys in team and room styles', () => {
+  it('commits positive mid widths and removes cleared keys in team and room styles', () => {
     for (const base of [DEFAULT_DOOR_STYLE, { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A' }]) {
       let draft = structuredClone(base);
       let typed = '';

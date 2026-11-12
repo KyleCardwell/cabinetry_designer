@@ -79,8 +79,8 @@ const update = (x) => { hook.updateLineDrag('L1', x); render(); };
 const finish = (x) => { hook.finishLineDrag('L1', x); render(); };
 
 // The live controller clears its entry before the callback; entryRef keeps the last rendered entry.
-describe('LL5 b line drag', () => {
-  it('anchor 2: starts from the line’s own end and commits one update at x 134', () => {
+describe('line drag (LL5)', () => {
+  it('starts from the line’s own end and commits one update at x 134', () => {
     const before = structuredClone(room);
     start();
     expect(entry.entry).toMatchObject({ kind: 'line-move', modeKey: 'from-right', value: 99, min: 0, max: 235 });
@@ -100,7 +100,7 @@ describe('LL5 b line drag', () => {
     expect(next.rooms[0].walls.find(({ id }) => id === WALL).lines[0]).toMatchObject({ from: 'right', value: 101 });
   });
 
-  it('anchor 3: typing 130 From left commits value 105, preserving from right', () => {
+  it('typing 130 From left commits value 105, preserving from right', () => {
     start();
     entry.cycle();
     entry.setTyped('130');
@@ -115,7 +115,7 @@ describe('LL5 b line drag', () => {
     expect(preview).toBeNull();
   });
 
-  it('anchor 4: cancelling clears the preview and hold, with no dispatch even on a late drag end', () => {
+  it('cancelling clears the preview and hold, with no dispatch even on a late drag end', () => {
     start();
     update(134);
     expect(preview).not.toBeNull();
@@ -128,7 +128,7 @@ describe('LL5 b line drag', () => {
     expect(cursor.releaseHold).toHaveBeenCalled();
   });
 
-  it('anchor 5: previews the changed face spans; the base’s unchanged span differs from the anchor', () => {
+  it('previews the changed face spans; the base’s unchanged span differs from the anchor', () => {
     start();
     update(134);
     expect(new Set(preview.runIds)).toEqual(new Set([HOOD, LEFT, RIGHT]));

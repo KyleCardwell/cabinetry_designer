@@ -63,8 +63,8 @@ const source = room({ walls: [wall({ id: 'A', runs: [run({ id: 'r', x: 99.25, z:
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('SH4 step d shape payloads', () => {
-  it('anchor 1: exports the six stretched rod loops with depth, drawing label bounds and no box lines', () => {
+describe('shape payloads (SH4)', () => {
+  it('exports the six stretched rod loops with depth, drawing label bounds and no box lines', () => {
     const before = structuredClone({ source, settings });
     const payload = toDrawingPayload(source, settings);
     const elevation = payload.elevations[0];
@@ -91,7 +91,7 @@ describe('SH4 step d shape payloads', () => {
     expect({ source, settings }).toEqual(before);
   });
 
-  it('anchor 2: exports fixed and mirrored hook blocks at their resolved insert points', () => {
+  it('exports fixed and mirrored hook blocks at their resolved insert points', () => {
     for (const [mirror, x] of [[false, 117], [true, 119]]) {
       const copy = structuredClone(source);
       gridLeaves(copy.walls[0].runs[0].grid)[0].interior.accessories = [
@@ -105,7 +105,7 @@ describe('SH4 step d shape payloads', () => {
     }
   });
 
-  it('anchor 3: omits shapes when opaque doors hide the drawings or a drawing is unavailable', () => {
+  it('omits shapes when opaque doors hide the drawings or a drawing is unavailable', () => {
     const copy = structuredClone(source);
     gridLeaves(copy.walls[0].runs[0].grid)[0].face.type = 'door';
     for (const elevation of toDrawingPayload(copy, settings).elevations) {
@@ -117,7 +117,7 @@ describe('SH4 step d shape payloads', () => {
     expect(elevation.interiors[0].labels).toEqual([{ text: 'Closet rod', x: 100, z: 74.5, width: 36, height: 3 }]);
   });
 
-  it('anchor 4: shifts second-face rod points and hook block x by 120, preserving bulges and depth', () => {
+  it('shifts second-face rod points and hook block x by 120, preserving bulges and depth', () => {
     const copy = structuredClone(source);
     const second = copy.walls[0];
     second.id = 'B';
@@ -141,7 +141,7 @@ describe('SH4 step d shape payloads', () => {
     expect(withoutDrawings).not.toHaveProperty('shapes');
   });
 
-  it('anchor 5: sanitizes block names, truncating the label and alphanumeric id independently', () => {
+  it('sanitizes block names, truncating the label and alphanumeric id independently', () => {
     expect(shapeBlockName('Closet rod', '3f9a2c1e-0000')).toBe('SHAPE_CLOSET_ROD_3F9A2C');
     expect(shapeBlockName('  hook (left)!! ', 'ab-12')).toBe('SHAPE_HOOK_LEFT_AB12');
     const long = shapeBlockName('a'.repeat(60), 'abc-123456');

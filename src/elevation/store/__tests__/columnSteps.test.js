@@ -7,7 +7,7 @@ const at = { wallId: 'wall-1', runId: 'run-1' };
 const setup = () => stateWithRun(run({ autoCount: false, items: [auto('a'), auto('b')] }));
 const edit = (state, itemId, edge, value) => elevationReducer(state, setColumnStep({ ...at, itemId, edge, value }));
 
-describe('ST1 step c column step reducer', () => {
+describe('column step reducer (ST1)', () => {
   it('sets and independently clears root cabinet, nested-grid and legacy column offsets', () => {
     for (const kind of ['cabinet', 'nested', 'legacy']) {
       let state = setup();

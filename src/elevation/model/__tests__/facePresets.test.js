@@ -8,20 +8,20 @@ const { BASE, UPPER, TALL, FILLER } = CABINET_TYPE_IDS;
 const keys = (presets) => presets.map((preset) => preset.key);
 
 describe('face presets', () => {
-  it('18. presetsFor keys by type', () => {
+  it('presetsFor keys by type', () => {
     expect(keys(presetsFor(BASE))).toEqual(['d', 'pd', '2d', '2df', '3df', '4df', 'df_d', 'df_pd', 'fs']);
     expect(keys(presetsFor(UPPER))).toEqual(['d', 'pd', '2d']);
     expect(keys(presetsFor(TALL))).toEqual(['d', 'pd', '2d', 'd_4df', 'pd_3df']);
     expect(presetsFor(FILLER)).toEqual([]);
   });
 
-  it("19. every preset's face passes isFaceNode", () => {
+  it("every preset's face passes isFaceNode", () => {
     for (const preset of FACE_PRESETS) {
       expect(isFaceNode(preset.face), preset.key).toBe(true);
     }
   });
 
-  it('20. d_4df on a tall piece', () => {
+  it('d_4df on a tall piece', () => {
     const preset = FACE_PRESETS.find((p) => p.key === 'd_4df');
     const run = { id: 'run', cabinetTypeId: TALL, x: 0, z: 4, width: 24, height: 84, depth: 24,
       ends: { left: { type: 'none' }, right: { type: 'none' } },

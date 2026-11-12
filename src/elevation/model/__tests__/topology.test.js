@@ -66,7 +66,7 @@ function roomWithC() {
 }
 
 describe('wall topology and numbering', () => {
-  it('1. traverses and numbers room R as A then B', () => {
+  it('traverses and numbers room R as A then B', () => {
     const room = syncRoom(roomR(), DEFAULT_SETTINGS);
     const components = wallComponents(room);
     expect(components).toEqual([{
@@ -81,7 +81,7 @@ describe('wall topology and numbering', () => {
     expect([...wallNumbers(room)]).toEqual([['A', 1], ['B', 2]]);
   });
 
-  it('2. prepends C when it connects to A left and uses chain normals', () => {
+  it('prepends C when it connects to A left and uses chain normals', () => {
     const room = roomWithC();
     expect(room.wallOrder).toEqual(['C', 'A', 'B']);
     expect(wallNumbers(room).get('C')).toBe(1);
@@ -90,7 +90,7 @@ describe('wall topology and numbering', () => {
     expect(wallFrame(room, room.walls.find(({ id }) => id === 'B')).n).toEqual({ x: -1, y: 0 });
   });
 
-  it('3. produces the same order and normals when every wall is drawn backwards', () => {
+  it('produces the same order and normals when every wall is drawn backwards', () => {
     const room = syncRoom({
       ...roomR(),
       wallOrder: ['A', 'B'],
@@ -115,7 +115,7 @@ describe('wall topology and numbering', () => {
     expect(wallFrame(room, room.walls[1]).n).toEqual({ x: -1, y: 0 });
   });
 
-  it('4. keeps C first when the chain closes into a cycle', () => {
+  it('keeps C first when the chain closes into a cycle', () => {
     const room = roomWithC();
     room.walls.find(({ id }) => id === 'B').connections.end = {
       wallId: 'D', endpoint: 'start',
@@ -132,7 +132,7 @@ describe('wall topology and numbering', () => {
     expect(synced.wallOrder).toEqual(['C', 'A', 'B', 'D']);
   });
 
-  it('5. reserves overrides and reports duplicate overrides', () => {
+  it('reserves overrides and reports duplicate overrides', () => {
     const room = roomWithC();
     room.walls.find(({ id }) => id === 'B').numberOverride = 1;
     expect([...wallNumbers(room)]).toEqual([['B', 1], ['C', 2], ['A', 3]]);
@@ -143,7 +143,7 @@ describe('wall topology and numbering', () => {
     }]);
   });
 
-  it('6. labels custom wall names', () => {
+  it('labels custom wall names', () => {
     const room = roomWithC();
     const wallA = room.walls.find(({ id }) => id === 'A');
     expect(wallLabel(room, wallA)).toBe('Wall 2');
@@ -151,7 +151,7 @@ describe('wall topology and numbering', () => {
     expect(wallLabel(room, wallA)).toBe('Wall 2 · Sink wall');
   });
 
-  it('7. keeps the first chain stable when extending a second chain', () => {
+  it('keeps the first chain stable when extending a second chain', () => {
     const room = syncRoom({
       ...roomR(),
       walls: [...roomR().walls, wall('E', 200, 0, 260, 0)],
@@ -172,7 +172,7 @@ describe('wall topology and numbering', () => {
     expect(wallNumbers(synced).get('B')).toBe(2);
   });
 
-  it('8. preserves the SPEC-2 frame and corner behavior', () => {
+  it('preserves the SPEC-2 frame and corner behavior', () => {
     const room = syncRoom(roomR(), DEFAULT_SETTINGS);
     expect(wallFrame(room, room.walls[0])).toMatchObject({
       n: { x: 0, y: 1 },
@@ -235,7 +235,7 @@ describe('wall topology and numbering', () => {
     expect(elevationLetters(room).get('B')).toBe('B');
   });
 
-  it('16. navigates wall order and wraps at both ends', () => {
+  it('navigates wall order and wraps at both ends', () => {
     const room = roomWithC();
     expect(nextWallId(room, 'C', 1)).toBe('A');
     expect(nextWallId(room, 'B', 1)).toBe('C');
@@ -247,7 +247,7 @@ describe('wall topology and numbering', () => {
     expect(nextWallId(single, 'A', -1)).toBe('A');
   });
 
-  it('177. letters front elevations before back elevations', () => {
+  it('letters front elevations before back elevations', () => {
     const room = roomR();
     room.wallOrder = ['A', 'B'];
     room.walls[0].runs = [{ id: 'af' }, { id: 'ab', wallSide: 'back' }];

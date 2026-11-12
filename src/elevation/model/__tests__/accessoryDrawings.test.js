@@ -52,10 +52,10 @@ const interior = { tree: { accessories: [{ accessoryId: accessory.id, fromBottom
 const resolve = (effective = settings, inside = interior) => sectionAccessories({ interior: inside,
   settings: effective }).get('r').items[0];
 
-describe('SH4 step a drawing metadata and depth', () => {
+describe('drawing metadata and depth (SH4)', () => {
   const inside = { ...interior, sections: [{ ...section, depth: 22 }] };
 
-  it('anchor 4: anchors the size box at front, centre and back and carries drawing metadata', () => {
+  it('anchors the size box at front, centre and back and carries drawing metadata', () => {
     for (const [at, offset, depth] of [['front', 0, 0], ['centre', 0, 10], ['back', 0, 20], ['centre', 1, 11]]) {
       const effective = { ...settings, accessories: [{ ...accessory, depthAnchor: { at, offset } }] };
       const before = structuredClone({ effective, inside });
@@ -67,7 +67,7 @@ describe('SH4 step a drawing metadata and depth', () => {
     }
   });
 
-  it('anchor 5: warns about front and back protrusions beyond the depth tolerance', () => {
+  it('warns about front and back protrusions beyond the depth tolerance', () => {
     for (const [at, offset, depth, warnings] of [
       ['back', 1, 21, [{ code: 'accessory-outside-depth', side: 'back', by: 1 }]],
       ['front', -0.5, -0.5, [{ code: 'accessory-outside-depth', side: 'front', by: 0.5 }]],
@@ -112,8 +112,8 @@ describe('SH4 step a drawing metadata and depth', () => {
   });
 });
 
-describe('SH3 step c accessory drawings', () => {
-  it('anchor 1: resolves all six RODC outlines and uses their placed bounds without mutating inputs', () => {
+describe('accessory drawings (SH3)', () => {
+  it('resolves all six RODC outlines and uses their placed bounds without mutating inputs', () => {
     const before = structuredClone({ interior, settings });
     const item = resolve();
     expect(item.drawing.bounds).toEqual({ x: 100, z: 74.5, width: 36, height: 3 });
@@ -127,7 +127,7 @@ describe('SH3 step c accessory drawings', () => {
     expect({ interior, settings }).toEqual(before);
   });
 
-  it('anchor 2: keeps the labelled box for a missing drawing and warns, but permits no drawing pick', () => {
+  it('keeps the labelled box for a missing drawing and warns, but permits no drawing pick', () => {
     const item = resolve({ ...settings, accessories: [{ ...accessory, shapeId: 'gone' }] });
     expect(item).not.toHaveProperty('drawing');
     expect(item.rect).toEqual({ x: 100, z: 74.5, width: 36, height: 3 });
@@ -139,7 +139,7 @@ describe('SH3 step c accessory drawings', () => {
     expect(plain.warnings).toEqual([]);
   });
 
-  it('anchor 3: leaves an undersized rod unstretched and checks its actual bounds against the section', () => {
+  it('leaves an undersized rod unstretched and checks its actual bounds against the section', () => {
     const item = resolve(settings, { ...interior, sections: [{ ...section, width: 5 }] });
     expect(item.drawing.bounds).toEqual({ x: section.x - 12.5, z: 74.5, width: 30, height: 3 });
     expect(item.rect).toBe(item.drawing.bounds);

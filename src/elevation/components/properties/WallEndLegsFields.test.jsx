@@ -48,7 +48,7 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('SH7.6 step g wall end panel fit', () => {
+describe('wall end panel fit (SH7.6)', () => {
   it('uses settings for blank panel values and refuses invalid dimensions', () => {
     selectLegs('both');
     change(field(render(), 'Left end Fit'), 'between');

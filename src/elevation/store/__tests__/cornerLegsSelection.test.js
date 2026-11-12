@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { room, run, wall } from '../../../test/builders.js';
 import elevationReducer, { clearSelection, createInitialElevationState, setSelection } from '../elevationSlice.js';
 
-it('CC4 anchor 4: selects only a valid corner owner, preserves the active face and clears other selection', () => {
+it('selects only a valid corner owner, preserves the active face and clears other selection (CC4)', () => {
   const owner = run({ wallSide: 'back' });
   const initial = {
     ...createInitialElevationState(null),

@@ -25,7 +25,7 @@ const ROUND = {
 };
 const rect = ({ x, z, width, height }) => ({ x, z, width, height });
 
-describe('CC5 step c owner corner elevation payload', () => {
+describe('owner corner elevation payload (CC5)', () => {
   let subject, ownerWall, returnWall, owner;
   const settings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125, sectionProfiles: [ROUND] };
   beforeEach(() => {
@@ -49,7 +49,7 @@ describe('CC5 step c owner corner elevation payload', () => {
   const draw = () => faceDrawing(subject, ownerWall, 'front', settings);
   const scene = () => runScene(subject, ownerWall, owner, settings);
 
-  it('anchor 1: projects the 45 face while keeping the cabinet at its full leg A width', () => {
+  it('projects the 45 face while keeping the cabinet at its full leg A width', () => {
     const before = structuredClone(subject);
     const drawing = draw();
     const face = drawing.parts.find(({ id }) => id === 'cc:r');
@@ -63,7 +63,7 @@ describe('CC5 step c owner corner elevation payload', () => {
     expect(subject).toEqual(before);
   });
 
-  it('anchor 2: projects all detail geometry and swing edges but preserves pull outline size', () => {
+  it('projects all detail geometry and swing edges but preserves pull outline size', () => {
     const sourceScene = scene();
     const { squash } = sourceScene.faceLayouts.get('cc');
     const trueDetails = runDoorDetails(subject, ownerWall, owner, settings, sourceScene);
@@ -97,7 +97,7 @@ describe('CC5 step c owner corner elevation payload', () => {
     expect({ sourceScene, trueDetails, truePull }).toEqual(before);
   });
 
-  it('anchor 3: projects glass holes and marks with the face, independent of door detail visibility', () => {
+  it('projects glass holes and marks with the face, independent of door detail visibility', () => {
     owner.grid.cells[0].node.face.panelMaterial = 'glass';
     const { squash } = scene().faceLayouts.get('cc');
     const [glass] = wallShowThrough(subject, ownerWall, 'front', settings).get('cc').glass;
@@ -130,7 +130,7 @@ describe('CC5 step c owner corner elevation payload', () => {
     }
   });
 
-  it('anchor 4: emits the 90 return panel immediately after its unchanged cabinet and keeps true face drawings', () => {
+  it('emits the 90 return panel immediately after its unchanged cabinet and keeps true face drawings', () => {
     owner.ends.left.corner.kind = 90;
     const drawing = draw();
     const cabinetIndex = drawing.parts.findIndex(({ id }) => id === 'cc');
@@ -158,7 +158,7 @@ describe('CC5 step c owner corner elevation payload', () => {
     expect(draw().parts).toEqual(expected);
   });
 
-  it.each(['none', 'filler'])('anchor 5: omits a return panel for returnPiece %s', (returnPiece) => {
+  it.each(['none', 'filler'])('omits a return panel for returnPiece %s', (returnPiece) => {
     owner.ends.left.corner.returnPiece = returnPiece;
     expect(draw().parts.some(({ id }) => id.startsWith('corner-panel:'))).toBe(false);
   });

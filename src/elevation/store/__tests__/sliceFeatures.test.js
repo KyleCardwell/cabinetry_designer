@@ -161,7 +161,7 @@ describe('elevation opening reducers', () => {
     });
   });
 
-  it('30. clears a deleted opening anchor without moving the resolved run', () => {
+  it('clears a deleted opening anchor without moving the resolved run', () => {
     const anchoredRun = run({
       x: 29,
       width: 40,
@@ -192,7 +192,7 @@ describe('elevation opening reducers', () => {
 });
 
 describe('resizeOpening', () => {
-  it('59. grows about the center and rejects a size that leaves the wall', () => {
+  it('grows about the center and rejects a size that leaves the wall', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls[0].openings = [opening()];
     const grown = elevationReducer(initial, resizeOpening({
@@ -211,7 +211,7 @@ describe('resizeOpening', () => {
 });
 
 describe('SPEC-19 soffit store shape', () => {
-  it('165. initializes wall soffits and soffit selection', () => {
+  it('initializes wall soffits and soffit selection', () => {
     const initial = createInitialElevationState();
     const state = elevationReducer(initial, addWallSegment({
       x1: 0, y1: 0, x2: 96, y2: 0,
@@ -234,7 +234,7 @@ describe('SPEC-19 soffit store', () => {
     anchors: { left: false, right: false },
   };
 
-  it('171. adds valid soffits, rejects overlaps, and selects their wall side', () => {
+  it('adds valid soffits, rejects overlaps, and selects their wall side', () => {
     let state = elevationReducer(stateWithRun(), addSoffit({
       wallId: 'wall-1', soffit: SF,
     }));
@@ -254,7 +254,7 @@ describe('SPEC-19 soffit store', () => {
     expect(state.activeWallSide).toBe('back');
   });
 
-  it('172. updates, anchors, and deletes soffits', () => {
+  it('updates, anchors, and deletes soffits', () => {
     const initial = stateWithRun(run({
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       anchors: {
@@ -292,7 +292,7 @@ describe('SPEC-19 soffit store', () => {
     expect(state.selection.soffitId).toBeNull();
   });
 
-  it('173. anchors an upper to a soffit and enables the soffit tool', () => {
+  it('anchors an upper to a soffit and enables the soffit tool', () => {
     let state = stateWithRun(run({
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       z: 54,

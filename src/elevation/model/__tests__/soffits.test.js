@@ -110,7 +110,7 @@ const soffitWall = (runs = [], soffit = SF()) => makeRoom([
 const runById = (room, id) => wallById(room, 'S').runs.find((run) => run.id === id);
 
 describe('SPEC-19 soffit shape and helpers', () => {
-  it('160. resolves soffit spans from wall ends and wing-wall faces', () => {
+  it('resolves soffit spans from wall ends and wing-wall faces', () => {
     const endRoom = soffitWall([], SF({
       anchors: {
         left: { to: 'end', offset: 20 },
@@ -136,7 +136,7 @@ describe('SPEC-19 soffit shape and helpers', () => {
     })).toEqual({ x: 64.5, width: 124.5 });
   });
 
-  it('161. creates a rounded soffit snapped to facing wing-wall faces', () => {
+  it('creates a rounded soffit snapped to facing wing-wall faces', () => {
     const room = alcove();
     const wall = wallSideView(wallById(room, 'H'), 'front');
     const soffit = createSoffit(
@@ -159,7 +159,7 @@ describe('SPEC-19 soffit shape and helpers', () => {
     });
   });
 
-  it('162. validates bounds and same-side overlap', () => {
+  it('validates bounds and same-side overlap', () => {
     const room = soffitWall();
     const wall = wallById(room, 'S');
     expect(validateSoffitPlacement(wall, SF({ id: 'SG', x: 90, width: 20 })))
@@ -172,7 +172,7 @@ describe('SPEC-19 soffit shape and helpers', () => {
       .toEqual({ ok: true, reason: null });
   });
 
-  it('163. reports the molding drop for each soffit molding', () => {
+  it('reports the molding drop for each soffit molding', () => {
     const profile = DEFAULT_SETTINGS.defaultProfile;
     expect(['crown', 'topMold', 'none'].map((molding) => (
       soffitMoldingDrop(molding, profile)
@@ -181,7 +181,7 @@ describe('SPEC-19 soffit shape and helpers', () => {
 });
 
 describe('SPEC-19 soffit resolution', () => {
-  it('166. caps auto-height runs under each soffit molding', () => {
+  it('caps auto-height runs under each soffit molding', () => {
     for (const [molding, height] of [
       ['crown', 24],
       ['topMold', 27],
@@ -196,7 +196,7 @@ describe('SPEC-19 soffit resolution', () => {
     }
   });
 
-  it('167. reports only partial or manual-height soffit conflicts', () => {
+  it('reports only partial or manual-height soffit conflicts', () => {
     const room = syncRoom(soffitWall([
       upper('U1', { x: 40, width: 60 }),
       upper('U2', { x: 100, width: 30 }),
@@ -220,7 +220,7 @@ describe('SPEC-19 soffit resolution', () => {
       .toEqual([{ code: 'soffit-conflict', soffitId: 'SF' }]);
   });
 
-  it('168. resolves and describes run anchors against soffit sides', () => {
+  it('resolves and describes run anchors against soffit sides', () => {
     const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const room = syncRoom(soffitWall([
       upper('A1', {
@@ -244,7 +244,7 @@ describe('SPEC-19 soffit resolution', () => {
       .toBe('Against soffit · 1/2" gap');
   });
 
-  it('169. creates a run anchored beside a soffit with the contextual end type', () => {
+  it('creates a run anchored beside a soffit with the contextual end type', () => {
     const create = (room) => {
       const synced = syncRoom(room, DEFAULT_SETTINGS);
       return createRun(
@@ -268,7 +268,7 @@ describe('SPEC-19 soffit resolution', () => {
     expect(adjacent.ends.left).toEqual({ type: 'filler', width: null });
   });
 
-  it('170. stretches a run edge to a soffit anchor', () => {
+  it('stretches a run edge to a soffit anchor', () => {
     const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const room = syncRoom(soffitWall([
       upper('B1', { x: 110, width: 30 }),
@@ -284,7 +284,7 @@ describe('SPEC-19 soffit resolution', () => {
 });
 
 describe('SPEC-20 partial soffit cover and flush ends', () => {
-  it('174. uses the lowest overlapping soffit for height and molding', () => {
+  it('uses the lowest overlapping soffit for height and molding', () => {
     const room = syncRoom(makeRoom([
       makeWall('S', 0, 0, 144, 0, {
         soffits: [
@@ -304,7 +304,7 @@ describe('SPEC-20 partial soffit cover and flush ends', () => {
       .toEqual([]);
   });
 
-  it('175. projects landed walls from the host face', () => {
+  it('projects landed walls from the host face', () => {
     const room = alcove();
     const view = wallSideView(wallById(room, 'H'), 'front');
 
@@ -313,7 +313,7 @@ describe('SPEC-20 partial soffit cover and flush ends', () => {
     expect(landingProjection(room, view, 'nope')).toBeNull();
   });
 
-  it('176. finds flush soffit sides and their wing-wall seams', () => {
+  it('finds flush soffit sides and their wing-wall seams', () => {
     const room = alcove();
     const flush = SF({
       x: 69,
@@ -358,7 +358,7 @@ describe('SPEC-21 crown line under soffits', () => {
     runs: [upper('U1', { x: 40, width: 60 })],
   })]), DEFAULT_SETTINGS);
 
-  it('182. applies a soffit only when it governs the crown line', () => {
+  it('applies a soffit only when it governs the crown line', () => {
     for (const [crownTop, geometry, molding] of [
       [80, { z: 54, height: 20 }, 'crown'],
       [84, { z: 54, height: 30 }, 'none'],
@@ -377,7 +377,7 @@ describe('SPEC-21 crown line under soffits', () => {
     }
   });
 
-  it('183. resolves explicit box tops and governing soffits', () => {
+  it('resolves explicit box tops and governing soffits', () => {
     expect(boxTopOf({ crownTop: 96, crownStackHeight: 6 })).toBe(90);
     expect(boxTopOf({ crownTop: 96, crownStackHeight: 6, boxTop: 70 })).toBe(70);
 

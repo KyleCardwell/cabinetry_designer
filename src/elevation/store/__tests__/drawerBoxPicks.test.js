@@ -21,8 +21,8 @@ const base = () => {
 };
 const leaves = (state) => gridLeaves(currentRun(state).grid);
 
-describe('IN5 step a drawer box pick storage', () => {
-  it('accepts cabinet slide ids and round-trips picks, rejecting invalid ids and other cells (anchor 4)', () => {
+describe('drawer box pick storage (IN5)', () => {
+  it('accepts cabinet slide ids and round-trips picks, rejecting invalid ids and other cells', () => {
     const state = elevationReducer(base(), setCabinetSlide({ ...at, itemIds: ['c1', 'c2'], slideId: 'accuride-3832' }));
     const picked = elevationReducer(state, setFaceDrawerBox({ ...at, itemId: 'c2', path: 'r.0', patch: { height: 3.625, depth: 18, slideId: 'gone' } }));
     const document = normalizeElevationDocument(toElevationDocument(picked));
@@ -46,7 +46,7 @@ describe('IN5 step a drawer box pick storage', () => {
     expect(isElevationDocument(invalid)).toBe(false);
   });
 
-  it('sets and clears slide picks on root and nested cabinets and respects room locks (anchor 4)', () => {
+  it('sets and clears slide picks on root and nested cabinets and respects room locks', () => {
     const state = base();
     const payload = { ...at, itemIds: ['c1', 'c2', 'p1', 'f1'], slideId: 'accuride-3832' };
     const picked = elevationReducer(state, setCabinetSlide(payload));

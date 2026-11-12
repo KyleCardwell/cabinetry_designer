@@ -43,12 +43,12 @@ function fixture(faces, nodes = faces.map(({ type, hinge, action }) => ({ type, 
 const fromRun = ({ room, wall, run, scene }, settings = DEFAULT_SETTINGS) =>
   runPulls(room, wall, run, settings, scene);
 
-describe('HP4 step b pull placement anchors', () => {
-  it('1: places a base pull with its top end on the rail flat centre', () => {
+describe('pull placement anchors (HP4)', () => {
+  it('places a base pull with its top end on the rail flat centre', () => {
     expect(place()).toEqual(expected('top-corner', [center(23.5, 30.125)]));
   });
 
-  it('2: places an upper pull with its bottom end on the rail flat centre', () => {
+  it('places an upper pull with its bottom end on the rail flat centre', () => {
     expect(place(UPPER)).toEqual(expected('bottom-corner', [center(1.5, 57.875)]));
   });
 
@@ -58,7 +58,7 @@ describe('HP4 step b pull placement anchors', () => {
     expect(place({ ...tall, height: 44 })).toEqual(expected('height', [center(16.5, 44.125)]));
   });
 
-  it('4: puts pair pulls on the meeting stiles and uses swing-mark ids in run order', () => {
+  it('puts pair pulls on the meeting stiles and uses swing-mark ids in run order', () => {
     const left = { ...BASE, type: 'pair_door', x: 0, width: 14.875, half: 'left' };
     const right = { ...left, x: 15, half: 'right' };
     expect(place(left).centers).toEqual([center(13.375, 30.125)]);
@@ -75,17 +75,17 @@ describe('HP4 step b pull placement anchors', () => {
     ], warnings: [] });
   });
 
-  it('5: places a top-hinged door on its bottom rail horizontally', () => {
+  it('places a top-hinged door on its bottom rail horizontally', () => {
     expect(place({ ...BASE, x: 0, z: 60, width: 30, height: 15, hinge: 'top' }))
       .toEqual(expected('bottom-rail', [center(15, 61.5)], 'horizontal'));
   });
 
-  it('6: places a pullout on its top rail horizontally', () => {
+  it('places a pullout on its top rail horizontally', () => {
     expect(place({ ...BASE, x: 0, width: 18, height: 24, hinge: undefined, action: 'pullout' }))
       .toEqual(expected('top-rail', [center(9, 26.5)], 'horizontal'));
   });
 
-  it('7: centres drawer pulls in equal sections and uses actual short rails or standard slab rails', () => {
+  it('centres drawer pulls in equal sections and uses actual short rails or standard slab rails', () => {
     expect(place(DRAWER)).toEqual(expected('center', [center(15, 31)], 'horizontal'));
     expect(place(DRAWER, { pullCount: 2 }))
       .toEqual(expected('center', [center(7.5, 31), center(22.5, 31)], 'horizontal'));
@@ -95,24 +95,24 @@ describe('HP4 step b pull placement anchors', () => {
       .toEqual(expected('top-rail', [center(15, 32.5)], 'horizontal'));
   });
 
-  it('8: uses knob diameter for the corner end offset', () => {
+  it('uses knob diameter for the corner end offset', () => {
     expect(place(BASE, {}, KNOB)).toEqual(expected('top-corner', [center(23.5, 31.875)]));
     expect(place(BASE, { pullOrientation: 'horizontal' }, KNOB)).toEqual(place(BASE, {}, KNOB));
   });
 
-  it('9: puts tabs flush on the top or bottom edge horizontally', () => {
+  it('puts tabs flush on the top or bottom edge horizontally', () => {
     expect(place(DRAWER, {}, TAB)).toEqual(expected('top-edge', [center(15, 33.75)], 'horizontal'));
     expect(place(UPPER, {}, TAB)).toEqual(expected('bottom-edge', [center(1.5, 54.25)], 'horizontal'));
     expect(place(BASE, { pullAt: 'height', pullOrientation: 'vertical' }, TAB))
       .toEqual(expected('top-edge', [center(23.5, 33.75)], 'horizontal'));
   });
 
-  it('10: runs a horizontal corner pull inward from the stile centre', () => {
+  it('runs a horizontal corner pull inward from the stile centre', () => {
     expect(place(BASE, { pullOrientation: 'horizontal' }))
       .toEqual(expected('top-corner', [center(21.125, 32.5)], 'horizontal'));
   });
 
-  it('11: requires a hinge side for stile positions, including sliding doors', () => {
+  it('requires a hinge side for stile positions, including sliding doors', () => {
     for (const face of [{ ...BASE, hinge: undefined }, { ...BASE, action: 'sliding' }]) {
       expect(place(face)).toEqual(expected('top-corner', [], 'vertical', ['pull-needs-hinge']));
     }
@@ -120,19 +120,19 @@ describe('HP4 step b pull placement anchors', () => {
       .toEqual(expected('center', [center(17.5, 19)]));
   });
 
-  it('12: centres on the flat remaining between outside and inside profiles', () => {
+  it('centres on the flat remaining between outside and inside profiles', () => {
     const offsets = { slots: { outside: { reachIn: 0.25 }, inside: { reachOut: 0.375 } } };
     expect(place(BASE, {}, BAR, { offsets }))
       .toEqual(expected('top-corner', [center(23.5625, 30.1875)]));
   });
 
-  it('13: warns once when pulls overrun their equal sections', () => {
+  it('warns once when pulls overrun their equal sections', () => {
     expect(place({ ...DRAWER, width: 10 }, { pullCount: 3 }))
       .toEqual(expected('center', [center(10 / 6, 31), center(5, 31), center(25 / 3, 31)],
         'horizontal', ['pull-too-long']));
   });
 
-  it('14: skips false fronts without an explicit leaf pull, and places picked ones like drawers', () => {
+  it('skips false fronts without an explicit leaf pull, and places picked ones like drawers', () => {
     const f = fixture([{ ...DRAWER, type: 'false_front' }, { ...DRAWER, type: 'false_front' }],
       [{ type: 'false_front' }, { type: 'false_front', pullId: 'pull-4' }]);
     f.run.doorPullId = 'knob-1-25';
@@ -145,7 +145,7 @@ describe('HP4 step b pull placement anchors', () => {
   });
 });
 
-describe('HP4 placement boundaries and integration', () => {
+describe('placement boundaries and integration (HP4)', () => {
   it('reuses only fitted applied moldings for flats and leaves slab frameOut at zero', () => {
     const detail = partDetail(DEFAULT_DOOR_STYLE, DOOR_DESIGNS[0], BASE);
     const fit = { profileId: 'fitted', index: 0, offset: 0, minX: -0.75, maxX: 1,
@@ -241,7 +241,7 @@ describe('HP4 placement boundaries and integration', () => {
   });
 });
 
-describe('PR1 room-wide pull placement defaults', () => {
+describe('room-wide pull placement defaults (PR1)', () => {
   const withDefaults = (face, settings, overrides = {}) => facePullPlacement({
     face, part: facePart(face), pull: BAR, pullHeight: 45, overrides,
     defaults: pullDefaults(settings, face.type),

@@ -60,8 +60,8 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('LL4 b column layout line properties', () => {
-  it('anchor 4: selects the top leaf and puts its root column on a new line at its centre (60)', () => {
+describe('column layout line properties (LL4)', () => {
+  it('selects the top leaf and puts its root column on a new line at its centre (60)', () => {
     const tree = properties();
     const columnSteps = find(tree, ColumnStepFields);
     const section = find(tree, ColumnLineSection);
@@ -86,7 +86,7 @@ describe('LL4 b column layout line properties', () => {
     expect(current().run.grid.cols[1].attach).toBeUndefined();
   });
 
-  it('anchor 3: Right edge sends the attachment with the new point', () => {
+  it('Right edge sends the attachment with the new point', () => {
     control(lineSection('A'), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
     const right = nodes(lineSection('A')).find(({ type, props }) => type === 'button' && props.children === 'Right edge');
     right.props.onClick();
@@ -99,7 +99,7 @@ describe('LL4 b column layout line properties', () => {
 
 });
 
-describe('DR3b return pin properties', () => {
+describe('return pin properties (DR3b)', () => {
   beforeEach(() => {
     const { run: source, settings } = current();
     const initialRoom = syncRoom(room({ walls: [

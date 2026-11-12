@@ -61,13 +61,13 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
   });
 });
 
-describe('DM8 step a placing a panel detail on the wall', () => {
+describe('placing a panel detail on the wall (DM8)', () => {
   const detail = {
     width: 24.875, z: 4, height: 30.5, openings: [box(3, 7, 18.875, 24.5)],
     lines: [box(1, 5, 22.875, 28.5)], miters: [{ x1: 0, z1: 4, x2: 3, z2: 7 }], openingsShown: true,
   };
 
-  it('anchor 6: maps u through xAt and cuts to the drawn range', () => {
+  it('maps u through xAt and cuts to the drawn range', () => {
     expect(placePanelDetail(detail, (u) => -10 + u, [-10, 0]).openings).toEqual([box(-7, 7, 7, 24.5)]);
   });
 
@@ -86,8 +86,8 @@ describe('DM8 step a placing a panel detail on the wall', () => {
   });
 });
 
-describe('MR2b layout openings', () => {
-  it('anchor 1: moves the six nested panels to wall coordinates', () => {
+describe('layout openings (MR2b)', () => {
+  it('moves the six nested panels to wall coordinates', () => {
     const layout = rows([cols([{}, { size: 8 }, {}]), cols([{}, {}]), {}]);
     const detail = partDetail(S, SQUARE, box(100, 10, 30, 39), { layout });
     expect(detail.openings).toEqual([
@@ -97,7 +97,7 @@ describe('MR2b layout openings', () => {
     expect(detail.sizes.layoutWarnings).toEqual([]);
   });
 
-  it('anchor 2: splits a slab with applied molding with a gap equal to the edge flat (MR4)', () => {
+  it('splits a slab with applied molding with a gap equal to the edge flat (MR4)', () => {
     const detail = partDetail(S, SLAB, box(100, 10, 30, 39), { layout: rows([{}, {}]) }, 0,
       [{ index: 0, profileId: 'molding', offset: 1, width: 1 }]);
     expect(detail.openings).toEqual([box(100, 10, 30, 20), box(100, 29, 30, 20)]);
@@ -124,8 +124,8 @@ describe('MR2b layout openings', () => {
 });
 
 
-describe('MR2c run layout warnings', () => {
-  it('anchor 5: includes the overfull face key and piece id with the resolver path', () => {
+describe('run layout warnings (MR2c)', () => {
+  it('includes the overfull face key and piece id with the resolver path', () => {
     const sizes = { layout: rows([{ size: 20 }, { size: 20 }]) };
     const face = { type: 'door', size: null, sizes };
     const run = { items: [{ id: 'cab', face }] };

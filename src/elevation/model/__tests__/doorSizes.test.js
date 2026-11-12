@@ -102,7 +102,7 @@ describe('SPEC-46 stile and rail sizes', () => {
   });
 });
 
-describe('MR1b mids keep the flat', () => {
+describe('mids keep the flat (MR1b)', () => {
   const profile = (id, kind, minX, maxX) => ({
     id, kind, name: id,
     geometry: {

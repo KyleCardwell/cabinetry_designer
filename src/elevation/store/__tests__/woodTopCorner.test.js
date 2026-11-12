@@ -4,7 +4,7 @@ import { isElevationDocument, normalizeElevationDocument, toElevationDocument } 
 
 const golden = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/golden.json', import.meta.url), 'utf8'));
 
-it('PT2 a anchor 8: accepts missing, miter and butt settings and defaults older saves to miter', () => {
+it('accepts missing, miter and butt settings and defaults older saves to miter (PT2)', () => {
   const saved = normalizeElevationDocument(golden);
   delete saved.settings.woodTopCorner;
   expect(isElevationDocument(saved)).toBe(true);

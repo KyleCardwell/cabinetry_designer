@@ -4,8 +4,8 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { faceFrontOffset, frontDepth } from '../corners.js';
 import { isPanelOnlyRun, isShelvesOnlyRun } from '../wallEndPanels.js';
 
-describe('FS1 a shelves-only run model', () => {
-  it('anchor 5: requires shelves and allows panels and voids, including a nested top panel', () => {
+describe('shelves-only run model (FS1)', () => {
+  it('requires shelves and allows panels and voids, including a nested top panel', () => {
     for (const [kinds, expected] of [
       [['shelves'], true], [['shelves', 'panel'], true], [['shelves', 'void'], true],
       [['shelves', 'cabinet'], false], [['panel'], false], [['void'], false],
@@ -24,7 +24,7 @@ describe('FS1 a shelves-only run model', () => {
     expect(isShelvesOnlyRun({})).toBe(false);
   });
 
-  it('anchor 6: uses box depth plus back offset without faces or a face frame', () => {
+  it('uses box depth plus back offset without faces or a face frame', () => {
     const shelves = run({ depth: 12, items: [{ ...auto('a'), kind: 'shelves' }] });
     const cabinet = run({ depth: 12, items: [auto('a')] });
     expect(frontDepth(shelves, DEFAULT_SETTINGS)).toBe(12);

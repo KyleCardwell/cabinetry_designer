@@ -12,8 +12,8 @@ const bottom = { value: 3, source: 'manual' };
 const isLeaf = (node) => LEAF_KINDS.includes(node.kind);
 const makeGrid = () => gridFromItems('r', items);
 
-describe('ST1 step a column offset data', () => {
-  it('anchor 1: updates offsets on the column and exposes them on the root item', () => {
+describe('column offset data (ST1)', () => {
+  it('updates offsets on the column and exposes them on the root item', () => {
     const grid = makeGrid();
     const updated = updateRootItem(grid, 'B', { top, bottom });
     expect(updated.cols[1]).toMatchObject({ top, bottom });
@@ -24,7 +24,7 @@ describe('ST1 step a column offset data', () => {
     expect(updateRootItem(updated, 'B', { top, bottom })).toBe(updated);
   });
 
-  it('anchor 2: undefined removes the column keys', () => {
+  it('undefined removes the column keys', () => {
     const updated = updateRootItem(makeGrid(), 'B', { top, bottom });
     const clearedTop = updateRootItem(updated, 'B', { top: undefined });
     expect(clearedTop.cols[1]).not.toHaveProperty('top');
@@ -34,7 +34,7 @@ describe('ST1 step a column offset data', () => {
     expect(cleared).toEqual(makeGrid());
   });
 
-  it('anchor 3: accepts only finite positive manual offsets for either track key', () => {
+  it('accepts only finite positive manual offsets for either track key', () => {
     expect(isGridShape(makeGrid(), isLeaf)).toBe(true);
     expect(isGridShape(updateRootItem(makeGrid(), 'B', { top, bottom }), isLeaf)).toBe(true);
     const invalid = [
@@ -53,7 +53,7 @@ describe('ST1 step a column offset data', () => {
     }
   });
 
-  it('anchor 4: cloning deep copies both offset objects', () => {
+  it('cloning deep copies both offset objects', () => {
     const grid = updateRootItem(makeGrid(), 'B', { top, bottom });
     const cloned = cloneGrid(grid);
     expect(cloned).toEqual(grid);
@@ -63,7 +63,7 @@ describe('ST1 step a column offset data', () => {
     expect(grid.cols[1].bottom.value).toBe(3);
   });
 
-  it('anchor 5: mirroring keeps offsets with the column id', () => {
+  it('mirroring keeps offsets with the column id', () => {
     const grid = updateRootItem(makeGrid(), 'B', { top, bottom });
     const mirrored = mirrorGrid(grid);
     expect(mirrored.cols.find((col) => col.id === 'B:col')).toMatchObject({ top, bottom });

@@ -29,7 +29,7 @@ function island() {
   };
 }
 
-describe('RF4 step b planned wall length notes', () => {
+describe('planned wall length notes (RF4)', () => {
   it('prints one Island 90 1/8 (planned 90) note across both faces on every shipping copy', () => {
     const room = syncRoom(island(), settings);
     expect(room.walls[0]._endFlex).toEqual({ start: 0.0625, end: 0.0625 });

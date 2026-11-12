@@ -39,8 +39,8 @@ function setup(extra = {}, using = settings) {
   return { room, wall, run, pieces: runEndView(room, wall, run, 'right', using) };
 }
 
-describe('DM6 step a run end views', () => {
-  it('anchor 1: returns the tall crown at the outside corner, x 77 5/8, facing right', () => {
+describe('run end views (DM6)', () => {
+  it('returns the tall crown at the outside corner, x 77 5/8, facing right', () => {
     const { room, wall, run } = setup();
     expect(cornerAt(room, wall, 'right').type).toBe('outside');
     expect(run).toMatchObject({ z: 4, height: 110, depth: 24 });
@@ -52,7 +52,7 @@ describe('DM6 step a run end views', () => {
       .toEqual({ type: 'return', x: -4.75, side: 0, facing: -1 });
   });
 
-  it('anchor 2: fills returning neighbour moldings back to zero, keeping their front profiles', () => {
+  it('fills returning neighbour moldings back to zero, keeping their front profiles', () => {
     const { room, wall, run, pieces } = setup();
     const shape = cornerShapes(room, room.walls[2], 'front', settings).find(({ runId }) => runId === run.id);
     const part = (piece) => shape.parts.find(({ id }) => id.endsWith(`:${piece}`));
@@ -68,7 +68,7 @@ describe('DM6 step a run end views', () => {
     }
   });
 
-  it('anchor 3: uses the nearer end panel and its scene height, including drops and extensions', () => {
+  it('uses the nearer end panel and its scene height, including drops and extensions', () => {
     const { room, wall, run, pieces } = setup({ ends: {
       left: { type: 'none' },
       right: { type: 'end_panel', width: null, extend: { up: { to: 'by', amount: 2 } } },

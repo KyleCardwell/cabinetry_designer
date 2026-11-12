@@ -52,7 +52,7 @@ function desk({ panels = true, topVoid = false } = {}) {
 }
 
 describe('SPEC-50.12 step 513 furniture base numbering order', () => {
-  it('places a furniture base before both cabinets of its run (anchor 1)', () => {
+  it('places a furniture base before both cabinets of its run', () => {
     const stored = room([run('A', ['a1', 'a2'])]);
     expect(keys(stored)).toEqual(['furniture_base:A', 'a1', 'a2']);
     expect(partNumbers(stored, settings).parts.slice(0, 3).map(({ key, number }) => [key, number]))
@@ -65,7 +65,7 @@ describe('SPEC-50.12 step 513 furniture base numbering order', () => {
     expect(parts.slice(-2).map(({ key }) => key)).toEqual(['molding:topMold', 'molding:crown']);
   });
 
-  it('places a later run base after an earlier run without a furniture base (anchor 2)', () => {
+  it('places a later run base after an earlier run without a furniture base', () => {
     const stored = room([run('B', ['b1', 'b2'], { x: 48, top: 'crown' }),
       run('A', ['a1'], { overrides: { baseKind: 'toe_kick' } })]);
     expect(keys(stored)).toEqual(['a1', 'furniture_base:B', 'b1', 'b2']);
@@ -73,14 +73,14 @@ describe('SPEC-50.12 step 513 furniture base numbering order', () => {
       .toEqual(['molding:toeKick', 'molding:topMold', 'molding:crown']);
   });
 
-  it('places a joined tall and base group before the tall parts (anchor 3)', () => {
+  it('places a joined tall and base group before the tall parts', () => {
     const stored = room([run('B', ['b1', 'b2'], { x: 24 }),
       run('T', ['t1'], { cabinetTypeId: CABINET_TYPE_IDS.TALL })]);
     expect(keys(stored)).toEqual(['furniture_base:T', 't1', 'b1', 'b2']);
     expect(roomParts(stored, settings)[0]).toEqual({ key: 'furniture_base:T', kind: 'furniture_base', runIds: ['T', 'B'] });
   });
 
-  it('places both desk base segments in x order before the run parts (anchor 4)', () => {
+  it('places both desk base segments in x order before the run parts', () => {
     expect(keys(room([desk()]))).toEqual([
       'furniture_base:R', 'furniture_base:R:2', 'left', 'left-panel', 'drawer', 'right-panel', 'right',
     ]);

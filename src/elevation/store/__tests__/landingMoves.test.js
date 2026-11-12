@@ -43,8 +43,8 @@ const initial = {
   ...createInitialElevationState(null), rooms: [syncRoom(K, DEFAULT_SETTINGS)], activeRoomId: K.id,
 };
 
-describe('WL1 c: typed landing distances in the store', () => {
-  it('anchor 1: slides the landed wall and stretches its connected neighbour', () => {
+describe('typed landing distances in the store (WL1)', () => {
+  it('slides the landed wall and stretches its connected neighbour', () => {
     const before = initial.rooms[0];
     expect(wallFrame(before, byId(before, 'wall-2')).n).toEqual({ x: 1, y: 0 });
     expect(wallFrame(before, byId(before, 'wall-3'))).toMatchObject({
@@ -66,7 +66,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state.message).toBeNull();
   });
 
-  it('anchor 2: moves the host free end on its mirrored back face', () => {
+  it('moves the host free end on its mirrored back face', () => {
     const state = elevationReducer(initial, setWallLanding({
       wallId: 'wall-2', endpoint: 'end', offset: 26, move: 'host',
     }));
@@ -79,7 +79,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state.message).toBeNull();
   });
 
-  it('anchor 3: measures the new reference before moving the host corner and neighbour', () => {
+  it('measures the new reference before moving the host corner and neighbour', () => {
     const state = elevationReducer(initial, setWallLanding({
       wallId: 'wall-2', endpoint: 'end', ref: 'left', offset: 67.5, move: 'host',
     }));
@@ -92,7 +92,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state.message).toBeNull();
   });
 
-  it('anchor 4: slides the landed wall using a new reference', () => {
+  it('slides the landed wall using a new reference', () => {
     const state = elevationReducer(initial, setWallLanding({
       wallId: 'wall-2', endpoint: 'end', ref: 'left', offset: 67.5,
     }));
@@ -104,7 +104,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(byId(state.rooms[0], 'wall-3')).toEqual(byId(initial.rooms[0], 'wall-3'));
   });
 
-  it('anchor 5: refuses the complete edit when the host would leave the landing off its face', () => {
+  it('refuses the complete edit when the host would leave the landing off its face', () => {
     const state = elevationReducer(initial, setWallLanding({
       wallId: 'wall-2', endpoint: 'end', offset: -5, move: 'host',
     }));
@@ -121,7 +121,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state.rooms).toBe(initial.rooms);
   });
 
-  it('anchor 6: refuses host movement when measured from another landed wall', () => {
+  it('refuses host movement when measured from another landed wall', () => {
     const subject = { ...K, walls: [...K.walls, wall({
       id: 'wall-5', x1: -80, y1: 13.5, x2: -80, y2: 40, thickness: 4.5,
       connections: { start: null, end: null }, landings: { start: null, end: null },
@@ -142,7 +142,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(unchanged.message).toBeNull();
   });
 
-  it('anchor 7: without an offset re-measures only, preserving the previous message and ignoring move', () => {
+  it('without an offset re-measures only, preserving the previous message and ignoring move', () => {
     const state = elevationReducer({ ...initial, message: 'old' }, setWallLanding({
       wallId: 'wall-2', endpoint: 'end', ref: 'left', move: 'ignored',
     }));
@@ -155,7 +155,7 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state.message).toBe('old');
   });
 
-  it('anchor 8: entering the current distance leaves all geometry unchanged', () => {
+  it('entering the current distance leaves all geometry unchanged', () => {
     for (const move of ['landed', 'host']) {
       const state = elevationReducer(initial, setWallLanding({
         wallId: 'wall-2', endpoint: 'end', offset: 39, move,

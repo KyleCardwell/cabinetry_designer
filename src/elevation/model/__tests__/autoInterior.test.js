@@ -28,8 +28,8 @@ function resolve(faceTree, { width = 30, height = 84, interior, inset = false, r
   return { ...resolved, box, faces, openings, reveals, inset, leaf, settings };
 }
 
-describe('IN7 automatic interior structure', () => {
-  it('anchors 1–2: shelves below doors and open faces; drawer runs merge', () => {
+describe('automatic interior structure (IN7)', () => {
+  it('shelves below doors and open faces; drawer runs merge', () => {
     const expected = tree('vertical', [fixed('r:0')]);
     expect(autoInterior(v(leaf(), leaf()), 30)).toEqual(expected);
     expect(autoInterior(v(leaf(), leaf('drawer_front'), leaf('drawer_front'), leaf('drawer_front')), 24)).toEqual(expected);
@@ -37,7 +37,7 @@ describe('IN7 automatic interior structure', () => {
     expect(autoInterior(v(leaf('open'), leaf('open')), 30)).toEqual(expected);
   });
 
-  it('anchors 3–4: wide pair doors get partitions and stop them at a drawer stretcher', () => {
+  it('wide pair doors get partitions and stop them at a drawer stretcher', () => {
     const pair = tree('horizontal', [pt('r:pair')]);
     expect(autoInterior(leaf('pair_door'), 42)).toEqual(pair);
     expect(autoInterior(leaf('pair_door'), 36)).toBeNull();
@@ -46,7 +46,7 @@ describe('IN7 automatic interior structure', () => {
     );
   });
 
-  it('anchor 5: partitions separate wide columns without dividing pairs inside them', () => {
+  it('partitions separate wide columns without dividing pairs inside them', () => {
     expect(autoInterior(h(leaf(), leaf(), leaf()), 48)).toEqual(tree('horizontal', [pt('r:0'), pt('r:1')]));
     expect(autoInterior(h(leaf(), leaf('pair_door')), 42)).toEqual(tree('horizontal', [pt('r:0')]));
     expect(autoInterior(h(leaf(), leaf()), 30)).toBeNull();
@@ -65,7 +65,7 @@ describe('IN7 automatic interior structure', () => {
     expect(autoInterior(h(nested, nested), 30)).toEqual(tree('vertical', [fixed('r.0.0:0'), fixed('r.0:0')]));
   });
 
-  it('anchor 6: stacked wide pair doors each get a partition terminating at the fixed shelf', () => {
+  it('stacked wide pair doors each get a partition terminating at the fixed shelf', () => {
     expect(autoInterior(v(leaf('pair_door'), leaf('pair_door')), 42)).toEqual(
       tree('vertical', [fixed('r:0')], [tree('horizontal', [pt('r.0:pair')]), tree('horizontal', [pt('r.1:pair')])]),
     );
@@ -86,8 +86,8 @@ describe('IN7 automatic interior structure', () => {
   });
 });
 
-describe('IN7 effective interior resolution', () => {
-  it('anchor 7: auto shelves follow resolved doors and rebuild when a front is resized', () => {
+describe('effective interior resolution (IN7)', () => {
+  it('auto shelves follow resolved doors and rebuild when a front is resized', () => {
     const face = v(leaf(), leaf());
     expect(resolve(face).dividers[0]).toMatchObject({ fromBottom: 42, seam: 'r:0', linked: true, auto: true });
     face.children[0].size = 30;
@@ -97,12 +97,12 @@ describe('IN7 effective interior resolution', () => {
     expect(resized.faces[1].z + resized.faces[1].height - resized.box.z).toBe(53.75);
   });
 
-  it('anchor 8: pair and multi-column partitions use wall coordinates minus the box origin', () => {
+  it('pair and multi-column partitions use wall coordinates minus the box origin', () => {
     expect(resolve(leaf('pair_door'), { width: 42 }).dividers[0].fromLeft).toBe(21);
     expect(resolve(h(leaf(), leaf(), leaf()), { width: 48 }).dividers.map((d) => d.fromLeft)).toEqual([16, 32]);
   });
 
-  it('anchor 9: fixed and double fixed tops sit flush with the rail top', () => {
+  it('fixed and double fixed tops sit flush with the rail top', () => {
     const face = v(leaf(), leaf());
     for (const [kind, expected] of [['fixed', 42.375], ['double_fixed', 42]]) {
       const result = resolve(face, { inset: true, interior: tree('vertical', [{ kind, seam: 'r:0' }]) });
@@ -115,7 +115,7 @@ describe('IN7 effective interior resolution', () => {
       .dividers[0].fromBottom).toBe(42);
   });
 
-  it('anchor 10: a seam-centred stretcher fits the exact Blum preset at both top reveals', () => {
+  it('a seam-centred stretcher fits the exact Blum preset at both top reveals', () => {
     const face = v(leaf('drawer_front', 5.875), leaf('pair_door'));
     for (const [top, available, height] of [[0.25, 4.25, 4.25], [0.125, 4.125, 3.25]]) {
       const result = resolve(face, { width: 42, height: 30.5, reveals: { ...euro, top } });
@@ -128,7 +128,7 @@ describe('IN7 effective interior resolution', () => {
     }
   });
 
-  it('anchor 11: missing seams equalize and warn, including wrong directions, indices and pairs', () => {
+  it('missing seams equalize and warn, including wrong directions, indices and pairs', () => {
     const interior = tree('vertical', [fixed('r:0')]);
     const result = resolve(leaf(), { interior });
     expect(result.dividers[0]).toMatchObject({ fromBottom: 42, linked: false, auto: true });
@@ -142,7 +142,7 @@ describe('IN7 effective interior resolution', () => {
       .toContainEqual({ code: 'divider-seam-missing', path: 'r', index: 0 });
   });
 
-  it('anchor 12: fixed banding follows construction style unless explicitly stored', () => {
+  it('fixed banding follows construction style unless explicitly stored', () => {
     const face = v(leaf(), leaf());
     expect(resolve(face).dividers[0]).toMatchObject({ banding: true, bandingSource: 'auto' });
     expect(resolve(face, { inset: true }).dividers[0]).toMatchObject({ banding: false, bandingSource: 'auto' });
@@ -156,7 +156,7 @@ describe('IN7 effective interior resolution', () => {
     expect(resolve(v(leaf('drawer_front'), leaf('pair_door')), { width: 42 }).dividers[0].banding).toBeNull();
   });
 
-  it('anchor 13: manual empty trees warn only when the automatic faces would need a partition', () => {
+  it('manual empty trees warn only when the automatic faces would need a partition', () => {
     const result = resolve(leaf('pair_door'), { width: 42, interior: {} });
     expect(result).toMatchObject({ tree: {}, auto: false, dividers: [], warnings: [{ code: 'wide-no-partition' }] });
     expect(resolve(leaf(), { width: 42, interior: {} }).warnings).toEqual([]);

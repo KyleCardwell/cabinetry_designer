@@ -207,7 +207,7 @@ function expectContiguous(chain, startOrLength, end) {
     .toBeCloseTo(finish - start, 8);
 }
 
-describe('FL2.1 step b lapped corner dimensions', () => {
+describe('lapped corner dimensions (FL2.1)', () => {
   function fixture({ angle = 90, upper = false, frame = false, mode } = {}) {
     const type = upper ? CABINET_TYPE_IDS.UPPER : CABINET_TYPE_IDS.BASE;
     const makeRun = (id, side) => cabinetRun(id, type, {
@@ -274,15 +274,15 @@ describe('FL2.1 step b lapped corner dimensions', () => {
     expect(after[0].inner.at(-2).pieceId).toBeDefined();
   });
 
-  it('D3: applies the same boundary to the upper chain', () => {
+  it('applies the same boundary to the upper chain (D3)', () => {
     checkLapped({ upper: true }, 12.875, 0.8125);
   });
 
-  it('D4: shortens the corner frame stile while preserving its kind and metadata', () => {
+  it('shortens the corner frame stile while preserving its kind and metadata (D4)', () => {
     checkLapped({ frame: true }, 24.875, 0.8125);
   });
 
-  it('D5: uses the lap scaled by the sine of a 135-degree corner', () => {
+  it('uses the lap scaled by the sine of a 135-degree corner (D5)', () => {
     // Exact resolved geometry isolates this chain from resolveHorizontal's existing 1/16 rounding.
     const room = fixture({ angle: 135 });
     for (const [index, wall] of room.walls.entries()) {
@@ -346,7 +346,7 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('2. lays out A inner pieces and its corner gap, without the open gap (DM3)', () => {
+  it('lays out A inner pieces and its corner gap, without the open gap (DM3)', () => {
     const room = cornerRunRoom();
     const wall = room.walls.find(({ id }) => id === 'A');
     const { inner } = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
@@ -361,7 +361,7 @@ describe('horizontalChains', () => {
     expectNumbersClose(lengths(inner), [1.5, 28.5, 28.5, 1.5, 24.875]);
   });
 
-  it('3. expands A outer run across the right corner gap', () => {
+  it('expands A outer run across the right corner gap', () => {
     const room = cornerRunRoom();
     const wall = room.walls.find(({ id }) => id === 'A');
     const chains = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
@@ -374,7 +374,7 @@ describe('horizontalChains', () => {
     expectContiguous(chains.outer, 120);
   });
 
-  it('4. represents B left corner reserve in its inner and outer chains', () => {
+  it('represents B left corner reserve in its inner and outer chains', () => {
     const room = cornerRunRoom();
     const wall = room.walls.find(({ id }) => id === 'B');
     const chains = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
@@ -389,7 +389,7 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('DM3: leaves the wall length to the wall row below when only base runs exist', () => {
+  it('leaves the wall length to the wall row below when only base runs exist (DM3)', () => {
     const room = roomR({
       wallA: { runs: [cabinetRun('base', CABINET_TYPE_IDS.BASE)] },
     });
@@ -411,7 +411,7 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('6. keeps the tall span on the upper piece row', () => {
+  it('keeps the tall span on the upper piece row', () => {
     const room = syncRoom(roomR({
       wallA: {
         runs: [
@@ -436,7 +436,7 @@ describe('horizontalChains', () => {
     expect(inner).toHaveLength(tallIndex + 1);
   });
 
-  it('13. extends both chains across a left-overhanging run', () => {
+  it('extends both chains across a left-overhanging run', () => {
     const room = syncRoom(roomR({
       wallA: {
         runs: [cabinetRun('overhang', CABINET_TYPE_IDS.BASE, {
@@ -454,7 +454,7 @@ describe('horizontalChains', () => {
     expectContiguous(chains.outer, -6, 120);
   });
 
-  it('228. adds a base neighbour to both lower chains', () => {
+  it('adds a base neighbour to both lower chains', () => {
     const room = straightRoom({
       wallA: { runs: [base('A1', { x: 90 })] },
       wallB: { runs: [base('B1')] },
@@ -487,7 +487,7 @@ describe('horizontalChains', () => {
     expectContiguous(wallB.outer, -30, 120);
   });
 
-  it('229. adds an upper neighbour only to the upper chains', () => {
+  it('adds an upper neighbour only to the upper chains', () => {
     const room = straightRoom({
       wallA: { runs: [base('A1', { x: 90 })] },
       wallB: { runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
@@ -545,7 +545,7 @@ function selectedColumn(room, lowerId, upperId = null) {
 }
 
 describe('verticalChains', () => {
-  it('7. lays out the default base and upper stack to a 96-inch wall', () => {
+  it('lays out the default base and upper stack to a 96-inch wall', () => {
     const room = verticalRoom();
     const { wall, lowerRun, upperRun } = selectedColumn(room, 'base', 'upper');
     const chains = verticalChains(room, wall, { lowerRun, upperRun }, DEFAULT_SETTINGS);
@@ -562,7 +562,7 @@ describe('verticalChains', () => {
     expect(chains.outer).toEqual([{ start: 0, end: 96, kind: 'wall' }]);
   });
 
-  it('8. appends open space above the same stack on a 100-inch wall', () => {
+  it('appends open space above the same stack on a 100-inch wall', () => {
     const room = verticalRoom({ height: 100 });
     const { wall, lowerRun, upperRun } = selectedColumn(room, 'base', 'upper');
     const { inner } = verticalChains(
@@ -576,7 +576,7 @@ describe('verticalChains', () => {
     expect(inner.at(-1).end - inner.at(-1).start).toBe(4);
   });
 
-  it('9. resolves countertop overrides and the resulting upper geometry', () => {
+  it('resolves countertop overrides and the resulting upper geometry', () => {
     const room = verticalRoom({
       baseOverrides: { overrides: { countertopThickness: 3 } },
     });
@@ -595,7 +595,7 @@ describe('verticalChains', () => {
     expect(boxes[1].end - boxes[1].start).toBe(34.5);
   });
 
-  it('10. lays out an automatic tall run with molding', () => {
+  it('lays out an automatic tall run with molding', () => {
     const room = verticalRoom({ tall: true });
     const { wall, lowerRun } = selectedColumn(room, 'tall');
     const { inner } = verticalChains(
@@ -611,7 +611,7 @@ describe('verticalChains', () => {
 });
 
 describe('pickColumnRuns', () => {
-  it('11. picks the selected column or the leftmost runs by default', () => {
+  it('picks the selected column or the leftmost runs by default', () => {
     const room = syncRoom(roomR({
       wallA: {
         runs: [
@@ -634,7 +634,7 @@ describe('pickColumnRuns', () => {
     });
   });
 
-  it('192. picks the default pair for each edge', () => {
+  it('picks the default pair for each edge', () => {
     const room = syncRoom(roomR({
       wallA: {
         runs: [
@@ -892,7 +892,7 @@ function windowOpening(overrides = {}) {
 }
 
 describe('opening dimensions', () => {
-  it('21. builds a contiguous jamb-reference chain across the wall', () => {
+  it('builds a contiguous jamb-reference chain across the wall', () => {
     const room = roomR({
       wallA: { openings: [doorOpening(), windowOpening()] },
     });
@@ -909,7 +909,7 @@ describe('opening dimensions', () => {
     expectContiguous(chain, 120);
   });
 
-  it('22. uses casing reference edges and keeps the chain contiguous', () => {
+  it('uses casing reference edges and keeps the chain contiguous', () => {
     const room = roomR({
       wallA: {
         openings: [
@@ -930,7 +930,7 @@ describe('opening dimensions', () => {
     expectContiguous(chain, 120);
   });
 
-  it('23. builds window and door vertical opening chains', () => {
+  it('builds window and door vertical opening chains', () => {
     const wall = roomR().walls[0];
     expect(verticalOpeningChain(wall, windowOpening(), 120, DEFAULT_SETTINGS)).toEqual({
       inner: [

@@ -73,14 +73,14 @@ function setup({ profile = picks, runs = [{}], corner = false, neighborProfile =
 }
 
 describe('SPEC-50.3 step 476 profiled band ends', () => {
-  it('returns a cove at both free ends, preserving arcs and stopping lines on its contour (anchor 1)', () => {
+  it('returns a cove at both free ends, preserving arcs and stopping lines on its contour', () => {
     const { bands: [{ crown }] } = setup();
     expect(crown).toEqual({ x: 26.75, z: 92.5, width: 42.5, height: 3.5,
       ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })], outline: CROWN,
       lines: [line(26.75, 69.25, 95.5), line(29.25, 66.75, 93)] });
   });
 
-  it('returns a top mold along its stepped front and sends both band outlines in the payload (anchor 2)', () => {
+  it('returns a top mold along its stepped front and sends both band outlines in the payload', () => {
     const { room, bands: [{ topMold, crown }] } = setup();
     expect(topMold).toEqual({ x: 29.75, z: 90, width: 36.5, height: 3,
       ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })], outline: TOP,
@@ -92,7 +92,7 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
     expect(parts.map(({ lines }) => lines)).toEqual([topMold.lines, crown.lines]);
   });
 
-  it('returns the deeper run and copes the shallower onto that same contour (anchor 3)', () => {
+  it('returns the deeper run and copes the shallower onto that same contour', () => {
     const { bands: [deeper, shallow] } = setup({ runs: [{ depth: 15 }, { x: 66 }] });
     expect(deeper.crown.outline).toEqual(CROWN);
     expect(shallow.crown.outline).toEqual([[66.75, 92.5, 0], [102.75, 92.5, 0], [102.75, 93, -0.414214],
@@ -103,7 +103,7 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
     expect(mirrored.lines).toEqual([line(26.75, 62.75, 95.5), line(29.25, 65.25, 93)]);
   });
 
-  it('copes on the actual inside corner return, measured from the corner at zero (anchor 4)', () => {
+  it('copes on the actual inside corner return, measured from the corner at zero', () => {
     const { room, wall, bands: [{ crown }] } = setup({ corner: true });
     expect(crown.outline).toEqual([[13.625, 92.5, 0], ...CROWN.slice(1, 5),
       [16.125, 96, 0], [16.125, 95.5, 0.414214], [13.625, 93, 0]]);

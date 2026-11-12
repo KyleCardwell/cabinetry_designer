@@ -43,7 +43,7 @@ const initial = {
 };
 const refusal = "Wall 3 can't end there: Wall 2 lands on it. Move or detach Wall 2 first.";
 
-describe('WL1 b: host edits hold landed walls in the store', () => {
+describe('host edits hold landed walls in the store (WL1)', () => {
   it.each([
     ['anchor 1: length edit', setWallLength({ wallId: 'wall-3', length: 111, growEnd: 'left' })],
     ['anchor 2: endpoint edit', moveWallEndpoint({ wallId: 'wall-3', endpoint: 'start', x: -12.5, y: 9 })],
@@ -78,7 +78,7 @@ describe('WL1 b: host edits hold landed walls in the store', () => {
     expect(state.rooms).toBe(before.rooms);
   });
 
-  it('anchor 4: moving the host across its face stretches only the landed end', () => {
+  it('moving the host across its face stretches only the landed end', () => {
     const state = elevationReducer({ ...initial, message: 'old' }, moveWallPerpendicular({
       wallId: 'wall-3', delta: 2,
     }));
@@ -91,7 +91,7 @@ describe('WL1 b: host edits hold landed walls in the store', () => {
     expect(state.message).toBeNull();
   });
 
-  it('anchor 5: moving the landed wall still re-measures its own offset', () => {
+  it('moving the landed wall still re-measures its own offset', () => {
     const state = elevationReducer(initial, moveWallPerpendicular({ wallId: 'wall-2', delta: 13 }));
     expect(byId(state.rooms[0], 'wall-2')).toMatchObject({
       x1: -25.5, y1: 83.5, x2: -25.5, y2: 13.5, landings: { end: { offset: 26 } },
@@ -100,7 +100,7 @@ describe('WL1 b: host edits hold landed walls in the store', () => {
     expect(state.message).toBeNull();
   });
 
-  it('anchor 6: keeps Room 10 Wall 5 square when Wall 6 shrinks from its free end', () => {
+  it('keeps Room 10 Wall 5 square when Wall 6 shrinks from its free end', () => {
     const source = JSON.parse(readFileSync(new URL(
       '../../model/__tests__/fixtures/room10bt.json', import.meta.url,
     ), 'utf8'));

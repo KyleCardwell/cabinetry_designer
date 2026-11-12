@@ -36,7 +36,7 @@ function run(overrides = {}) {
 }
 
 describe('properties helpers', () => {
-  it('15. describes inside, outside, and opening anchor offsets', () => {
+  it('describes inside, outside, and opening anchor offsets', () => {
     const wallA = {
       id: 'A', name: '', numberOverride: null,
       x1: 0, y1: 0, x2: 120, y2: 0,

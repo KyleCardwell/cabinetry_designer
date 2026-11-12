@@ -24,8 +24,8 @@ const stored9b = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', impor
 const settings9b = { ...DEFAULT_SETTINGS, ...stored9b.settingsOverrides };
 const room9b = syncRoom(structuredClone(stored9b), settings9b);
 
-describe('CC5 step a corner parts in plan', () => {
-  it.each([90, 45])('anchor 9: exports a %s corner polygon, faces and return panel with their tops', (kind) => {
+describe('corner parts in plan (CC5)', () => {
+  it.each([90, 45])('exports a %s corner polygon, faces and return panel with their tops', (kind) => {
     const owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')], _doorThickness: 0.75,
       style: { cabinetStyleId: 13 }, anchors: { left: true, right: false },
       ends: { left: normalizeCornerEnd({ corner: { kind } }), right: { type: 'none' } },
@@ -58,7 +58,7 @@ describe('CC5 step a corner parts in plan', () => {
   });
 });
 
-describe('PT1 step b tops in the plan payload', () => {
+describe('tops in the plan payload (PT1)', () => {
   it('anchor 1 (PT2 c): adds the Room 9b exposed top edges, open where the tall frame covers the end', () => {
     const tops = planParts(room9b, settings9b).filter(({ kind }) => kind === 'countertop');
     expect(tops).toEqual([{
@@ -70,7 +70,7 @@ describe('PT1 step b tops in the plan payload', () => {
     expect(tops[0]).not.toHaveProperty('runId');
   });
 
-  it('anchor 3: snaps a plan measurement to the Room 9b top corner in canvas coordinates', () => {
+  it('snaps a plan measurement to the Room 9b top corner in canvas coordinates', () => {
     const geometry = planMeasureGeometry(room9b, settings9b);
     expect(snapMeasure({ x: -18.6, y: 40.3 }, geometry, 0.125))
       .toEqual({ kind: 'corner', point: { x: -18.625, y: 40.25 } });

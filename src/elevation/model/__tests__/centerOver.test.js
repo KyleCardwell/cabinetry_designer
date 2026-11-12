@@ -49,11 +49,11 @@ const upperRun = (overrides = {}) => run({
 });
 const small = (runs) => room({ walls: [wall({ runs })] });
 
-describe('CV1 step a: center-over targets', () => {
+describe('center-over targets (CV1)', () => {
   const targets = centerOverTargets(stored, WALL, HOOD, settings8);
   const byKey = (key) => targets.find((entry) => entry.key === key);
 
-  it('anchor 1: lists the base run, its cabinets and its open cell, but not the hood', () => {
+  it('lists the base run, its cabinets and its open cell, but not the hood', () => {
     expect(byKey(`${BASE}:run`)).toMatchObject({ kind: 'run', rect: { x: 38, width: 197 }, center: 136.5 });
     expect(targets.filter((entry) => entry.runId === BASE && entry.kind === 'cabinet')
       .map((entry) => entry.rect.x)).toEqual([38.75, 75.25, 161.25, 197.75]);
@@ -63,13 +63,13 @@ describe('CV1 step a: center-over targets', () => {
     expect(targets.some((entry) => entry.runId === HOOD)).toBe(false);
   });
 
-  it('anchor 2: the tall run gives its whole run, its column and both row cells', () => {
+  it('the tall run gives its whole run, its column and both row cells', () => {
     const tall = targets.filter((entry) => entry.runId === TALL);
     expect(tall.map((entry) => entry.kind)).toEqual(['run', 'column', 'cabinet', 'cabinet']);
     expect(tall.slice(1).map((entry) => entry.rect.height)).toEqual([86, 29.75, 56.25]);
   });
 
-  it('anchor 3: a point in the open cell hits the cell first and the whole run last', () => {
+  it('a point in the open cell hits the cell first and the whole run last', () => {
     const hits = targetsAt(targets, { x: 135.5, z: 20 });
     expect(hits.map((entry) => entry.key)).toEqual([`${BASE}:${VOID}`, `${BASE}:run`]);
   });
@@ -80,17 +80,17 @@ describe('CV1 step a: center-over targets', () => {
     expect(hits[0].rect.height).toBe(29.75);
   });
 
-  it('anchor 4: a point on the base filler hits only the whole run', () => {
+  it('a point on the base filler hits only the whole run', () => {
     expect(targetsAt(targets, { x: 234.5, z: 20 }).map((entry) => entry.key)).toEqual([`${BASE}:run`]);
   });
 
-  it('anchor 5: blank wall hits nothing', () => {
+  it('blank wall hits nothing', () => {
     expect(targetsAt(targets, { x: 135.5, z: 50 })).toEqual([]);
   });
 });
 
-describe('LL4 f: live centerRunOver', () => {
-  it('anchor 6: centers the Room 8 hood on the open cell and moves both joints', () => {
+describe('live centerRunOver (LL4)', () => {
+  it('centers the Room 8 hood on the open cell and moves both joints', () => {
     const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${VOID}`, settings8, { lineId: 'N' });
     expect(result).toMatchObject({ ok: true, reason: null, lineId: 'N', targetAttached: true });
     expect(wallOf(result).lines).toEqual([{ id: 'N', label: 'L1', from: 'right', value: 98.5 }]);
@@ -107,14 +107,14 @@ describe('LL4 f: live centerRunOver', () => {
     expect(jointX(result, HOOD_RIGHT_JOINT)).toBe(176.5);
   });
 
-  it('anchor 7: centers over the whole base run', () => {
+  it('centers over the whole base run', () => {
     const result = centerRunOver(stored, WALL, HOOD, `${BASE}:run`, settings8, { lineId: 'N' });
     expect(result).toMatchObject({ ok: true, targetAttached: true });
     expect(runOf(result, BASE).attach).toEqual(attach('N'));
     expect(runOf(result, HOOD)).toMatchObject({ x: 96.5, width: 80, attach: attach('N') });
   });
 
-  it('anchor 8: centers exactly over the same far cabinet without the old minimum clamp', () => {
+  it('centers exactly over the same far cabinet without the old minimum clamp', () => {
     const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${FIRST_CAB}`, settings8, { lineId: 'N' });
     expect(result.ok).toBe(true);
     expect(result.target.center).toBe(57);
@@ -123,7 +123,7 @@ describe('LL4 f: live centerRunOver', () => {
     expect(jointX(result, HOOD_RIGHT_JOINT)).toBe(97);
   });
 
-  it('anchor 9: moves a free run without joints', () => {
+  it('moves a free run without joints', () => {
     const subject = small([baseRun(), upperRun()]);
     const target = centerOverTargets(subject, 'wall-1', 'up', settings).find((entry) => entry.key === 'base:v');
     const result = centerRunOver(subject, 'wall-1', 'up', 'base:v', settings, { lineId: 'N' });
@@ -131,7 +131,7 @@ describe('LL4 f: live centerRunOver', () => {
     expect(result.room.walls[0].runs.find(({ id }) => id === 'up').x).toBeCloseTo(target.center - 15, 9);
   });
 
-  it('anchor 10: cells inside split columns are targets of their own', () => {
+  it('cells inside split columns are targets of their own', () => {
     const subject = small([baseRun(split), upperRun()]);
     subject.walls[0].lines = [line('existing', 20, { label: 'L1' })];
     const targets = centerOverTargets(subject, 'wall-1', 'up', settings);
@@ -145,32 +145,32 @@ describe('LL4 f: live centerRunOver', () => {
     expect(centerOverMessage(result)).toBe("Centred on L2. That cell can't attach to a line yet, so L2 won't follow it.");
   });
 
-  it('anchor 11: refuses a run anchored to the wall end', () => {
+  it('refuses a run anchored to the wall end', () => {
     const subject = small([baseRun(), upperRun({ anchors: { left: true, right: false } })]);
     const result = centerRunOver(subject, 'wall-1', 'up', 'base:v', settings);
     expect(result).toMatchObject({ ok: false, reason: 'anchored' });
     expect(result.room).toBe(subject);
   });
 
-  it('anchor 12: an unknown target is refused', () => {
+  it('an unknown target is refused', () => {
     const subject = small([baseRun(), upperRun()]);
     expect(centerRunOver(subject, 'wall-1', 'up', 'base:nope', settings))
       .toMatchObject({ ok: false, reason: 'target-not-found' });
   });
 
-  it('anchor 13: the only run on a wall has no targets', () => {
+  it('the only run on a wall has no targets', () => {
     expect(centerOverTargets(small([upperRun()]), 'wall-1', 'up', settings)).toEqual([]);
   });
 
-  it('anchor 14: only runs on the same wall face are listed', () => {
+  it('only runs on the same wall face are listed', () => {
     const subject = small([baseRun(), upperRun(), run({ id: 'back', wallSide: 'back', x: 0, width: 60 })]);
     const runIds = new Set(centerOverTargets(subject, 'wall-1', 'up', settings).map((entry) => entry.runId));
     expect([...runIds]).toEqual(['base']);
   });
 });
 
-describe('LL4 f: shared target lines', () => {
-  it('anchor 2: moving the new Room 8 line to 99 moves the hood, joints and open together', () => {
+describe('shared target lines (LL4)', () => {
+  it('moving the new Room 8 line to 99 moves the hood, joints and open together', () => {
     const centered = centerRunOver(stored, WALL, HOOD, `${BASE}:${VOID}`, settings8, { lineId: 'N' });
     const edited = structuredClone(centered.room);
     edited.walls.find(({ id }) => id === WALL).lines[0].value = 99;
@@ -184,7 +184,7 @@ describe('LL4 f: shared target lines', () => {
       .toMatchObject({ rect: { x: 112, width: 48 }, center: 136 });
   });
 
-  it('anchor 3: reuses the open column’s left-edge line with a 24-inch centre offset', () => {
+  it('reuses the open column’s left-edge line with a 24-inch centre offset', () => {
     const source = structuredClone(stored);
     const wall = source.walls.find(({ id }) => id === WALL);
     wall.lines = [line('existing', 112.5)];

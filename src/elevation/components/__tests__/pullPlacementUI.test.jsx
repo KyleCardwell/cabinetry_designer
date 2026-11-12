@@ -70,9 +70,9 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('HP4 step c pull placement pickers', () => {
+describe('pull placement pickers (HP4)', () => {
 
-  it('anchor 3: offers only drawer positions, stores 2–4 pulls across, and removes the count on 1', () => {
+  it('offers only drawer positions, stores 2–4 pulls across, and removes the count on 1', () => {
     for (const type of ['drawer_front', 'false_front']) {
       edit(() => { item().face = { type, size: null, pullId: 'pull-4' }; });
       expect(options(find(face(), 'Pull position'))).toEqual([
@@ -89,7 +89,7 @@ describe('HP4 step c pull placement pickers', () => {
     }
   });
 
-  it('anchor 4: sets cabinet height 42, shows the tall auto choice, clears to inherited 45 and supports itemIds', () => {
+  it('sets cabinet height 42, shows the tall auto choice, clears to inherited 45 and supports itemIds', () => {
     // This door extends across both candidate heights, 42 and 45 inches.
     run().height = 50;
     const input = () => find(cabinet(), 'Tall pull height');

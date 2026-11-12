@@ -44,20 +44,20 @@ function setup({ profile = {}, overrides = {}, corner = false } = {}, using = se
 }
 
 describe('SPEC-50.5 step 489 furniture base side shapes', () => {
-  it('replaces the toe kick with a plain rectangle from the faces to the proud front (anchor 1)', () => {
+  it('replaces the toe kick with a plain rectangle from the faces to the proud front', () => {
     const { pieces } = setup();
     expect(pieces[0]).toEqual({ piece: 'furniture_base', z: 0, height: 4, back: 24.875, front: 25.6875 });
     expect(pieces.some(({ piece }) => piece === 'toe_kick')).toBe(false);
   });
 
-  it('places the fb4 closed outline down from the base top (anchor 2)', () => {
+  it('places the fb4 closed outline down from the base top', () => {
     const { pieces } = setup({ profile: { furnitureBaseProfileId: 'fb4' } });
     expect(pieces[0]).toEqual({ piece: 'furniture_base', z: 0, height: 4,
       back: 24.875, front: 25.6875, outline: OUTLINE });
     expect(pieces.some(({ piece }) => piece === 'toe_kick')).toBe(false);
   });
 
-  it('copes on the actual left inside-corner return from cornerShapes (anchor 3)', () => {
+  it('copes on the actual left inside-corner return from cornerShapes', () => {
     const { room, wall, run } = setup({ profile: { furnitureBaseProfileId: 'fb4' }, corner: true });
     const shapes = cornerShapes(room, wall, 'front', settings);
     const returned = shapes.find(({ kind, runId }) => kind === 'return' && runId === 'neighbor');
@@ -72,7 +72,7 @@ describe('SPEC-50.5 step 489 furniture base side shapes', () => {
     expect(band.outline.slice(-2)).toEqual([[25.375, 4, 0], [25.6875, 3.6875, 0]]);
   });
 
-  it('preserves the existing toe kick side pieces (anchor 4)', () => {
+  it('preserves the existing toe kick side pieces', () => {
     expect(setup({ overrides: { baseKind: 'toe_kick' } }).pieces).toEqual([
       { piece: 'toe_kick', z: 0, height: 4, back: 0, front: 21 },
       { piece: 'box', z: 4, height: 30.5, back: 0, front: 24 },

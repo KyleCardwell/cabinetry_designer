@@ -160,7 +160,7 @@ function blindFixture(overrides = {}) {
 }
 
 describe('plan box and face geometry', () => {
-  it('217. builds the box, faces, and cabinet-side filler return', () => {
+  it('builds the box, faces, and cabinet-side filler return', () => {
     const input = fixture();
     const result = planRunPieces(
       input.room,
@@ -197,7 +197,7 @@ describe('plan box and face geometry', () => {
     }]);
   });
 
-  it('218. grows an ordered end filler away from the cabinet', () => {
+  it('grows an ordered end filler away from the cabinet', () => {
     const input = fixture({
       endFiller: { left: { width: 6, returnDepth: 4 }, right: null },
     });
@@ -230,7 +230,7 @@ describe('plan box and face geometry', () => {
     }]);
   });
 
-  it('219. keeps only the highest face in each horizontal span', () => {
+  it('keeps only the highest face in each horizontal span', () => {
     const drawers = [
       { x: 0, z: 0, width: 20, height: 8 },
       { x: 0, z: 9, width: 20, height: 8 },
@@ -254,7 +254,7 @@ describe('plan box and face geometry', () => {
     expect(topFaces([])).toEqual([]);
   });
 
-  it('224. uses blind filler width and return defaults without storing them', () => {
+  it('uses blind filler width and return defaults without storing them', () => {
     const defaults = blindFixture();
     const defaultResult = planRunPieces(
       defaults.room,
@@ -312,7 +312,7 @@ describe('plan box and face geometry', () => {
     ]);
   });
 
-  it('226. draws cabinet boxes and an end panel at their true sizes', () => {
+  it('draws cabinet boxes and an end panel at their true sizes', () => {
     const input = fixture({
       x: 0,
       width: 30,
@@ -349,7 +349,7 @@ describe('plan box and face geometry', () => {
     expect(result.span).toEqual({ start: 0, end: 30.0625 });
   });
 
-  it('227. uses one ordered-width box for a blind cabinet', () => {
+  it('uses one ordered-width box for a blind cabinet', () => {
     const input = blindFixture();
     const result = planRunPieces(
       input.room,
@@ -386,7 +386,7 @@ describe('plan box and face geometry', () => {
     ]);
   });
 
-  it('232. draws the blind panel as a face entry at the face plane', () => {
+  it('draws the blind panel as a face entry at the face plane', () => {
     const room = cornerRoom(tallBlind(), [neighborBase(), neighborUpper()]);
     const wall = wallSideView(room.walls[0], 'front');
     const resolvedRun = wall.runs[0];

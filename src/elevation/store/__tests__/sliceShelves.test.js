@@ -13,8 +13,8 @@ const base = () => {
 };
 const leaves = (state) => gridLeaves(currentRun(state).grid);
 
-describe('IN8 cabinet shelf storage', () => {
-  it('IN13b anchor 6: rejects cabinet shoe counts without changing state', () => {
+describe('cabinet shelf storage (IN8)', () => {
+  it('rejects cabinet shoe counts without changing state (IN13b)', () => {
     const state = base();
     for (const patch of [{ shoe: 2 }, { shoe: null }, { glass: true, shoe: 2 }]) {
       expect(elevationReducer(state, setItemShelves({ ...at, itemIds: ['c1', 'c2'], patch }))).toBe(state);

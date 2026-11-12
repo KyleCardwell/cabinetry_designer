@@ -30,17 +30,17 @@ const jambX = (state) => openingGeometry(windowOf(state), 240, DEFAULT_SETTINGS)
 const attached = (attachment = attach('L1')) => reduce(initial(),
   setAttachment({ ...at, target: { kind: 'opening', openingId: 'W' }, attach: attachment }));
 
-describe('LL3 opening edits with layout lines', () => {
+describe('opening edits with layout lines (LL3)', () => {
   it('moves an opening onto the line it is attached to', () => {
     expect(jambX(attached())).toBe(82);
   });
 
-  it('8. grows a centre-attached window about the line', () => {
+  it('grows a centre-attached window about the line', () => {
     const state = reduce(attached(), resizeOpening({ ...at, openingId: 'W', width: 40, grow: 'right' }));
     expect(jambX(state)).toBe(80);
   });
 
-  it('9. keeps an edge-attached window in place when switching measure mode', () => {
+  it('keeps an edge-attached window in place when switching measure mode', () => {
     const state = reduce(attached(attach('L1', 'left')), setOpeningMeasureMode({ ...at, openingId: 'W', mode: 'casing' }));
     expect(windowOf(state).attach.offset).toBe(-3);
     expect(jambX(state)).toBe(100);
@@ -48,20 +48,20 @@ describe('LL3 opening edits with layout lines', () => {
     expect(windowOf(state).width).toBe(42);
   });
 
-  it('14. refuses to drag an attached window', () => {
+  it('refuses to drag an attached window', () => {
     const start = attached();
     const state = reduce(start, moveOpening({ ...at, openingId: 'W', x: 30 }));
     expect(windowOf(state)).toEqual(windowOf(start));
     expect(state.message).toBe('W1 is attached to line L1: move the line, or detach.');
   });
 
-  it('15. ignores a typed offset but applies the rest', () => {
+  it('ignores a typed offset but applies the rest', () => {
     const state = reduce(attached(), updateOpening({ ...at, openingId: 'W', changes: { offset: 5, height: 50 } }));
     expect(windowOf(state).height).toBe(50);
     expect(jambX(state)).toBe(82);
   });
 
-  it('16. makes a new line through the window without moving it', () => {
+  it('makes a new line through the window without moving it', () => {
     const state = reduce(initial({ lines: [] }), attachOpeningToNewLine({ ...at, openingId: 'W', id: 'N' }));
     expect(wallOf(state).lines).toEqual([{ id: 'N', label: 'L1', from: 'left', value: 42 }]);
     expect(windowOf(state).attach).toEqual({ lineId: 'N', at: 'center', offset: 0 });
@@ -74,14 +74,14 @@ describe('LL3 opening edits with layout lines', () => {
     expect(windowOf(fromRight).offset).toBe(180);
   });
 
-  it('17. changing the point keeps the offset and moves the window', () => {
+  it('changing the point keeps the offset and moves the window', () => {
     const state = reduce(attached(), setAttachment({
       ...at, target: { kind: 'opening', openingId: 'W' }, attach: attach('L1', 'left', 0),
     }));
     expect(jambX(state)).toBe(100);
   });
 
-  it('18. selects a line exclusively', () => {
+  it('selects a line exclusively', () => {
     const selected = reduce(initial(), setSelection({ lineId: 'L1' }));
     expect(selected.selection).toMatchObject({ lineId: 'L1', runId: null, openingId: null, soffitId: null, recessId: null });
     expect(reduce(selected, setSelection({ runId: 'run-1' })).selection).not.toHaveProperty('lineId');

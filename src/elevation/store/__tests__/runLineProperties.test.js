@@ -12,8 +12,8 @@ const BASE = '8837d4ef-0f27-4ae9-aec6-2d563cadc4b3';
 const VOID = 'e77c1c0c-b386-4716-bc71-0f23ec1e585c';
 const HOOD = 'c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757';
 
-describe('LL4 f run line actions', () => {
-  it('anchor 6: makes a line at 25 through a free run without moving it', () => {
+describe('run line actions (LL4)', () => {
+  it('makes a line at 25 through a free run without moving it', () => {
     const start = createInitialElevationState(null);
     const subject = room({ walls: [wall({ runs: [run({ x: 10, width: 30 })] })] });
     const state = { ...start, rooms: [subject], activeRoomId: subject.id };
@@ -36,7 +36,7 @@ describe('LL4 f run line actions', () => {
     expect(elevationReducer(state, attachRunToNewLine({ wallId: 'wall-1', runId: 'run-1', at: 'bad' }))).toBe(state);
   });
 
-  it('anchor 1: a single action attaches the Room 8 hood and open, moves joints, and sets the message', () => {
+  it('a single action attaches the Room 8 hood and open, moves joints, and sets the message', () => {
     const state = { ...createInitialElevationState(null), rooms: [stored], activeRoomId: stored.id };
     const action = centerRunOnLine({ wallId: WALL, runId: HOOD, targetKey: `${BASE}:${VOID}` });
     expect(action.payload.lineId).toEqual(expect.any(String));

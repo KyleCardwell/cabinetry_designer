@@ -7,16 +7,16 @@ import {
 } from '../alignment.js';
 
 describe('alignment snapping', () => {
-  it('1. takes the nearest candidate inside tolerance', () => {
+  it('takes the nearest candidate inside tolerance', () => {
     expect(snapAxis(12.4, [0, 12, 24], 1)).toBe(12);
     expect(snapAxis(12.4, [0, 24], 1)).toBeNull();
   });
 
-  it('2. breaks a tie in favor of the smaller candidate', () => {
+  it('breaks a tie in favor of the smaller candidate', () => {
     expect(snapAxis(12, [11.5, 12.5], 1)).toBe(11.5);
   });
 
-  it('3. moves both axes and reports both guides', () => {
+  it('moves both axes and reports both guides', () => {
     expect(snapToAlignment(
       { x: 12.4, y: 47.6 },
       { x: [12], y: [48] },
@@ -27,7 +27,7 @@ describe('alignment snapping', () => {
     });
   });
 
-  it('4. restricts snapping to the requested axes', () => {
+  it('restricts snapping to the requested axes', () => {
     expect(snapToAlignment(
       { x: 12.4, y: 47.6 },
       { x: [12], y: [48] },
@@ -39,7 +39,7 @@ describe('alignment snapping', () => {
     });
   });
 
-  it('5. leaves the point alone when nothing is in range', () => {
+  it('leaves the point alone when nothing is in range', () => {
     expect(snapToAlignment(
       { x: 5, z: 5 },
       { x: [40], z: [40] },
@@ -50,7 +50,7 @@ describe('alignment snapping', () => {
     });
   });
 
-  it('6. builds endpoint targets and excludes a named wall', () => {
+  it('builds endpoint targets and excludes a named wall', () => {
     const walls = [
       { id: 'a', x1: 0, y1: 0, x2: 120, y2: 0 },
       { id: 'b', x1: 120, y1: 0, x2: 120, y2: 96 },
@@ -66,7 +66,7 @@ describe('alignment snapping', () => {
     });
   });
 
-  it('7. reads resolved run boxes and excludes one', () => {
+  it('reads resolved run boxes and excludes one', () => {
     const wall = {
       runs: [
         { id: 'r1', x: 12, width: 36, z: 4, height: 30.5 },

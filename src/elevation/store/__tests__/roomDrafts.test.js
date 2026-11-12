@@ -25,7 +25,7 @@ function behavesLikeADraftStore(make) {
   });
 }
 
-describe('DB6a draft stores', () => {
+describe('draft stores (DB6a)', () => {
   describe('memory', () => behavesLikeADraftStore(createMemoryDraftStore));
   describe('IndexedDB', () => behavesLikeADraftStore(() => createIndexedDbDraftStore(new IDBFactory())));
 

@@ -43,7 +43,7 @@ const appliedPick = (pick, offset = 0, index = 0) => ({
 });
 const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], minX: 0, maxX: 0.25, reachIn: 0.25, reachOut: 0, covers: false };
 
-it('IN14 omits panel lines, miters and panel fit checks while retaining the frame and applied profiles', () => {
+it('omits panel lines, miters and panel fit checks while retaining the frame and applied profiles (IN14)', () => {
   const rect = box(0, 0, 24, 30);
   const offsets = doorProfileOffsets(ALL, FIVE, LIBRARY);
   const detail = partDetail(ALL, FIVE, rect, undefined, 0, offsets.applied);
@@ -195,7 +195,7 @@ describe('SPEC-50.1 core and covered opening lines', () => {
     return { detail, offsets, fit: partProfileLines(offsets, detail, rect) };
   };
 
-  it('keeps overall size while insetting the core and hides an AM-covered opening (anchors 1 and 4)', () => {
+  it('keeps overall size while insetting the core and hides an AM-covered opening', () => {
     const rect = box(0, 0, 15, 30);
     const { detail, offsets, fit } = build({ outside: BEAD5.id, applied: AM.id }, rect);
     expect(detail.core).toEqual(box(0.3125, 0.3125, 14.375, 29.375));
@@ -213,7 +213,7 @@ describe('SPEC-50.1 core and covered opening lines', () => {
     expect(plain.fit).toMatchObject({ lines: [], openingsShown: true, warnings: [] });
   });
 
-  it('uses core height for the slab rule and short rails, and core origins for mids (anchors 2 and 3)', () => {
+  it('uses core height for the slab rule and short rails, and core origins for mids', () => {
     const short = build({ outside: BEAD5.id }, box(0, 0, 15, 5));
     expect(short.detail.core.height).toBe(4.375);
     expect(short.detail.construction).toBe('slab');
@@ -237,7 +237,7 @@ describe('SPEC-50.1 core and covered opening lines', () => {
     ]);
   });
 
-  it('hides only references covered by a relevant closed pick and checks fit on the smaller opening (anchor 5)', () => {
+  it('hides only references covered by a relevant closed pick and checks fit on the smaller opening', () => {
     const rect = box(0, 0, 15, 30);
     for (const slot of ['inside', 'panel', 'applied', 'outside']) {
       const pick = { ...AM, kind: { inside: 'door_inside', panel: 'door_panel', applied: 'applied_molding', outside: 'door_outside' }[slot] };

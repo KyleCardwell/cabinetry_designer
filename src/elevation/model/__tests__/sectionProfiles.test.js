@@ -101,17 +101,17 @@ describe('Step 497.1 base cutout top gap data shape', () => {
   const cutg = { ...cut1, id: 'cutg', name: 'Cove, 2 below top', topGap: 2 };
   const validators = [isSectionProfile, isSectionProfileDraft];
 
-  it('accepts cutg with a positive finite top gap (anchor 1)', () => {
+  it('accepts cutg with a positive finite top gap', () => {
     for (const validate of validators) expect(validate(cutg)).toBe(true);
   });
 
-  it('rejects zero, negative and non-finite top gaps, including drafts (anchor 2)', () => {
+  it('rejects zero, negative and non-finite top gaps, including drafts', () => {
     for (const topGap of [0, -1, NaN, Infinity, -Infinity, undefined, null, '2']) {
       for (const validate of validators) expect(validate({ ...cutg, topGap })).toBe(false);
     }
   });
 
-  it('rejects a top gap on fb4 and every other non-cutout kind, including drafts (anchor 3)', () => {
+  it('rejects a top gap on fb4 and every other non-cutout kind, including drafts', () => {
     const fb4 = sample.profiles.find(({ id }) => id === 'fb4');
     for (const validate of validators) {
       expect(validate({ ...fb4, topGap: 2 })).toBe(false);
@@ -121,7 +121,7 @@ describe('Step 497.1 base cutout top gap data shape', () => {
     }
   });
 
-  it('keeps cut1 without a top gap valid and unchanged (anchor 4)', () => {
+  it('keeps cut1 without a top gap valid and unchanged', () => {
     const before = structuredClone(cut1);
     for (const validate of validators) expect(validate(cut1)).toBe(true);
     expect(cut1).toEqual(before);

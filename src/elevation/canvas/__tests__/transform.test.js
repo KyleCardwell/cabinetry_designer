@@ -113,7 +113,7 @@ describe('elevation canvas transform', () => {
     expect(after.y - before.y).toBe(-9);
   });
 
-  it('5. composes repeated pointer-centered zoom with an intervening pan', () => {
+  it('composes repeated pointer-centered zoom with an intervening pan', () => {
     const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
     const pointer = { x: 300, y: 200 };
     const initialPoint = screenToWall(pointer, withView(base, DEFAULT_VIEW));

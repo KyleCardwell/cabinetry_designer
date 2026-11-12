@@ -53,7 +53,7 @@ function verticalTurn(band, x) {
   expect(band.lines[0]).toMatchObject({ z1: band.z, z2: band.z + band.height });
 }
 
-describe('CC7 step c owner bands meet the return leg', () => {
+describe('owner bands meet the return leg (CC7)', () => {
   it.each([false, true])('anchors 1 / 3: copes the E90 owner with a joining run = %s', (joins) => {
     if (joins) returnWall.runs = [run({ id: 'run-2', x: 0, width: 96,
       anchors: { left: false, right: true }, items: [auto('r')],
@@ -70,7 +70,7 @@ describe('CC7 step c owner bands meet the return leg', () => {
       .toMatchObject({ runId: 'run-1', x: 25.625 });
   });
 
-  it('anchor 2: adds only nonopaque leg bands in the owner frame, with their far depths', () => {
+  it('adds only nonopaque leg bands in the owner frame, with their far depths', () => {
     const { shapes } = resolved();
     expect(shapes).toHaveLength(1);
     expect(shapes[0]).toMatchObject({ key: 'left:corner:run-1', kind: 'return',
@@ -86,7 +86,7 @@ describe('CC7 step c owner bands meet the return leg', () => {
     });
   });
 
-  it('anchor 4: draws the E45 owner turn lines inside the coped bands', () => {
+  it('draws the E45 owner turn lines inside the coped bands', () => {
     owner.ends.left.corner.kind = 45;
     const { bands } = resolved();
     span(bands.countertop, 25.625, 120.75);
@@ -95,7 +95,7 @@ describe('CC7 step c owner bands meet the return leg', () => {
     verticalTurn(bands.toeKicks[0], 34.0074);
   });
 
-  it('anchor 5: uses the unequal-depth E45u owner fronts and independent miters', () => {
+  it('uses the unequal-depth E45u owner fronts and independent miters', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const { bands } = resolved();
     span(bands.countertop, 16.625, 120.75);
@@ -104,7 +104,7 @@ describe('CC7 step c owner bands meet the return leg', () => {
     verticalTurn(bands.toeKicks[0], 34.4726);
   });
 
-  it('anchor 6: mirrors right-hand leg bands and 45 owner turn lines', () => {
+  it('mirrors right-hand leg bands and 45 owner turn lines', () => {
     owner.x = 24;
     owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
     owner.anchors = { left: false, right: true };
@@ -122,7 +122,7 @@ describe('CC7 step c owner bands meet the return leg', () => {
     verticalTurn(result.bands.toeKicks[0], 144 - 34.0074);
   });
 
-  it('anchor 8: squashes every point of the picked crown contour, retaining its vertical endpoints', () => {
+  it('squashes every point of the picked crown contour, retaining its vertical endpoints', () => {
     const document = normalizeElevationDocument(
       JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
     );

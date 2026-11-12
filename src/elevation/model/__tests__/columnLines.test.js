@@ -48,14 +48,14 @@ function setLine(stored, value) {
   return copy;
 }
 
-describe('LL4 a columns on layout lines', () => {
+describe('columns on layout lines (LL4)', () => {
   it('placedAt reads an attachment first, then a pin', () => {
     expect(placedAt({ attach: attach('L1', 'right') })).toBe('right');
     expect(placedAt({ pin: { anchor: 'left' } })).toBe('left');
     expect(placedAt({ id: 'A' })).toBeNull();
   });
 
-  it('1. Room 10: the column is centred on the window through line L1 (centre 92)', () => {
+  it('Room 10: the column is centred on the window through line L1 (centre 92)', () => {
     const room10 = read('room10');
     const base = positions(room10)[0].runs.find((r) => r.id === 'c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e');
     const column = base.pieces.find((p) => p.id === '91b8a850-4450-4bc3-afbe-f9c1888a5d62');
@@ -64,7 +64,7 @@ describe('LL4 a columns on layout lines', () => {
     expect(positions(room10)[0].openings[0].offset).toBe(74);
   });
 
-  it('2. Room 10b: a right edge on a line grows the free end (72, 90)', () => {
+  it('Room 10b: a right edge on a line grows the free end (72, 90)', () => {
     const room10b = read('room10b');
     const span = (value) => {
       const tall = positions(setLine(room10b, value))[0].runs[0];
@@ -75,7 +75,7 @@ describe('LL4 a columns on layout lines', () => {
     expect(span(90)).toEqual([90 + 13 / 16, 90]);
   });
 
-  it('3. a back-face column targets its back line in back-face coordinates', () => {
+  it('a back-face column targets its back line in back-face coordinates', () => {
     const r = run({
       id: 'R', wallSide: 'back', items: [auto('A'), auto('B'), auto('C')],
     });
@@ -95,8 +95,8 @@ describe('LL4 a columns on layout lines', () => {
   });
 });
 
-describe('LL4 c pins out', () => {
-  it('3. sync drops a wall-end pin and keeps the wall when there are none', () => {
+describe('pins out (LL4)', () => {
+  it('sync drops a wall-end pin and keeps the wall when there are none', () => {
     const r = run({ id: 'R', items: [auto('A'), auto('B')] });
     r.grid.cols[1].pin = { anchor: 'center', from: 'left', openingId: null, openingAnchor: 'center', value: 30 };
     const synced = syncRoom(room({ walls: [wall({ id: 'H', x2: 240, runs: [r] })] }), settings);
@@ -105,7 +105,7 @@ describe('LL4 c pins out', () => {
     expect(dropWallPins(plain)).toBe(plain);
   });
 
-  it('5. callouts come from the line: Room 10 on the window, 10b from the left end', () => {
+  it('callouts come from the line: Room 10 on the window, 10b from the left end', () => {
     const marker = (stored, runId, pieceId) => {
       const synced = syncRoom(stored, settings);
       const view = resolveWall(synced, synced.walls.find((w) => w.runs.length), 'front');

@@ -50,7 +50,7 @@ beforeEach(() => {
   useDispatch.mockReturnValue(vi.fn());
 });
 
-describe('FL2 step b corner picker', () => {
+describe('corner picker (FL2)', () => {
 
   it('B3/B4: stores B Laps over, updates A Auto and both spans, then removes the key on Auto', () => {
     let state = fixture();

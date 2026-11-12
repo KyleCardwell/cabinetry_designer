@@ -15,7 +15,7 @@ describe('left-panel settings search', () => {
     expect(matchingLeftPanel('edge')).toEqual([]);
   });
 
-  it('anchor 3: omits empty searches and matches labels only, without room-height duplicates', () => {
+  it('omits empty searches and matches labels only, without room-height duplicates', () => {
     for (const query of ['', '   ', 'zzz', 'shaker', 'Crown']) {
       expect(matchingLeftPanel(query)).toEqual([]);
     }

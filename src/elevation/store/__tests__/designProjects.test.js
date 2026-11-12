@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { withDesignApi } from '../cloudThunks.js';
 import { cloudStore, fakeDesignApi } from './helpers/fakeDesignApi.js';
 
-describe('DB5 a injected project API', () => {
-  it('returns the fake reply through the thunk without changing Redux state (anchor 7)', async () => {
+describe('injected project API (DB5)', () => {
+  it('returns the fake reply through the thunk without changing Redux state', async () => {
     const api = fakeDesignApi({ projects: [{ est_project_id: 4 }] });
     const store = cloudStore(api);
     const before = store.getState();

@@ -54,8 +54,8 @@ function setup({ depth = 24, neighbor = {}, faceRun = {}, extraRuns = [], mirror
     shapes: cornerShapes(room, wall, 'front', settings) };
 }
 
-describe('DM6 step b bands meeting neighbour end views', () => {
-  it('anchor 1: runs the crown through to x -29 5/8 at the neighbour faces, dropping its crown', () => {
+describe('bands meeting neighbour end views (DM6)', () => {
+  it('runs the crown through to x -29 5/8 at the neighbour faces, dropping its crown', () => {
     const { bands, shapes } = setup();
     expect(bands.crown.ends[0]).toMatchObject({ type: 'return', x: -29.625, side: -24.875, facing: -1 });
     expect(bands.crown.x).toBe(-29.625);
@@ -64,14 +64,14 @@ describe('DM6 step b bands meeting neighbour end views', () => {
     expect(neighbor.parts.some(({ kind }) => kind === 'profile')).toBe(true);
   });
 
-  it('anchor 2: runs the top mold through to x -25 1/8 and drops its end-view copy', () => {
+  it('runs the top mold through to x -25 1/8 and drops its end-view copy', () => {
     const { bands, shapes } = setup();
     expect(bands.topMold.ends[0]).toMatchObject({ type: 'return', x: -25.125, side: -24.875, facing: -1 });
     expect(bands.topMold.x).toBe(-25.125);
     expect(shapes.find(({ runId }) => runId === 'tall').parts.some(({ kind }) => kind === 'top_mold')).toBe(false);
   });
 
-  it('anchor 3: copes a 12 inch upper into the deeper tall crown, retaining its projected return', () => {
+  it('copes a 12 inch upper into the deeper tall crown, retaining its projected return', () => {
     const { room, wall, shapes } = setup({ faceRun: { x: 36, width: 24, anchors: {} }, extraRuns: [{
       id: 'upper', cabinetTypeId: 2, heightMode: 'auto', x: 0, width: 36, depth: 12,
       overrides: {}, anchors: { left: true }, ends: {}, autoCount: false,
@@ -86,7 +86,7 @@ describe('DM6 step b bands meeting neighbour end views', () => {
     expect(outlineBounds(crown.outline)).toMatchObject({ minX: -29.625, maxX: 4.75 });
   });
 
-  it('anchor 4: returns a 30 inch deep tall freely at x -4 3/4 and keeps the neighbour crown', () => {
+  it('returns a 30 inch deep tall freely at x -4 3/4 and keeps the neighbour crown', () => {
     const { bands, shapes } = setup({ depth: 30 });
     expect(bands.crown.ends[0]).toEqual({ type: 'return', x: -4.75, side: 0, facing: -1 });
     expect(shapes.find(({ runId }) => runId === 'tall').parts.some(({ kind }) => kind === 'crown')).toBe(true);

@@ -66,9 +66,9 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('UI2 step b auto sizes', () => {
+describe('auto sizes (UI2)', () => {
 
-  it('types 27 plus trim, re-splits the run and resets to the recomputed auto width (anchors 2 and 3)', () => {
+  it('types 27 plus trim, re-splits the run and resets to the recomputed auto width', () => {
     for (const cabinetStyleId of [13, 14]) {
       state = stateWithRun(makeRun({ width: 60, autoCount: false, seamGap: 0,
         ends: { left: { type: 'none' }, right: { type: 'none' } }, items: [auto('a'), { ...auto('b'), style: { cabinetStyleId: 13 } }], style: { cabinetStyleId } }));

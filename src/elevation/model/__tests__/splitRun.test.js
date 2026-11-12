@@ -16,7 +16,7 @@ function codes(entries) {
 }
 
 describe('splitRun', () => {
-  it('15. solves the one-pin worked example without a rounding warning', () => {
+  it('solves the one-pin worked example without a rounding warning', () => {
     const run = buildRun({ autoCount: false, items: [auto('a'), { ...auto('b'), attach: attach('P', 'center') }, auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 48 } });
 
@@ -27,7 +27,7 @@ describe('splitRun', () => {
     expect(codes(result.warnings)).not.toContain('widths-not-rounded');
   });
 
-  it('16. resolves the same one-pin layout from the cabinet left edge', () => {
+  it('resolves the same one-pin layout from the cabinet left edge', () => {
     const run = buildRun({
       autoCount: false,
       items: [auto('a'), { ...auto('b'), attach: attach('P', 'left') }, auto('c'), auto('d')],
@@ -37,7 +37,7 @@ describe('splitRun', () => {
     expect(widths(result)).toEqual([1.5, 32, 29, 28, 28, 1.5]);
   });
 
-  it('17. retains pass-one pin width and warns for wide segment cabinets', () => {
+  it('retains pass-one pin width and warns for wide segment cabinets', () => {
     const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), { ...auto('c'), attach: attach('P', 'center') }, auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { c: 90 } });
 
@@ -49,7 +49,7 @@ describe('splitRun', () => {
       ]);
   });
 
-  it('18. solves a two-pin run with one interior cabinet', () => {
+  it('solves a two-pin run with one interior cabinet', () => {
     const run = buildRun({
       autoCount: false,
       items: [auto('a'), { ...fixed('b', 23), attach: attach('P', 'center') }, auto('c'), { ...fixed('d', 23), attach: attach('P', 'center') }, auto('e')],
@@ -62,7 +62,7 @@ describe('splitRun', () => {
     expect(codes(result.warnings)).not.toContain('widths-not-rounded');
   });
 
-  it('19. concentrates an interior remainder in the chosen absorber', () => {
+  it('concentrates an interior remainder in the chosen absorber', () => {
     const items = [
       auto('a'),
       { ...fixed('b', 19.5), attach: attach('P', 'center') },
@@ -86,7 +86,7 @@ describe('splitRun', () => {
     expect(firstAbsorbs.pieces.find((piece) => piece.id === 'c').absorbed).toBe(0.5);
   });
 
-  it('21. grows a free run end to make an outer pin reachable', () => {
+  it('grows a free run end to make an outer pin reachable', () => {
     const run = buildRun({
       autoCount: false,
       items: [auto('a'), auto('b'), auto('c'), auto('d'), { ...auto('e'), attach: attach('P', 'center') }],
@@ -107,7 +107,7 @@ describe('splitRun', () => {
     expect(codes(result.warnings)).not.toContain('pin-unreachable');
   });
 
-  it('22. clamps a return pin when its run end is unable to grow', () => {
+  it('clamps a return pin when its run end is unable to grow', () => {
     const run = buildRun({
       autoCount: false,
       anchors: { left: false, right: true },
@@ -124,7 +124,7 @@ describe('splitRun', () => {
     }));
   });
 
-  it('23. clamps a short middle return-pin segment because run growth cannot widen it', () => {
+  it('clamps a short middle return-pin segment because run growth cannot widen it', () => {
     const run = buildRun({
       autoCount: false,
       items: [
@@ -147,7 +147,7 @@ describe('splitRun', () => {
     }));
   });
 
-  it('24. errors for an unfilled gap between adjacent pins but accepts zero gap', () => {
+  it('errors for an unfilled gap between adjacent pins but accepts zero gap', () => {
     const run = buildRun({
       autoCount: false,
       items: [auto('a'), { ...fixed('b', 23), attach: attach('P', 'center') }, { ...fixed('c', 23), attach: attach('P', 'center') }, auto('d')],
@@ -162,7 +162,7 @@ describe('splitRun', () => {
     expect(codes(touching.errors)).not.toContain('pin-gap');
   });
 
-  it('25. preserves the established no-pin no-flex remainder behavior', () => {
+  it('preserves the established no-pin no-flex remainder behavior', () => {
     const run = buildRun({
       autoCount: false,
       width: 61.25,
@@ -175,7 +175,7 @@ describe('splitRun', () => {
     expect(widths(splitRun(run, DEFAULT_SETTINGS))).toEqual([30.625, 30.625]);
   });
 
-  it('7. distributes extra width above unequal per-side filler minimums', () => {
+  it('distributes extra width above unequal per-side filler minimums', () => {
     const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, {
       endMinWidths: { left: 1.5, right: 3 },
@@ -185,7 +185,7 @@ describe('splitRun', () => {
     expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(120);
   });
 
-  it('8. preserves the established result when both filler minimums are equal', () => {
+  it('preserves the established result when both filler minimums are equal', () => {
     const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, {
       endMinWidths: { left: 1.5, right: 1.5 },
@@ -194,7 +194,7 @@ describe('splitRun', () => {
     expect(widths(result)).toEqual([2, 29, 29, 29, 29, 2]);
   });
 
-  it('9. gives one flex filler its minimum plus all distributable extra', () => {
+  it('gives one flex filler its minimum plus all distributable extra', () => {
     const run = buildRun({
       autoCount: false,
       width: 96,

@@ -28,8 +28,8 @@ const initial = {
 const reduce = (state, ...actions) => actions.reduce(elevationReducer, state);
 const at = { wallId: 'wall-2' };
 
-describe('LL7 c room line editing', () => {
-  it('anchor 1: moves from W2 and returns the edited face distance', () => {
+describe('room line editing (LL7)', () => {
+  it('moves from W2 and returns the edited face distance', () => {
     const result = moveLineTo(roomR, 'wall-2', 'R1', 45, DEFAULT_SETTINGS);
     expect(result).toMatchObject({ ok: true, x: 45, value: 45 });
     expect(result.room.roomLines[0].value).toBe(105);
@@ -38,7 +38,7 @@ describe('LL7 c room line editing', () => {
     expect(roomR.roomLines[0].value).toBe(99);
   });
 
-  it('anchor 2: updates the room line through the face value action and ignores other fields', () => {
+  it('updates the room line through the face value action and ignores other fields', () => {
     const state = reduce(initial, updateLayoutLine({ ...at, lineId: 'R1', value: 40 }));
     expect(state.rooms[0].roomLines[0].value).toBe(100);
     expect(state.rooms[0].walls[1].runs[0].x).toBe(22);
@@ -48,7 +48,7 @@ describe('LL7 c room line editing', () => {
     expect(mixed.rooms[0].roomLines[0]).toMatchObject({ label: 'R1', from: 'right', value: 100 });
   });
 
-  it('anchor 3: adds R2 referenced to the island back face', () => {
+  it('adds R2 referenced to the island back face', () => {
     const state = reduce(initial, addRoomLine({ ...at, wallSide: 'back', from: 'left', value: 30 }));
     expect(state.rooms[0].roomLines[1]).toMatchObject({
       id: expect.any(String), label: 'R2', wallId: 'wall-2', wallSide: 'back', from: 'left', value: 30,
@@ -56,7 +56,7 @@ describe('LL7 c room line editing', () => {
     expect(state.rooms[0].walls[0]._roomLines.find((entry) => entry.id !== 'R1').value).toBe(90);
   });
 
-  it('anchor 4: re-references without moving, then follows the reference wall', () => {
+  it('re-references without moving, then follows the reference wall', () => {
     const state = reduce(initial, updateRoomLine({ roomLineId: 'R1', wallId: 'wall-2', from: 'left' }));
     const reference = state.rooms[0].roomLines[0];
     expect(reference).toEqual({ id: 'R1', label: 'R1', wallId: 'wall-2', from: 'left', value: 39 });
@@ -69,17 +69,17 @@ describe('LL7 c room line editing', () => {
     expect(synced.walls[1].runs[0].x).toBe(21);
   });
 
-  it('anchor 5: refuses an out-of-square reference', () => {
+  it('refuses an out-of-square reference', () => {
     expect(reduce(initial, updateRoomLine({ roomLineId: 'R1', wallId: 'wall-3' }))).toBe(initial);
   });
 
-  it('anchor 6: switches ends without moving anything', () => {
+  it('switches ends without moving anything', () => {
     const state = reduce(initial, updateRoomLine({ roomLineId: 'R1', from: 'left' }));
     expect(state.rooms[0].roomLines[0]).toMatchObject({ from: 'left', value: 141 });
     expect(state.rooms[0].walls).toEqual(roomR.walls);
   });
 
-  it('anchor 7: deletes the last line and keeps detached things at their last position', () => {
+  it('deletes the last line and keeps detached things at their last position', () => {
     const state = reduce(initial, deleteRoomLine({ roomLineId: 'R1' }));
     expect(state.rooms[0]).not.toHaveProperty('roomLines');
     expect(state.rooms[0].walls[1].runs[0]).not.toHaveProperty('attach');
@@ -87,7 +87,7 @@ describe('LL7 c room line editing', () => {
     expect(state.rooms[0].walls.every((entry) => !Object.hasOwn(entry, '_roomLines'))).toBe(true);
   });
 
-  it('anchor 8: promotes a face line with its id, attachments and geometry intact', () => {
+  it('promotes a face line with its id, attachments and geometry intact', () => {
     for (const label of ['L1', 'Range CL']) {
       const subject = room({ walls: [
         wall({ x2: 240, lines: [line('L1', 99, { from: 'right', label })], runs: [run({
@@ -108,11 +108,11 @@ describe('LL7 c room line editing', () => {
     }
   });
 
-  it('anchor 9: ignores face-line deletion for a room line', () => {
+  it('ignores face-line deletion for a room line', () => {
     expect(reduce(initial, deleteLayoutLine({ ...at, lineId: 'R1' }))).toBe(initial);
   });
 
-  it('anchor 10: gives room-line selection lowest priority and finds face lines across the room', () => {
+  it('gives room-line selection lowest priority and finds face lines across the room', () => {
     const selected = reduce(initial, setSelection({ roomLineId: 'R1' }));
     expect(selected.selection.roomLineId).toBe('R1');
     expect(selected.selection).not.toHaveProperty('lineId');

@@ -91,7 +91,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('RP2 step h Reports', () => {
+describe('Reports (RP2)', () => {
   it('falls back to all three reports for invalid stored selections and normalizes valid report ids', () => {
     for (const saved of ['{invalid', 'null', '{}', '["unknown"]', '["door_order", "unknown"]']) {
       storage.set('ff.reports', saved);

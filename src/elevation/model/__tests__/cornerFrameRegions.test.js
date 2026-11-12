@@ -35,8 +35,8 @@ function framesOf(subject, wallIndex = 0) {
 
 const box = (cells, id) => cells.pieces.find((piece) => piece.id === id);
 
-describe('CC6 step a framed corner offsets, corner laps', () => {
-  it('anchor 1: Room B laps the neighbour 3/4 over the corner box', () => {
+describe('framed corner offsets, corner laps (CC6)', () => {
+  it('Room B laps the neighbour 3/4 over the corner box', () => {
     const { frames, cells, insets } = framesOf(makeRoom());
     expect(frames.regions.some((region) => region.cabinetIds.includes('cc'))).toBe(false);
     expect(frames.freeSides.has('cc')).toBe(false);
@@ -55,7 +55,7 @@ describe('CC6 step a framed corner offsets, corner laps', () => {
     expect(frames.warnings).toEqual([]);
   });
 
-  it('anchor 2: Room C spaces the neighbour off by the mitered stile, with no lap', () => {
+  it('Room C spaces the neighbour off by the mitered stile, with no lap', () => {
     const { frames, cells, insets } = framesOf(makeRoom({ kind: 45 }));
     const [region] = frames.regions;
     expect(region.cabinetIds).toEqual(['a']);
@@ -67,13 +67,13 @@ describe('CC6 step a framed corner offsets, corner laps', () => {
     expect(box(cells, 'a').x + insets.get('a').left).toBeCloseTo(37.0865, 3);
   });
 
-  it('anchor 3: a corner column alone makes no region and no warning', () => {
+  it('a corner column alone makes no region and no warning', () => {
     const { frames } = framesOf(makeRoom({ items: [fixed('cc', 36)] }));
     expect(frames.regions).toEqual([]);
     expect(frames.warnings).toEqual([]);
   });
 
-  it('anchor 4: Room D return run laps over leg B with a joined end', () => {
+  it('Room D return run laps over leg B with a joined end', () => {
     const subject = makeRoom({ returnRun: true });
     const { run: returnRun, frames, cells, insets } = framesOf(subject, 1);
     expect(returnRun._frame.cornerDieIn).toEqual({ left: false, right: true });
@@ -102,7 +102,7 @@ describe('CC6 step a framed corner offsets, corner laps', () => {
     expect(insets.get('r').right).toBeCloseTo(1.0865, 3);
   });
 
-  it('anchor 5: framed corner faces sit on the frame front; Euro keeps its face offset', () => {
+  it('framed corner faces sit on the frame front; Euro keeps its face offset', () => {
     const framed = makeRoom();
     const framedEnd = cornerEnd(framed, framed.walls[0], framed.walls[0].runs[0], 'left', S);
     expect(framedEnd.offsetA).toBeCloseTo(0.8125, 3);
@@ -113,7 +113,7 @@ describe('CC6 step a framed corner offsets, corner laps', () => {
     expect(euroEnd.offsetB).toBeCloseTo(0.875, 3);
   });
 
-  it('anchor 6: a Euro corner owner adds no frame die-in to its return run', () => {
+  it('a Euro corner owner adds no frame die-in to its return run', () => {
     const subject = makeRoom({ style: EURO, returnRun: true });
     expect(subject.walls[1].runs[0]._frame).toBeUndefined();
     expect(subject.walls[0].runs[0]._frame).toBeUndefined();

@@ -13,8 +13,8 @@ initial.activeRoomId = target.roomId;
 initial.activeWallId = target.wallId;
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 
-describe('SH7 step a stored legs', () => {
-  it('SH7.1: persists support and room picks and drops their keys when cleared', () => {
+describe('stored legs (SH7)', () => {
+  it('persists support and room picks and drops their keys when cleared (SH7.1)', () => {
     let state = elevationReducer(initial, addRunLegs({ ...target, legs: [leg] }));
     for (const sitsOn of ['base', 'countertop']) {
       state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id,
@@ -109,7 +109,7 @@ describe('SH7 step a stored legs', () => {
   });
 });
 
-it('SH7.5 rejects hand-leg fills in additions, edits and saved documents', () => {
+it('rejects hand-leg fills in additions, edits and saved documents (SH7.5)', () => {
   const state = elevationReducer(initial, addRunLegs({ ...target, legs: [leg] }));
   for (const fill of [{ type: 'panel' }, { type: 'filler' }, { type: 'panel', returns: 'both', returnDepth: 4 }]) {
     expect(elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg, fill }] }))).toEqual(initial);
@@ -120,7 +120,7 @@ it('SH7.5 rejects hand-leg fills in additions, edits and saved documents', () =>
   }
 });
 
-it('SH7.5 round-trips end panel returns and room settings', () => {
+it('round-trips end panel returns and room settings (SH7.5)', () => {
   const saved = structuredClone(toElevationDocument(initial));
   const spec = { shapeId: 'missing-shape', height: 'full', x: 0, y: 0 };
   const endLegs = { left: { legs: 'both', front: spec, back: spec, fit: 'between',

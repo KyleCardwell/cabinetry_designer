@@ -41,7 +41,7 @@ describe('SPEC-50.5 saved furniture base fields', () => {
     }
   });
 
-  it('rejects malformed fields, including a loaded plinth run override (anchor 5)', () => {
+  it('rejects malformed fields, including a loaded plinth run override', () => {
     for (const level of ['team', 'room', 'wall', 'run']) {
       for (const patch of [
         { baseKind: 'plinth' }, { baseKind: 1 }, { furnitureBaseProud: -0.1 },

@@ -11,7 +11,7 @@ const LAYOUT = { split: 'rows', children: [{ split: 'cols', children: [{}, { siz
 const COPY = { kind: 'midLayout', data: LAYOUT };
 const select = (elevation) => selectClipboard({ elevation });
 
-describe('MR5 clipboard', () => {
+describe('clipboard (MR5)', () => {
   it('starts empty, stores a copy of { kind, data } and clears with null', () => {
     let state = createInitialElevationState(null);
     expect(select(state)).toBeNull();
@@ -21,7 +21,7 @@ describe('MR5 clipboard', () => {
     expect(elevationReducer(state, setClipboard(null)).clipboard).toBeNull();
   });
 
-  it('anchor 3: ignores anything but null or { kind: string, data }', () => {
+  it('ignores anything but null or { kind: string, data }', () => {
     const state = elevationReducer(createInitialElevationState(null), setClipboard(COPY));
     for (const bad of [{ kind: 1 }, { kind: 1, data: LAYOUT }, { kind: '', data: LAYOUT }, { kind: 'x' },
       [], 'midLayout', undefined]) {

@@ -48,39 +48,39 @@ function stacked(kind) {
   return run;
 }
 
-describe('IE1 step a inside sides and stored choices', () => {
-  it('anchor 1: opens both cabinet sides facing a void, excluding run ends', () => {
+describe('inside sides and stored choices (IE1)', () => {
+  it('opens both cabinet sides facing a void, excluding run ends', () => {
     expect(sides(makeRun())).toEqual(expected);
     expect(sides(makeRun([auto('only')]))).toEqual([]);
   });
 
-  it('anchor 2: covers the whole 60-inch side with a 24-inch back panel over a void', () => {
+  it('covers the whole 60-inch side with a 24-inch back panel over a void', () => {
     const run = stacked('panel');
     expect(cellsOf(run).pieces.find((piece) => piece.id === 'b').height).toBe(24);
     expect(sides(run)).toEqual(expected);
   });
 
-  it('anchor 3: closes both full-height sides when a cabinet covers part of them', () => {
+  it('closes both full-height sides when a cabinet covers part of them', () => {
     expect(sides(stacked('cabinet'))).toEqual([]);
   });
 
-  it('anchor 4: opens only the deep cabinet beside a shallower back-aligned cabinet', () => {
+  it('opens only the deep cabinet beside a shallower back-aligned cabinet', () => {
     expect(sides(makeRun([auto('a'), auto('b', 'cabinet', { depth: 12, align: 'back' })])))
       .toEqual([panel('a', 'right')]);
   });
 
-  it('anchor 5: keeps faces aligned even when cabinet depths differ', () => {
+  it('keeps faces aligned even when cabinet depths differ', () => {
     expect(sides(makeRun([auto('a'), auto('b', 'cabinet', { depth: 12, align: 'face' })]))).toEqual([]);
     expect(sides(makeRun([auto('a'), auto('b', 'cabinet', { depth: 24 - EPSILON / 2, align: 'back' })])))
       .toEqual([]);
   });
 
-  it('anchor 6: opens the cabinet side beside shelves', () => {
+  it('opens the cabinet side beside shelves', () => {
     expect(sides(makeRun([auto('a'), auto('b', 'shelves', { shelves: { count: 2, back: false } })])))
       .toEqual([panel('a', 'right')]);
   });
 
-  it('anchor 7: retains None in the choice API and derives only the other panel', () => {
+  it('retains None in the choice API and derives only the other panel', () => {
     const run = makeRun();
     findLeaf(run.grid, 'a').insideEnds = { right: 'none' };
     expect(sides(run)).toEqual([{ leafId: 'a', side: 'right', choice: 'none' }, expected[1]]);
@@ -89,7 +89,7 @@ describe('IE1 step a inside sides and stored choices', () => {
     ]);
   });
 
-  it('anchor 8: treats a stored return in a Euro run as an auto panel', () => {
+  it('treats a stored return in a Euro run as an auto panel', () => {
     const run = makeRun();
     findLeaf(run.grid, 'a').insideEnds = { right: { type: 'return' } };
     expect(sides(run)).toEqual(expected);
@@ -190,8 +190,8 @@ const solve = (run, settings = EURO) => {
   return { room, wall, run: resolved, layout, cells: cellPieces(resolved, layout) };
 };
 
-describe('IE1 step b inside panels reserve their width', () => {
-  it('anchor 1: reserves two 3/4-inch panels around a manual 20-inch void in a 60-inch base', () => {
+describe('inside panels reserve their width (IE1)', () => {
+  it('reserves two 3/4-inch panels around a manual 20-inch void in a 60-inch base', () => {
     const original = makeRun([auto('a'), auto('b', 'void', { width: 20 }), auto('c')], {
       width: 60, ends: noEnds, cabinetTypeId: CABINET_TYPE_IDS.BASE,
     });
@@ -208,7 +208,7 @@ describe('IE1 step b inside panels reserve their width', () => {
     expect(syncRoom(makeRoom(run), EURO).walls[0].runs[0]).toEqual(run);
   });
 
-  it('anchor 2: shares 1 1/2 inches across all three auto columns of the 164 1/8-inch upper', () => {
+  it('shares 1 1/2 inches across all three auto columns of the 164 1/8-inch upper', () => {
     const source = { ...stacked('panel'), width: 164.125 };
     const { run, layout, cells } = solve(source);
     const { _insideEnds, ...withoutPanels } = run;
@@ -222,7 +222,7 @@ describe('IE1 step b inside panels reserve their width', () => {
       + columns[1].width).toBe(164.125);
   });
 
-  it('anchor 3: reserves one panel beside a shallower back-aligned cabinet', () => {
+  it('reserves one panel beside a shallower back-aligned cabinet', () => {
     const { cells } = solve(makeRun([
       auto('a'), auto('b', 'cabinet', { depth: 12, align: 'back' }),
     ], { width: 48, ends: noEnds }));
@@ -232,7 +232,7 @@ describe('IE1 step b inside panels reserve their width', () => {
     expect(cells.pieces[1].depth).toBe(24.8125);
   });
 
-  it('anchor 4: keeps manual widths and reports the existing over-constrained diagnostic', () => {
+  it('keeps manual widths and reports the existing over-constrained diagnostic', () => {
     const { layout, cells } = solve(makeRun([
       auto('a', 'cabinet', { width: 20 }), auto('b', 'void', { width: 20 }),
       auto('c', 'cabinet', { width: 20 }),
@@ -242,7 +242,7 @@ describe('IE1 step b inside panels reserve their width', () => {
     expect(cells.pieces.filter((piece) => piece.inside)).toHaveLength(2);
   });
 
-  it('anchor 5: follows the Euro upper end drop once, and the existing extension rules', () => {
+  it('follows the Euro upper end drop once, and the existing extension rules', () => {
     for (const upperBottom of ['overhang', 'flush']) {
       const { room, wall, run, cells } = solve(makeRun(items(), { upperBottom }));
       const drop = upperBottom === 'overhang' ? 0.125 : 0;

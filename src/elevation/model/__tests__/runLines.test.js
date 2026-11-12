@@ -9,7 +9,7 @@ import { roomDiagnostics, syncRoom } from '../roomSync.js';
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const joint = (jointId, offset = 0) => ({ to: 'joint', jointId, offset });
 
-describe('LL4 run layout lines', () => {
+describe('run layout lines (LL4)', () => {
   it('slides a free run without changing width, offsets included, and preserves settled objects', () => {
     const stored = room({ walls: [wall({
       x2: 240, lines: [line('L1', 100)],

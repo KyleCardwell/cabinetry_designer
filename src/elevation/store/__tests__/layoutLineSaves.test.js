@@ -49,7 +49,7 @@ function withAttachments() {
     setAttachment({ ...at, target: { kind: 'opening', openingId: 'W' }, attach: attach('B1') }));
 }
 
-describe('LL2 layout line actions', () => {
+describe('layout line actions (LL2)', () => {
   it('adds lines with per-face labels', () => {
     const lines = wallOf(withLines()).lines;
     expect(lines).toEqual([
@@ -125,7 +125,7 @@ describe('LL2 layout line actions', () => {
   });
 });
 
-describe('LL2 saves', () => {
+describe('saves (LL2)', () => {
   it('saves and loads lines and attachments', () => {
     const state = withAttachments();
     expect(isElevationDocument(toElevationDocument(state))).toBe(true);

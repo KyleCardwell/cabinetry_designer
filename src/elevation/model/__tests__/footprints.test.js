@@ -44,7 +44,7 @@ function roomR() {
 }
 
 describe('footprintsAtPoint', () => {
-  it('1. returns overlapping footprints from topmost to bottommost', () => {
+  it('returns overlapping footprints from topmost to bottommost', () => {
     const room = roomR();
     expect(footprintsAtPoint(room, { x: 30, y: 5 }, DEFAULT_SETTINGS))
       .toEqual(['upper', 'base']);

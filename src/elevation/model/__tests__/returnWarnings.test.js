@@ -56,8 +56,8 @@ function warnings() {
   return returnFaceWarnings(synced, view, run, settings);
 }
 
-describe('DR4 return covers face warnings', () => {
-  it('anchor 1: leaves an open cabinet with a 26 inch bottom reveal clear', () => {
+describe('return covers face warnings (DR4)', () => {
+  it('leaves an open cabinet with a 26 inch bottom reveal clear', () => {
     host.grid.cells[1].node.face = { type: 'open', size: null };
     host.grid.cells[1].node.reveals = { bottom: 26 };
     const { synced, view } = resolved();
@@ -93,7 +93,7 @@ describe('DR4 return covers face warnings', () => {
     expect(warnings()).toEqual(expected);
   });
 
-  it('anchor 4: warns once on a full-height pair-door cabinet and adds it to diagnostics', () => {
+  it('warns once on a full-height pair-door cabinet and adds it to diagnostics', () => {
     const before = structuredClone(stored);
     expect(warnings()).toEqual([warning()]);
     expect(roomDiagnostics(stored, settings).T.warnings.filter(({ code }) => code === 'return-covers-face'))
@@ -102,7 +102,7 @@ describe('DR4 return covers face warnings', () => {
     expect(stored).toEqual(before);
   });
 
-  it('anchor 5: still warns once when the return filler is full height', () => {
+  it('still warns once when the return filler is full height', () => {
     desk.ends.left.height = 'full';
     expect(warnings()).toEqual([warning()]);
     // The full-height end itself covers a door below the drawer bank.
@@ -113,7 +113,7 @@ describe('DR4 return covers face warnings', () => {
     expect(warnings()).toEqual([]);
   });
 
-  it('anchor 6: leaves doors on only the adjacent x 60–95 column clear', () => {
+  it('leaves doors on only the adjacent x 60–95 column clear', () => {
     host.grid.cells[1].node.face = { type: 'open', size: null };
     host.grid.cells[2].node.face = { type: 'pair_door', size: null };
     expect(warnings()).toEqual([]);

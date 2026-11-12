@@ -20,7 +20,7 @@ const settings = {
 const input = { project, room, settings, revision: null, date: new Date(2026, 9, 15) };
 
 describe('report header', () => {
-  it('builds the Euro kitchen header (anchor 2)', () => {
+  it('builds the Euro kitchen header', () => {
     expect(reportHeader(input)).toEqual({
       job: 'Cardwell',
       jobNumber: '573',
@@ -39,7 +39,7 @@ describe('report header', () => {
     });
   });
 
-  it('labels both face frame styles and wire brushed wood without a Job # (anchor 3)', () => {
+  it('labels both face frame styles and wire brushed wood without a Job #', () => {
     for (const cabinetStyleId of [14, 15]) {
       expect(reportHeader({
         ...input,
@@ -57,7 +57,7 @@ describe('report header', () => {
     }
   });
 
-  it('leaves job and address blank without a project (anchor 4)', () => {
+  it('leaves job and address blank without a project', () => {
     expect(reportHeader({ ...input, project: null })).toMatchObject({ job: '', address: '' });
   });
 
@@ -102,7 +102,7 @@ describe('report header', () => {
 });
 
 
-it('IN11a includes face-frame, company address and ProBox defaults (anchor 2)', () => {
+it('includes face-frame, company address and ProBox defaults (IN11a)', () => {
   expect(reportHeader({
     ...input,
     room: { name: 'Kitchen Opt 2' },
@@ -119,7 +119,7 @@ it('IN11a includes face-frame, company address and ProBox defaults (anchor 2)', 
   });
 });
 
-it('IN11a carries a room box-spec override and fills missing header leaves (anchor 3)', () => {
+it('carries a room box-spec override and fills missing header leaves (IN11a)', () => {
   const effective = resolveSettings([
     { level: 'team', values: { drawerBoxOrder: { assembly: 'Shop finish' } } },
     { level: 'room', values: { drawerBoxOrder: { sideMaterial: 'Soft Maple' } } },

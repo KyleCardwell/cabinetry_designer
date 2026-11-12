@@ -22,8 +22,8 @@ const edge = (x1, y1, x2, y2, x, y) => ({
   kind: 'edge', point: { x, y }, segment: { x1, y1, x2, y2 },
 });
 
-describe('MS1 measure anchors', () => {
-  it('1: builds the four edges, corners and midpoints of a rectangle', () => {
+describe('measure anchors (MS1)', () => {
+  it('builds the four edges, corners and midpoints of a rectangle', () => {
     const geometry = measureGeometry([A]);
     expect(geometry.segments).toHaveLength(4);
     expect(geometry.corners).toHaveLength(4);
@@ -31,24 +31,24 @@ describe('MS1 measure anchors', () => {
     expect(geometry.mids).toContainEqual({ x: 15, y: 0 });
   });
 
-  it('2: keeps the shared edge once for adjacent rectangles', () => {
+  it('keeps the shared edge once for adjacent rectangles', () => {
     const geometry = measureGeometry([A, B]);
     expect(geometry.segments).toHaveLength(7);
     expect(geometry.corners).toHaveLength(6);
     expect(geometry.mids).toHaveLength(7);
   });
 
-  it('3: snaps near the shared top corner', () => {
+  it('snaps near the shared top corner', () => {
     expect(snapMeasure({ x: 29.8, y: 34.3 }, measureGeometry([A, B]), 0.5))
       .toEqual(corner(30, 34.5));
   });
 
-  it('4: snaps to the midpoint before its edge', () => {
+  it('snaps to the midpoint before its edge', () => {
     expect(snapMeasure({ x: 15.2, y: 0.3 }, measureGeometry([A]), 0.5))
       .toEqual({ kind: 'mid', point: { x: 15, y: 0 } });
   });
 
-  it('5: snaps to an edge and supports a point-only pick', () => {
+  it('snaps to an edge and supports a point-only pick', () => {
     const geometry = measureGeometry([A]);
     const expected = edge(0, 0, 30, 0, 8, 0);
     expect(snapMeasure({ x: 8, y: 0.2 }, geometry, 0.5)).toEqual(expected);
@@ -56,29 +56,29 @@ describe('MS1 measure anchors', () => {
       .toEqual({ ...expected, kind: 'on-edge' });
   });
 
-  it('6: leaves an unsnapped pointer free', () => {
+  it('leaves an unsnapped pointer free', () => {
     expect(snapMeasure({ x: 8, y: 10 }, measureGeometry([A]), 0.5))
       .toEqual({ kind: 'free', point: { x: 8, y: 10 } });
   });
 
-  it('7: measures points and formats a diagonal to the nearest 1/32 inch', () => {
+  it('measures points and formats a diagonal to the nearest 1/32 inch', () => {
     const result = measureBetween(corner(0, 0), corner(48, 34.5));
     expect(result).toMatchObject({ kind: 'points', from: { x: 0, y: 0 }, to: { x: 48, y: 34.5 }, dx: 48, dy: 34.5 });
     expect(result.distance).toBeCloseTo(59.1122, 4);
     expect(formatMeasure(result.distance)).toBe('~59 1/8"');
   });
 
-  it('8: projects a point onto a vertical line without an extension', () => {
+  it('projects a point onto a vertical line without an extension', () => {
     expect(measureBetween(corner(0, 34.5), edge(48, 0, 48, 34.5, 48, 10)))
       .toEqual({ kind: 'point-line', from: { x: 0, y: 34.5 }, to: { x: 48, y: 34.5 }, distance: 48, dx: 48, dy: 0 });
   });
 
-  it('9: preserves pick order when the first pick is a line', () => {
+  it('preserves pick order when the first pick is a line', () => {
     expect(measureBetween(edge(0, 0, 30, 0, 10, 0), corner(20, 12)))
       .toEqual({ kind: 'point-line', from: { x: 20, y: 0 }, to: { x: 20, y: 12 }, distance: 12, dx: 0, dy: 12 });
   });
 
-  it('10: measures parallel lines infinitely and extends to the nearest end', () => {
+  it('measures parallel lines infinitely and extends to the nearest end', () => {
     const result = measureBetween(edge(0, 0, 0, 34.5, 0, 5), edge(30.5, 54, 30.5, 84, 30.5, 60));
     expect(result).toEqual({
       kind: 'lines', from: { x: 0, y: 5 }, to: { x: 30.5, y: 5 }, distance: 30.5, dx: 30.5, dy: 0,
@@ -87,7 +87,7 @@ describe('MS1 measure anchors', () => {
     expect(formatMeasure(result.distance)).toBe('30 1/2"');
   });
 
-  it('11: measures picks on nonparallel lines with their acute angle', () => {
+  it('measures picks on nonparallel lines with their acute angle', () => {
     const result = measureBetween(edge(0, 0, 30, 0, 10, 0), edge(40, 0, 50, 10, 45, 5));
     expect(result).toMatchObject({ kind: 'points', from: { x: 10, y: 0 }, to: { x: 45, y: 5 } });
     expect(result.distance).toBeCloseTo(35.3553, 4);
@@ -96,19 +96,19 @@ describe('MS1 measure anchors', () => {
     expect(formatMeasure(result.distance)).toBe('~35 11/32"');
   });
 
-  it('12: formats small, nearly exact and zero values', () => {
+  it('formats small, nearly exact and zero values', () => {
     expect(MEASURE_STEP).toBe(1 / 32);
     expect([0.03125, 12.0001, 0].map(formatMeasure)).toEqual(['1/32"', '12"', '0"']);
   });
 
-  it('13: includes every wall outline point in plan room coordinates', () => {
+  it('includes every wall outline point in plan room coordinates', () => {
     const model = syncRoom(room({ walls: [wall({ x1: 10, y1: 20, x2: 100, y2: 50 })] }), settings);
     const geometry = planMeasureGeometry(model, settings);
     for (const point of wallOutline(model, model.walls[0])) expect(geometry.corners).toContainEqual(point);
     expect(geometry.corners.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))).toBe(true);
   });
 
-  it('14: includes all cabinet corners and the resolved wall rectangle', () => {
+  it('includes all cabinet corners and the resolved wall rectangle', () => {
     const model = syncRoom(room({ walls: [wall({ runs: [run({ items: [auto('cabinet')] })] })] }), settings);
     const stored = model.walls[0];
     const geometry = elevationMeasureGeometry(model, stored, 'front', settings);
@@ -121,7 +121,7 @@ describe('MS1 measure anchors', () => {
     expect(geometry.corners).toContainEqual({ x: resolveWall(model, stored, 'front').length, y: stored.height });
   });
 
-  it('15: shifts the second combined face into each opened face frame', () => {
+  it('shifts the second combined face into each opened face frame', () => {
     // The stepped A/J/B/K/C fixture from combinedPayload.test.js, using shared builders.
     const model = syncRoom(room({
       wallOrder: ['C', 'K', 'B', 'J', 'A'],
@@ -271,8 +271,8 @@ const Q = {
   ] }],
 };
 
-describe('MS4 measure anchors', () => {
-  it('1: builds the quarter disc lines, arc, corners, midpoints and center', () => {
+describe('measure anchors (MS4)', () => {
+  it('builds the quarter disc lines, arc, corners, midpoints and center', () => {
     const geometry = profileMeasureGeometry([Q]);
     expect(geometry.segments).toHaveLength(2);
     expect(geometry.arcs).toEqual([{ cx: 0, cy: 0, r: 1, start: 0, sweep: Math.PI / 2, x1: 1, y1: 0, x2: 0, y2: 1 }]);
@@ -288,7 +288,7 @@ describe('MS4 measure anchors', () => {
     expect(geometry.centers).toEqual([{ x: 0, y: 0 }]);
   });
 
-  it('2: keeps the quarter arc midpoint when reversed clockwise', () => {
+  it('keeps the quarter arc midpoint when reversed clockwise', () => {
     const geometry = profileMeasureGeometry([{
       ...R, loops: [{ closed: false, segs: [{ ...R.loops[0].segs[0], from: 'c', to: 'b', ccw: false }] }],
     }]);
@@ -297,14 +297,14 @@ describe('MS4 measure anchors', () => {
     expect(geometry.mids[0].y).toBeCloseTo(0.7071, 4);
   });
 
-  it('3: snaps near the quarter arc midpoint', () => {
+  it('snaps near the quarter arc midpoint', () => {
     const pick = snapMeasure({ x: 0.75, y: 0.75 }, profileMeasureGeometry([R]), 0.1);
     expect(pick.kind).toBe('mid');
     expect(pick.point.x).toBeCloseTo(0.7071, 4);
     expect(pick.point.y).toBeCloseTo(0.7071, 4);
   });
 
-  it('4: projects onto the arc as a point pick with or without pointOnly', () => {
+  it('projects onto the arc as a point pick with or without pointOnly', () => {
     const geometry = profileMeasureGeometry([R]);
     const pick = snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1);
     expect(pick).toMatchObject({ kind: 'arc', arc: geometry.arcs[0] });
@@ -313,21 +313,21 @@ describe('MS4 measure anchors', () => {
     expect(snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1, { pointOnly: true })).toEqual(pick);
   });
 
-  it('5: snaps near the arc center', () => {
+  it('snaps near the arc center', () => {
     expect(snapMeasure({ x: 0.02, y: 0.01 }, profileMeasureGeometry([R]), 0.1))
       .toEqual({ kind: 'center', point: { x: 0, y: 0 } });
   });
 
-  it('6: prefers the disc corner to its coincident arc center', () => {
+  it('prefers the disc corner to its coincident arc center', () => {
     expect(snapMeasure({ x: 0.02, y: 0.01 }, profileMeasureGeometry([Q]), 0.1)).toEqual(corner(0, 0));
   });
 
-  it('7: leaves a pointer outside the arc sweep free', () => {
+  it('leaves a pointer outside the arc sweep free', () => {
     expect(snapMeasure({ x: -0.5, y: -0.5 }, profileMeasureGeometry([R]), 0.1))
       .toEqual({ kind: 'free', point: { x: -0.5, y: -0.5 } });
   });
 
-  it('8: measures center and arc picks as points one inch apart', () => {
+  it('measures center and arc picks as points one inch apart', () => {
     const geometry = profileMeasureGeometry([R]);
     const center = snapMeasure({ x: 0.02, y: 0.01 }, geometry, 0.1);
     const arc = snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1);
@@ -337,7 +337,7 @@ describe('MS4 measure anchors', () => {
     expect(measureBetween(arc, center)).toMatchObject({ kind: 'points', distance: 1 });
   });
 
-  it('9: samples five arc points with the exact ends and quarter arc midpoint', () => {
+  it('samples five arc points with the exact ends and quarter arc midpoint', () => {
     const arc = profileMeasureGeometry([R]).arcs[0];
     const points = arcPoints(arc, 4);
     expect(points).toHaveLength(5);
@@ -348,12 +348,12 @@ describe('MS4 measure anchors', () => {
     expect(arcPoints(arc)).toHaveLength(25);
   });
 
-  it('10: skips null profiles and dedupes the origin with a disc corner', () => {
+  it('skips null profiles and dedupes the origin with a disc corner', () => {
     expect(profileMeasureGeometry([Q, null], { origin: true })).toEqual(profileMeasureGeometry([Q]));
     expect(profileMeasureGeometry([Q, null], { origin: true }).corners).toHaveLength(3);
   });
 
-  it('11: includes every body corner of the square-profile door section fixture', () => {
+  it('includes every body corner of the square-profile door section fixture', () => {
     const style = {
       ...DEFAULT_DOOR_STYLE, designId: MICRO_SHAKER.id, stiles: { left: 1.5, right: 1.5 },
       panel: { type: 'flat', thickness: 0.625 },
@@ -367,7 +367,7 @@ describe('MS4 measure anchors', () => {
   });
 });
 
-describe('MS4 arc boundary rules', () => {
+describe('arc boundary rules (MS4)', () => {
   it('dedupes reversed rounded arc ends plus center, and dedupes centers across distinct arcs', () => {
     const reversed = {
       points: { b: [1.0001, 0], c: [0.0001, 1] },

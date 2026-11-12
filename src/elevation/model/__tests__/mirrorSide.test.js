@@ -25,8 +25,8 @@ const S = {
   } },
 };
 
-describe('SH5.1 step e mirrored Side builder', () => {
-  it('anchor 1: mirrors the Front points and knee arc, deriving only Side, depth and y zones', () => {
+describe('mirrored Side builder (SH5.1)', () => {
+  it('mirrors the Front points and knee arc, deriving only Side, depth and y zones', () => {
     const made = withMirrorSide(S, true);
     expect(made.builder).toEqual({ type: 'mirror-side' });
     expect(made.views.side.points).toEqual({
@@ -57,7 +57,7 @@ describe('SH5.1 step e mirrored Side builder', () => {
     expect(withMirrorSide({ ...withPlan, stretch: { y: [[0, 0.5]] } }, true).stretch).toEqual({});
   });
 
-  it('anchor 2: editing Front rebuilds Side without adding drawnPoints to the recipe', () => {
+  it('editing Front rebuilds Side without adding drawnPoints to the recipe', () => {
     const made = withMirrorSide(S, true);
     const front = shapeViewProfile(made, 'front');
     expect(front.drawnPoints).toEqual({ elevation: [] });
@@ -81,7 +81,7 @@ describe('SH5.1 step e mirrored Side builder', () => {
     expect(isShape(cleared)).toBe(false);
   });
 
-  it('anchor 3: x and z flips and origin moves rebuild mirrors, while y is blocked', () => {
+  it('x and z flips and origin moves rebuild mirrors, while y is blocked', () => {
     const made = withMirrorSide(S, true);
     const flipped = flipShape(made, 'x');
     expect(flipped.views.front.points.b).toEqual([-2, 0]);
@@ -105,7 +105,7 @@ describe('SH5.1 step e mirrored Side builder', () => {
     expect(flipShape(made, 'y')).toBeNull();
   });
 
-  it('anchor 4: switching off keeps the made Side, box and stretch as editable drawn data', () => {
+  it('switching off keeps the made Side, box and stretch as editable drawn data', () => {
     const made = withMirrorSide(S, true);
     const drawn = withMirrorSide(made, false);
     expect(drawn).toEqual({ ...S, views: made.views, box: made.box, stretch: made.stretch });
@@ -116,7 +116,7 @@ describe('SH5.1 step e mirrored Side builder', () => {
     expect(isShape(drawn)).toBe(true);
   });
 
-  it('anchor 5: rejects edits to the made Side', () => {
+  it('rejects edits to the made Side', () => {
     const made = withMirrorSide(S, true);
     expect(isMadeView(made, 'side')).toBe(true);
     expect(isMadeView(made, 'front')).toBe(false);

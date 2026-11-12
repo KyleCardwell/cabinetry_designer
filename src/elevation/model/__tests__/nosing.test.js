@@ -53,7 +53,7 @@ function setup({ profile = {}, wallProfile = {}, runs = [{}], endPanels } = {}, 
 }
 
 describe('SPEC-50.8 step 499 wood top nosing', () => {
-  it('places the band, stops its line on both returns and sends its outline/front (anchor 1)', () => {
+  it('places the band, stops its line on both returns and sends its outline/front', () => {
     const { room, wall, bands: [bands], parts } = setup();
     expect(wall.runs[0]).toMatchObject({ depth: 24, z: 4, height: 30.5 });
     expect(bands.countertop).toEqual({ x: 29.5, z: 34.5, width: 37, height: 1.5,
@@ -63,20 +63,20 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
     expect(toDrawingPayload(room, settings).elevations[0].parts).toContainEqual(part);
   });
 
-  it('hangs below a thinner core while retaining the nosing height (anchor 2)', () => {
+  it('hangs below a thinner core while retaining the nosing height', () => {
     const { bands: [bands] } = setup({ runs: [{ overrides: { countertopThickness: 0.75 } }] });
     expect(bands.top).toEqual({ kind: 'wood', height: 0.75 });
     expect(bands.countertop).toEqual({ x: 29.5, z: 33.75, width: 37, height: 1.5,
       outline: THIN_OUTLINE, lines: [line(29.5, 66.5, 35)] });
   });
 
-  it('joins the side core to the nosing and removes straight-through points (anchor 3)', () => {
+  it('joins the side core to the nosing and removes straight-through points', () => {
     expect(setup().sides[0]).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: 0, front: 25.375,
       outline: [[0, 34.5, 0], [25.375, 34.5, 0], [25.375, 35.75, 0], [25.125, 36, 0], [0, 36, 0]],
     });
   });
 
-  it('keeps the step below the core in the thin top side section (anchor 4)', () => {
+  it('keeps the step below the core in the thin top side section', () => {
     expect(setup({ runs: [{ overrides: { countertopThickness: 0.75 } }] }).sides[0]).toEqual({
       piece: 'countertop', z: 33.75, height: 1.5, back: 0, front: 25.375,
       outline: [[0, 34.5, 0], [24.875, 34.5, 0], [24.875, 33.75, 0], [25.375, 33.75, 0],
@@ -84,7 +84,7 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
     });
   });
 
-  it('retains today’s rectangles for unpicked wood and picked stone (anchor 5)', () => {
+  it('retains today’s rectangles for unpicked wood and picked stone', () => {
     for (const props of [{ profile: { nosingProfileId: null } }, { runs: [{ top: 'stone' }] }]) {
       const { bands: [bands], parts, sides } = setup(props);
       expect(bands.countertop).toEqual({ x: 29.25, z: 34.5, width: 37.5, height: 1.5 });
@@ -94,7 +94,7 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
     }
   });
 
-  it('copes the shallower wood top onto the deeper return contour (anchor 6)', () => {
+  it('copes the shallower wood top onto the deeper return contour', () => {
     const { bands: [deep, shallow] } = setup({ runs: [{}, { x: 66, depth: 21 }] });
     expect(deep.countertop.outline).toEqual(OUTLINE);
     expect(shallow.countertop.outline).toEqual([[66.5, 34.5, 0], [102.5, 34.5, 0],
@@ -222,7 +222,7 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
 });
 
 describe('SPEC-50.9 step 502 resolved top overhangs', () => {
-  it('uses independent typed stone overhangs, including a real zero (anchor 3)', () => {
+  it('uses independent typed stone overhangs, including a real zero', () => {
     const { bands: [bands], parts, sides: [side] } = setup({
       runs: [{ top: 'stone', topOverhang: { front: 1, left: 12, right: 0 } }],
     });
@@ -231,7 +231,7 @@ describe('SPEC-50.9 step 502 resolved top overhangs', () => {
     expect(side).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: 0, front: 25.875 });
   });
 
-  it('places the wood core and nosing using all four typed overhangs (anchor 4)', () => {
+  it('places the wood core and nosing using all four typed overhangs', () => {
     const { bands: [bands], parts, sides: [side] } = setup({
       runs: [{ topOverhang: { front: 0.25, back: 1, left: 0.5, right: 0.5 } }],
     });

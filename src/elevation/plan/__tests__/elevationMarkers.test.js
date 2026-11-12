@@ -56,7 +56,7 @@ const run = (id, cabinetTypeId, depth, overrides = {}) => ({
 });
 
 describe('elevationMarkers', () => {
-  it('178. places front and back markers past the deepest run', () => {
+  it('places front and back markers past the deepest run', () => {
     const room = makeRoom([makeWall('H', 0, 0, 246, 0, { runs: [
       run('B1', CABINET_TYPE_IDS.BASE, 24, { x: 20 }),
       run('U1', CABINET_TYPE_IDS.UPPER, 12, { x: 100, wallSide: 'back' }),
@@ -82,7 +82,7 @@ describe('elevationMarkers', () => {
     ]);
   });
 
-  it('185. centres a marker on the span of the side runs', () => {
+  it('centres a marker on the span of the side runs', () => {
     const room = makeRoom([makeWall('H', 0, 0, 246, 0, { runs: [
       run('B1', CABINET_TYPE_IDS.BASE, 24, { x: 20 }),
       run('B2', CABINET_TYPE_IDS.BASE, 24, { x: 140, width: 40 }),
@@ -100,7 +100,7 @@ describe('elevationMarkers', () => {
     ]);
   });
 
-  it('186. keeps the shifted wall-centre marker for a side with no runs', () => {
+  it('keeps the shifted wall-centre marker for a side with no runs', () => {
     const room = makeRoom([makeWall('H', 0, 0, 246, 0, { elevationForced: true })]);
 
     expect(elevationMarkers(room, DEFAULT_SETTINGS, 2)).toEqual([

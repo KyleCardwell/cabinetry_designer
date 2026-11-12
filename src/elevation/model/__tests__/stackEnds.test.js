@@ -15,7 +15,7 @@ function input(picks, z = 0) {
     faces: [{ ...section, type: 'door', hinge: 'left' }], leaf: {}, settings };
 }
 
-describe('IN15c step a stack ends', () => {
+describe('stack ends (IN15c)', () => {
   it.each([
     [1, {}, 1, [14.625], 14.625],
     [2, { bottom: 12 }, 1, [12], 17.25],

@@ -46,8 +46,8 @@ function verticalTurn(band, x) {
   expect(band.lines[0]).toMatchObject({ z1: band.z, z2: band.z + band.height });
 }
 
-describe('CC7 step b return leg bands', () => {
-  it('anchor 1: places the E90 countertop and attaches its bands to the existing leg', () => {
+describe('return leg bands (CC7)', () => {
+  it('places the E90 countertop and attaches its bands to the existing leg', () => {
     const { synced, view, bands, top } = resolved();
     span(top, 106.4375, 118.375);
     expect(top).toEqual({ id: 'corner-leg:wall-1:run-1:left:countertop', kind: 'countertop',
@@ -56,7 +56,7 @@ describe('CC7 step b return leg bands', () => {
     expect(cornerReturnLegs(synced, view, S)[0].bands).toEqual(bands);
   });
 
-  it('anchor 2: uses the existing end-panel free-end helper for the E90 toe kick', () => {
+  it('uses the existing end-panel free-end helper for the E90 toe kick', () => {
     const { toe } = resolved();
     // §1.3's helper gives reach 36.8125 minus the 1" end-panel setback: x = 108.1875.
     // The spec explicitly permits reporting this difference from its provisional 108.25 anchor.
@@ -65,7 +65,7 @@ describe('CC7 step b return leg bands', () => {
     expect(toe.lines).toBeUndefined();
   });
 
-  it('anchor 3: joins the E90R leg bands square to the return run', () => {
+  it('joins the E90R leg bands square to the return run', () => {
     returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
       items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
     const { top, toe } = resolved();
@@ -75,7 +75,7 @@ describe('CC7 step b return leg bands', () => {
     expect(toe.lines).toBeUndefined();
   });
 
-  it('anchor 4: stops the E90R return run bands at the leg joint before the corner cope', () => {
+  it('stops the E90R return run bands at the leg joint before the corner cope', () => {
     returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
       items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
     const { synced, view } = resolved();
@@ -88,7 +88,7 @@ describe('CC7 step b return leg bands', () => {
       .toEqual({ type: 'square', x: 108 });
   });
 
-  it('anchor 5: adds the E45 countertop and toe kick turn lines inside the free leg bands', () => {
+  it('adds the E45 countertop and toe kick turn lines inside the free leg bands', () => {
     owner.ends.left.corner.kind = 45;
     const { top, toe } = resolved();
     span(top, 106.4375, 118.375);
@@ -97,7 +97,7 @@ describe('CC7 step b return leg bands', () => {
     verticalTurn(toe, 109.9926);
   });
 
-  it('anchor 6: extends the E45R countertop joint to its turn and omits the end turn line', () => {
+  it('extends the E45R countertop joint to its turn and omits the end turn line', () => {
     owner.ends.left.corner.kind = 45;
     returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
       items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
@@ -111,7 +111,7 @@ describe('CC7 step b return leg bands', () => {
     span(bands.countertop, 11.25, 107.6268);
   });
 
-  it('anchor 7: transfers front depth and computes independent E45u turn lines', () => {
+  it('transfers front depth and computes independent E45u turn lines', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const { top, toe } = resolved();
     span(top, 106.4375, 118.375);
@@ -122,7 +122,7 @@ describe('CC7 step b return leg bands', () => {
     verticalTurn(toe, 110.5152);
   });
 
-  it('anchor 8: dies square into a taller return run while joining its toe kick', () => {
+  it('dies square into a taller return run while joining its toe kick', () => {
     returnWall.runs = [run({ id: 'run-2', cabinetTypeId: CABINET_TYPE_IDS.TALL, height: 84, top: 'none',
       x: 0, width: 96, anchors: { left: false, right: true }, items: [auto('r')],
       ends: { left: { type: 'none' }, right: { type: 'none' } } })];

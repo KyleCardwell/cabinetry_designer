@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { autoInchProps } from '../autoInchProps.js';
 
-describe('AU10 shared auto inch props', () => {
+describe('shared auto inch props (AU10)', () => {
   it('returns the default props and preserves the commit without adding displayStep', () => {
     const onCommit = vi.fn();
     expect(autoInchProps({ auto: 30, onCommit })).toEqual({

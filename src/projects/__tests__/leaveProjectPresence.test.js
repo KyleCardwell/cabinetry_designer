@@ -27,20 +27,20 @@ beforeEach(() => {
   leaveProjectPresence.mockReturnValue({ type: 'test/leaveProjectPresence' });
 });
 
-describe('DB6b f leaving project presence', () => {
-  it('recognizes project pages and their room paths (anchor 4)', () => {
+describe('leaving project presence (DB6b)', () => {
+  it('recognizes project pages and their room paths', () => {
     expect(inProject('/projects/42')).toBe(true);
     expect(inProject('/projects/42/rooms/rm-1')).toBe(true);
     expect(inProject('/projects/42/')).toBe(true);
   });
 
-  it('excludes the project list, Library, sandbox, and settings (anchor 5)', () => {
+  it('excludes the project list, Library, sandbox, and settings', () => {
     for (const path of ['/projects', '/library/door-designs', '/elevation-lab', '/settings', '/projects/', '/projects//rooms/rm-1']) {
       expect(inProject(path)).toBe(false);
     }
   });
 
-  it('keeps presence between rooms and the project, then leaves once on navigation to Library (anchor 6)', () => {
+  it('keeps presence between rooms and the project, then leaves once on navigation to Library', () => {
     pathname = '/projects/42/rooms/rm-1';
     useLeaveProjectPresence();
     pathname = '/projects/42';

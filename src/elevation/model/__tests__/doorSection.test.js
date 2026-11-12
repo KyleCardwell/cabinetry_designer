@@ -354,7 +354,7 @@ describe('SPEC-50.1 door section dimension chains', () => {
 });
 
 
-describe('MR6a mid section model', () => {
+describe('mid section model (MR6a)', () => {
   const style = { ...DEFAULT_DOOR_STYLE, thickness: 0.75 };
   const inside = sample.profiles.find(({ id }) => id === 'in58');
   const molding = { ...AM, geometry: { ...AM.geometry, points: {

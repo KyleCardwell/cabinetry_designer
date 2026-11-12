@@ -11,14 +11,14 @@ function leaves(values, prefix = '') {
   });
 }
 
-describe('CC3.1 step a corner door settings', () => {
-  it('anchor 1: defaults the door gap, diagonal reveal and door arrangement', () => {
+describe('corner door settings (CC3.1)', () => {
+  it('defaults the door gap, diagonal reveal and door arrangement', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({
       cornerDoorGap: 0.125, cornerDiagonalReveal: 0.125, cornerDoors: 'equal',
     });
   });
 
-  it('anchor 4: registers the labels, kinds, choices and room inheritance', () => {
+  it('registers the labels, kinds, choices and room inheritance', () => {
     for (const [key, label, kind, value] of [
       ['cornerDoorGap', 'Corner 90 door gap', 'number', 0.125],
       ['cornerDiagonalReveal', 'Corner 45 door reveal', 'number', 0.125],
@@ -40,7 +40,7 @@ describe('CC3.1 step a corner door settings', () => {
   });
 });
 
-it('PT2 a registers wood top corners with Miter default and inheritance through room scope', () => {
+it('registers wood top corners with Miter default and inheritance through room scope (PT2)', () => {
   const key = 'woodTopCorner';
   expect(registryEntry(key)).toEqual({ key, label: 'Wood top corners', kind: 'choice',
     lowest: 'room', choices: ['miter', 'butt'] });
@@ -54,7 +54,7 @@ it('PT2 a registers wood top corners with Miter default and inheritance through 
   expect(cleanOverrides({ [key]: 'cope' }, 'room')).toEqual({});
 });
 
-describe('DB1 a settings registry', () => {
+describe('settings registry (DB1)', () => {
   it('covers exactly 175 settings leaves, with 122 room settings and 15 team-only settings after PT2 a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
@@ -89,7 +89,7 @@ describe('DB1 a settings registry', () => {
     expect(registryEntry('defaultStyle.cabinetStyleId').choices).toEqual([13, 14, 15]);
   });
 
-  it('allows the declared override levels and rejects managed room edits (anchor 8)', () => {
+  it('allows the declared override levels and rejects managed room edits', () => {
     expect(SETTING_LEVELS).toEqual(['team', 'project', 'phase', 'room', 'wall', 'run', 'cabinet', 'face']);
     expect([allowedAt('baseDepth', 'room'), allowedAt('doorPanelDefault', 'room'), allowedAt('doorPanelDefault', 'team')])
       .toEqual([true, false, true]);
@@ -111,7 +111,7 @@ describe('DB1 a settings registry', () => {
   });
 });
 
-it('IN9 registers roll-out defaults with labels, room inheritance and reset', () => {
+it('registers roll-out defaults with labels, room inheritance and reset (IN9)', () => {
   for (const [key, value, label] of [
     ['rolloutHeight', 4.25, 'Roll-out height'], ['rolloutSpacer', 1.25, 'Roll-out hinge spacer'],
   ]) {
@@ -133,7 +133,7 @@ it('IN9 registers roll-out defaults with labels, room inheritance and reset', ()
   }
 });
 
-it('IN8 / IN13b registers the shelf defaults and inherits/resets them through the room level', () => {
+it('/ IN13b registers the shelf defaults and inherits/resets them through the room level (IN8)', () => {
   const defaults = {
     floatingShelfSpacing: 11, shelfSpacing: 11, shelfWidthClearance: 1 / 16, zoneGap: 1, shelfSetback: 1 / 8,
     glassShelfThickness: 1 / 4, shelfNosingHeight: 1.5, shelfNosingThickness: 13 / 16,
@@ -162,7 +162,7 @@ it('IN8 / IN13b registers the shelf defaults and inherits/resets them through th
 });
 
 
-it('IN11a registers ProBox text defaults through room scope and company address only at team scope', () => {
+it('registers ProBox text defaults through room scope and company address only at team scope (IN11a)', () => {
   const defaults = {
     sideMaterial: 'Baltic Birch Ply', sideThickness: '5/8"', bottomMaterial: '1/4" Baltic Birch Ply',
     topEdge: 'Flat Flush', bottomPlacement: 'Standard', assembly: 'Pre-finished & assembled',
@@ -203,7 +203,7 @@ it('IN11a registers ProBox text defaults through room scope and company address 
   }
 });
 
-it('SH7.2 registers leg panel defaults with labels, room inheritance and Runs & ends grouping', () => {
+it('registers leg panel defaults with labels, room inheritance and Runs & ends grouping (SH7.2)', () => {
   for (const [key, value, label] of [
     ['legPanelReveal', 0.25, 'Leg panel reveal'],
     ['legPanelTopClearance', 0, 'Leg panel top clearance'],
@@ -222,7 +222,7 @@ it('SH7.2 registers leg panel defaults with labels, room inheritance and Runs & 
   }
 });
 
-it('SH7.3 registers leg panel return depth through room scope in Runs & ends', () => {
+it('registers leg panel return depth through room scope in Runs & ends (SH7.3)', () => {
   const key = 'legPanelReturnDepth';
   expect(DEFAULT_SETTINGS[key]).toBe(4.5);
   expect(registryEntry(key)).toEqual({ key, label: 'Leg panel return depth', kind: 'number', lowest: 'room' });
@@ -236,7 +236,7 @@ it('SH7.3 registers leg panel return depth through room scope in Runs & ends', (
   for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
 });
 
-it('SH7.4 registers square leg dimensions with defaults and Runs & ends inheritance through room scope', () => {
+it('registers square leg dimensions with defaults and Runs & ends inheritance through room scope (SH7.4)', () => {
   for (const [key, label] of [['squareLegWidth', 'Square leg width'], ['squareLegDepth', 'Square leg depth']]) {
     expect(DEFAULT_SETTINGS[key]).toBe(3);
     expect(registryEntry(key)).toEqual({ key, label, kind: 'number', lowest: 'room' });

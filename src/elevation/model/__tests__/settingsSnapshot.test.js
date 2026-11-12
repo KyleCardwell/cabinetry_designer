@@ -12,7 +12,7 @@ import { newShape } from '../libraryShapes.js';
 import { auto, room, run, wall } from '../../../test/builders.js';
 import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 
-it('IN12c a anchor 5: snapshots slides named by drawer-box accessory effects, including missing slides', () => {
+it('snapshots slides named by drawer-box accessory effects, including missing slides (IN12c)', () => {
   const pot = { ...newAccessory([], 'pot'), name: 'Pot organizer', attachesTo: 'drawer_box',
     effects: [{ kind: 'slide', slideId: 'accuride-4034' }] };
   const unused = { ...pot, id: 'unused', name: 'Unused', effects: [{ kind: 'slide', slideId: 'unused-slide' }] };
@@ -52,7 +52,7 @@ const P_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000f001';
 const D_SHAKER = '0192a1b2-c3d4-7e5f-8a9b-00000000d001';
 const D_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000d002';
 
-it('IN13a a anchor 4: validates and restores legacy snapshot accessories with defaults and independent data', () => {
+it('validates and restores legacy snapshot accessories with defaults and independent data (IN13a)', () => {
   const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, minOpening: { width: 3, height: null, depth: null } };
   const snapshot = buildSettingsSnapshot({ settings: { ...library(), accessories: [accessory] }, document: { accessoryId: 'a' } });
   delete snapshot.accessories[0].size;
@@ -76,7 +76,7 @@ it('IN13a a anchor 4: validates and restores legacy snapshot accessories with de
   }
 });
 
-it('IN4c a: opens legacy snapshot slides with back clearance defaults and preserves saved values', () => {
+it('opens legacy snapshot slides with back clearance defaults and preserves saved values (IN4c)', () => {
   const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
   snapshot.slides.push({ ...structuredClone(BUILT_IN_SLIDES[0]), id: 'custom', name: 'Custom slide' });
   for (const slide of snapshot.slides) delete slide.backClearance;
@@ -96,7 +96,7 @@ it('IN4c a: opens legacy snapshot slides with back clearance defaults and preser
   }
 });
 
-it('LP1 anchor 5: opens pre-LP1 snapshots with pricing defaults and independent labor', () => {
+it('opens pre-LP1 snapshots with pricing defaults and independent labor (LP1)', () => {
   const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
   for (const key of ['pulls', 'slides']) {
     for (const item of snapshot[key]) {
@@ -160,7 +160,7 @@ const layers = {
   phase: { id: 'ph-1', values: { baseDepth: 25 } },
 };
 
-describe('DB8a version label', () => {
+describe('version label (DB8a)', () => {
   it('prefills initials and an unpadded M/D/YY date', () => {
     expect(defaultVersionLabel('Kyle Cardwell', new Date(2026, 9, 13))).toBe('KC 10/13/26');
     expect(defaultVersionLabel('kyle e. cardwell', new Date(2027, 2, 5))).toBe('KEC 3/5/27');
@@ -169,7 +169,7 @@ describe('DB8a version label', () => {
   });
 });
 
-describe('DB8a settings snapshot', () => {
+describe('settings snapshot (DB8a)', () => {
   it('freezes the resolved team → project → phase settings and only the library the room draws with', () => {
     const settings = library();
     const snapshot = buildSettingsSnapshot({
@@ -225,7 +225,7 @@ describe('DB8a settings snapshot', () => {
   });
 });
 
-describe('HP3c step d pull snapshots', () => {
+describe('pull snapshots (HP3c)', () => {
   const U = '0192a1b2-c3d4-7e5f-8a9b-00000000a001';
   const bar = { ...BUILT_IN_PULLS[0], id: U, name: 'Bar' };
   const settings = () => ({ ...library(), pulls: [...structuredClone(BUILT_IN_PULLS), { ...bar },
@@ -234,7 +234,7 @@ describe('HP3c step d pull snapshots', () => {
     kind: 'cabinet', doorPullId: U, face: { type: 'door', pullId: null },
   } }] }] });
 
-  it('anchor 1: clones built-ins and used pulls in list order, with only their known row versions', () => {
+  it('clones built-ins and used pulls in list order, with only their known row versions', () => {
     const live = settings();
     const rows = { pulls: { 'pull-4': { version: 1 }, 'knob-1-25': { version: 1 }, [U]: { version: 3 }, unused: { version: 2 } } };
     const snapshot = buildSettingsSnapshot({ settings: live, document: document(), rows });
@@ -253,7 +253,7 @@ describe('HP3c step d pull snapshots', () => {
     expect(byString.library.pulls).toEqual({});
   });
 
-  it('anchors 2 and 4: finds keyed missing strings in the document and resolved settings, excluding none', () => {
+  it('finds keyed missing strings in the document and resolved settings, excluding none', () => {
     const doc = document();
     const run = doc.walls[0].runs[0];
     run.drawerPullId = 'none';
@@ -279,7 +279,7 @@ describe('HP3c step d pull snapshots', () => {
     expect(settingsOnly.missing.pulls).toEqual(['aaa']);
   });
 
-  it('anchor 3: opens legacy snapshots with cloned built-ins and rejects malformed pull lists', () => {
+  it('opens legacy snapshots with cloned built-ins and rejects malformed pull lists', () => {
     const snapshot = buildSettingsSnapshot({ settings: settings(), document: document() });
     delete snapshot.pulls;
     expect(isSettingsSnapshot(snapshot)).toBe(true);
@@ -295,8 +295,8 @@ describe('HP3c step d pull snapshots', () => {
 });
 
 
-describe('IN5 step e slide snapshots', () => {
-  it('anchors 3 and 4: freezes used slides and row versions, reports missing ids and opens legacy snapshots', () => {
+describe('slide snapshots (IN5)', () => {
+  it('freezes used slides and row versions, reports missing ids and opens legacy snapshots', () => {
     const U = '0192a1b2-c3d4-7e5f-8a9b-00000000a001';
     const C = { ...structuredClone(BUILT_IN_SLIDES[0]), id: 'custom', name: 'Custom' };
     const live = { ...library(), slides: [...structuredClone(BUILT_IN_SLIDES), C,
@@ -335,7 +335,7 @@ describe('IN5 step e slide snapshots', () => {
 });
 
 
-it('IN12b f anchors 4–5: freezes only keyed accessories in library order, restores deep copies and accepts legacy snapshots', () => {
+it('freezes only keyed accessories in library order, restores deep copies and accepts legacy snapshots (IN12b)', () => {
   const susan = { ...newAccessory([], 'susan'), name: 'Susan', labor: { '7': 15 } };
   const tray = { ...newAccessory([], 'tray'), name: 'Tray' };
   const live = { ...library(), accessories: [susan, tray] };
@@ -371,7 +371,7 @@ it('IN12b f anchors 4–5: freezes only keyed accessories in library order, rest
 });
 
 
-it('SH3 a anchor 4: freezes referenced accessory shapes, row versions and missing ids only', () => {
+it('freezes referenced accessory shapes, row versions and missing ids only (SH3)', () => {
   const rod = { ...newAccessory([], 'ROD-ACC'), name: 'Rod', shapeId: 's1' };
   const missing = { ...newAccessory([], 'missing'), name: 'Missing rod', shapeId: 'gone' };
   const unused = { ...newAccessory([], 'unused'), name: 'Unused', shapeId: 'unused-shape' };
@@ -399,7 +399,7 @@ it('SH3 a anchor 4: freezes referenced accessory shapes, row versions and missin
   expect(keyed.missing.shapes).toEqual([]);
 });
 
-it('SH3 a: restores older snapshots without shapes and defaults older accessory drawing fields', () => {
+it('restores older snapshots without shapes and defaults older accessory drawing fields (SH3)', () => {
   const accessory = newAccessory([], 'a');
   const snapshot = buildSettingsSnapshot({ settings: { ...library(), accessories: [accessory] }, document: room({ accessoryId: 'a' }) });
   delete snapshot.shapes;

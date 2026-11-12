@@ -13,8 +13,8 @@ const base = () => elevationReducer(stateWithRun(run({
 })), setSelection({ runId: 'run-1', pieceId: 'c1' }));
 const selected = () => elevationReducer(base(), setInteriorPath({ path: 'r.0', divider: 1 }));
 
-describe('IN3 doors-off view and shared interior selection', () => {
-  it('anchor 1: validates the doors-off flag, clears faces only when enabled, and never persists UI state', () => {
+describe('doors-off view and shared interior selection (IN3)', () => {
+  it('validates the doors-off flag, clears faces only when enabled, and never persists UI state', () => {
     const initial = createInitialElevationState(null);
     expect(initial).toMatchObject({ doorsOff: false, interiorPath: null, interiorDivider: null });
     const before = elevationReducer(selected(), setFacePath('r.0'));
@@ -32,7 +32,7 @@ describe('IN3 doors-off view and shared interior selection', () => {
       .toMatchObject({ doorsOff: false, interiorPath: null, interiorDivider: null });
   });
 
-  it('anchor 3: rejects malformed selections and clears both values with null or an omitted divider', () => {
+  it('rejects malformed selections and clears both values with null or an omitted divider', () => {
     const before = selected();
     for (const payload of [undefined, false, 1, 'r', [], {}, { path: '' }, { path: 1 },
       { path: 'r', divider: -1 }, { path: 'r', divider: 0.5 }, { path: 'r', divider: '1' },
@@ -49,7 +49,7 @@ describe('IN3 doors-off view and shared interior selection', () => {
       .toMatchObject({ interiorPath: 'reader-validates-this', interiorDivider: 0 });
   });
 
-  it('anchor 2: clears interior selection wherever a selection change clears the face', () => {
+  it('clears interior selection wherever a selection change clears the face', () => {
     const before = elevationReducer(selected(), setFacePath('r.1'));
     expect(before).toMatchObject({ interiorPath: 'r.0', interiorDivider: 1 });
     const actions = [

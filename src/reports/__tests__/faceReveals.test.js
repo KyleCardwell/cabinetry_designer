@@ -15,8 +15,8 @@ const drawers = { direction: 'vertical', size: null, children: Array.from({ leng
 const revealNotes = (r, s = settings) => shippingList(r, s).rows
   .find(({ key }) => key === 'cab').notes.filter((note) => note.startsWith("RV's"));
 
-describe('FX14 step c profiled face frame reveals', () => {
-  it('anchor 1: measures Room 10 FF #32 from its real 43 1/2 by 99 1/2 box', () => {
+describe('profiled face frame reveals (FX14)', () => {
+  it('measures Room 10 FF #32 from its real 43 1/2 by 99 1/2 box', () => {
     const s = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
     const r = syncRoom(structuredClone(stored), s);
     const before = structuredClone(r);
@@ -28,7 +28,7 @@ describe('FX14 step c profiled face frame reveals', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 2: measures a profiled single door and replaces typed reveals', () => {
+  it('measures a profiled single door and replaces typed reveals', () => {
     const r = syncRoom(room({ style: { cabinetStyleId: 14 }, walls: [wall({ runs: [run({
       width: 30, ends: { left: { type: 'none' }, right: { type: 'none' } },
       items: [{ ...fixed('cab', 30), face: single, reveals: { horizontal: 9 } }],
@@ -36,7 +36,7 @@ describe('FX14 step c profiled face frame reveals', () => {
     expect(revealNotes(r)).toEqual(['RV\'s (1 19/32" T & B, 27/32" L & R)']);
   });
 
-  it('anchor 3: measures only neighboring gaps in a three-front drawer stack', () => {
+  it('measures only neighboring gaps in a three-front drawer stack', () => {
     const r = syncRoom(room({ style: { cabinetStyleId: 14 }, walls: [wall({ runs: [run({
       width: 30, ends: { left: { type: 'none' }, right: { type: 'none' } },
       items: [{ ...fixed('cab', 30), face: drawers }],
@@ -46,7 +46,7 @@ describe('FX14 step c profiled face frame reveals', () => {
     ]);
   });
 
-  it('anchor 4: leaves square single, drawer and Room 10 pair cabinets without measured notes', () => {
+  it('leaves square single, drawer and Room 10 pair cabinets without measured notes', () => {
     const s = { ...settings, teamDoorStyle: DEFAULT_DOOR_STYLE };
     for (const face of [single, drawers, { type: 'open', size: null }]) {
       const r = syncRoom(room({ style: { cabinetStyleId: 14 }, walls: [wall({ runs: [run({

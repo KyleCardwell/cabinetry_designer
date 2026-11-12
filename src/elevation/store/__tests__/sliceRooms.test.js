@@ -59,7 +59,7 @@ import {
 } from './helpers/sliceFixtures.js';
 
 describe('SPEC-12 elevation selection persistence', () => {
-  it('4. keeps the wall selected when deleting a run in elevation', () => {
+  it('keeps the wall selected when deleting a run in elevation', () => {
     const initial = stateWithRun(run());
     initial.selection = {
       wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
@@ -74,7 +74,7 @@ describe('SPEC-12 elevation selection persistence', () => {
     });
   });
 
-  it('5. resolves a later selection against the retained wall', () => {
+  it('resolves a later selection against the retained wall', () => {
     const initial = stateWithRun(run());
     initial.rooms[0].walls[0].runs.push(run({ id: 'run-2' }));
     initial.selection = {
@@ -90,7 +90,7 @@ describe('SPEC-12 elevation selection persistence', () => {
     expect(next.selection.runId).toBe('run-2');
   });
 
-  it('6. clears the wall when deleting a run in plan', () => {
+  it('clears the wall when deleting a run in plan', () => {
     const initial = stateWithRun(run());
     initial.view = 'plan';
     initial.selection = {
@@ -104,7 +104,7 @@ describe('SPEC-12 elevation selection persistence', () => {
     expect(next.selection.wallId).toBeNull();
   });
 
-  it('7. keeps the wall selected when deleting an opening in elevation', () => {
+  it('keeps the wall selected when deleting an opening in elevation', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls[0].openings = [opening()];
     initial.selection = {
@@ -119,7 +119,7 @@ describe('SPEC-12 elevation selection persistence', () => {
     expect(next.selection.openingId).toBeNull();
   });
 
-  it('8. keeps the wall when clearing elevation selection and clears it in plan', () => {
+  it('keeps the wall when clearing elevation selection and clears it in plan', () => {
     const elevation = stateWithRun(run());
     elevation.selection = {
       wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
@@ -140,7 +140,7 @@ describe('SPEC-12 elevation selection persistence', () => {
 });
 
 describe('elevation room reducers', () => {
-  it('1. activates and selects a wall while clearing object selection', () => {
+  it('activates and selects a wall while clearing object selection', () => {
     const initial = stateWithRun(run());
     initial.rooms[0].walls.push({
       ...initial.rooms[0].walls[0],
@@ -163,7 +163,7 @@ describe('elevation room reducers', () => {
     });
   });
 
-  it('2. clears all selection fields without changing the active wall', () => {
+  it('clears all selection fields without changing the active wall', () => {
     const initial = stateWithRun(run());
     initial.selection = {
       wallId: 'wall-1', runId: 'run-1', pieceId: 'piece-1', openingId: null,
@@ -176,7 +176,7 @@ describe('elevation room reducers', () => {
     expect(next.activeWallId).toBe('wall-1');
   });
 
-  it('3. selects the active wall when entering elevation view', () => {
+  it('selects the active wall when entering elevation view', () => {
     const initial = elevationReducer(stateWithRun(), setView('plan'));
 
     const next = elevationReducer(initial, setView('elevation'));
@@ -194,7 +194,7 @@ describe('elevation room reducers', () => {
     expect(next.selection.wallId).toBe('wall-1');
   });
 
-  it('4. clears a deleted wall selection and moves the active wall', () => {
+  it('clears a deleted wall selection and moves the active wall', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls.push({
       ...initial.rooms[0].walls[0],
@@ -212,7 +212,7 @@ describe('elevation room reducers', () => {
     });
   });
 
-  it("8. FX1: the room's wall height redraws walls without their own height", () => {
+  it("FX1: the room's wall height redraws walls without their own height", () => {
     const next = elevationReducer(stateWithRun(), updateRoomProfile({
       roomId: 'room-1',
       key: 'wallHeight',
@@ -237,7 +237,7 @@ describe('elevation room reducers', () => {
     expect(next.rooms[0].walls[0].height).toBe(108);
   });
 
-  it("9. uses the room's wall height when adding a wall", () => {
+  it("uses the room's wall height when adding a wall", () => {
     const initial = stateWithRun();
     initial.rooms[0].profile.wallHeight = 108;
 
@@ -249,7 +249,7 @@ describe('elevation room reducers', () => {
     expect(next.rooms[0].walls.find((wall) => wall.id === 'wall-2').height).toBe(108);
   });
 
-  it('10. uses the room wall height for segments while explicit height wins', () => {
+  it('uses the room wall height for segments while explicit height wins', () => {
     const initial = stateWithRun();
     initial.rooms[0].profile.wallHeight = 108;
     const payload = {
@@ -276,7 +276,7 @@ describe('elevation room reducers', () => {
       .toBe(84);
   });
 
-  it('11. translates every wall to center the room on the origin', () => {
+  it('translates every wall to center the room on the origin', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls = [
       {
@@ -308,7 +308,7 @@ describe('elevation room reducers', () => {
       ]);
   });
 
-  it('12. changes nothing when centering an already-centered room', () => {
+  it('changes nothing when centering an already-centered room', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls = [
       {
@@ -340,7 +340,7 @@ describe('elevation room reducers', () => {
       ]);
   });
 
-  it('13. preserves wall-local content and topology while centering', () => {
+  it('preserves wall-local content and topology while centering', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls = [
       {
@@ -374,7 +374,7 @@ describe('elevation room reducers', () => {
     expect(wallA.connections.end).toEqual({ wallId: 'wall-b', endpoint: 'start' });
   });
 
-  it('14. leaves an empty room unchanged', () => {
+  it('leaves an empty room unchanged', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls = [];
 
@@ -384,7 +384,7 @@ describe('elevation room reducers', () => {
     expect(next.rooms[0].walls).toEqual([]);
   });
 
-  it('9. assigns exposed and inside anchored-end treatments', () => {
+  it('assigns exposed and inside anchored-end treatments', () => {
     const cornerState = (outside, rightEnd = { type: 'none', width: null }) => {
       const state = stateWithRun(run({
         width: 40,
@@ -425,7 +425,7 @@ describe('elevation room reducers', () => {
     )).ends.right).toEqual({ type: 'end_panel', width: 0.75 });
   });
 
-  it('20. fixes both placed widths when attaching the second column and keeps them fixed', () => {
+  it('fixes both placed widths when attaching the second column and keeps them fixed', () => {
     // LL4: wall-end pins became layout lines; attaching a column does what pinning did.
     const initial = stateWithRun(run({
       items: [auto('a'), auto('b'), auto('c'), auto('d'), auto('e')],
@@ -519,7 +519,7 @@ describe('elevation room reducers', () => {
     expect(next.tool).toBe('wall');
   });
 
-  it('15. defaults, preserves, updates, and validates elevationForced', () => {
+  it('defaults, preserves, updates, and validates elevationForced', () => {
     const defaulted = elevationReducer(stateWithRun(), addWall({
       roomId: 'room-1',
       id: 'wall-default',
@@ -639,11 +639,11 @@ describe('elevation room reducers', () => {
 });
 
 describe('SPEC-17 active wall side', () => {
-  it('119. initializes the active wall side to front', () => {
+  it('initializes the active wall side to front', () => {
     expect(createInitialElevationState().activeWallSide).toBe('front');
   });
 
-  it('120. sets a valid active wall side and clears transient selection', () => {
+  it('sets a valid active wall side and clears transient selection', () => {
     let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
     state = elevationReducer(state, setSelection({ runId: 'F' }));
     state = elevationReducer(state, setActiveWallSide('back'));
@@ -655,7 +655,7 @@ describe('SPEC-17 active wall side', () => {
     expect(state.activeWallSide).toBe('back');
   });
 
-  it('121. keeps the active wall side in sync with selected runs and openings', () => {
+  it('keeps the active wall side in sync with selected runs and openings', () => {
     let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
     state.rooms[0].walls[0].runs.push(run({
       id: 'K', x: 0, width: 60, wallSide: 'back',
@@ -672,7 +672,7 @@ describe('SPEC-17 active wall side', () => {
     expect(state.activeWallSide).toBe('front');
   });
 
-  it('122. resets the active wall side when setting the active wall', () => {
+  it('resets the active wall side when setting the active wall', () => {
     const state = stateWithRun();
     state.activeWallSide = 'back';
 
@@ -681,7 +681,7 @@ describe('SPEC-17 active wall side', () => {
     expect(next.activeWallSide).toBe('front');
   });
 
-  it('123. accepts zero wall thickness and rejects negative thickness', () => {
+  it('accepts zero wall thickness and rejects negative thickness', () => {
     let state = stateWithRun();
     state = elevationReducer(state, updateWall({
       wallId: 'wall-1', changes: { thickness: 0 },
@@ -696,7 +696,7 @@ describe('SPEC-17 active wall side', () => {
 });
 
 describe('SPEC-17 wall end panel shape', () => {
-  it('124. creates walls with empty endpoint panels', () => {
+  it('creates walls with empty endpoint panels', () => {
     let state = elevationReducer(stateWithRun(), addWall({}));
     expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
 
@@ -708,7 +708,7 @@ describe('SPEC-17 wall end panel shape', () => {
 });
 
 describe('SPEC-17 wall end panel UI', () => {
-  it('132. sets, updates, removes, and validates wall end panels', () => {
+  it('sets, updates, removes, and validates wall end panels', () => {
     let state = elevationReducer(stateWithRun(), setWallEndPanel({
       wallId: 'wall-1', endpoint: 'start', panel: { width: null },
     }));
@@ -759,7 +759,7 @@ describe('SPEC-18 wing wall store', () => {
     }));
   }
 
-  it('154. lands new wall segments on a host face', () => {
+  it('lands new wall segments on a host face', () => {
     const state = stateWithLandings();
     const wall1 = state.rooms[0].walls.find((wall) => wall.id === 'W1');
     const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
@@ -774,7 +774,7 @@ describe('SPEC-18 wing wall store', () => {
     expect(wall2.flipped).toBe(true);
   });
 
-  it('155. edits landing references, targets, and offsets', () => {
+  it('edits landing references, targets, and offsets', () => {
     let state = stateWithLandings();
     state = elevationReducer(state, setWallLanding({
       wallId: 'W2', endpoint: 'start', ref: 'W1',
@@ -799,7 +799,7 @@ describe('SPEC-18 wing wall store', () => {
     expect(wall2.x1).toBe(108);
   });
 
-  it('156. releases wall references and anchors when deleting a wing', () => {
+  it('releases wall references and anchors when deleting a wing', () => {
     let state = stateWithLandings(run({
       anchors: { left: { to: 'wall', wallId: 'W1' }, right: false },
     }));
@@ -816,7 +816,7 @@ describe('SPEC-18 wing wall store', () => {
     expect(hostRun.anchors.left).toBe(false);
   });
 
-  it('157. detaches a landing and releases wall anchors', () => {
+  it('detaches a landing and releases wall anchors', () => {
     let state = stateWithLandings(run({
       anchors: { left: false, right: { to: 'wall', wallId: 'W2' } },
     }));
@@ -830,7 +830,7 @@ describe('SPEC-18 wing wall store', () => {
     expect(hostRun.anchors.right).toBe(false);
   });
 
-  it('158. accepts wall run anchors and rejects missing wall ids', () => {
+  it('accepts wall run anchors and rejects missing wall ids', () => {
     let state = stateWithRun(run());
     state = elevationReducer(state, setRunAnchor({
       wallId: 'wall-1',
@@ -852,7 +852,7 @@ describe('SPEC-18 wing wall store', () => {
     expect(invalid).toBe(state);
   });
 
-  it('159. clears a landing when its endpoint is connected', () => {
+  it('clears a landing when its endpoint is connected', () => {
     let state = stateWithLandings();
     state = elevationReducer(state, addWallSegment({
       id: 'C', x1: 200, y1: 50, x2: 250, y2: 50,
@@ -880,7 +880,7 @@ describe('SPEC-18 wing wall store', () => {
 });
 
 describe('SPEC-23 part number store', () => {
-  it('196. initializes and updates a room part number start', () => {
+  it('initializes and updates a room part number start', () => {
     let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
     const roomId = state.activeRoomId;
 
@@ -899,7 +899,7 @@ describe('SPEC-23 part number store', () => {
     expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(1);
   });
 
-  it('197. sets, clears, and rejects invalid part number overrides', () => {
+  it('sets, clears, and rejects invalid part number overrides', () => {
     let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
     const roomId = state.activeRoomId;
 

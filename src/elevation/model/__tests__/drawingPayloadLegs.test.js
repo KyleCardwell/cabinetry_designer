@@ -16,8 +16,8 @@ const R = run({ x: 10, width: 36, legs: [leg] });
 const W = wall({ x1: 0, y1: 0, x2: 144, y2: 0, runs: [R] });
 const ROOM = room({ walls: [W] });
 
-describe('SH7 step f legs in the drawing payload', () => {
-  it('anchor 1: omits leg parts, records and plan.shapes from every golden room', () => {
+describe('legs in the drawing payload (SH7)', () => {
+  it('omits leg parts, records and plan.shapes from every golden room', () => {
     const document = normalizeElevationDocument(
       JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
     );
@@ -31,7 +31,7 @@ describe('SH7 step f legs in the drawing payload', () => {
     }
   });
 
-  it('anchor 2: appends the leg bounds and front loops with its unstretched block', () => {
+  it('appends the leg bounds and front loops with its unstretched block', () => {
     const before = structuredClone(ROOM);
     const drawing = faceDrawing(ROOM, W, 'front', settings);
     const without = faceDrawing(ROOM, { ...W, runs: [{ ...R, legs: undefined }] }, 'front', settings);
@@ -62,7 +62,7 @@ describe('SH7 step f legs in the drawing payload', () => {
     expect(ROOM).toEqual(before);
   });
 
-  it('anchor 3: maps the square and circle into y-up plan, preserving arcs on rotated and back faces', () => {
+  it('maps the square and circle into y-up plan, preserving arcs on rotated and back faces', () => {
     const [shape] = toDrawingPayload(ROOM, settings).plan.shapes;
     expect(shape).toMatchObject({ id: leg.id, kind: 'leg', top: 34.5 });
     expect(shape.loops[0]).toEqual({ closed: true, points: [
@@ -99,7 +99,7 @@ describe('SH7 step f legs in the drawing payload', () => {
     }
   });
 
-  it('anchor 4: exports a height-30 stretched leg without a block', () => {
+  it('exports a height-30 stretched leg without a block', () => {
     const stretchedWall = { ...W, runs: [{ ...R, legs: [{ ...leg, height: 30 }] }] };
     const payload = toDrawingPayload(room({ walls: [stretchedWall] }), settings);
     const elevation = payload.elevations[0];

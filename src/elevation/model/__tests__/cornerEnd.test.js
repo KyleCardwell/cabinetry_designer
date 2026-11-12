@@ -10,7 +10,7 @@ import { wallViewForRun } from '../wallSides.js';
 
 let subject, ownerWall, returnWall, owner;
 
-describe('CC1 step c plain corners', () => {
+describe('plain corners (CC1)', () => {
   beforeEach(() => {
     owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
       anchors: { left: true, right: false },
@@ -25,7 +25,7 @@ describe('CC1 step c plain corners', () => {
     subject = room({ walls: [ownerWall, returnWall] });
   });
 
-  it('anchor 1: resolves the whole owner column with no return run', () => {
+  it('resolves the whole owner column with no return run', () => {
     const result = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
     expect(result).toMatchObject({ side: 'left', active: true, kind: 90,
       legA: 36, legB: 36, depthA: 24, depthB: 24, returnPiece: 'auto',
@@ -35,19 +35,19 @@ describe('CC1 step c plain corners', () => {
     expect(cornerEndActive(subject, ownerWall, owner, 'left')).toEqual({ active: true, code: null });
   });
 
-  it('anchor 2: uses the return run box depth', () => {
+  it('uses the return run box depth', () => {
     returnWall.runs = [run({ id: 'return', depth: 21, anchors: { left: false, right: true } })];
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
       .toMatchObject({ depthB: 21, shape: { shown: { a: 15, b: 12 } } });
   });
 
-  it('anchor 3: ignores a return run in an incompatible band', () => {
+  it('ignores a return run in an incompatible band', () => {
     returnWall.runs = [run({ id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER, depth: 12,
       anchors: { left: false, right: true } })];
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS).depthB).toBe(24);
   });
 
-  it('anchor 4: typed dimensions override auto for a 45-degree cabinet', () => {
+  it('typed dimensions override auto for a 45-degree cabinet', () => {
     owner.ends.left.corner = { kind: 45, legB: 30, depthB: 15, returnPiece: 'filler' };
     returnWall.runs = [run({ depth: 28, anchors: { left: false, right: true } })];
     const result = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
@@ -57,7 +57,7 @@ describe('CC1 step c plain corners', () => {
     expect(result.shape.angle).toBeCloseTo(14.5345, 3);
   });
 
-  it('anchor 5: retains resolved dimensions while unanchored', () => {
+  it('retains resolved dimensions while unanchored', () => {
     owner.anchors.left = false;
     const result = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
     expect(result).toMatchObject({ active: false, cornerX: null, legA: 36, legB: 36,
@@ -67,7 +67,7 @@ describe('CC1 step c plain corners', () => {
     });
   });
 
-  it('CC6.1 uses sheet thickness for Euro sides and warns when it consumes a diagonal', () => {
+  it('uses sheet thickness for Euro sides and warns when it consumes a diagonal (CC6.1)', () => {
     owner.ends.left.corner.kind = 45;
     const settings = { ...DEFAULT_SETTINGS, sheetThickness: 1 };
     expect(cornerEnd(subject, ownerWall, owner, 'left', settings)).toMatchObject({
@@ -80,7 +80,7 @@ describe('CC1 step c plain corners', () => {
     });
   });
 
-  it('CC6.2 keeps the uneven door over both side edges once it is set out to the neighbours\' face plane', () => {
+  it('keeps the uneven door over both side edges once it is set out to the neighbours\' face plane (CC6.2)', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const thick = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
     expect(thick.faceLayout.sideClearance.a).toBeCloseTo(0.2085, 3);
@@ -92,7 +92,7 @@ describe('CC1 step c plain corners', () => {
     expect(thin.warnings).toEqual([]);
   });
 
-  it('CC6.1 keeps active, beaded and inactive framed corners five-sided', () => {
+  it('keeps active, beaded and inactive framed corners five-sided (CC6.1)', () => {
     owner.ends.left.corner.kind = 45;
     for (const [active, bead] of [[true, 0], [true, 0.25], [false, 0]]) {
       owner.anchors.left = active;
@@ -104,7 +104,7 @@ describe('CC1 step c plain corners', () => {
     }
   });
 
-  it('anchor 6: rejects a 135-degree inside corner', () => {
+  it('rejects a 135-degree inside corner', () => {
     returnWall.x1 = -144;
     const result = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
     expect(result.corner.angle).toBeCloseTo(135, 3);
@@ -112,7 +112,7 @@ describe('CC1 step c plain corners', () => {
     expect(result.warnings.map(({ code }) => code)).toEqual(['corner-not-in-corner']);
   });
 
-  it('anchor 7: does not skip a void to select an inner cabinet', () => {
+  it('does not skip a void to select an inner cabinet', () => {
     owner.grid.cells[0].node.kind = 'void';
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
       .toMatchObject({ legA: null, columnId: null, shape: null,
@@ -121,14 +121,14 @@ describe('CC1 step c plain corners', () => {
       });
   });
 
-  it('anchor 8: warns and omits a shape when a leg is too short', () => {
+  it('warns and omits a shape when a leg is too short', () => {
     owner.ends.left.corner.legB = 20;
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
       .toMatchObject({ shape: null, warnings: [{ code: 'corner-legs-too-short', side: 'left',
         message: "The corner cabinet's legs are shorter than the depths beside them." }] });
   });
 
-  it('anchor 9: diagnoses doubled corners on both runs without recursion', () => {
+  it('diagnoses doubled corners on both runs without recursion', () => {
     returnWall.runs = [run({ id: 'return', autoCount: false, items: [auto('b'), fixed('return-cc', 36)],
       anchors: { left: false, right: true },
       ends: { left: { type: 'none' }, right: normalizeCornerEnd({}) },
@@ -208,7 +208,7 @@ describe('CC1 step c plain corners', () => {
   });
 });
 
-describe('CC1 step c peninsula corners', () => {
+describe('peninsula corners (CC1)', () => {
   let host, pen, penRun, hostRun, penSide;
   beforeEach(() => {
     hostRun = run({ id: 'host-run', x: 0, width: 72, autoCount: false,

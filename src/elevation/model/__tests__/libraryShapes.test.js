@@ -42,8 +42,8 @@ const ROD = {
   } },
 };
 
-describe('SH2 step a shapes', () => {
-  it('anchor 1: creates the specified 12-inch box and front rectangle, with unique names and ids', () => {
+describe('shapes (SH2)', () => {
+  it('creates the specified 12-inch box and front rectangle, with unique names and ids', () => {
     const shape = newShape([], 'shape-1');
     expect(DEFAULT_SETTINGS.shapes).toEqual([]);
     expect(LIBRARY_KEYS).toContain('shapes');
@@ -79,7 +79,7 @@ describe('SH2 step a shapes', () => {
     expect(copyShape([], null, 'bad')).toBeNull();
   });
 
-  it('anchor 2: returns stored views or counter-clockwise size-box plan and side rectangles', () => {
+  it('returns stored views or counter-clockwise size-box plan and side rectangles', () => {
     const leg = { ...ROD, kind: 'leg', box: { x: -1.75, y: -1.75, z: 0, w: 3.5, h: 34.5, d: 3.5 } };
     const plan = shapeView(leg, 'plan');
     expect(plan.points).toEqual({ b1: [-1.75, -1.75], b2: [1.75, -1.75], b3: [1.75, 1.75], b4: [-1.75, 1.75] });
@@ -95,7 +95,7 @@ describe('SH2 step a shapes', () => {
     expect(shapeView(leg, 'top')).toBeNull();
   });
 
-  it('anchor 3: checks x zones for arc crossing, edge contact, box overflow and overlapping/touching zones', () => {
+  it('checks x zones for arc crossing, edge contact, box overflow and overlapping/touching zones', () => {
     const zones = [[[3, 27]], [[2, 27]], [[2.125, 27]], [[3, 31]], [[3, 10], [9, 20]], [[3, 10], [10, 20]]];
     expect(zones.map((x) => shapeStretchProblems({ ...ROD, stretch: { x } }))).toEqual([
       [], [{ axis: 'x', index: 0, problem: 'arc', view: 'front' }], [],
@@ -107,7 +107,7 @@ describe('SH2 step a shapes', () => {
       .toEqual([{ axis: 'x', index: 1, problem: 'overlap' }]);
   });
 
-  it('anchor 4: includes arc extremes between endpoints and reports one conflict per view and zone', () => {
+  it('includes arc extremes between endpoints and reports one conflict per view and zone', () => {
     expect(shapeStretchProblems({ ...ROD, stretch: { z: [[0.5, 1]] } }))
       .toEqual([{ axis: 'z', index: 0, problem: 'arc', view: 'front' }]);
     const shape = { ...ROD, views: { ...ROD.views, plan: ROD.views.front, side: ROD.views.front },
@@ -124,7 +124,7 @@ describe('SH2 step a shapes', () => {
       .toBe('Stretch zone x 9"–20" overlaps the zone before it.');
   });
 
-  it('anchor 5: moves the origin on front axes, including arc centres, other views and zones', () => {
+  it('moves the origin on front axes, including arc centres, other views and zones', () => {
     const shape = { ...ROD, stretch: { x: [[3, 27]] }, views: { ...ROD.views, plan: {
       units: 'in', points: { p: [3, 1], q: [27, 1] },
       loops: [{ id: 'plan', closed: false, segs: [{ type: 'line', from: 'p', to: 'q' }] }],
@@ -141,7 +141,7 @@ describe('SH2 step a shapes', () => {
     expect(moveShapeOrigin(ROD, 'plan', 'b1')).toBeNull();
   });
 
-  it('anchor 6: flips the whole shape on x and reverses arc winding; two flips restore the rod', () => {
+  it('flips the whole shape on x and reverses arc winding; two flips restore the rod', () => {
     const rod = { ...ROD, stretch: { x: [[3, 27]] } };
     const flipped = flipShape(rod, 'x');
     expect(flipped.box.x).toBe(-30);
@@ -173,7 +173,7 @@ describe('SH2 step a shapes', () => {
     expect(side.views.front.points.hl).toEqual([0.875, 0]);
   });
 
-  it('anchor 7: fits only drawn axes, unions views, and includes arc extrema', () => {
+  it('fits only drawn axes, unions views, and includes arc extrema', () => {
     const rod = { ...ROD, box: { x: 5, y: 1, z: 5, w: 12, h: 12, d: 7 } };
     expect(fitShapeBox(rod).box).toEqual({ x: 0, y: 1, z: 0, w: 30, h: 3, d: 7 });
     const arc = {
@@ -190,7 +190,7 @@ describe('SH2 step a shapes', () => {
     expect(fitShapeBox({ ...rod, views: { front: flat } })).toBeNull();
   });
 
-  it('anchor 8: rejects extra keys, invalid dimensions/views/metadata, but permits draft zone conflicts', () => {
+  it('rejects extra keys, invalid dimensions/views/metadata, but permits draft zone conflicts', () => {
     const draft = { ...ROD, stretch: { x: [[2, 27]] } };
     expect([isShape(ROD), isShape(draft), isShapeDraft(draft)]).toEqual([true, false, true]);
     const invalid = [null, {}, { ...ROD, extra: true }, { ...ROD, name: ' Rod' }, { ...ROD, name: '' },
@@ -251,8 +251,8 @@ describe('SH2 step a shapes', () => {
   });
 });
 
-describe('SH2.1 step a shape origins and point groups', () => {
-  it('anchor 4: places the rod centre at zero, including the box, zones, hole and rod lines', () => {
+describe('shape origins and point groups (SH2.1)', () => {
+  it('places the rod centre at zero, including the box, zones, hole and rod lines', () => {
     const rod = { ...ROD, stretch: { x: [[3, 27]] } };
     const before = structuredClone(rod);
     const moved = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
@@ -270,7 +270,7 @@ describe('SH2.1 step a shape origins and point groups', () => {
     expect(rod).toEqual(before);
   });
 
-  it('anchor 5: returns all nine spots in view order, using the box and each view’s axes', () => {
+  it('returns all nine spots in view order, using the box and each view’s axes', () => {
     const spots = shapeOriginSpots(ROD, 'front');
     expect(spots).toEqual(['top', 'middle', 'bottom'].flatMap((row, r) =>
       ['left', 'middle', 'right'].map((col, c) => ({ row, col, at: { x: c * 15, z: 3 - r * 1.5 } }))));
@@ -331,11 +331,11 @@ describe('empty views', () => {
 });
 
 
-describe('SH3 step b resolve and place shapes', () => {
+describe('resolve and place shapes (SH3)', () => {
   const rod = { ...ROD, stretch: { x: [[3, 27]] } };
   const section = { x: 100, z: 10, width: 36, height: 80 };
 
-  it('anchor 1: stretches only the rod, translating the right bracket and its hole', () => {
+  it('stretches only the rod, translating the right bracket and its hole', () => {
     const before = structuredClone(rod);
     const resolved = resolveShape(rod, { w: 36 });
     const { shape } = resolved;
@@ -356,7 +356,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(rod).toEqual(before);
   });
 
-  it('anchor 2: splits growth and shrinkage proportionally across unequal zones', () => {
+  it('splits growth and shrinkage proportionally across unequal zones', () => {
     const xs = [3, 4, 10, 13, 16, 30];
     const two = { ...rod, stretch: { x: [[2, 4], [10, 16]] }, views: { front: {
       units: 'in', points: Object.fromEntries(xs.map((x, i) => [i, [x, 0]])),
@@ -372,7 +372,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(shrunk.stretch.x).toEqual([[2, 3], [9, 12]]);
   });
 
-  it('anchor 3: warns below the fixed width, permits collapsed zones, and ignores targets on fixed axes', () => {
+  it('warns below the fixed width, permits collapsed zones, and ignores targets on fixed axes', () => {
     const small = resolveShape(rod, { w: 5 });
     expect(small.shape).toEqual(rod);
     expect(small.warnings).toEqual([{ code: 'shape-too-small', axis: 'x', fixed: 6, target: 5 }]);
@@ -387,7 +387,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(resolveShape(rod, { w: null, h: null, d: null })).toEqual(resolveShape(rod));
   });
 
-  it('anchor 4: places the stretched rod centreline at the measured height and centres its box', () => {
+  it('places the stretched rod centreline at the measured height and centres its box', () => {
     const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
     const resolved = resolveShape(rodc, { w: 36 });
     expect(resolved.origin).toEqual({ x: 3, y: 0, z: 0 });
@@ -404,7 +404,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(resolved).toEqual(before);
   });
 
-  it('SH4 a anchor 1: marks only successfully resized zoned axes as stretched', () => {
+  it('marks only successfully resized zoned axes as stretched (SH4)', () => {
     const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
     for (const [target, stretched] of [
       [{ w: 36 }, true], [{}, false], [{ w: 30 }, false], [{ w: 5 }, false], [{ h: 10 }, false],
@@ -416,7 +416,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(resolveShape(zoned, { h: 16 }).stretched).toBe(true);
   });
 
-  it('SH4 a anchors 2–3: places the resolved zero and mirrors it across the box centre', () => {
+  it('places the resolved zero and mirrors it across the box centre (SH4)', () => {
     const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
     const resolved = resolveShape(rodc, { w: 36 });
     expect(placeShapeFront(resolved, { section, fromBottom: 66 }).insert).toEqual({ x: 118, z: 76 });
@@ -437,7 +437,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(mirrored.outlines[0].outline[0].slice(0, 2)).toEqual([mirrored.insert.x, mirrored.insert.z]);
   });
 
-  it('anchor 5: mirrors the handed bracket across the stretched box and negates its bulges', () => {
+  it('mirrors the handed bracket across the stretched box and negates its bulges', () => {
     const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
     const handed = { ...rodc, views: { front: { ...rodc.views.front,
       loops: rodc.views.front.loops.filter(({ id }) => !['right', 'hole-right'].includes(id)),
@@ -451,7 +451,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(normal.outlines[1].outline.map(([, , bulge]) => bulge)).toEqual([1, 1]);
   });
 
-  it('anchor 6: traces all six rod loops in order, retaining open line ends and closed circle bulges', () => {
+  it('traces all six rod loops in order, retaining open line ends and closed circle bulges', () => {
     expect(shapeOutlines(rod.views.front)).toEqual([
       { closed: true, outline: [[0, 0, 0], [3, 0, 0], [3, 3, 0], [0, 3, 0]] },
       { closed: true, outline: [[27, 0, 0], [30, 0, 0], [30, 3, 0], [27, 3, 0]] },

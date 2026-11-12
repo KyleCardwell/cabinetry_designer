@@ -42,7 +42,7 @@ const K = room({
 
 const byId = (room, id) => room.walls.find((wall) => wall.id === id);
 
-describe('WL1 a: held landed walls', () => {
+describe('held landed walls (WL1)', () => {
   it('matches the shared Room K frames, interval and labels', () => {
     const host = byId(K, 'wall-3');
     expect(wallFrame(K, byId(K, 'wall-2')).n).toEqual({ x: 1, y: 0 });
@@ -87,7 +87,7 @@ describe('WL1 a: held landed walls', () => {
     expect(after).toEqual(edited);
   });
 
-  it('anchor 3: moving the host corner retains offset 39', () => {
+  it('moving the host corner retains offset 39', () => {
     const after = { ...K, walls: setWallLength(K, 'wall-3', 111, 'right').walls };
     const result = holdLandedWalls(K, after);
     expect(result.ok).toBe(true);
@@ -100,7 +100,7 @@ describe('WL1 a: held landed walls', () => {
     expect(byId(resolved, 'wall-2')).toEqual(byId(K, 'wall-2'));
   });
 
-  it('anchor 4: moving the host across its face stretches only the landed end', () => {
+  it('moving the host across its face stretches only the landed end', () => {
     const after = { ...K, walls: moveWallPerpendicular(K, 'wall-3', 2).walls };
     const result = holdLandedWalls(K, after);
     expect(result.ok).toBe(true);
@@ -113,14 +113,14 @@ describe('WL1 a: held landed walls', () => {
     });
   });
 
-  it('anchor 5: accepts a landing exactly at the host end', () => {
+  it('accepts a landing exactly at the host end', () => {
     const after = { ...K, walls: setWallLength(K, 'wall-3', 85, 'left').walls };
     const result = holdLandedWalls(K, after);
     expect(result.ok).toBe(true);
     expect(byId(result, 'wall-2').landings.end.offset).toBe(0);
   });
 
-  it('anchor 6: refuses the whole edit if a held landing leaves the face', () => {
+  it('refuses the whole edit if a held landing leaves the face', () => {
     const after = { ...K, walls: setWallLength(K, 'wall-3', 84, 'left').walls };
     const edited = structuredClone(after);
     const result = holdLandedWalls(K, after);
@@ -132,7 +132,7 @@ describe('WL1 a: held landed walls', () => {
     expect(after).toEqual(edited);
   });
 
-  it('anchor 7: leaves a moved landed wall\'s own landing untouched', () => {
+  it('leaves a moved landed wall\'s own landing untouched', () => {
     const after = { ...K, walls: moveWallPerpendicular(K, 'wall-2', 13).walls };
     const result = holdLandedWalls(K, after);
     expect(result.ok).toBe(true);
@@ -153,7 +153,7 @@ describe('WL1 a: held landed walls', () => {
     expect(byId(result, 'wall-2').landings.end).toBe(byId(K, 'wall-2').landings.end);
   });
 
-  it('anchor 8: an unheld wing follows its host with its landing unchanged', () => {
+  it('an unheld wing follows its host with its landing unchanged', () => {
     const wing = wall({
       id: 'wall-5', x1: -80, y1: 9, x2: -80, y2: -30, thickness: 4.5,
       connections: { start: null, end: null },

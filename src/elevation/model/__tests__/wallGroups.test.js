@@ -19,8 +19,8 @@ const roomI = room({
   roomLines: [roomLine('R1', { from: 'right', value: 120 })],
 });
 
-describe('LL8 a wall group move model', () => {
-  it('anchor 1: finds separate walls, connected islands and landings in both directions', () => {
+describe('wall group move model (LL8)', () => {
+  it('finds separate walls, connected islands and landings in both directions', () => {
     for (const id of ['wall-1', 'wall-2', 'wall-3']) expect(wallGroup(roomI, id)).toEqual([id]);
     const connected = cloneRoom(roomI);
     connected.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
@@ -33,7 +33,7 @@ describe('LL8 a wall group move model', () => {
     for (const id of ['wall-2', 'wall-6']) expect(wallGroup(landed, id)).toEqual(['wall-2', 'wall-6']);
   });
 
-  it('anchor 2: permits an island but refuses a whole room joined by a landing', () => {
+  it('permits an island but refuses a whole room joined by a landing', () => {
     expect(canMoveWallGroup(roomI, 'wall-2')).toEqual({ ok: true, reason: null });
     const subject = room({ walls: [roomI.walls[0], wall({ id: 'wall-2',
       landings: { start: { wallId: 'wall-1', side: 'front', ref: 'left', to: 'center', offset: 60 }, end: null } })] });
@@ -45,7 +45,7 @@ describe('LL8 a wall group move model', () => {
     expect(moveWallGroup(subject, 'wall-1', { x: 10, y: 0 }).room).toBe(subject);
   });
 
-  it('anchor 3: moves W2 left without syncing, keeping the sink on the fixed room line after sync', () => {
+  it('moves W2 left without syncing, keeping the sink on the fixed room line after sync', () => {
     const before = syncRoom(roomI, DEFAULT_SETTINGS);
     expect(wallFrame(roomI, roomI.walls[1])).toMatchObject({ r: { x: -1, y: 0 }, n: { x: 0, y: -1 } });
     const result = moveWallGroup(before, 'wall-2', { x: -10, y: 0 });
@@ -62,7 +62,7 @@ describe('LL8 a wall group move model', () => {
     expect(before.walls[1]).toMatchObject({ x1: 180, x2: 60, runs: [{ x: 42 }] });
   });
 
-  it('anchor 4: moves across toward W1 while preserving the sink face position', () => {
+  it('moves across toward W1 while preserving the sink face position', () => {
     const result = moveWallGroup(roomI, 'wall-2', { x: 0, y: -6 });
     expect(result.room.walls[1]).toMatchObject({ y1: 90, y2: 90 });
     const synced = syncRoom(result.room, DEFAULT_SETTINGS);
@@ -70,7 +70,7 @@ describe('LL8 a wall group move model', () => {
     expect(synced.walls[1].runs[0].x).toBe(42);
   });
 
-  it('anchor 5: translates both legs of an L island, retaining the connections', () => {
+  it('translates both legs of an L island, retaining the connections', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
     subject.walls.push(wall({ id: 'wall-5', x1: 60, y1: 96, x2: 60, y2: 150,
@@ -81,7 +81,7 @@ describe('LL8 a wall group move model', () => {
     expect(result.room.walls[3].connections).toEqual(subject.walls[3].connections);
   });
 
-  it('anchor 6: keeps a room line referenced to the island fixed in plan', () => {
+  it('keeps a room line referenced to the island fixed in plan', () => {
     const subject = cloneRoom(roomI);
     subject.roomLines.push(roomLine('R2', { wallId: 'wall-2', value: 60 }));
     subject.walls[0].runs = [run({ id: 'range', width: 36, attach: attach('R2'),
@@ -95,7 +95,7 @@ describe('LL8 a wall group move model', () => {
     expect(synced.walls[0].runs[0]).toEqual(before.walls[0].runs[0]);
   });
 
-  it('anchor 7: re-references an off-wall line to the first suitable front face', () => {
+  it('re-references an off-wall line to the first suitable front face', () => {
     const subject = { ...roomI, roomLines: [roomLine('R2', { wallId: 'wall-2', value: 5 })] };
     const result = moveWallGroup(subject, 'wall-2', { x: -10, y: 0 });
     expect(result.room.roomLines).toEqual([roomLine('R2', { value: 175 })]);
@@ -103,7 +103,7 @@ describe('LL8 a wall group move model', () => {
     expect(result.message).toBe(result.notes[0]);
   });
 
-  it('anchor 8: prefers an attached back face over an unattached front face', () => {
+  it('prefers an attached back face over an unattached front face', () => {
     const subject = cloneRoom(roomI);
     subject.roomLines = [roomLine('R2', { wallId: 'wall-2', value: 5 })];
     subject.walls[0].runs = [run({ wallSide: 'back', attach: attach('R2') })];
@@ -111,7 +111,7 @@ describe('LL8 a wall group move model', () => {
     expect(result.room.roomLines).toEqual([roomLine('R2', { wallSide: 'back', value: 65 })]);
   });
 
-  it('anchor 9: refuses atomically when no square face contains the room line', () => {
+  it('refuses atomically when no square face contains the room line', () => {
     const subject = room({ walls: roomI.walls.slice(1),
       roomLines: [roomLine('R2', { wallId: 'wall-2', value: 5 })] });
     const before = structuredClone(subject);
@@ -122,7 +122,7 @@ describe('LL8 a wall group move model', () => {
     expect(subject).toEqual(before);
   });
 
-  it('anchor 10: flexes neighbours around the middle column while the run stays on both wall ends', () => {
+  it('flexes neighbours around the middle column while the run stays on both wall ends', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].runs = [run({ id: 'island', autoCount: false, anchors: { left: true, right: true },
       items: [auto('left'), { ...auto('middle'), attach: attach('R1') }, auto('right')] })];
@@ -147,7 +147,7 @@ describe('LL8 a wall group move model', () => {
     expect(pieces(after).filter((piece) => piece.kind === 'filler').map(({ width }) => width)).toEqual([1.5, 1.5]);
   });
 
-  it('anchor 11: an unattached run rides with the island at its stored x', () => {
+  it('an unattached run rides with the island at its stored x', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].runs = [run({ x: 10, width: 36 })];
     const result = moveWallGroup(subject, 'wall-2', { x: -10, y: 0 });

@@ -9,8 +9,8 @@ import elevationReducer, {
 } from '../elevationSlice.js';
 import { createWall, settingsFor } from '../slices/helpers.js';
 
-describe('DB1 c view preferences', () => {
-  it('starts with the seven defaults and sends scale and paper through settingsFor (anchors 1 and 4)', () => {
+describe('view preferences (DB1)', () => {
+  it('starts with the seven defaults and sends scale and paper through settingsFor', () => {
     const state = createInitialElevationState(null);
     expect(state.prefs).toEqual({
       orthoWalls: true, showPartNumbers: false, plotScale: 24, paperSize: 'archD',
@@ -21,7 +21,7 @@ describe('DB1 c view preferences', () => {
     expect(toDrawingPayload(room, settingsFor(state, room))).toMatchObject({ plotScale: 24, paperSize: 'archD' });
   });
 
-  it('accepts only known prefs with the right types and listed choices (anchor 3)', () => {
+  it('accepts only known prefs with the right types and listed choices', () => {
     let state = createInitialElevationState(null);
     const original = state;
     state = elevationReducer(state, setPref({ key: 'plotScale', value: 20 }));

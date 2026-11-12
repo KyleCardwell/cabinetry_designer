@@ -7,13 +7,13 @@ const options = { lift: 0, plotScale: 24 };
 const molding = { key: 'toeKick', x: 3, z: 0, width: 24, height: 4, slot: 0, label: 'TK', number: 7 };
 
 describe('SPEC-50.13 step 517 DXF part badges', () => {
-  it('anchor 1: rests at the piece centre', () => {
+  it('rests at the piece centre', () => {
     expect(layoutDxfBadges([piece], numbers, options)).toEqual([
       { key: 'a', text: '1', x: 15, z: 19.25, width: 6, height: 4.5, leader: null },
     ]);
   });
 
-  it('anchor 2: lifts a narrow filler one level and leads to its centre', () => {
+  it('lifts a narrow filler one level and leads to its centre', () => {
     const filler = { ...piece, id: 'b', x: 30, width: 3 };
     expect(layoutDxfBadges([piece, filler], numbers, options)[1]).toEqual({
       key: 'b', text: '2', x: 31.5, z: 25.25, width: 6, height: 4.5,
@@ -21,7 +21,7 @@ describe('SPEC-50.13 step 517 DXF part badges', () => {
     });
   });
 
-  it('anchor 3: lifts the T group even when the badge fits', () => {
+  it('lifts the T group even when the badge fits', () => {
     expect(layoutDxfBadges([{ ...piece, id: 't', z: 0, height: 30 }], numbers, {
       ...options, lift: 1,
     })[0]).toEqual({
@@ -30,7 +30,7 @@ describe('SPEC-50.13 step 517 DXF part badges', () => {
     });
   });
 
-  it('anchor 4: places a frame two steps above its anchor', () => {
+  it('places a frame two steps above its anchor', () => {
     expect(layoutDxfBadges([{
       ...piece, id: 'f', width: 60, anchor: { x: 45, z: 34.5 },
     }], numbers, { ...options, lift: 2 })[0]).toEqual({
@@ -39,25 +39,25 @@ describe('SPEC-50.13 step 517 DXF part badges', () => {
     });
   });
 
-  it('anchor 5: widens a three-character badge', () => {
+  it('widens a three-character badge', () => {
     const badge = layoutDxfBadges([piece], new Map([['a', 105]]), options)[0];
     expect(badge.text).toBe('105');
     expect(badge.width).toBeCloseTo(7.8);
   });
 
-  it('anchor 6: centres the labeled toe kick badge in its band', () => {
+  it('centres the labeled toe kick badge in its band', () => {
     const badge = dxfMoldingBadges([molding], 24)[0];
     expect(badge).toEqual({
       key: 'toeKick', text: 'TK 7', x: 15, z: 2, width: expect.closeTo(9.6), height: 4.5, leader: null,
     });
   });
 
-  it('anchor 7: separates molding slots by badge width plus gap', () => {
+  it('separates molding slots by badge width plus gap', () => {
     expect(dxfMoldingBadges([{ ...molding, slot: 1 }], 24)[0].x).toBeCloseTo(26.1);
     expect(dxfMoldingBadges([{ ...molding, slot: -1 }], 24)[0].x).toBeCloseTo(3.9);
   });
 
-  it('anchor 8: scales badge dimensions without moving a resting centre', () => {
+  it('scales badge dimensions without moving a resting centre', () => {
     expect(layoutDxfBadges([piece], numbers, { ...options, plotScale: 48 })[0]).toEqual({
       key: 'a', text: '1', x: 15, z: 19.25, width: 12, height: 9, leader: null,
     });

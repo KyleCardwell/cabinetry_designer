@@ -56,26 +56,26 @@ function setup({ depth = 13, reach = 16, neighbor = false, recess = false, wing 
   return { room, wall, run, scene, bands, end };
 }
 
-describe('DM5 step a short-wall molding returns', () => {
-  it('anchor 1: returns crown past a 16-inch wall while top mold stays square', () => {
+describe('short-wall molding returns (DM5)', () => {
+  it('returns crown past a 16-inch wall while top mold stays square', () => {
     const { run, end } = setup();
     expect(frontDepth(run, settings)).toBe(13.875);
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 2.625 });
     expect(end('topMold')).toEqual({ type: 'square', x: 96 });
   });
 
-  it('anchor 2: keeps both moldings square against a 60-inch wall', () => {
+  it('keeps both moldings square against a 60-inch wall', () => {
     const { end } = setup({ reach: 60 });
     for (const kind of ['topMold', 'crown']) expect(end(kind)).toEqual({ type: 'square', x: 96 });
   });
 
-  it('anchor 3: returns both moldings on a 24-inch-deep run past a 16-inch wall', () => {
+  it('returns both moldings on a 24-inch-deep run past a 16-inch wall', () => {
     const { end } = setup({ depth: 24 });
     expect(end('topMold')).toEqual({ type: 'return', x: 96.25, side: 96, facing: 1, returnLength: 9.125 });
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 13.625 });
   });
 
-  it('anchor 4: measures recess returns from the wall face and leaves toe kicks square', () => {
+  it('measures recess returns from the wall face and leaves toe kicks square', () => {
     const { room, wall, run, scene, end } = setup({ depth: 12, recess: true });
     expect(frontDepth(run, settings)).toBe(0.875);
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 5.625 });
@@ -85,7 +85,7 @@ describe('DM5 step a short-wall molding returns', () => {
     expect(end('furnitureBase')).toMatchObject({ type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 1.6875 });
   });
 
-  it('anchor 5: gives a matching corner crown return precedence over a short wall', () => {
+  it('gives a matching corner crown return precedence over a short wall', () => {
     expect(setup({ neighbor: true }).end('crown').type).toBe('cope');
   });
 
@@ -113,7 +113,7 @@ describe('DM5 step a short-wall molding returns', () => {
   });
 });
 
-describe('DM5 step b clipped short-wall return profiles', () => {
+describe('clipped short-wall return profiles (DM5)', () => {
   const edgeOf = (band, facing = 1) => frontContour(band.outline, facing);
   const expectEdge = (edge, points) => {
     expect(edge).toHaveLength(points.length);
@@ -124,7 +124,7 @@ describe('DM5 step b clipped short-wall return profiles', () => {
     });
   };
 
-  it('anchor 1: clips at 98 1/8, shifts the kept profile back to the side, and stops elevation lines there', () => {
+  it('clips at 98 1/8, shifts the kept profile back to the side, and stops elevation lines there', () => {
     const { bands, end } = setup();
     const ref = bands.crown.z + bands.crown.height;
     const edge = edgeOf(bands.crown);
@@ -139,7 +139,7 @@ describe('DM5 step b clipped short-wall return profiles', () => {
     expectEdge(edgeOf(bands.topMold), [[96, bands.topMold.z], [96, bands.topMold.z + bands.topMold.height]]);
   });
 
-  it('anchors 3 and 4: preserves full crown and top mold profiles when the return covers their past', () => {
+  it('preserves full crown and top mold profiles when the return covers their past', () => {
     for (const options of [{ depth: 24 }, { depth: 12, recess: true }]) {
       const { bands } = setup(options);
       const ref = bands.crown.z + bands.crown.height;
@@ -211,8 +211,8 @@ describe('DM5 step b clipped short-wall return profiles', () => {
   });
 });
 
-describe('FX2 step a short-wall furniture base and countertop returns', () => {
-  it('anchors 1 and 8: draws only the returned base and orders to the wall with scribe', () => {
+describe('short-wall furniture base and countertop returns (FX2)', () => {
+  it('draws only the returned base and orders to the wall with scribe', () => {
     const { room, bands, end } = setup({ base: true, depth: 15 });
     expect(end('furnitureBase')).toMatchObject({
       type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 0.6875,
@@ -225,13 +225,13 @@ describe('FX2 step a short-wall furniture base and countertop returns', () => {
     }]);
   });
 
-  it('anchor 2: leaves the furniture base square against a 60-inch wall', () => {
+  it('leaves the furniture base square against a 60-inch wall', () => {
     const { bands, end } = setup({ base: true, depth: 15, reach: 60 });
     expect(end('furnitureBase')).toEqual({ type: 'square', x: 96 });
     expect(bands.furnitureBases[0].x + bands.furnitureBases[0].width).toBe(96);
   });
 
-  it('anchor 3: draws the stone top only 5/8 inch past the wall', () => {
+  it('draws the stone top only 5/8 inch past the wall', () => {
     const { bands, end } = setup({ base: true, depth: 15 });
     expect(end('countertop')).toMatchObject({
       type: 'return', x: 96.75, side: 96, facing: 1, returnLength: 0.625,
@@ -240,19 +240,19 @@ describe('FX2 step a short-wall furniture base and countertop returns', () => {
     expect(bands.countertops).toEqual([bands.countertop]);
   });
 
-  it('anchor 4: uses front overhang rather than side overhang to clear the wall', () => {
+  it('uses front overhang rather than side overhang to clear the wall', () => {
     const { bands, end } = setup({ base: true, depth: 15, runProps: { topOverhang: { front: 0 } } });
     expect(end('countertop')).toEqual({ type: 'square', x: 96 });
     expect(bands.countertop.x + bands.countertop.width).toBe(96);
   });
 
-  it('anchor 5: preserves the full side overhang when the return is long enough', () => {
+  it('preserves the full side overhang when the return is long enough', () => {
     const { bands, end } = setup({ base: true, depth: 24 });
     expect(end('countertop')).toMatchObject({ type: 'return', x: 96.75, returnLength: 9.625 });
     expect(bands.countertop.x + bands.countertop.width).toBe(96.75);
   });
 
-  it('anchor 6: returns furniture base past a short landed wing wall', () => {
+  it('returns furniture base past a short landed wing wall', () => {
     const { bands, end } = setup({ base: true, depth: 15, wing: true });
     expect(end('furnitureBase')).toMatchObject({
       type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 0.6875,
@@ -260,7 +260,7 @@ describe('FX2 step a short-wall furniture base and countertop returns', () => {
     expect(bands.furnitureBases[0].x + bands.furnitureBases[0].width).toBe(96.6875);
   });
 
-  it('anchor 7: leaves toe kicks square against a short wall', () => {
+  it('leaves toe kicks square against a short wall', () => {
     const { bands, end } = setup({ base: true, depth: 15, profile: { baseKind: 'toe_kick' } });
     expect(end('toeKick')).toEqual({ type: 'square', x: 96 });
     expect(bands.toeKicks[0].x + bands.toeKicks[0].width).toBe(96);
@@ -313,11 +313,11 @@ describe('FX2 step a short-wall furniture base and countertop returns', () => {
   });
 });
 
-describe('FX2 step b clipped furniture base and wood nosing profiles', () => {
+describe('clipped furniture base and wood nosing profiles (FX2)', () => {
   const fb4 = profiles.find(({ id }) => id === 'fb4');
   const using = { ...settings, sectionProfiles: [...settings.sectionProfiles, fb4] };
 
-  it('anchor 1: shifts the complete base contour back 1/8 inch and mirrors the left end', () => {
+  it('shifts the complete base contour back 1/8 inch and mirrors the left end', () => {
     for (const left of [false, true]) {
       const { bands, end } = setup({ base: true, depth: 15, left,
         profile: { furnitureBaseProfileId: 'fb4' } }, using);
@@ -337,7 +337,7 @@ describe('FX2 step b clipped furniture base and wood nosing profiles', () => {
     }
   });
 
-  it('anchor 2: splits the chamfer at 3 7/8 inches and collapses its remainder to the wall', () => {
+  it('splits the chamfer at 3 7/8 inches and collapses its remainder to the wall', () => {
     for (const left of [false, true]) {
       const { bands, end } = setup({ base: true, depth: 15, reach: 16.5, left,
         profile: { furnitureBaseProfileId: 'fb4' } }, using);
@@ -353,7 +353,7 @@ describe('FX2 step b clipped furniture base and wood nosing profiles', () => {
     }
   });
 
-  it('anchor 3: keeps the original base edge when the return covers the full profile', () => {
+  it('keeps the original base edge when the return covers the full profile', () => {
     const { bands, end } = setup({ base: true, depth: 24,
       profile: { furnitureBaseProfileId: 'fb4' } }, using);
     expect(end('furnitureBase').returnLength).toBe(9.6875);
@@ -363,7 +363,7 @@ describe('FX2 step b clipped furniture base and wood nosing profiles', () => {
     expect(bands.furnitureBases[0].lines[0].x2).toBe(96.8125);
   });
 
-  it('anchor 4: clips wood nosing and its profile lines, preserving square ends at a long wall', () => {
+  it('clips wood nosing and its profile lines, preserving square ends at a long wall', () => {
     const nosing = { id: 'nosing', kind: 'nosing', geometry: {
       units: 'in',
       points: { a: [0, 0], b: [0.25, 0], c: [0.5, -0.25], d: [0.5, -1.5], e: [0, -1.5] },

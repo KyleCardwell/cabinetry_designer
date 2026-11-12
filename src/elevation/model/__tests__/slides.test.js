@@ -9,7 +9,7 @@ import { copySettings } from '../../store/slices/helpers.js';
 
 const [blum, accuride3832, accuride4034] = BUILT_IN_SLIDES;
 
-it('IN4c a anchor 4: requires a finite, nonnegative back clearance', () => {
+it('requires a finite, nonnegative back clearance (IN4c)', () => {
   for (const backClearance of [0, 0.75, 1.25]) expect(isSlide({ ...blum, backClearance })).toBe(true);
   for (const backClearance of [-0.25, NaN, Infinity, -Infinity, '0.75', null, undefined]) {
     expect(isSlide({ ...blum, backClearance })).toBe(false);
@@ -19,7 +19,7 @@ it('IN4c a anchor 4: requires a finite, nonnegative back clearance', () => {
   expect(isSlide(legacy)).toBe(false);
 });
 
-it('IN9 anchor 7: counts stored roll-out slide picks across nested interiors and cabinet grids', () => {
+it('counts stored roll-out slide picks across nested interiors and cabinet grids (IN9)', () => {
   const item = { slideId: 'x' };
   const cabinet = { id: 'c', kind: 'cabinet', interior: { rollouts: { count: 1, items: [item] } } };
   const room = { walls: [{ runs: [{ grid: gridFromItems('g', [cabinet]) }] }] };
@@ -49,8 +49,8 @@ it('IN9 anchor 7: counts stored roll-out slide picks across nested interiors and
   expect([...roomSlideUses({})]).toEqual([]);
 });
 
-describe('IN4b step a slide model', () => {
-  it('validates exact slide fields, bounded text, ascending lengths and estimator links (anchor 1)', () => {
+describe('slide model (IN4b)', () => {
+  it('validates exact slide fields, bounded text, ascending lengths and estimator links', () => {
     expect(isSlide(blum)).toBe(true);
     expect(isSlide({ ...blum, brand: '' })).toBe(true);
     expect(isSlide({ ...blum, hardwareSlideId: 3 })).toBe(true);
@@ -95,7 +95,7 @@ describe('IN4b step a slide model', () => {
     ]) expect(isSlide(slide)).toBe(false);
   });
 
-  it('provides the confirmed built-ins and provisional 4034 dimensions (anchor 2)', () => {
+  it('provides the confirmed built-ins and provisional 4034 dimensions', () => {
     expect(SLIDE_MOUNTS).toEqual(['undermount', 'side']);
     expect(BUILT_IN_SLIDE_IDS).toEqual(['blum-562h', 'accuride-3832', 'accuride-4034']);
     expect(BUILT_IN_SLIDES.map(({ id }) => id)).toEqual(BUILT_IN_SLIDE_IDS);
@@ -123,7 +123,7 @@ describe('IN4b step a slide model', () => {
     });
   });
 
-  it('requires unique ids and names plus all built-ins with their original mounts (anchor 3)', () => {
+  it('requires unique ids and names plus all built-ins with their original mounts', () => {
     expect(isSlideList(BUILT_IN_SLIDES)).toBe(true);
     expect(isSlideList(BUILT_IN_SLIDES.map((slide) => ({ ...slide, name: `${slide.name} edited`, height: 2 })))).toBe(true);
     for (const list of [
@@ -135,7 +135,7 @@ describe('IN4b step a slide model', () => {
     ]) expect(isSlideList(list)).toBe(false);
   });
 
-  it('deep-copies a slide with a unique name and no estimator link (anchor 4)', () => {
+  it('deep-copies a slide with a unique name and no estimator link', () => {
     const before = structuredClone(BUILT_IN_SLIDES);
     const copy = newSlide(BUILT_IN_SLIDES, blum, 'x');
     expect(copy).toEqual({ ...blum, id: 'x', name: 'Blum Tandem 562H copy', hardwareSlideId: null });
@@ -149,7 +149,7 @@ describe('IN4b step a slide model', () => {
     expect(BUILT_IN_SLIDES).toEqual(before);
   });
 
-  it('fits nominal lengths within the depth tolerance and subtracts both side clearances (anchor 5)', () => {
+  it('fits nominal lengths within the depth tolerance and subtracts both side clearances', () => {
     expect(fittingLength(blum, 23)).toBe(21);
     expect(fittingLength(blum, 8.5)).toBeNull();
     expect(fittingLength(accuride3832, 23)).toBe(22);
@@ -180,8 +180,8 @@ describe('IN4b step a slide model', () => {
 });
 
 
-describe('IN4b step d slide resolution', () => {
-  it('resolves the selected slide, shop Blum, then the code built-in (anchor 2)', () => {
+describe('slide resolution (IN4b)', () => {
+  it('resolves the selected slide, shop Blum, then the code built-in', () => {
     expect(resolveSlide({ drawerSlideId: 'accuride-3832', slides: BUILT_IN_SLIDES })).toBe(accuride3832);
     expect(resolveSlide({ drawerSlideId: 'gone', slides: BUILT_IN_SLIDES })).toBe(blum);
     expect(resolveSlide({ drawerSlideId: 'accuride-3832' })).toBe(blum);

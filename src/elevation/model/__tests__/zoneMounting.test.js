@@ -23,7 +23,7 @@ function resolve(interior, { purpose, face = door, width = 36, x = 24, z = 40, z
 
 const codes = (warnings) => warnings.map(({ code }) => code);
 
-describe('IN15e sink zone gaps', () => {
+describe('sink zone gaps (IN15e)', () => {
   it.each([
     [0, 1, 17.25, 15.5],
     [2, 1, 16.25, 14.5],
@@ -38,8 +38,8 @@ describe('IN15e sink zone gaps', () => {
   });
 });
 
-describe('IN15d a zones and mounting', () => {
-  it('anchor 1: splits a Euro sink at the linked pair seam into two 15 inch roll-outs with the default zone gap without warnings', () => {
+describe('zones and mounting (IN15d)', () => {
+  it('splits a Euro sink at the linked pair seam into two 15 inch roll-outs with the default zone gap without warnings', () => {
     const tree = splitSinkRollouts({}, 'r', 'r:pair');
     expect(tree).toEqual({ direction: 'horizontal', dividers: [{ kind: 'zone', seam: 'r:pair' }],
       children: [{ rollouts: { count: 1 } }, { rollouts: { count: 1 } }] });
@@ -64,7 +64,7 @@ describe('IN15d a zones and mounting', () => {
     }
   });
 
-  it('anchor 2: converting the linked zone to a partition gives two 15 1/8 roll-outs without warnings', () => {
+  it('converting the linked zone to a partition gives two 15 1/8 roll-outs without warnings', () => {
     const tree = setDividerKind(setDividerGap(splitSinkRollouts({}, 'r', 'r:pair'), 'r', 0, 2),
       'r', 0, 'partition');
     expect(tree.dividers[0]).not.toHaveProperty('gap');
@@ -75,7 +75,7 @@ describe('IN15d a zones and mounting', () => {
     expect(data.interiors.sections[1].edges.left).toBe('divider');
   });
 
-  it('anchor 3: only the upper automatic roll-out warns in a non-sink side zone', () => {
+  it('only the upper automatic roll-out warns in a non-sink side zone', () => {
     const tree = splitSection({}, 'r', 'horizontal', 2, 'zone');
     tree.children[0].rollouts = { count: 2 };
     const data = resolve(tree);
@@ -88,7 +88,7 @@ describe('IN15d a zones and mounting', () => {
     }
   });
 
-  it('anchor 4: Bottom 6 moves a single roll-out off its Auto bottom and warns', () => {
+  it('Bottom 6 moves a single roll-out off its Auto bottom and warns', () => {
     const tree = splitSection({}, 'r', 'horizontal', 2, 'zone');
     tree.children[0].rollouts = { count: 1, bottom: 6 };
     const entry = resolve(tree).rollouts.get('r.0');
@@ -96,7 +96,7 @@ describe('IN15d a zones and mounting', () => {
     expect(codes(entry.rollouts[0].warnings)).toEqual(['rollout-no-side']);
   });
 
-  it('anchor 5: Auto shelves in a side zone warn; partitions and deleting the zone clear the warning', () => {
+  it('Auto shelves in a side zone warn; partitions and deleting the zone clear the warning', () => {
     const tree = splitSection({}, 'r', 'horizontal', 2, 'zone');
     const data = resolve(tree);
     expect(data.shelves.get('r.0').count).toBeGreaterThan(0);
@@ -106,7 +106,7 @@ describe('IN15d a zones and mounting', () => {
     }
   });
 
-  it('anchor 6: up/down zones alone cause no mounting warnings for roll-outs, shelves or rods', () => {
+  it('up/down zones alone cause no mounting warnings for roll-outs, shelves or rods', () => {
     const tree = splitSection({}, 'r', 'vertical', 2, 'zone');
     for (const child of tree.children) {
       child.rollouts = { count: 1 };

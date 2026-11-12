@@ -66,7 +66,7 @@ describe('useLiveEntry state', () => {
     expect(live.entry.kind).toBe('second');
   });
 
-  it('87. cycles through live-entry modes', () => {
+  it('cycles through live-entry modes', () => {
     const live = createLiveEntryController();
     live.begin(config({
       modes: [
@@ -82,7 +82,7 @@ describe('useLiveEntry state', () => {
     expect(live.entry).toMatchObject({ label: 'First', value: 4, min: 1, max: 8 });
   });
 
-  it('88. clears typed text on cycle and commits the active mode key', () => {
+  it('clears typed text on cycle and commits the active mode key', () => {
     const entry = config({
       modes: [
         { key: 'first', label: 'First', value: 4, min: 1, max: 8 },

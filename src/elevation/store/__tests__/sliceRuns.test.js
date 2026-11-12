@@ -313,7 +313,7 @@ describe('joined run reducers', () => {
     return state.rooms[0].walls[0];
   }
 
-  it('79. setting a joint side free lets sync prune the joint', () => {
+  it('setting a joint side free lets sync prune the joint', () => {
     const state = elevationReducer(joinedState(), setRunAnchor({
       wallId: 'wall-1', runId: 'B', side: 'left', anchor: false,
     }));
@@ -323,7 +323,7 @@ describe('joined run reducers', () => {
     expect(wall.runs.find((entry) => entry.id === 'T1').anchors.right).toBe(false);
   });
 
-  it('80. resizes through one or both joined sides', () => {
+  it('resizes through one or both joined sides', () => {
     const right = elevationReducer(joinedState(), resizeRun({
       wallId: 'wall-1', runId: 'B', width: 42, grow: 'right',
     }));
@@ -340,7 +340,7 @@ describe('joined run reducers', () => {
       .toMatchObject({ x: 62, width: 22 });
   });
 
-  it('81. offsets a joint member and dissolves a whole joint', () => {
+  it('offsets a joint member and dissolves a whole joint', () => {
     const offset = elevationReducer(joinedState(), setRunJointOffset({
       wallId: 'wall-1', runId: 'B', side: 'left', offset: 1.5,
     }));
@@ -357,7 +357,7 @@ describe('joined run reducers', () => {
       .toMatchObject({ x: 24, width: 36, anchors: { left: false } });
   });
 
-  it('86. keeps a manually selected end when joined depths change', () => {
+  it('keeps a manually selected end when joined depths change', () => {
     const initial = joinedState();
     const base = joinedWall(initial).runs.find((entry) => entry.id === 'B');
     base.ends.left = { type: 'end_panel', width: null, auto: true };
@@ -467,7 +467,7 @@ describe('SPEC-35 stack reducers', () => {
 });
 
 describe('joint glyph unjoin', () => {
-  it('92. frees one stacked member while preserving the remaining joint', () => {
+  it('frees one stacked member while preserving the remaining joint', () => {
     const state = stateWithRun();
     const wall = state.rooms[0].walls[0];
     const joinedEnd = () => ({ type: 'none', width: null, auto: true });
@@ -531,7 +531,7 @@ describe('joint glyph unjoin', () => {
 });
 
 describe('SPEC-25 blind store action', () => {
-  it('207. sets, clears, and rejects invalid run blind sides', () => {
+  it('sets, clears, and rejects invalid run blind sides', () => {
     let state = stateWithRun(run({ items: [auto('a')] }));
     const roomId = state.rooms[0].id;
     const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
@@ -565,7 +565,7 @@ describe('SPEC-25 blind store action', () => {
 });
 
 describe('SPEC-27 end filler store action', () => {
-  it('216. sets and independently clears end filler width and return depth', () => {
+  it('sets and independently clears end filler width and return depth', () => {
     let state = stateWithRun(run());
     const roomId = state.rooms[0].id;
     const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
@@ -603,7 +603,7 @@ describe('SPEC-27 end filler store action', () => {
 });
 
 describe('SPEC-28 blind end store actions', () => {
-  it('223. clears incompatible end data and accepts zero return depth', () => {
+  it('clears incompatible end data and accepts zero return depth', () => {
     let state = stateWithRun(run({
       items: [auto('a')],
       blind: { left: 42, right: 30 },
@@ -755,7 +755,7 @@ describe('SPEC-37.1 an end panel keeps its own T choice', () => {
   });
 });
 
-describe('CC2 step c return end defaults', () => {
+describe('return end defaults (CC2)', () => {
   let state, owner, ret;
   beforeEach(() => {
     owner = run({ id: 'owner', z: 0, autoCount: false, items: [fixed('cc', 36), auto('a')],
@@ -789,7 +789,7 @@ describe('CC2 step c return end defaults', () => {
     expect(next.rooms[0].walls[1].runs[0].anchors.right).toBe(true);
   });
 
-  it('anchor 3: keeps the existing inside-corner filler default without a corner owner', () => {
+  it('keeps the existing inside-corner filler default without a corner owner', () => {
     owner.ends.left = { type: 'filler', width: null };
     const next = elevationReducer(state, setRunAnchor({
       wallId: 'wall-2', runId: 'return', side: 'right', value: true,
@@ -813,7 +813,7 @@ describe('CC2 step c return end defaults', () => {
       .toEqual(width === null ? null : ret.endFiller.right);
   });
 
-  it('anchor 6: removing the owner corner leaves the return end as none', () => {
+  it('removing the owner corner leaves the return end as none', () => {
     owner.ends.left = { type: 'filler', width: null };
     ret.anchors.right = true;
     ret.ends.right = { type: 'filler', width: null };

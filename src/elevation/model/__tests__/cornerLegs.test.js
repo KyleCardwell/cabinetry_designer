@@ -17,7 +17,7 @@ import { runPulls } from '../pullLayouts.js';
 import { runScene } from '../runScene.js';
 import { wallSideView, wallViewForRun } from '../wallSides.js';
 
-describe('CC4 return leg layout', () => {
+describe('return leg layout (CC4)', () => {
   let subject, ownerWall, returnWall, owner;
   beforeEach(() => {
     owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
@@ -34,14 +34,14 @@ describe('CC4 return leg layout', () => {
     subject = room({ walls: [ownerWall, returnWall] });
   });
 
-  it('CC6.1 anchor 3: keeps the Euro 45 return side edge at true size beside the diagonal', () => {
+  it('keeps the Euro 45 return side edge at true size beside the diagonal (CC6.1)', () => {
     owner.ends.left.corner.kind = 45;
     const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
     expect(leg.sideEdge).toEqual({ x: 108, width: 0.75 });
     expect(leg.rect).toEqual({ x: 108, width: 12, z: owner.z, height: owner.height });
   });
 
-  it('CC6.1: places a positive-direction return side edge using the sheet thickness', () => {
+  it('places a positive-direction return side edge using the sheet thickness (CC6.1)', () => {
     owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
     owner.anchors = { left: false, right: true };
     owner.ends = { left: { type: 'none' }, right: normalizeCornerEnd({ corner: { kind: 45 } }) };
@@ -57,7 +57,7 @@ describe('CC4 return leg layout', () => {
       .toEqual({ x: scene.result.pieces.find(({ id }) => id === 'cc').x, width: 1 });
   });
 
-  it('anchor 1: lays out the 90 return face at true size on wall-2', () => {
+  it('lays out the 90 return face at true size on wall-2', () => {
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { legB } = entry.cornerReturn;
     expect(entry.cornerReturn).toMatchObject({
@@ -75,7 +75,7 @@ describe('CC4 return leg layout', () => {
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).not.toHaveProperty('cornerReturn');
   });
 
-  it('anchor 2: respects which door runs long', () => {
+  it('respects which door runs long', () => {
     for (const [doors, width] of [['b_long', 11.875], ['a_long', 10.9375]]) {
       owner.ends.left.corner.doors = doors;
       const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
@@ -86,7 +86,7 @@ describe('CC4 return leg layout', () => {
     }
   });
 
-  it('anchor 3: overrides the inherited tree with one panel or a full-height door', () => {
+  it('overrides the inherited tree with one panel or a full-height door', () => {
     owner.ends.left.corner.legBFace = 'panel';
     let entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     expect(entry.cornerReturn.legB.faces).toHaveLength(1);
@@ -102,20 +102,20 @@ describe('CC4 return leg layout', () => {
       height: entry.box.height - entry.reveals.values.top - entry.reveals.values.bottom });
   });
 
-  it('anchor 4: hinges an unspecified B door away from the corner', () => {
+  it('hinges an unspecified B door away from the corner', () => {
     delete owner.grid.cells[0].node.face.hinge;
     const { legB } = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc').cornerReturn;
     expect(legB.faces[0]).toMatchObject({ hinge: 'left', hingeRule: true });
   });
 
-  it('anchor 5: keeps depth A for the return box beside a depth-21 return run', () => {
+  it('keeps depth A for the return box beside a depth-21 return run', () => {
     returnWall.runs = [run({ id: 'return', depth: 21, anchors: { left: false, right: true } })];
     const { legB } = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc').cornerReturn;
     expect(legB.box).toMatchObject({ x: 108, width: 12 });
     expect(legB.faces[0].width).toBe(10.9375);
   });
 
-  it('anchor 6: squashes the true base 45 face onto the return wall', () => {
+  it('squashes the true base 45 face onto the return wall', () => {
     owner.ends.left.corner.kind = 45;
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { legB, squash } = entry.cornerReturn;
@@ -129,7 +129,7 @@ describe('CC4 return leg layout', () => {
     expect(drawn.x + drawn.width).toBeCloseTo(119.125, 3);
   });
 
-  it('anchor 7: projects an uneven 45 with depth B 15', () => {
+  it('projects an uneven 45 with depth B 15', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const entry = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc');
     const { squash } = entry.cornerReturn;
@@ -139,7 +139,7 @@ describe('CC4 return leg layout', () => {
     expect(squashRect(entry.box, squash).width).toBeCloseTo(11.2087, 4);
   });
 
-  it('anchor 8: projects an upper 45 with its original box height', () => {
+  it('projects an upper 45 with its original box height', () => {
     Object.assign(owner, { cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12 });
     owner.grid.cols[0].size = 24;
     owner.ends.left.corner.kind = 45;
@@ -151,13 +151,13 @@ describe('CC4 return leg layout', () => {
     expect(drawn).toMatchObject({ z: 54, height: 30 });
   });
 
-  it('anchor 9: omits the return layout and point for an inactive end', () => {
+  it('omits the return layout and point for an inactive end', () => {
     owner.anchors.left = false;
     expect(runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc')).not.toHaveProperty('cornerReturn');
     expect(cornerReturnPoint(subject, ownerWall, owner, 'left')).toBeNull();
   });
 
-  it('anchor 10: supports a distinct source pivot and shares the CC2 return origin', () => {
+  it('supports a distinct source pivot and shares the CC2 return origin', () => {
     expect(squashX(30, { from: 36, pivot: 100, k: 0.5 })).toBe(97);
     expect(squashX(30, { pivot: 36, k: 0.5 })).toBe(33);
     expect(cornerReturnPoint(subject, ownerWall, owner, 'left')).toEqual({
@@ -263,7 +263,7 @@ describe('CC4 return leg layout', () => {
   });
 
   describe('step c return leg picking', () => {
-    it('anchor 1: picks the true-size 90 face and defaults to its corner piece', () => {
+    it('picks the true-size 90 face and defaults to its corner piece', () => {
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       const stack = pickStack(subject, wallSideView(returnWall), DEFAULT_SETTINGS,
         { x: 114, z: leg.rect.z + leg.rect.height / 2 });
@@ -282,7 +282,7 @@ describe('CC4 return leg layout', () => {
         .map(({ kind }) => kind)).toEqual(['piece', 'wall']);
     });
 
-    it('anchor 2: picks the return panel and misses beyond the leg', () => {
+    it('picks the return panel and misses beyond the leg', () => {
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       const at = (x) => pickStack(subject, returnWall, DEFAULT_SETTINGS,
         { x, z: leg.rect.z + leg.rect.height / 2 });
@@ -293,7 +293,7 @@ describe('CC4 return leg layout', () => {
       expect(at(100).filter(({ selection }) => selection?.cornerOf)).toEqual([]);
     });
 
-    it('anchor 3: labels the drawn 45 face with its true width', () => {
+    it('labels the drawn 45 face with its true width', () => {
       owner.ends.left.corner.kind = 45;
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       const face = leg.faceLayout.faces[0];
@@ -308,7 +308,7 @@ describe('CC4 return leg layout', () => {
   });
 
   describe('step b cornerReturnLegs', () => {
-    it('anchor 1: returns the 90 leg, return panel and true-size face on wall-2', () => {
+    it('returns the 90 leg, return panel and true-size face on wall-2', () => {
       const legs = cornerReturnLegs(subject, wallSideView(returnWall), DEFAULT_SETTINGS);
       const entry = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).faceLayouts.get('cc');
       expect(legs).toHaveLength(1);
@@ -322,7 +322,7 @@ describe('CC4 return leg layout', () => {
       expect(legs[0].faceLayout).toEqual(entry.cornerReturn.legB);
     });
 
-    it('anchor 2: details the B door and places a pull of the same size as A', () => {
+    it('details the B door and places a pull of the same size as A', () => {
       const original = structuredClone(subject);
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       const face = leg.faceLayout.faces[0];
@@ -337,14 +337,14 @@ describe('CC4 return leg layout', () => {
       expect(subject).toEqual(original);
     });
 
-    it('anchor 3: excludes the owner face, opposite return face and inactive corners', () => {
+    it('excludes the owner face, opposite return face and inactive corners', () => {
       expect(cornerReturnLegs(subject, ownerWall, DEFAULT_SETTINGS)).toEqual([]);
       expect(cornerReturnLegs(subject, wallSideView(returnWall, 'back'), DEFAULT_SETTINGS)).toEqual([]);
       owner.anchors.left = false;
       expect(cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)).toEqual([]);
     });
 
-    it('anchor 4: projects the 45 face, details and pull centres from their true owner layout', () => {
+    it('projects the 45 face, details and pull centres from their true owner layout', () => {
       owner.ends.left.corner.kind = 45;
       const scene = runScene(subject, ownerWall, owner, DEFAULT_SETTINGS);
       const entry = scene.faceLayouts.get('cc');
@@ -373,19 +373,19 @@ describe('CC4 return leg layout', () => {
       });
     });
 
-    it('anchor 5: omits a return panel covered by a return run', () => {
+    it('omits a return panel covered by a return run', () => {
       returnWall.runs = [run({ id: 'return', anchors: { left: false, right: true } })];
       expect(cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0].returnPanel).toBeNull();
     });
 
-    it('anchor 6: draws a return filler face-on beyond leg B', () => {
+    it('draws a return filler face-on beyond leg B', () => {
       owner.ends.left.corner.returnPiece = 'filler';
       expect(cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0].returnPanel).toEqual({
         type: 'filler', x: 106.5, width: 1.5, z: owner.z, height: owner.height,
       });
     });
 
-    it('anchor 7: lays out an explicit panel without pulls', () => {
+    it('lays out an explicit panel without pulls', () => {
       owner.ends.left.corner.legBFace = 'panel';
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       expect(leg.faceLayout.faces).toHaveLength(1);
@@ -394,7 +394,7 @@ describe('CC4 return leg layout', () => {
       expect(leg.pulls).toEqual([]);
     });
 
-    it('anchor 8: badges the leg with its owner column number, including elevation DXF', () => {
+    it('badges the leg with its owner column number, including elevation DXF', () => {
       const view = wallSideView(returnWall);
       const leg = cornerReturnLegs(subject, view, DEFAULT_SETTINGS)[0];
       const group = wallBadgeGroups(subject, view, DEFAULT_SETTINGS).find(({ key }) => key === leg.key);

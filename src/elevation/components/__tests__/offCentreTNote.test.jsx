@@ -33,12 +33,12 @@ function expectEndNote(ctx, side, expected) {
   expect(text(tree)).toContain(expected);
 }
 
-describe('FX10 off-centre T notes', () => {
+describe('off-centre T notes (FX10)', () => {
 
   // The current Room 10 fixture resolves 1/16" wider than the spec's geometry.
   // Exercise the hand-checked geometry too, without changing those anchor values.
 
-  it('anchor 3: a seam at 30 13/16 inches remains centred', () => {
+  it('a seam at 30 13/16 inches remains centred', () => {
     const r = room({ walls: [wall({ runs: [run({ width: 61.5625, autoCount: false,
       items: [fixed('left', 30), fixed('right', 30)], tFiller: 'seams',
       ends: { left: { type: 'filler', width: 1.5625 }, right: { type: 'none' } },
@@ -49,7 +49,7 @@ describe('FX10 off-centre T notes', () => {
     expect(ctx.notes.get(seam.id)[0]).toBe('T-shape');
   });
 
-  it('anchor 4: a right end names the flat over the cabinet on the left', () => {
+  it('a right end names the flat over the cabinet on the left', () => {
     const r = room({ walls: [wall({ runs: [run({ width: 40, autoCount: false,
       items: [auto('cabinet')], tFiller: 'seams',
       ends: { left: { type: 'none' }, right: { type: 'filler', width: 3 } },

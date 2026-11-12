@@ -96,13 +96,13 @@ export function flippedL(pRuns = [], qRuns = []) {
 }
 
 describe('wall sides', () => {
-  it('100. reads missing and stored wall sides', () => {
+  it('reads missing and stored wall sides', () => {
     expect(wallSideOf({})).toBe('front');
     expect(wallSideOf({ wallSide: 'back' })).toBe('back');
     expect(wallSideOf({ wallSide: 'front' })).toBe('front');
   });
 
-  it('101. builds front and back wall views', () => {
+  it('builds front and back wall views', () => {
     const W = buildWall({ id: 'W', x1: 0, y1: 0, x2: 120, y2: 0, thickness: 4.5,
       openings: [opening({ id: 'D1', label: 'D1' })],
       joints: [{ id: 'JF', x: 10 }, { id: 'JB', x: 20, wallSide: 'back' }],
@@ -125,14 +125,14 @@ describe('wall sides', () => {
     expect(wallSideView(back, 'front').runs.map((run) => run.id)).toEqual(['F']);
   });
 
-  it('102. mirrors edge and center anchored openings', () => {
+  it('mirrors edge and center anchored openings', () => {
     expect(openingGeometry(mirrorOpening(opening({ id: 'D1', label: 'D1' })), 120, settings).jamb.x).toBe(60);
     const centered = opening({ id: 'D1', label: 'D1', offset: 42, offsetFrom: 'right', offsetAnchor: 'center' });
     expect(openingGeometry(centered, 120, settings).jamb.x).toBe(60);
     expect(openingGeometry(mirrorOpening(centered), 120, settings).jamb.x).toBe(24);
   });
 
-  it('103. resolves wall side frames and back face offsets', () => {
+  it('resolves wall side frames and back face offsets', () => {
     const island = isl();
     const I = island.walls[0];
     expect(wallSideFrame(island, I, 'back')).toMatchObject({
@@ -147,7 +147,7 @@ describe('wall sides', () => {
     expect(wallSideFrame(SQ, A, 'back').leftPoint).toEqual({ x: 120, y: -4.5 });
   });
 
-  it('104. creates runs on the wall view side', () => {
+  it('creates runs on the wall view side', () => {
     const room = isl();
     const I = room.walls[0];
     const bounds = { x: 10, width: 30, bottomZ: 4, topZ: 34.5 };
@@ -161,7 +161,7 @@ describe('wall sides', () => {
     expect(byId(I, 'F').wallSide).toBe('front');
   });
 
-  it('106. resolves and diagnoses island runs independently per side', () => {
+  it('resolves and diagnoses island runs independently per side', () => {
     const room = isl();
     const synced = syncRoom(room, settings);
     const I = synced.walls[0];
@@ -172,7 +172,7 @@ describe('wall sides', () => {
     expect(roomDiagnostics(room, settings).K.errors).toEqual([]);
   });
 
-  it('107. allows overlap across wall sides but not on the same side', () => {
+  it('allows overlap across wall sides but not on the same side', () => {
     const room = isl();
     const I = room.walls[0];
     const K = byId(I, 'K');
@@ -183,7 +183,7 @@ describe('wall sides', () => {
       .toMatchObject({ ok: false, reason: 'conflict' });
   });
 
-  it('108. anchors back runs to mirrored openings', () => {
+  it('anchors back runs to mirrored openings', () => {
     const room = buildRoom({ ...ROOM, wallOrder: ['W'], walls: [buildWall({ id: 'W', x1: 0, y1: 0, x2: 120, y2: 0, thickness: 4.5,
       openings: [opening({ id: 'D1', label: 'D1' })],
       runs: [buildRun({ ...BASE, id: 'BK', items: [auto('BK-cabinet')],
@@ -201,7 +201,7 @@ describe('wall sides', () => {
     expect(BK).toMatchObject({ x: 17, width: 40 });
   });
 
-  it('109. classifies square corners on each wall side', () => {
+  it('classifies square corners on each wall side', () => {
     const room = square();
     const A = room.walls[0];
 
@@ -219,7 +219,7 @@ describe('wall sides', () => {
     });
   });
 
-  it('110. resolves the neighboring side at flipped inside corners', () => {
+  it('resolves the neighboring side at flipped inside corners', () => {
     const room = flippedL();
     const P = room.walls[0];
 
@@ -233,7 +233,7 @@ describe('wall sides', () => {
     expect(cornerAt(room, wallSideView(P, 'front'), 'left').type).toBe('outside');
   });
 
-  it('111. reserves corners from neighboring runs on the facing side only', () => {
+  it('reserves corners from neighboring runs on the facing side only', () => {
     const PB = buildRun({ ...BASE, id: 'PB', items: [auto('PB-cabinet')],
       wallSide: 'back',
       anchors: { left: false, right: true },
@@ -263,7 +263,7 @@ describe('wall sides', () => {
     expect(byId(withoutQB.walls[0], 'PB').width).toBe(96);
   });
 
-  it('112. resolves back wall views for openings and dimensions', () => {
+  it('resolves back wall views for openings and dimensions', () => {
     const room = syncRoom(buildRoom({ ...ROOM, wallOrder: ['W'], walls: [buildWall({ id: 'W', x1: 0, y1: 0, x2: 120, y2: 0, thickness: 4.5,
       openings: [opening({ id: 'D1', label: 'D1' })],
       runs: [
@@ -290,7 +290,7 @@ describe('wall sides', () => {
       .every((segment) => segment.runId === 'BK')).toBe(true);
   });
 
-  it('113. joins run edges on the same wall side only', () => {
+  it('joins run edges on the same wall side only', () => {
     const room = buildRoom({ ...ROOM, wallOrder: ['J'], walls: [buildWall({ id: 'J', x1: 0, y1: 0, x2: 96, y2: 0,
       thickness: 0,
       runs: [
@@ -318,7 +318,7 @@ describe('wall sides', () => {
       .toEqual([[48, 'front']]);
   });
 
-  it('114. joins touching edges on the same wall side only', () => {
+  it('joins touching edges on the same wall side only', () => {
     const room = buildRoom({ ...ROOM, wallOrder: ['J'], walls: [buildWall({ id: 'J', x1: 0, y1: 0, x2: 96, y2: 0,
       thickness: 0,
       runs: [
@@ -332,7 +332,7 @@ describe('wall sides', () => {
     expect(joined.room.walls[0].joints).toEqual([]);
   });
 
-  it('115. snaps stretched and moved runs on their own wall side only', () => {
+  it('snaps stretched and moved runs on their own wall side only', () => {
     const room = buildRoom({ ...ROOM, wallOrder: ['W'], walls: [buildWall({ id: 'W', x1: 0, y1: 0, x2: 96, y2: 0,
       thickness: 0,
       runs: [
@@ -348,7 +348,7 @@ describe('wall sides', () => {
     expect(moved.snap).toBeNull();
   });
 
-  it('116. compensates run positions independently on each wall side', () => {
+  it('compensates run positions independently on each wall side', () => {
     const before = buildRoom({ ...ROOM, wallOrder: ['W'], walls: [buildWall({ id: 'W', x1: 0, y1: 0, x2: 120, y2: 0,
       thickness: 0,
       runs: [
@@ -368,7 +368,7 @@ describe('wall sides', () => {
       .toEqual([['f1', 22], ['b1', 10]]);
   });
 
-  it('117. resolves island run footprints on each wall side', () => {
+  it('resolves island run footprints on each wall side', () => {
     const room = syncRoom(isl(), settings);
     const I = room.walls[0];
     const F = byId(I, 'F');
@@ -391,7 +391,7 @@ describe('wall sides', () => {
     expect(findCollisions(room, settings)).toEqual([]);
   });
 
-  it('118. offsets back-side footprints by wall thickness', () => {
+  it('offsets back-side footprints by wall thickness', () => {
     const room = square();
     const A = room.walls[0];
     const Z = buildRun({ ...BASE, id: 'Z', items: [auto('Z-cabinet')], width: 30, wallSide: 'back' });
@@ -404,7 +404,7 @@ describe('wall sides', () => {
     ]);
   });
 
-  it('126. reserves wall end panels and sets run end types', () => {
+  it('reserves wall end panels and sets run end types', () => {
     const room = syncRoom(isp(), settings);
     const I = room.walls[0];
     const F = byId(I, 'F');
@@ -419,7 +419,7 @@ describe('wall sides', () => {
       .toEqual([['cabinet', 94.375], ['end_panel', 0.8125]]);
   });
 
-  it('127. restores run end panels when a wall end panel is removed', () => {
+  it('restores run end panels when a wall end panel is removed', () => {
     const room = syncRoom(isp(), settings);
     room.walls[0].endPanels = { start: null, end: null };
     const F = byId(syncRoom(room, settings).walls[0], 'F');
@@ -432,7 +432,7 @@ describe('wall sides', () => {
     expect(F.ends.left.auto).toBeUndefined();
   });
 
-  it('128. reserves custom-width wall end panels on both ends', () => {
+  it('reserves custom-width wall end panels on both ends', () => {
     const room = syncRoom(isl({
       endPanels: { start: { width: 1 }, end: { width: 1 } },
     }), settings);
@@ -442,7 +442,7 @@ describe('wall sides', () => {
     expect(byId(I, 'K')).toMatchObject({ x: 1, width: 94 });
   });
 
-  it('129. builds wall end panel elevation and plan geometry', () => {
+  it('builds wall end panel elevation and plan geometry', () => {
     const room = syncRoom(isp(), settings);
     const I = room.walls[0];
     const panels = wallEndPanels(room, I, settings);
@@ -460,7 +460,7 @@ describe('wall sides', () => {
     ]);
   });
 
-  it('130. keeps custom clearance ahead of wall end panel reserve', () => {
+  it('keeps custom clearance ahead of wall end panel reserve', () => {
     const room = isp();
     byId(room.walls[0], 'F').cornerClearance = { left: 2, right: 'auto' };
     const synced = syncRoom(room, settings);
@@ -473,7 +473,7 @@ describe('wall sides', () => {
       .toBe('Wall end panel 13/16"');
   });
 
-  it('131. ignores a wall end panel at a connected endpoint', () => {
+  it('ignores a wall end panel at a connected endpoint', () => {
     const PB = buildRun({ ...BASE, id: 'PB', items: [auto('PB-cabinet')],
       wallSide: 'back',
       anchors: { left: false, right: true },
@@ -488,7 +488,7 @@ describe('wall sides', () => {
   });
 });
 
-describe('AU8 featuresOn', () => {
+describe('featuresOn (AU8)', () => {
   it('filters one wall list by face, for a wall and side or a side view', () => {
     const front = { id: 'f' };
     const back = { id: 'b', wallSide: 'back' };

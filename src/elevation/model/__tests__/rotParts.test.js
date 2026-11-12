@@ -35,8 +35,8 @@ function fixture({ face = door(), purpose = 'trash', aFace = drawers(), wallSide
 const numbered = (room) => partNumbers(room, settings).parts
   .filter(({ kind }) => kind !== 'molding').map(({ key, number }) => [key, number]);
 
-describe('IN6 step e ROT and trash lid parts', () => {
-  it('anchor 1: numbers a ROT and lid immediately after the trash cabinet', () => {
+describe('ROT and trash lid parts (IN6)', () => {
+  it('numbers a ROT and lid immediately after the trash cabinet', () => {
     const room = fixture();
     expect(numbered(room)).toEqual([['A', 1], ['T', 2], ['T:rot:r', 3], ['T:lid:r', 4], ['B', 5]]);
     expect(roomParts(room, settings).filter(({ cabinetId }) => cabinetId === 'T')).toEqual([
@@ -47,7 +47,7 @@ describe('IN6 step e ROT and trash lid parts', () => {
     ]);
   });
 
-  it('anchor 2: interleaves ROT and lid pairs for side-by-side pull-outs', () => {
+  it('interleaves ROT and lid pairs for side-by-side pull-outs', () => {
     const room = fixture({ face: group('horizontal', door(), door()) });
     expect(numbered(room)).toEqual([
       ['A', 1], ['T', 2], ['T:rot:r.0', 3], ['T:lid:r.0', 4],
@@ -55,7 +55,7 @@ describe('IN6 step e ROT and trash lid parts', () => {
     ]);
   });
 
-  it('anchor 3: requires trash purpose as well as a pull-out door', () => {
+  it('requires trash purpose as well as a pull-out door', () => {
     expect(numbered(fixture({ purpose: null, aFace: door() }))).toEqual([['A', 1], ['T', 2], ['B', 3]]);
     expect(numbered(fixture({ purpose: 'hamper' }))).toEqual([['A', 1], ['T', 2], ['B', 3]]);
     expect(numbered(fixture({ face: group('horizontal', door('swing'), drawers()) })))
@@ -67,7 +67,7 @@ describe('IN6 step e ROT and trash lid parts', () => {
     expect(numbered(legacy)).toEqual([['A', 1], ['T', 2], ['B', 3]]);
   });
 
-  it('anchor 4: reserves overrides without introducing canvas or DXF badges', () => {
+  it('reserves overrides without introducing canvas or DXF badges', () => {
     const room = fixture();
     const view = resolveWall(room, room.walls[0], 'front');
     const groups = wallBadgeGroups(room, view, settings);

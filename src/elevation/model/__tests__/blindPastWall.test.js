@@ -7,7 +7,7 @@ import { syncRoom } from '../room.js';
 
 const S = { ...DEFAULT_SETTINGS, cornerFillerMinWidth: 2 };
 
-describe('BT1 b blind box past the wall', () => {
+describe('blind box past the wall (BT1)', () => {
   it.each([
     [1, 42, 73.625, []],
     [2, 60, 91.625, [{ code: 'blind-past-wall', side: 'right' }]],

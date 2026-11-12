@@ -11,7 +11,7 @@ const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json'
 const fb4 = sample.profiles.find(({ id }) => id === 'fb4');
 
 describe('SPEC-50.5 furniture base fields', () => {
-  it('resolves defaults and inherited fields while explicit null clears the profile pick (anchors 1–2)', () => {
+  it('resolves defaults and inherited fields while explicit null clears the profile pick', () => {
     expect(resolveProfile({}, {}, {})).toMatchObject({
       baseKind: 'toe_kick', furnitureBaseProud: 0.8125, furnitureBaseProfileId: null,
     });
@@ -30,7 +30,7 @@ describe('SPEC-50.5 furniture base fields', () => {
     } })).toMatchObject({ baseKind: 'toe_kick', furnitureBaseProud: 0 });
   });
 
-  it('stretches furniture bases downward and validates draft lines like doors (anchors 3–4)', () => {
+  it('stretches furniture bases downward and validates draft lines like doors', () => {
     const before = structuredClone(fb4);
     expect(canStretch('furniture_base')).toBe(true);
     expect(isSectionProfile(fb4)).toBe(true);

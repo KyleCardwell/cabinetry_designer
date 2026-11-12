@@ -49,7 +49,7 @@ beforeEach(() => {
     ends: { left: { type: 'none' }, right: { type: 'none' } }, items: [auto('a'), auto('b')] }));
 });
 
-describe('ST1 step c column step fields', () => {
+describe('column step fields (ST1)', () => {
   it('shows blank zero placeholders after pin controls and commits inches, clears and invalid edits', () => {
     const cabinet = () => size(CabinetProperties);
     for (const label of ['Top drop', 'Bottom up']) {

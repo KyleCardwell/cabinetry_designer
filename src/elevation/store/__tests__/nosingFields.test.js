@@ -11,7 +11,7 @@ const savedDocument = () => normalizeElevationDocument(structuredClone(golden));
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 
 describe('SPEC-50.8 step 498 nosing pick data', () => {
-  it('defaults to null and round-trips nullable picks at every scope, rejecting malformed picks (anchor 1)', () => {
+  it('defaults to null and round-trips nullable picks at every scope, rejecting malformed picks', () => {
     expect(DEFAULT_PROFILE.nosingProfileId).toBeNull();
     expect(DEFAULT_SETTINGS.defaultProfile.nosingProfileId).toBeNull();
     const older = savedDocument();

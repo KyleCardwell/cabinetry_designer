@@ -20,8 +20,8 @@ const initial = createInitialElevationState({
 });
 const currentWall = (state) => state.rooms[0].walls[0];
 
-describe('SH7.6 step c wall end-leg store action', () => {
-  it('anchor 1: stores the pair and syncs its run without changing selection', () => {
+describe('wall end-leg store action (SH7.6)', () => {
+  it('stores the pair and syncs its run without changing selection', () => {
     const before = structuredClone(pair);
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: pair }));
     expect(currentWall(state).endLegs).toEqual({ start: pair });
@@ -32,13 +32,13 @@ describe('SH7.6 step c wall end-leg store action', () => {
     expect(pair).toEqual(before);
   });
 
-  it('anchor 2: stores a two-leg fit and panel as given', () => {
+  it('stores a two-leg fit and panel as given', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: pair }));
     const next = elevationReducer(state, setWallEndLegs({ ...target, endLegs: fitted }));
     expect(currentWall(next).endLegs).toEqual({ start: fitted });
   });
 
-  it('anchor 3: drops fit and panel when a third leg is added', () => {
+  it('drops fit and panel when a third leg is added', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: fitted }));
     const endLegs = { ...fitted, faces: { ...pair.faces, back: { legs: 'front', front: S } } };
     const before = structuredClone(endLegs);
@@ -47,7 +47,7 @@ describe('SH7.6 step c wall end-leg store action', () => {
     expect(endLegs).toEqual(before);
   });
 
-  it('anchor 4: removes the endpoint and derived legs for undefined or null', () => {
+  it('removes the endpoint and derived legs for undefined or null', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: pair }));
     for (const endLegs of [undefined, null]) {
       const next = elevationReducer(state, setWallEndLegs({ ...target, endLegs }));
@@ -60,7 +60,7 @@ describe('SH7.6 step c wall end-leg store action', () => {
     expect(currentWall(one).endLegs).toEqual({ end: pair });
   });
 
-  it('anchor 5: refuses invalid specs, endpoints, connections and landings atomically', () => {
+  it('refuses invalid specs, endpoints, connections and landings atomically', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: fitted }));
     for (const endLegs of [
       { faces: { front: { ...E, front: { ...Sf, height: 0 } } } },
@@ -84,7 +84,7 @@ describe('SH7.6 step c wall end-leg store action', () => {
     }
   });
 
-  it('anchor 6: removing the end panel leaves the fit stored and dormant', () => {
+  it('removing the end panel leaves the fit stored and dormant', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: fitted }));
     const next = elevationReducer(state, setWallEndPanel({ ...target, panel: null }));
     expect(currentWall(next).endPanels.start).toBeNull();
@@ -92,7 +92,7 @@ describe('SH7.6 step c wall end-leg store action', () => {
     expect(currentWall(next).runs[0]._wallLegs).toHaveLength(2);
   });
 
-  it('anchor 7: room copies own separate endpoint, face and spec objects', () => {
+  it('room copies own separate endpoint, face and spec objects', () => {
     const state = elevationReducer(initial, setWallEndLegs({ ...target, endLegs: pair }));
     const source = currentWall(state).endLegs;
     const copy = cloneRoom(state.rooms[0]).walls[0].endLegs;

@@ -102,9 +102,9 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('DB2 d room settings panel', () => {
+describe('room settings panel (DB2)', () => {
 
-  it('anchor 7: rejects negative Cutout foot, reverts the box and leaves no override', () => {
+  it('rejects negative Cutout foot, reverts the box and leaves no override', () => {
     state.rooms[0].profile.baseKind = 'furniture_base';
     const tree = commit('Room Cutout foot', '-1', RoomHeightsPanel);
     expect(state.rooms[0]).not.toHaveProperty('settingsOverrides');

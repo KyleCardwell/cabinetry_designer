@@ -52,7 +52,7 @@ describe('styles', () => {
     expect(styleReveals(INSET, UPPER, S).bottom).toBe(0.75);
   });
 
-  it('RP2.2 uses the stone-top standard for Euro bases and saved tall/upper reveals (anchors 1–2)', () => {
+  it('uses the stone-top standard for Euro bases and saved tall/upper reveals (RP2.2)', () => {
     expect(typeStandardReveals(EURO, BASE, S)).toEqual({
       top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625,
       horizontal: 0.125, vertical: 0.125, pair: 0.125, fit: 0, pairFit: 0,
@@ -63,7 +63,7 @@ describe('styles', () => {
     expect(typeStandardReveals(EURO, UPPER, S)).toMatchObject({ top: 0.125, bottom: -0.125 });
   });
 
-  it('RP2.2 honors shop settings, defaults a missing stone reveal and leaves inset standards intact', () => {
+  it('honors shop settings, defaults a missing stone reveal and leaves inset standards intact (RP2.2)', () => {
     const custom = { ...S, stoneTopReveal: 0, faceReveals: {
       ...S.faceReveals, [BASE]: { ...S.faceReveals[BASE], top: 0.5, bottom: 0.25 },
     } };
@@ -83,7 +83,7 @@ describe('styles', () => {
     });
   });
 
-  it('FX4 c3: passes the explicit profiled fit option through cabinet reveals and leaves Euro unchanged', () => {
+  it('c3: passes the explicit profiled fit option through cabinet reveals and leaves Euro unchanged (FX4)', () => {
     for (const style of [INSET, BEADED]) {
       const options = { style, cabinetTypeId: BASE, face: DOOR, settings: S };
       expect(cabinetReveals({ ...options, profiled: true }).values)

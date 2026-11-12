@@ -33,7 +33,7 @@ function fakeClient({ rpc = {}, tables = {} } = {}) {
 }
 
 describe('designApi', () => {
-  it('HP3b c lists live pulls in order and passes save arguments, defaults and conflicts through', async () => {
+  it('lists live pulls in order and passes save arguments, defaults and conflicts through (HP3b)', async () => {
     let listed = { data: [{ pull_id: 'p' }], error: null };
     let saved = { data: { ok: true, pull_id: 'p', version: 3, updated_at: 't' }, error: null };
     const client = fakeClient({ tables: { design_pulls: () => listed }, rpc: { save_pull: () => saved } });
@@ -58,7 +58,7 @@ describe('designApi', () => {
     expect(await api.listPulls('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
-  it('IN4b c lists live slides in order and passes save arguments, defaults and conflicts through', async () => {
+  it('lists live slides in order and passes save arguments, defaults and conflicts through (IN4b)', async () => {
     let listed = { data: [{ slide_id: 'p' }], error: null };
     let saved = { data: { ok: true, slide_id: 'p', version: 3, updated_at: 't' }, error: null };
     const client = fakeClient({ tables: { design_slides: () => listed }, rpc: { save_slide: () => saved } });
@@ -83,7 +83,7 @@ describe('designApi', () => {
     expect(await api.listSlides('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
-  it('IN12a lists live accessories in order and passes save arguments, defaults and conflicts through', async () => {
+  it('lists live accessories in order and passes save arguments, defaults and conflicts through (IN12a)', async () => {
     let listed = { data: [{ accessory_id: 'a' }], error: null };
     let saved = { data: { ok: true, accessory_id: 'a', version: 3, updated_at: 't' }, error: null };
     const client = fakeClient({ tables: { design_accessories: () => listed }, rpc: { save_accessory: () => saved } });
@@ -111,7 +111,7 @@ describe('designApi', () => {
     expect(await api.listAccessories('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
-  it('SH1 lists every shape (archived too) in order and passes save arguments, defaults and conflicts through', async () => {
+  it('lists every shape (archived too) in order and passes save arguments, defaults and conflicts through (SH1)', async () => {
     let listed = { data: [{ shape_id: 's', archived_at: 't' }], error: null };
     let saved = { data: { ok: true, shape_id: 's', version: 2, updated_at: 't' }, error: null };
     const client = fakeClient({ tables: { design_shapes: () => listed }, rpc: { save_shape: () => saved } });
@@ -139,7 +139,7 @@ describe('designApi', () => {
     expect(await api.listShapes('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
-  it('IN12a lists the team services for labour minutes', async () => {
+  it('lists the team services for labour minutes (IN12a)', async () => {
     let listed = { data: [{ team_service_id: 7, name: 'Finish', is_active: true }, { team_service_id: 3, name: 'Shop', is_active: false }], error: null };
     const client = fakeClient({ tables: { team_services_view: () => listed } });
     const api = createDesignApi(client);
@@ -201,7 +201,7 @@ describe('designApi', () => {
     expect(await createDesignApi(client).getProject(7)).toEqual({ ok: true, project: { project: { est_project_id: 7 } } });
   });
 
-  it('creates a project with explicit null defaults (anchor 1)', async () => {
+  it('creates a project with explicit null defaults', async () => {
     const data = { ok: true, est_project_id: 4, phase_id: 'p1', room_id: null };
     const client = fakeClient({ rpc: { create_design_project: { data, error: null } } });
     expect(await createDesignApi(client).createProject({ teamId: 't', project: { est_project_name: 'Smith' }, phaseName: 'Phase 1' }))
@@ -212,7 +212,7 @@ describe('designApi', () => {
     } }]);
   });
 
-  it('maps project list arrays and preserves permission failures (anchor 2)', async () => {
+  it('maps project list arrays and preserves permission failures', async () => {
     let result = { data: [{ est_project_id: 4 }], error: null };
     const client = fakeClient({ rpc: {
       list_design_projects: () => result,
@@ -232,7 +232,7 @@ describe('designApi', () => {
     ]);
   });
 
-  it('archives a phase and copies a saved room without sending a document (anchor 3)', async () => {
+  it('archives a phase and copies a saved room without sending a document', async () => {
     const client = fakeClient({ rpc: {
       update_design_phase: { data: { ok: true }, error: null },
       copy_design_room: { data: { ok: true, room_id: 'r2', sort: 0, version: 1 }, error: null },

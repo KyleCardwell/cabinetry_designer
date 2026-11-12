@@ -18,7 +18,7 @@ const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 
 const resolve = (tree, dimensions = box, context) => resolveInterior(tree, dimensions, construction, settings, context);
 const zones = (direction = 'vertical', count = 2) => splitSection({}, 'r', direction, count, 'zone');
 
-describe('IN15e zone gap model', () => {
+describe('zone gap model (IN15e)', () => {
   it('validates zone-only finite nonnegative gaps, edits nested zones immutably and clears to Auto', () => {
     for (const direction of ['horizontal', 'vertical']) {
       const tree = zones(direction);
@@ -52,7 +52,7 @@ describe('IN15e zone gap model', () => {
     expect(nested.children[0].dividers[0]).not.toHaveProperty('gap');
   });
 
-  it('anchor 6: a 30 inch up/down interior defaults to zero gap and honors a stored gap', () => {
+  it('a 30 inch up/down interior defaults to zero gap and honors a stored gap', () => {
     const dimensions = { ...box, height: 31.5 };
     const tree = zones();
     const result = resolve(tree, dimensions);
@@ -64,7 +64,7 @@ describe('IN15e zone gap model', () => {
     expect(manual.sections.map(({ height }) => height)).toEqual([14, 14]);
   });
 
-  it('anchor 8: three equal side zones share the clear width after both gaps', () => {
+  it('three equal side zones share the clear width after both gaps', () => {
     const result = resolve(zones('horizontal', 3), { ...box, width: 36 });
     for (const section of result.sections) expect(section.width).toBeCloseTo(10 + 5 / 6, 10);
     expect(result.dividers.map(({ gap, gapAuto }) => [gap, gapAuto])).toEqual([[1, true], [1, true]]);
@@ -96,7 +96,7 @@ describe('IN15e zone gap model', () => {
   });
 });
 
-describe('IN15b zone divider model', () => {
+describe('zone divider model (IN15b)', () => {
   it('appends Zone to both families, validates its stored picks and keeps the default split kinds', () => {
     expect(INTERIOR_DIVIDER_LABELS.zone).toBe('Zone');
     for (const direction of ['vertical', 'horizontal']) {
@@ -116,7 +116,7 @@ describe('IN15b zone divider model', () => {
     }
   });
 
-  it('anchor 1: auto up/down zone is at 17 1/4 with two 16 1/2 sections', () => {
+  it('auto up/down zone is at 17 1/4 with two 16 1/2 sections', () => {
     const result = resolve(zones());
     expect(result.dividers[0]).toMatchObject({ fromBottom: 17.25, z: 17.25, height: 0, dimFrom: 'bottom' });
     expect(result.sections.map(({ height }) => height)).toEqual([16.5, 16.5]);
@@ -126,7 +126,7 @@ describe('IN15b zone divider model', () => {
     expect(result.sections.map(({ physical }) => physical)).toEqual(['r.0', 'r.0']);
   });
 
-  it('anchor 2: changing to a fixed shelf keeps the centre and gives two 16 1/8 sections', () => {
+  it('changing to a fixed shelf keeps the centre and gives two 16 1/8 sections', () => {
     const tree = setDividerKind(zones(), 'r', 0, 'fixed');
     const result = resolve(tree);
     expect(result.dividers[0].fromBottom).toBe(17.25);
@@ -134,13 +134,13 @@ describe('IN15b zone divider model', () => {
     expect(result.physicalSections.map(({ members }) => members)).toEqual([['r.0'], ['r.1']]);
   });
 
-  it('anchor 3: a zone typed at 30 3/4 leaves 30 below and 3 above', () => {
+  it('a zone typed at 30 3/4 leaves 30 below and 3 above', () => {
     const result = resolve(setDividerPosition(zones(), 'r', 0, 30.75));
     expect(result.dividers[0]).toMatchObject({ fromBottom: 30.75, auto: false });
     expect(result.sections.map(({ height }) => height)).toEqual([3, 30]);
   });
 
-  it('anchor 4: joins A and B across their zone, keeping C beyond a real shelf separate', () => {
+  it('joins A and B across their zone, keeping C beyond a real shelf separate', () => {
     const tree = setDividerKind(zones('vertical', 3), 'r', 1, 'fixed');
     const result = resolve(tree);
     expect(result.physicalSections).toEqual([
@@ -150,7 +150,7 @@ describe('IN15b zone divider model', () => {
     expect(result.sections.map(({ physical }) => physical)).toEqual(['r.0', 'r.0', 'r.2']);
   });
 
-  it('anchor 5: a sibling with a real partition resolves independently', () => {
+  it('a sibling with a real partition resolves independently', () => {
     const tree = splitSection(zones(), 'r.1', 'horizontal', 2, 'partition');
     const result = resolve(tree);
     expect(result.physicalSections.map(({ key, members }) => ({ key, members }))).toEqual([
@@ -181,7 +181,7 @@ describe('IN15b zone divider model', () => {
       .toEqual([['r.0.0', 'r.0.1'], ['r.1.0.0'], ['r.1.0.1'], ['r.1.1']]);
   });
 
-  it('anchor 6: drawer space crosses the zone and is bounded by its physical section', () => {
+  it('drawer space crosses the zone and is bounded by its physical section', () => {
     const leaf = { ...auto('cabinet'), face: { type: 'drawer_front', size: null } };
     const reveals = { top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125 };
     const { faces } = cabinetFaces(leaf, box, CABINET_TYPE_IDS.BASE, settings, reveals);

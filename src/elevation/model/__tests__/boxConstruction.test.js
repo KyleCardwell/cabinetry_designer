@@ -6,7 +6,7 @@ const base = { cabinetTypeId: BASE };
 const wall = { thickness: 4 };
 
 describe('boxConstruction', () => {
-  it('anchor 1: resolves an empty leaf to all standard values and sources', () => {
+  it('resolves an empty leaf to all standard values and sources', () => {
     expect(boxConstruction({}, base, wall)).toEqual({
       back: 'dado', top: 'between', bottom: 'between', left: true, right: true,
       finTop: false, finBottom: false,
@@ -17,7 +17,7 @@ describe('boxConstruction', () => {
     });
   });
 
-  it('anchor 2: gives a sink top spreaders, unless the top is manual', () => {
+  it('gives a sink top spreaders, unless the top is manual', () => {
     expect(boxConstruction({ purpose: 'sink' }, base, wall)).toMatchObject({
       top: 'spreaders', back: 'dado', sources: { top: 'rule:sink', back: 'standard' },
     });
@@ -25,7 +25,7 @@ describe('boxConstruction', () => {
       .toMatchObject({ top: 'between', sources: { top: 'manual' } });
   });
 
-  it('anchor 3: hanging bases take precedence over the island rule', () => {
+  it('hanging bases take precedence over the island rule', () => {
     expect(boxConstruction({}, { ...base, hanging: true }, { thickness: 0 }))
       .toMatchObject({ back: 'inset', sources: { back: 'rule:hanging' } });
     for (const cabinetTypeId of [UPPER, TALL]) {
@@ -36,7 +36,7 @@ describe('boxConstruction', () => {
       .toMatchObject({ back: 'dado', sources: { back: 'standard' } });
   });
 
-  it('anchor 4: a resolved missing bottom takes precedence over medicine and other back rules', () => {
+  it('a resolved missing bottom takes precedence over medicine and other back rules', () => {
     const leaf = { purpose: 'medicine', box: { bottom: 'none' } };
     expect(boxConstruction(leaf, { cabinetTypeId: UPPER }, wall)).toMatchObject({
       bottom: 'none', back: 'inset', sources: { bottom: 'manual', back: 'rule:no-bottom' },
@@ -47,7 +47,7 @@ describe('boxConstruction', () => {
       .toMatchObject({ back: 'applied', sources: { back: 'rule:medicine' } });
   });
 
-  it('anchor 5: preserves manual values, including standard values and false flags', () => {
+  it('preserves manual values, including standard values and false flags', () => {
     expect(boxConstruction({ box: { back: 'dado', bottom: 'none' } }, { cabinetTypeId: TALL }, wall))
       .toMatchObject({ back: 'dado', sources: { back: 'manual' } });
     const box = Object.freeze({
@@ -62,7 +62,7 @@ describe('boxConstruction', () => {
     expect(leaf.box).toBe(box);
   });
 
-  it('anchor 6: suppresses finished flags on non-full panels without changing stored overrides', () => {
+  it('suppresses finished flags on non-full panels without changing stored overrides', () => {
     const leaf = { purpose: 'cooktop', box: { finTop: true } };
     expect(boxConstruction(leaf, base, wall)).toMatchObject({
       top: 'spreaders', finTop: false, sources: { top: 'rule:cooktop', finTop: 'rule:not-full' },

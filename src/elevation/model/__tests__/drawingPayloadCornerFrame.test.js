@@ -8,7 +8,7 @@ import { resolveWall, syncRoom } from '../room.js';
 const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const key = 'corner-leg:wall-1:run-1:left';
 
-describe('CC6 step f corner frame elevation payload', () => {
+describe('corner frame elevation payload (CC6)', () => {
   let subject;
   beforeEach(() => {
     subject = room({ style: { cabinetStyleId: 14 }, walls: [
@@ -26,14 +26,14 @@ describe('CC6 step f corner frame elevation payload', () => {
   };
   const frame = (index) => draw(index).find(({ id }) => id === (index ? `${key}:frame` : 'cc:frame'));
 
-  it('anchor 1: exports Room B’s owner frame with its opening and frame depth', () => {
+  it('exports Room B’s owner frame with its opening and frame depth', () => {
     expect(frame(0)).toEqual({ id: 'cc:frame', kind: 'frame', runId: 'run-1',
       x: 24, width: 11.25, z: 4, height: 30.5, back: 24, front: 24.8125, coversBoxEdges: true,
       holes: [{ x: 24.9375, width: 10.3125, z: 5.5, height: 27.5 }],
     });
   });
 
-  it('anchor 2: includes Room B’s return stile and preserves the covered edge-on panel', () => {
+  it('includes Room B’s return stile and preserves the covered edge-on panel', () => {
     const parts = draw(1);
     expect(frame(1)).toEqual({ id: `${key}:frame`, kind: 'frame', runId: 'run-1',
       x: 107.1875, width: 12, z: 4, height: 30.5, back: 24, front: 24.8125, coversBoxEdges: true,
@@ -45,7 +45,7 @@ describe('CC6 step f corner frame elevation payload', () => {
       .toBeLessThan(parts.findIndex(({ id }) => id === `${key}:frame`));
   });
 
-  it('anchor 3: squashes Room C’s owner frame and draws it after the neighbouring region', () => {
+  it('squashes Room C’s owner frame and draws it after the neighbouring region', () => {
     subject.walls[0].runs[0].ends.left.corner.kind = 45;
     const parts = draw(0);
     const projected = frame(0);
@@ -61,7 +61,7 @@ describe('CC6 step f corner frame elevation payload', () => {
     expect(projected.x + projected.width).toBeCloseTo(36.3365, 3);
   });
 
-  it('anchor 4: squashes Room C’s return frame around the return front miter', () => {
+  it('squashes Room C’s return frame around the return front miter', () => {
     subject.walls[0].runs[0].ends.left.corner.kind = 45;
     const projected = frame(1);
     expect(projected.x).toBeCloseTo(107.6635, 3);
@@ -72,7 +72,7 @@ describe('CC6 step f corner frame elevation payload', () => {
     expect(projected).toMatchObject({ back: 24, front: 24.8125 });
   });
 
-  it('anchor 5: emits the corner frame once with unique ids in a combined elevation', () => {
+  it('emits the corner frame once with unique ids in a combined elevation', () => {
     subject.walls.push(wall({ id: 'wall-3', x1: 0, y1: 288, x2: 0, y2: 144, elevationForced: true }));
     subject.wallOrder = ['wall-1', 'wall-2', 'wall-3'];
     subject.combinedElevations = [{ id: 'combined', on: true, faces: ['wall-3', 'wall-2'] }];
@@ -85,7 +85,7 @@ describe('CC6 step f corner frame elevation payload', () => {
       .toMatchObject({ x: 251.1875, holes: [{ x: 252.75, width: 10.3125, z: 5.5, height: 27.5 }] });
   });
 
-  it('anchor 6: adds no corner frame to Euro, beaded, inactive or ordinary runs', () => {
+  it('adds no corner frame to Euro, beaded, inactive or ordinary runs', () => {
     for (const mode of ['euro', 'beaded', 'inactive', 'ordinary']) {
       const original = structuredClone(subject);
       if (mode === 'euro') subject.style.cabinetStyleId = 13;

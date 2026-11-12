@@ -39,8 +39,8 @@ function interiorFixture(interior = { direction: 'vertical', children: [{}, {}],
   return { room, wall, settings, entry };
 }
 
-describe('IN3 doors-off picking', () => {
-  it('IN15b anchor 2: picks Zone oc 17 1/4 within six screen pixels at every zoom and leaves normal picks alone', () => {
+describe('doors-off picking (IN3)', () => {
+  it('picks Zone oc 17 1/4 within six screen pixels at every zoom and leaves normal picks alone (IN15b)', () => {
     // Retain zero-gap hit-band coverage; nonzero-gap picking belongs to IN15e step b.
     for (const direction of ['vertical', 'horizontal']) {
       const stored = makeWall({ runs: [run({
@@ -78,7 +78,7 @@ describe('IN3 doors-off picking', () => {
     }
   });
 
-  it('anchor 1: puts the shelf before the piece, while the first click still selects the cabinet', () => {
+  it('puts the shelf before the piece, while the first click still selects the cabinet', () => {
     const { room, wall, settings, entry: { box } } = interiorFixture();
     expect(box).toMatchObject({ width: 24, height: 84, depth: 24 });
     const stack = pickStack(room, wall, settings, { x: box.x + 12, z: box.z + 42 }, { doorsOff: true });
@@ -94,7 +94,7 @@ describe('IN3 doors-off picking', () => {
     expect(defaultPick([stack[0]])).toBeNull();
   });
 
-  it('anchors 2 and 3: picks the clear lower section only with doors off and retains the normal face stack', () => {
+  it('picks the clear lower section only with doors off and retains the normal face stack', () => {
     const { room, wall, settings, entry: { box } } = interiorFixture();
     const point = { x: box.x + 12, z: box.z + 20 };
     const stack = pickStack(room, wall, settings, point, { doorsOff: true });

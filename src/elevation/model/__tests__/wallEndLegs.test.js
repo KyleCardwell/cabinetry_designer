@@ -18,8 +18,8 @@ const W = wall({ id: 'w', x2: 96, thickness: 4.5, runs: [R],
   endPanels: { start: { width: null }, end: null },
   endLegs: { start: { faces: { front: E } } } });
 
-describe('SH7.6 step a wall end legs data', () => {
-  it('anchor 1: derives the front-face pair with ids, coordinates and handedness', () => {
+describe('wall end legs data (SH7.6)', () => {
+  it('derives the front-face pair with ids, coordinates and handedness', () => {
     const before = structuredClone(W);
     const legs = wallEndLegList(room({ walls: [W] }), W);
     expect([...legs]).toEqual([
@@ -34,7 +34,7 @@ describe('SH7.6 step a wall end legs data', () => {
     expect(W).toEqual(before);
   });
 
-  it('anchor 2: the back face sees start at its right, without a mirror key', () => {
+  it('the back face sees start at its right, without a mirror key', () => {
     const w = wall({ ...W, runs: [R, Rb],
       endLegs: { start: { faces: { back: { legs: 'front', front: S } } } } });
     expect([...wallEndLegList(room({ walls: [w] }), w)]).toEqual([
@@ -44,7 +44,7 @@ describe('SH7.6 step a wall end legs data', () => {
     ]);
   });
 
-  it('anchor 3: flex moves the end line on both faces, including side views', () => {
+  it('flex moves the end line on both faces, including side views', () => {
     const w = wall({ ...W, _endFlex: { start: 1 }, runs: [R, Rb],
       endLegs: { start: { faces: { front: E, back: E } } } });
     const source = room({ walls: [w] });
@@ -52,7 +52,7 @@ describe('SH7.6 step a wall end legs data', () => {
     expect(wallEndLegList(source, wallSideView(w, 'back'))).toEqual(wallEndLegList(source, w));
   });
 
-  it('anchor 4: dormant endpoints are silent; each missing-run leg has a named warning', () => {
+  it('dormant endpoints are silent; each missing-run leg has a named warning', () => {
     for (const field of ['connections', 'landings']) {
       const w = wall({ ...W, [field]: { start: { wallId: 'other', endpoint: 'end' } } });
       const result = wallEndLegList(room({ walls: [w] }), w);
@@ -68,7 +68,7 @@ describe('SH7.6 step a wall end legs data', () => {
     })));
   });
 
-  it('anchor 5: validates endpoint and face keys and exact spec presence', () => {
+  it('validates endpoint and face keys and exact spec presence', () => {
     expect(isWallEndLegs(W.endLegs)).toBe(true);
     for (const value of [{}, { start: { faces: {} } }, { middle: W.endLegs.start },
       { start: { faces: { front: { legs: 'front', front: Sf, back: S } } } }]) {
@@ -76,7 +76,7 @@ describe('SH7.6 step a wall end legs data', () => {
     }
   });
 
-  it('anchor 6: between requires exactly two legs across all faces', () => {
+  it('between requires exactly two legs across all faces', () => {
     for (const [faces, valid] of [
       [{ front: E }, true], [{ front: { legs: 'front', front: Sf } }, false],
       [{ front: E, back: { legs: 'front', front: S } }, false],
@@ -84,7 +84,7 @@ describe('SH7.6 step a wall end legs data', () => {
     ]) expect(isWallEndLegs({ start: { faces, fit: 'between' } })).toBe(valid);
   });
 
-  it('anchor 7: panel settings need fit and reject past and unpaired returnDepth', () => {
+  it('panel settings need fit and reject past and unpaired returnDepth', () => {
     const end = { faces: { front: E }, fit: 'between' };
     expect(isWallEndLegs({ start: { ...end, panel: { returns: 'both', returnDepth: 4 } } })).toBe(true);
     for (const value of [
@@ -93,7 +93,7 @@ describe('SH7.6 step a wall end legs data', () => {
     ]) expect(isWallEndLegs({ start: value })).toBe(false);
   });
 
-  it('anchor 8: rejects placement keys, fills, zero heights and conflicting shapes', () => {
+  it('rejects placement keys, fills, zero heights and conflicting shapes', () => {
     for (const changes of [{ from: 'left' }, { fill: { type: 'panel' } },
       { height: 0 }, { square: {} }]) {
       expect(isWallEndLegs({ start: { faces: { front: { legs: 'front', front: { ...Sf, ...changes } } } } }))
@@ -101,7 +101,7 @@ describe('SH7.6 step a wall end legs data', () => {
     }
   });
 
-  it('anchor 9: room validation accepts wall end legs, rejects empty data and permits omission', () => {
+  it('room validation accepts wall end legs, rejects empty data and permits omission', () => {
     expect(isRoom(room({ walls: [W], wallOrder: ['w'] }))).toBe(true);
     expect(isRoom(room({ walls: [wall({ ...W, endLegs: {} })], wallOrder: ['w'] }))).toBe(false);
     expect(isRoom(room({ walls: [wall()], wallOrder: ['wall-1'] }))).toBe(true);

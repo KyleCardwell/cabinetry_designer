@@ -43,16 +43,16 @@ function fixture() {
   return { room, wall, run };
 }
 
-describe('HP2 step a swing marks', () => {
-  it('anchor 1: points to the middle of the left hinge edge', () => {
+describe('swing marks (HP2)', () => {
+  it('points to the middle of the left hinge edge', () => {
     expect(swingMarkLines({ ...door, hinge: 'left' })).toEqual(left);
   });
 
-  it('anchor 2: points to the middle of the right hinge edge', () => {
+  it('points to the middle of the right hinge edge', () => {
     expect(swingMarkLines({ ...door, hinge: 'right' })).toEqual(right);
   });
 
-  it('anchor 3: orders top and bottom hinge lines toward the left then right corner', () => {
+  it('orders top and bottom hinge lines toward the left then right corner', () => {
     expect(swingMarkLines({ ...door, hinge: 'top' })).toEqual([
       { x1: 9, z1: 28, x2: 1, z2: 4 }, { x1: 9, z1: 28, x2: 17, z2: 4 },
     ]);
@@ -61,7 +61,7 @@ describe('HP2 step a swing marks', () => {
     ]);
   });
 
-  it('anchor 4: includes swing, flipper and pocket doors; skips sliding, pullout and missing hinges', () => {
+  it('includes swing, flipper and pocket doors; skips sliding, pullout and missing hinges', () => {
     for (const action of ['swing', 'flipper', 'pocket']) {
       expect(swingMarkLines({ ...door, hinge: 'left', action })).toEqual(left);
     }
@@ -72,7 +72,7 @@ describe('HP2 step a swing marks', () => {
     expect(swingMarkLines(door)).toEqual([]);
   });
 
-  it('anchor 5: hinges the resolved pair halves outward across the 1/16 inch gap', () => {
+  it('hinges the resolved pair halves outward across the 1/16 inch gap', () => {
     expect(pair.map(({ x, width, half }) => ({ x, width, half }))).toEqual([
       { x: 1, width: 7.96875, half: 'left' }, { x: 9.03125, width: 7.96875, half: 'right' },
     ]);
@@ -83,7 +83,7 @@ describe('HP2 step a swing marks', () => {
     expect(pair.map((face) => swingMarkLines({ ...face, action: 'sliding' }))).toEqual([[], []]);
   });
 
-  it('anchor 6: ignores stray hinges on drawer fronts and all other face types', () => {
+  it('ignores stray hinges on drawer fronts and all other face types', () => {
     for (const type of ['drawer_front', 'false_front', 'open', 'panel', 'other']) {
       expect(swingMarkLines({ ...door, type, hinge: 'left' })).toEqual([]);
     }
@@ -103,7 +103,7 @@ describe('HP2 step a swing marks', () => {
     expect(runSwingMarks(new Map())).toEqual([]);
   });
 
-  it('anchor 8: defaults off and uses the outer rectangle and part id of an 18 inch single base door', () => {
+  it('defaults off and uses the outer rectangle and part id of an 18 inch single base door', () => {
     const { room, wall } = fixture();
     expect(elevationSwingMarks(room, wall, 'front', DEFAULT_SETTINGS)).toEqual([]);
     const on = { ...room, swingMarks: true, doorDetails: false };

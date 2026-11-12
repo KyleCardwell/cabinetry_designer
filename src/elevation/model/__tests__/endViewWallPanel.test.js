@@ -13,7 +13,7 @@ const parts = (returns) => cornerShapes(synced, wall2, 'front', settings, { retu
   .flatMap((shape) => shape.parts);
 const span = ({ x, width }) => [x, x + width];
 
-describe('FX5.1 Room 9b end view of the Wall 4 peninsula from Wall 2', () => {
+describe('Room 9b end view of the Wall 4 peninsula from Wall 2 (FX5.1)', () => {
   it('draws the wall end panel once, across both faces, on the furniture base', () => {
     const panels = parts('end').filter(({ kind }) => kind === 'end_panel');
     expect(panels).toHaveLength(1);

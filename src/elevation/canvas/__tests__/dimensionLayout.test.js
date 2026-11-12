@@ -48,7 +48,7 @@ describe('belowRowOffsets', () => {
 });
 
 describe('layoutDimensionRow', () => {
-  it('DM7 reserves two 4px line pieces as well as the padded text width', () => {
+  it('reserves two 4px line pieces as well as the padded text width (DM7)', () => {
     const segments = [30, 29, 26].map((end) => ({ start: 0, end }));
     const { labels } = layoutDimensionRow(segments, { scale: 1, fontSize: 11 });
     expect(labels[0]).toMatchObject({ text: '30', mode: 'inline', level: 0 });
@@ -67,7 +67,7 @@ describe('layoutDimensionRow', () => {
     expect(labels[0].width).toBeCloseTo(6 * 0.6 * 11 + 8);
   });
 
-  it('12. keeps a fitting label inline and pops out a narrow segment', () => {
+  it('keeps a fitting label inline and pops out a narrow segment', () => {
     const result = layoutDimensionRow([
       { start: 0, end: 30 },
       { start: 30, end: 31.5 },
@@ -80,7 +80,7 @@ describe('layoutDimensionRow', () => {
     expect(result.levels).toBe(1);
   });
 
-  it('13. uses two popout levels, then hides a third colliding label', () => {
+  it('uses two popout levels, then hides a third colliding label', () => {
     const result = layoutDimensionRow([
       { start: 0, end: 1 },
       { start: 1, end: 2 },
@@ -97,7 +97,7 @@ describe('layoutDimensionRow', () => {
     expect(result.levels).toBe(2);
   });
 
-  it('14. keeps a long single segment inline with no popout levels', () => {
+  it('keeps a long single segment inline with no popout levels', () => {
     const result = layoutDimensionRow([{ start: 0, end: 60 }], {
       scale: 4,
       fontSize: 11,
@@ -137,7 +137,7 @@ describe('dimensionRowOffsets', () => {
   });
 });
 
-it('TX1 c anchor 1: doubles every below-wall offset, including popout spacing', () => {
+it('doubles every below-wall offset, including popout spacing (TX1)', () => {
   for (const levels of [{ pieces: 1 }, { clearances: 2, pieces: 1, overall: 2, openings: 1 },
     { clearanceRow: false, pieces: 1 }]) {
     const original = belowRowOffsets(levels);
@@ -147,13 +147,13 @@ it('TX1 c anchor 1: doubles every below-wall offset, including popout spacing', 
   }
 });
 
-it('TX1 c anchor 2: scales vertical rows and the middle-row slot', () => {
+it('scales vertical rows and the middle-row slot (TX1)', () => {
   expect(dimensionRowOffsets('vertical', 1, true, 1.5)).toEqual({ inner: 36, middle: 99, outer: 138 });
   expect(dimensionRowOffsets('horizontal', 2, false, 2)).toEqual({ inner: 40, outer: 140 });
   expect(dimensionRowOffsets('vertical', 1, false, 1.5)).toEqual({ inner: 36, outer: 99 });
 });
 
-it('TX1 c anchor 5: the scaled font moves a 1 1/2-inch segment from inline to popout', () => {
+it('the scaled font moves a 1 1/2-inch segment from inline to popout (TX1)', () => {
   const segments = [{ start: 0, end: 1.5 }];
   expect(layoutDimensionRow(segments, { scale: 40, fontSize: 11 }).labels[0].mode).toBe('inline');
   expect(layoutDimensionRow(segments, { scale: 40, fontSize: 27.5 }).labels[0].mode).toBe('popout');

@@ -50,8 +50,8 @@ const hook = { ...newAccessory([], 'HK'), name: 'Robe hook', size: { width: 3, h
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('IN14 show-through model', () => {
-  it('anchor 3: omits a standard door and skips door details and interior resolution', () => {
+describe('show-through model (IN14)', () => {
+  it('omits a standard door and skips door details and interior resolution', () => {
     const details = vi.spyOn(detailsModule, 'runDoorDetails');
     const interiors = vi.spyOn(shelvesModule, 'wallInteriorData');
     expect(show(single({ face: face('door') }))).toEqual(new Map());
@@ -59,7 +59,7 @@ describe('IN14 show-through model', () => {
     expect(interiors).not.toHaveBeenCalled();
   });
 
-  it('anchor 4: clips the open face to the cabinet box and retains exactly the four edges and shelf', () => {
+  it('clips the open face to the cabinet box and retains exactly the four edges and shelf', () => {
     const room = single();
     const before = structuredClone(room);
     const entry = show(room).get('a');
@@ -74,7 +74,7 @@ describe('IN14 show-through model', () => {
     expect(room).toEqual(before);
   });
 
-  it('anchor 5: keeps the bottom open section and whole side edges, excluding the top section', () => {
+  it('keeps the bottom open section and whole side edges, excluding the top section', () => {
     const room = single({ face: stack(face('door'), face('open')) });
     const entry = show(room).get('a');
     expect(entry.windows).toHaveLength(1);
@@ -85,7 +85,7 @@ describe('IN14 show-through model', () => {
     expect(entry.windows[0]).toEqual(rect(layout.faces.find(({ type }) => type === 'open')));
   });
 
-  it('anchor 6: uses the framed glass openings and marks, keeping only overlapping interior items', () => {
+  it('uses the framed glass openings and marks, keeping only overlapping interior items', () => {
     const room = single({ face: face('door', { panelMaterial: 'glass' }) });
     const entry = show(room).get('a');
     const detail = detailsModule.runDoorDetails(room, room.walls[0], room.walls[0].runs[0], settings)
@@ -97,7 +97,7 @@ describe('IN14 show-through model', () => {
     expect(entry.items).toEqual([openItems[4]]);
   });
 
-  it('anchor 7: gives each pair half its elevation part id, window and three marks', () => {
+  it('gives each pair half its elevation part id, window and three marks', () => {
     const room = single({ face: face('pair_door', { panelMaterial: 'glass' }) });
     const entry = show(room).get('a');
     expect(entry.windows).toHaveLength(2);
@@ -111,7 +111,7 @@ describe('IN14 show-through model', () => {
     expect(new Set(keys(entry)).size).toBe(entry.items.length);
   });
 
-  it('anchor 8: omits glass that resolves to a slab, including the short-face cutoff', () => {
+  it('omits glass that resolves to a slab, including the short-face cutoff', () => {
     for (const teamDoorStyle of [
       { ...DEFAULT_DOOR_STYLE, designId: 'slab' },
       { ...DEFAULT_DOOR_STYLE, shortFace: { ...DEFAULT_DOOR_STYLE.shortFace, slabBelow: 40 } },
@@ -121,7 +121,7 @@ describe('IN14 show-through model', () => {
     }
   });
 
-  it('anchor 9: draws the shoe front and the raised adjustable shelf at the anchored positions', () => {
+  it('draws the shoe front and the raised adjustable shelf at the anchored positions', () => {
     const entry = show(single({ interior: { shelves: { shoe: 1 } } })).get('a');
     closeRect(item(entry, 'shoe:r:0'), { x: 24.8125, z: 4.75, width: 22.375, height: 1.467221 });
     expect(item(entry, 'shoe:r:0').kind).toBe('shoe');
@@ -129,7 +129,7 @@ describe('IN14 show-through model', () => {
     expect(item(entry, 'shelf:r:0').z).toBeCloseTo(19.641756, 5);
   });
 
-  it('anchor 10: includes the placed rod and its label, omits the unplaced hook, and leaves shelves alone', () => {
+  it('includes the placed rod and its label, omits the unplaced hook, and leaves shelves alone', () => {
     const entry = show(single({ interior: { accessories: [
       { accessoryId: 'FR', fromBottom: 20 }, { accessoryId: 'HK' },
     ] } }), { ...settings, accessories: [rod, hook] }).get('a');
@@ -139,7 +139,7 @@ describe('IN14 show-through model', () => {
     expect(item(entry, 'shelf:r:0')).toEqual(openItems[4]);
   });
 
-  it('anchor 11: includes the roll-out box as resolved, with no spacers behind an open face', () => {
+  it('includes the roll-out box as resolved, with no spacers behind an open face', () => {
     const room = single({ interior: { rollouts: { count: 1 } } });
     const entry = show(room).get('a');
     const box = wallRollouts(room, room.walls[0], 'front', settings).get('a').get('r').rollouts[0];
@@ -149,7 +149,7 @@ describe('IN14 show-through model', () => {
     expect(entry.items.some(({ kind }) => kind === 'spacer')).toBe(false);
   });
 
-  it('anchor 12: resolves interior data once and omits a neighboring opaque cabinet', () => {
+  it('resolves interior data once and omits a neighboring opaque cabinet', () => {
     const room = roomWith([{ id: 'a', face: face('open') }, { id: 'b', face: face('pair_door') }], { width: 84 });
     const interiors = vi.spyOn(shelvesModule, 'wallInteriorData');
     const details = vi.spyOn(detailsModule, 'runDoorDetails');

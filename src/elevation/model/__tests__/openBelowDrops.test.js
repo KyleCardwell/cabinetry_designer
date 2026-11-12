@@ -36,8 +36,8 @@ function fixture({ both = false, tFiller, height = 'cabinets', endType = 'filler
   return { scene, cabinetRoom, cabinetRun, view };
 }
 
-describe('FX11 b fillers and Ts over an open cell', () => {
-  it('anchor 1: drops the matched right filler and its shipping return by 1/8 inch', () => {
+describe('fillers and Ts over an open cell (FX11)', () => {
+  it('drops the matched right filler and its shipping return by 1/8 inch', () => {
     const { scene, cabinetRoom } = fixture();
     expect(scene.drawnPieces.find(({ role }) => role === 'end-right')).toMatchObject({ z: 43.875, height: 46.125 });
     const filler = shippingList(cabinetRoom, DEFAULT_SETTINGS).rows.find(({ key }) => key === 'run-1:right');
@@ -47,7 +47,7 @@ describe('FX11 b fillers and Ts over an open cell', () => {
       .find(({ id }) => id === 'run-1:right')).toMatchObject({ z: 43.875, height: 46.125 });
   });
 
-  it('anchor 2: leaves a full-height right filler at z 4', () => {
+  it('leaves a full-height right filler at z 4', () => {
     for (const tFiller of [undefined, 'all']) {
       const { scene, cabinetRoom } = fixture({ height: 'full', tFiller });
       expect(scene.drawnPieces.find(({ role }) => role === 'end-right')).toMatchObject({ z: 4, height: 86 });
@@ -57,13 +57,13 @@ describe('FX11 b fillers and Ts over an open cell', () => {
     }
   });
 
-  it('anchor 3: drops the right end T while the full-height seam stays unchanged', () => {
+  it('drops the right end T while the full-height seam stays unchanged', () => {
     const { scene } = fixture({ tFiller: 'all' });
     expect(scene.tees.find(({ end }) => end === 'right')).toMatchObject({ z: 43.875, height: 46.125 });
     expect(scene.tees.find(({ end }) => !end)).toMatchObject({ z: 4, height: 86, drop: 0 });
   });
 
-  it('anchor 4: drops the seam and both ends when both columns are open below', () => {
+  it('drops the seam and both ends when both columns are open below', () => {
     const { scene, cabinetRoom, cabinetRun } = fixture({ both: true, tFiller: 'all' });
     expect(scene.tees).toHaveLength(3);
     for (const tee of scene.tees) {
@@ -74,7 +74,7 @@ describe('FX11 b fillers and Ts over an open cell', () => {
     for (const notes of direct.notes.values()) expect(notes).toContain('return up 1/8"');
   });
 
-  it('anchor 5: leaves the full-height left cabinet end filler unchanged', () => {
+  it('leaves the full-height left cabinet end filler unchanged', () => {
     const { scene } = fixture();
     expect(scene.drawnPieces.find(({ role }) => role === 'end-left')).toMatchObject({ z: 4, height: 86 });
   });

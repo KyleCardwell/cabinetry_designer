@@ -33,43 +33,43 @@ function fixture() {
   return { room, wall, run };
 }
 
-describe('HP5 step a pull outlines', () => {
-  it('anchor 1: draws the vertical base bar with its top at the rail centre', () => {
+describe('pull outlines (HP5)', () => {
+  it('draws the vertical base bar with its top at the rail centre', () => {
     expect(pullOutlines(bar([{ x: 23.5, z: 30.125 }], 'vertical'))).toEqual([[
       [23.6875, 27.9375], [23.6875, 32.3125, 1],
       [23.3125, 32.3125], [23.3125, 27.9375, 1],
     ]]);
   });
 
-  it('anchor 2: draws the horizontal drawer bar with outgoing semicircle bulges', () => {
+  it('draws the horizontal drawer bar with outgoing semicircle bulges', () => {
     expect(pullOutlines(bar([{ x: 15, z: 31 }]))).toEqual([[
       [12.8125, 30.8125], [17.1875, 30.8125, 1],
       [17.1875, 31.1875], [12.8125, 31.1875, 1],
     ]]);
   });
 
-  it('anchor 3: draws each drawer centre in centre order', () => {
+  it('draws each drawer centre in centre order', () => {
     expect(pullOutlines(bar([{ x: 7.5, z: 31 }, { x: 22.5, z: 31 }]))).toEqual([
       [[5.3125, 30.8125], [9.6875, 30.8125, 1], [9.6875, 31.1875], [5.3125, 31.1875, 1]],
       [[20.3125, 30.8125], [24.6875, 30.8125, 1], [24.6875, 31.1875], [20.3125, 31.1875, 1]],
     ]);
   });
 
-  it('anchor 4: draws the horizontal corner bar with its outer end at the stile centre', () => {
+  it('draws the horizontal corner bar with its outer end at the stile centre', () => {
     expect(pullOutlines(bar([{ x: 21.125, z: 32.5 }]))).toEqual([[
       [18.9375, 32.3125], [23.3125, 32.3125, 1],
       [23.3125, 32.6875], [18.9375, 32.6875, 1],
     ]]);
   });
 
-  it('anchor 5: draws a knob as two semicircles using its along diameter', () => {
+  it('draws a knob as two semicircles using its along diameter', () => {
     expect(pullOutlines({ kind: 'knob', along: 1.25, across: 1.25,
       centers: [{ x: 23.5, z: 31.875 }] })).toEqual([[
       [24.125, 31.875, 1], [22.875, 31.875, 1],
     ]]);
   });
 
-  it('anchor 6: draws a horizontal tab flush with the front top', () => {
+  it('draws a horizontal tab flush with the front top', () => {
     expect(pullOutlines({ kind: 'tab', orientation: 'vertical', along: 3, across: 0.5,
       centers: [{ x: 15, z: 33.75 }] })).toEqual([[
       [13.5, 33.5], [16.5, 33.5], [16.5, 34], [13.5, 34],
@@ -88,7 +88,7 @@ describe('HP5 step a pull outlines', () => {
     expect(pullOutlines(bar([]))).toEqual([]);
   });
 
-  it('anchor 8: uses elevation face ids, draws all centres, and respects the switch and none picks', () => {
+  it('uses elevation face ids, draws all centres, and respects the switch and none picks', () => {
     const { room, wall } = fixture();
     const before = structuredClone({ room, wall, settings: DEFAULT_SETTINGS });
     const entries = elevationPulls(room, wall, 'front', DEFAULT_SETTINGS);

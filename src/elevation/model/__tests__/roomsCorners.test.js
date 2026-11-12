@@ -99,7 +99,7 @@ function outsideRoom() {
 }
 
 describe('wall frames and corners', () => {
-  it('7. resolves interior normals and elevation endpoints', () => {
+  it('resolves interior normals and elevation endpoints', () => {
     const room = connectedRoom();
     expect(wallFrame(room, room.walls[0])).toMatchObject({
       n: { x: 0, y: 1 },
@@ -122,7 +122,7 @@ describe('wall frames and corners', () => {
     expect(wallFrame(reversed, reversed.walls[0]).leftEndpoint).toBe('end');
   });
 
-  it('8. classifies the connected right corner as inside', () => {
+  it('classifies the connected right corner as inside', () => {
     const room = connectedRoom();
     expect(cornerAt(room, room.walls[0], 'right')).toMatchObject({
       type: 'inside',
@@ -133,7 +133,7 @@ describe('wall frames and corners', () => {
     expect(cornerAt(room, room.walls[0], 'left')).toEqual({ type: 'open' });
   });
 
-  it('9. distinguishes outside and straight connections', () => {
+  it('distinguishes outside and straight connections', () => {
     const outside = connectedRoom({
       wallA: { flipped: true },
       wallB: { x2: 120, y2: -96 },
@@ -143,7 +143,7 @@ describe('wall frames and corners', () => {
     expect(cornerAt(straight, straight.walls[0], 'right').type).toBe('straight');
   });
 
-  it('10. reserves neighboring base front depth at an inside corner', () => {
+  it('reserves neighboring base front depth at an inside corner', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
       width: 60,
@@ -157,7 +157,7 @@ describe('wall frames and corners', () => {
     expect(synced.walls[1].runs[0].x).toBe(24.0625); // FL2: the shorter neighbor laps.
   });
 
-  it('11. uses no reserve when the neighboring wall has no runs', () => {
+  it('uses no reserve when the neighboring wall has no runs', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
       x: 60,
@@ -168,7 +168,7 @@ describe('wall frames and corners', () => {
     expect(run.x + run.width).toBe(120);
   });
 
-  it('12. applies reserves only across compatible cabinet bands', () => {
+  it('applies reserves only across compatible cabinet bands', () => {
     const room = connectedRoom();
     const aBase = cabinetRun('A-base', CABINET_TYPE_IDS.BASE);
     const aUpper = cabinetRun('A-upper', CABINET_TYPE_IDS.UPPER);
@@ -185,7 +185,7 @@ describe('wall frames and corners', () => {
     expect(cornerReserve(room, room.walls[0], 'right', aUpper, DEFAULT_SETTINGS)).toBe(24.875);
   });
 
-  it('13. flags unreserved overlaps but not two resolved anchored runs', () => {
+  it('flags unreserved overlaps but not two resolved anchored runs', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
       x: 60,
@@ -202,7 +202,7 @@ describe('wall frames and corners', () => {
     expect(findCollisions(syncRoom(room, DEFAULT_SETTINGS), DEFAULT_SETTINGS)).toEqual([]);
   });
 
-  it('14. scales reserve by the sine of a 135-degree corner', () => {
+  it('scales reserve by the sine of a 135-degree corner', () => {
     const room = connectedRoom({ wallB: { x2: 187.8823, y2: 67.8823 } });
     room.walls[1].runs = [cabinetRun('B-base', CABINET_TYPE_IDS.BASE, {
       anchors: { left: true, right: false },
@@ -217,7 +217,7 @@ describe('wall frames and corners', () => {
     expect(reserve).toBeCloseTo(35.1786, 3);
   });
 
-  it('15. resolves both anchors across the available wall span', () => {
+  it('resolves both anchors across the available wall span', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
       anchors: { left: true, right: true },
@@ -231,7 +231,7 @@ describe('wall frames and corners', () => {
     });
   });
 
-  it('16. mirrors runs when flipping a wall', () => {
+  it('mirrors runs when flipping a wall', () => {
     const wall = connectedRoom().walls[0];
     wall.runs = [cabinetRun('run', CABINET_TYPE_IDS.BASE, {
       x: 10,
@@ -278,7 +278,7 @@ describe('wall frames and corners', () => {
     ).warnings).toContainEqual({ code: 'anchor-shrunk' });
   });
 
-  it('17. applies the larger corner filler minimum only to the anchored side', () => {
+  it('applies the larger corner filler minimum only to the anchored side', () => {
     const settings = { ...DEFAULT_SETTINGS, cornerFillerMinWidth: 3 };
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
@@ -311,13 +311,13 @@ describe('SPEC-6 angled corner clearance', () => {
     return { room, run };
   }
 
-  it('1. keeps the 90-degree reserve at the neighboring front depth', () => {
+  it('keeps the 90-degree reserve at the neighboring front depth', () => {
     const { room, run } = reserveFixture(90);
     expect(cornerReserve(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
       .toBeCloseTo(24.875, 3);
   });
 
-  it('2. adds the acute-angle back term and honors face and custom overrides', () => {
+  it('adds the acute-angle back term and honors face and custom overrides', () => {
     const { room, run } = reserveFixture(60);
     const automatic = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
     expect(automatic.face).toBeCloseTo(28.7232, 3);
@@ -337,7 +337,7 @@ describe('SPEC-6 angled corner clearance', () => {
       .toMatchObject({ total: 30, source: 'custom' });
   });
 
-  it('3. does not add a back term at a 135-degree corner', () => {
+  it('does not add a back term at a 135-degree corner', () => {
     const { room, run } = reserveFixture(135);
     const parts = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
     expect(parts.face).toBeCloseTo(35.1786, 3);
@@ -345,7 +345,7 @@ describe('SPEC-6 angled corner clearance', () => {
     expect(parts.total).toBeCloseTo(35.1786, 3);
   });
 
-  it('4. uses the current run depth for the acute-angle back term', () => {
+  it('uses the current run depth for the acute-angle back term', () => {
     const { room, run } = reserveFixture(75, {
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
       depth: 12,
@@ -359,7 +359,7 @@ describe('SPEC-6 angled corner clearance', () => {
     expect(parts.total).toBeCloseTo(28.9679, 3);
   });
 
-  it('5. scales and clamps the corner filler minimum by angle', () => {
+  it('scales and clamps the corner filler minimum by angle', () => {
     expect(cornerFillerMin(DEFAULT_SETTINGS, 90)).toBeCloseTo(1.5, 3);
     expect(cornerFillerMin(DEFAULT_SETTINGS, 60)).toBeCloseTo(1.7321, 3);
     expect(cornerFillerMin(DEFAULT_SETTINGS, 135)).toBeCloseTo(2.1213, 3);
@@ -367,7 +367,7 @@ describe('SPEC-6 angled corner clearance', () => {
     expect(cornerFillerMin(DEFAULT_SETTINGS, 10)).toBe(6);
   });
 
-  it('6. annotates only angled flex fillers with their corner angle', () => {
+  it('annotates only angled flex fillers with their corner angle', () => {
     const angled = reserveFixture(60);
     angled.run.anchors.right = true;
     const angledOptions = {
@@ -408,7 +408,7 @@ describe('SPEC-6 angled corner clearance', () => {
 });
 
 describe('SPEC-9 signed wall-end offsets', () => {
-  it('5. resolves signed custom offsets at an outside corner', () => {
+  it('resolves signed custom offsets at an outside corner', () => {
     const room = outsideRoom();
     const run = cabinetRun('A-run', CABINET_TYPE_IDS.BASE);
     expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
@@ -425,7 +425,7 @@ describe('SPEC-9 signed wall-end offsets', () => {
       .toEqual({ face: 0, back: 0, lap: 0, total: 0, source: 'auto', neighborRunId: null });
   });
 
-  it('6. holds back or carries past an outside-corner datum', () => {
+  it('holds back or carries past an outside-corner datum', () => {
     const resolve = (clearance) => {
       const room = outsideRoom();
       room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
@@ -447,7 +447,7 @@ describe('SPEC-9 signed wall-end offsets', () => {
     )).toEqual({ ok: true, reason: null });
   });
 
-  it('7. rejects a signed offset beyond the maximum overhang', () => {
+  it('rejects a signed offset beyond the maximum overhang', () => {
     const room = outsideRoom();
     room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
       width: 40,
@@ -463,7 +463,7 @@ describe('SPEC-9 signed wall-end offsets', () => {
     )).toEqual({ ok: false, reason: 'out-of-bounds' });
   });
 
-  it('8. applies positive and negative offsets at an open left end', () => {
+  it('applies positive and negative offsets at an open left end', () => {
     const resolve = (clearance) => {
       const room = connectedRoom();
       room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
@@ -478,7 +478,7 @@ describe('SPEC-9 signed wall-end offsets', () => {
     expect(resolve(-1.5).x).toBe(-1.5);
   });
 
-  it('10. reports a negative inside-corner offset as a collision warning', () => {
+  it('reports a negative inside-corner offset as a collision warning', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
       anchors: { left: false, right: true },

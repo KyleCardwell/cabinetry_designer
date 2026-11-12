@@ -29,7 +29,7 @@ function attachedWall() {
   });
 }
 
-describe('LL2 layout line helpers', () => {
+describe('layout line helpers (LL2)', () => {
   it('positions a line and switches its end without moving it', () => {
     expect(lineX({ from: 'right', value: 99 }, 235)).toBe(136);
     const stored = { id: 'L', label: 'L1', from: 'right', value: 99 };
@@ -73,7 +73,7 @@ describe('LL2 layout line helpers', () => {
   });
 });
 
-describe('LL2 pruning', () => {
+describe('pruning (LL2)', () => {
   it('leaves walls without lines alone', () => {
     const synced = syncRoom(structuredClone(room8), { ...settings, ...room8.settingsOverrides });
     for (const each of synced.walls) {
@@ -94,7 +94,7 @@ describe('LL2 pruning', () => {
   });
 });
 
-describe('LL2 validation', () => {
+describe('validation (LL2)', () => {
   const valid = () => room({ walls: [attachedWall()], wallOrder: ['H'] });
 
   it('accepts lines and attachments', () => {
@@ -125,7 +125,7 @@ describe('LL2 validation', () => {
   });
 });
 
-describe('LL2 sync and clone', () => {
+describe('sync and clone (LL2)', () => {
   it('keeps lines and attachments through sync without moving anything', () => {
     const lined = room({ walls: [wall({ id: 'H', lines: [line('A', 60)], openings: [opening({ id: 'D', attach: attach('A') })],
       runs: [run({ id: 'run-1', x: 70, width: 60, items: [auto('A'), auto('B')], attach: attach('A', 'left') })] })] });

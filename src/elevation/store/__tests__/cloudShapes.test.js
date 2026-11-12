@@ -12,7 +12,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it('SH2 anchor 3: loads live and archived shapes in row order, notes unreadable rows, and never seeds shapes', async () => {
+it('loads live and archived shapes in row order, notes unreadable rows, and never seeds shapes (SH2)', async () => {
   const rod = { ...newShape([], fakeUuid()), name: 'Rod' };
   const archived = { ...rod, id: fakeUuid(), name: 'rod', archived: true };
   for (const count of [1, 2]) {
@@ -43,7 +43,7 @@ it('SH2 anchor 3: loads live and archived shapes in row order, notes unreadable 
   }
 });
 
-it('SH2 anchor 4: stops loading on conflicting live names or a shapes fetch failure before saving anything', async () => {
+it('stops loading on conflicting live names or a shapes fetch failure before saving anything (SH2)', async () => {
   const shape = { ...newShape([], fakeUuid()), name: 'Rod' };
   const api = fakeDesignApi({ shapes: [{ ...shapeToRow(shape), version: 1 },
     { ...shapeToRow({ ...shape, id: fakeUuid() }), name: ' ROD ', version: 1 }] });
@@ -57,7 +57,7 @@ it('SH2 anchor 4: stops loading on conflicting live names or a shapes fetch fail
   expect(api.calls.some(([name]) => name.startsWith('save'))).toBe(false);
 });
 
-it('SH2 anchor 5: saves after 15 seconds, flushes archive and restore, edits archived shapes without archiving again, and archives removals', async () => {
+it('saves after 15 seconds, flushes archive and restore, edits archived shapes without archiving again, and archives removals (SH2)', async () => {
   vi.useFakeTimers();
   const api = fakeDesignApi();
   const store = cloudStore(api);
@@ -100,7 +100,7 @@ it('SH2 anchor 5: saves after 15 seconds, flushes archive and restore, edits arc
   expect(api.calls.some(([name]) => name === 'saveTeamSettings')).toBe(false);
 });
 
-it('SH2 pauses a conflicted shape target with its label until the shop data reloads', async () => {
+it('pauses a conflicted shape target with its label until the shop data reloads (SH2)', async () => {
   const shape = { ...newShape([], fakeUuid()), name: 'Rod', archived: true };
   const api = fakeDesignApi({ shapes: [{ ...shapeToRow(shape), version: 4, archived_at: 't' }] });
   const store = cloudStore(api);

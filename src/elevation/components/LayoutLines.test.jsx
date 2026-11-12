@@ -23,7 +23,7 @@ const nodes = (tree) => {
 const transform = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
 const face = { id: 'H', length: 240, height: 96, lines: [line('L1', 100)] };
 
-describe('LL3 layout lines on the elevation', () => {
+describe('layout lines on the elevation (LL3)', () => {
   it('1–2. adds a line from the nearer end, snapped', () => {
     const at = (x) => layoutLineAt(face, screenPointToWallSnapped(
       wallToScreen({ x, z: 10 }, transform), face, transform, DEFAULT_SETTINGS.openingSnap, 0,
@@ -35,7 +35,7 @@ describe('LL3 layout lines on the elevation', () => {
 
 });
 
-describe('LL5 b draggable layout lines', () => {
+describe('draggable layout lines (LL5)', () => {
   it('converts the group’s screen delta to face x, keeps y fixed, resets on release, and leaves the dimension stored', () => {
     const onDragStart = vi.fn();
     const onDragMove = vi.fn();

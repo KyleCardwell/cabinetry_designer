@@ -35,8 +35,8 @@ function chain({ room, wall, run }, edge = 'left', stacked = false) {
   return inner.filter(({ end }) => end <= 36);
 }
 
-describe('ST6 step a stepped edge chains', () => {
-  it('anchor 1: separates A top 2 from the box below the unchanged countertop', () => {
+describe('stepped edge chains (ST6)', () => {
+  it('separates A top 2 from the box below the unchanged countertop', () => {
     const expected = [plain[0], segment('box', 4, 32.5), segment('step', 32.5, 34.5), plain[2]];
     const f = fixture('A', { top: manual(2) });
     expect(chain(f)).toEqual(expected);
@@ -48,7 +48,7 @@ describe('ST6 step a stepped edge chains', () => {
     expect(step).toMatchObject({ orientation: 'vertical', start: 32.5, end: 34.5, text: '2' });
   });
 
-  it('anchor 2: separates A bottom 3 from the unchanged toe kick', () => {
+  it('separates A bottom 3 from the unchanged toe kick', () => {
     const expected = [plain[0], segment('step', 4, 7), segment('box', 7, 34.5), plain[2]];
     const f = fixture('A', { bottom: manual(3) });
     expect(chain(f)).toEqual(expected);
@@ -56,7 +56,7 @@ describe('ST6 step a stepped edge chains', () => {
     expect(chain(fixture('C', { bottom: manual(3) }), 'right')).toEqual(expected);
   });
 
-  it('anchor 4: ends the plain inset edge stack at 32.5 and labels its notch as a step', () => {
+  it('ends the plain inset edge stack at 32.5 and labels its notch as a step', () => {
     const expected = [plain[0], segment('frame', 4, 5.5), segment('frame-opening', 5.5, 31),
       segment('frame', 31, 32.5), segment('step', 32.5, 34.5), plain[2]];
     expect(chain(fixture('A', { top: manual(2) }, true))).toEqual(expected);

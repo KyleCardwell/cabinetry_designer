@@ -42,7 +42,7 @@ function setup(profile = fb4cut, overrides = {}) {
 }
 
 describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
-  it('closes fb4cut to the board without changing the profile (anchor 1)', () => {
+  it('closes fb4cut to the board without changing the profile', () => {
     const before = structuredClone(fb4cut);
     const { base } = setup();
     expect(outlineOf(base)).toEqual(SECTION);
@@ -55,12 +55,12 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     expect(fb4cut).toEqual(before);
   });
 
-  it('returns the chamfer band and its drawn line (anchor 2)', () => {
+  it('returns the chamfer band and its drawn line', () => {
     expect(setup().band).toEqual({ x: 29.1875, z: 0, width: 37.625, height: 4,
       outline: BAND, lines: [elevationLine(3.6875)] });
   });
 
-  it('extends a cut to six inches without a height mismatch (anchor 3)', () => {
+  it('extends a cut to six inches without a height mismatch', () => {
     const { base, band } = setup(fb4cut, { toeKickHeight: 6 });
     expect(band).toEqual({ x: 29.1875, z: 0, width: 37.625, height: 6,
       outline: [[29.1875, 0, 0], [66.8125, 0, 0], [66.8125, 5.6875, 0],
@@ -69,7 +69,7 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     expect(base.warnings).toEqual([]);
   });
 
-  it('uses the section in the furniture base side piece (anchor 4)', () => {
+  it('uses the section in the furniture base side piece', () => {
     expect(setup().pieces.find(({ piece }) => piece === 'furniture_base')).toEqual({
       piece: 'furniture_base', z: 0, height: 4, back: 24.875, front: 25.6875,
       outline: [[24.875, 4, 0], [25.375, 4, 0], [25.6875, 3.6875, 0],
@@ -77,7 +77,7 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     });
   });
 
-  it('walks a reversed cut from its top end (anchor 5)', () => {
+  it('walks a reversed cut from its top end', () => {
     const reversed = structuredClone(fb4cut);
     reversed.geometry.loops[0].segs = [line('c', 'b')];
     const { base } = setup(reversed);
@@ -86,7 +86,7 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     expect(reversed.geometry.loops[0].segs).toEqual([line('c', 'b')]);
   });
 
-  it('extends a step up to the top and down to the floor, drawing q end to end (anchor 6)', () => {
+  it('extends a step up to the top and down to the floor, drawing q end to end', () => {
     const { base, band } = setup(profiles.find(({ id }) => id === 'fbstep'));
     expect(outlineOf(base)).toEqual([[-0.8125, 0, 0], [-0.5, 0, 0], [-0.5, -0.25, 0],
       [0, -0.75, 0], [0, -4, 0], [-0.8125, -4, 0]]);
@@ -94,7 +94,7 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     expect(base.warnings).toEqual([]);
   });
 
-  it('rejects a cut in front of the face and falls back to the plain board (anchor 7)', () => {
+  it('rejects a cut in front of the face and falls back to the plain board', () => {
     const bad = structuredClone(fb4cut);
     bad.geometry.points.c = [0.25, -0.3125];
     const { base, band } = setup(bad);
@@ -103,7 +103,7 @@ describe('SPEC-50.5.1 step 491.1 furniture base cuts', () => {
     expect(band).toEqual({ x: 29.1875, z: 0, width: 37.625, height: 4, lines: [] });
   });
 
-  it('uses only the first open loop and warns about extra cuts (anchor 8)', () => {
+  it('uses only the first open loop and warns about extra cuts', () => {
     const extra = structuredClone(fb4cut);
     Object.assign(extra.geometry.points, { p: [-0.5, -0.25], q: [0, -0.75] });
     extra.geometry.loops.push({ id: 'L2', closed: false, segs: [line('p', 'q')] });

@@ -22,7 +22,7 @@ const subject = room({ walls: [
     connections: { start: null, end: { wallId: 'landed', endpoint: 'start' } } }),
 ] });
 
-describe('WL1 b: perpendicular move previews hold landed walls', () => {
+describe('perpendicular move previews hold landed walls (WL1)', () => {
   it('re-measures a held landing before preview sync so the wall stays square', () => {
     const setWallMovePreview = vi.fn();
     const edits = usePlanWallEdits({ room: subject, selectedWall: subject.walls[1],

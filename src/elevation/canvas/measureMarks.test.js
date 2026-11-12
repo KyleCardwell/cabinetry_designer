@@ -10,7 +10,7 @@ const geometry = profileMeasureGeometry([R]);
 const toScreen = ({ x, y }) => ({ x: x * 100, y: y * 100 });
 const marks = (extra) => measureMarks({ measures: [], toScreen, ...extra });
 
-it('MS5 anchor 2: preserves the diagonal line, ticks, dashed legs and labels in screen pixels', () => {
+it('preserves the diagonal line, ticks, dashed legs and labels in screen pixels (MS5)', () => {
   const result = measureBetween({ kind: 'corner', point: { x: 0, y: 0 } },
     { kind: 'corner', point: { x: 48, y: 34.5 } });
   const layout = marks({ measures: [{ result }], toScreen: ({ x, y }) => ({ x: x * 2, y: y * 2 }) });
@@ -36,7 +36,7 @@ it('MS5 anchor 2: preserves the diagonal line, ticks, dashed legs and labels in 
   ]);
 });
 
-it('MS5 anchor 3: marks the MS4 center pick with a four-pixel circle and seven-pixel plus', () => {
+it('marks the MS4 center pick with a four-pixel circle and seven-pixel plus (MS5)', () => {
   const pick = snapMeasure({ x: 0.02, y: 0.01 }, geometry, 0.1);
   expect(pick.kind).toBe('center');
   expect(marks({ hover: pick })).toEqual([
@@ -47,7 +47,7 @@ it('MS5 anchor 3: marks the MS4 center pick with a four-pixel circle and seven-p
   expect(marks({ first: pick })[0].fill).toBe(true);
 });
 
-it('MS5 anchor 4: highlights the sampled MS4 arc and its projected pick with a seven-pixel cross', () => {
+it('highlights the sampled MS4 arc and its projected pick with a seven-pixel cross (MS5)', () => {
   const pick = snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1);
   expect(pick.kind).toBe('arc');
   const [arc, ...cross] = marks({ hover: pick });

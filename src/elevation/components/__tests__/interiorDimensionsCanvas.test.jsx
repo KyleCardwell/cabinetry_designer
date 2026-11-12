@@ -123,9 +123,9 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('IN3 divider dimensions, typed edits and dragging', () => {
+describe('divider dimensions, typed edits and dragging (IN3)', () => {
 
-  it('anchor 3: edits 12 from the right to 10 and preserves the side for an auto partition shown from the right', () => {
+  it('edits 12 from the right to 10 and preserves the side for an auto partition shown from the right', () => {
     fixture(group('horizontal', [{ ...partition, at: 12, from: 'right' }]), 36, 30.5);
     expect(clickLabel().props.edit).toMatchObject({ label: 'oc from right', value: 12, side: 'right' });
     typeAndEnter('10');
@@ -145,7 +145,7 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
     expectInterior(group('horizontal', [partition]));
   });
 
-  it('anchor 4: previews an axis-only shelf drag up 3.03 inches, commits 45, and suppresses the following pick', () => {
+  it('previews an axis-only shelf drag up 3.03 inches, commits 45, and suppresses the following pick', () => {
     vi.useFakeTimers();
     try {
       const view = canvas();
@@ -183,8 +183,8 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
 
 });
 
-describe('IN7 automatic divider canvas edits', () => {
-  it('anchors 1–2: dragging an automatic shelf stores its effective tree; typing auto returns it to 42', () => {
+describe('automatic divider canvas edits (IN7)', () => {
+  it('dragging an automatic shelf stores its effective tree; typing auto returns it to 42', () => {
     state = structuredClone(state);
     const leaf = gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0];
     delete leaf.interior;

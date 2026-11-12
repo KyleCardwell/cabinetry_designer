@@ -22,20 +22,20 @@ const baseAt = (height, using = settings) => runBase(room, {}, {
 }, using);
 
 describe('SPEC-50.5 runBase resolver', () => {
-  it('resolves the default toe kick (anchor 1)', () => {
+  it('resolves the default toe kick', () => {
     expect(runBase({}, {}, run, settings)).toEqual({
       kind: 'toe_kick', height: 4, proud: 0.8125, picked: null, warnings: [],
     });
   });
 
-  it('uses the room furniture base profile as drawn at height 4 (anchor 2)', () => {
+  it('uses the room furniture base profile as drawn at height 4', () => {
     expect(runBase(room, {}, run, settings)).toEqual({
       kind: 'furniture_base', height: 4, proud: 0.8125,
       picked: { profile: fb4, geometry: fb4.geometry }, warnings: [],
     });
   });
 
-  it('stretches only the points below the line to height 6 without changing the pick (anchor 3)', () => {
+  it('stretches only the points below the line to height 6 without changing the pick', () => {
     const before = structuredClone(fb4);
     expect(baseAt(6)).toEqual({
       kind: 'furniture_base', height: 6, proud: 0.8125,
@@ -47,7 +47,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     expect(fb4).toEqual(before);
   });
 
-  it('warns and keeps the drawn geometry when height does not reach the stretch line (anchor 4)', () => {
+  it('warns and keeps the drawn geometry when height does not reach the stretch line', () => {
     for (const height of [1.5, 2]) {
       expect(baseAt(height)).toMatchObject({
         height, picked: { geometry: fb4.geometry },
@@ -56,7 +56,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     }
   });
 
-  it('warns only on a height mismatch when the profile has no stretch line (anchor 5)', () => {
+  it('warns only on a height mismatch when the profile has no stretch line', () => {
     const plain = { ...fb4 };
     delete plain.stretch;
     const using = { ...settings, sectionProfiles: [plain] };
@@ -67,7 +67,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     expect(baseAt(4, using).warnings).toEqual([]);
   });
 
-  it('gives no base to uppers, stacked runs or a zero base height (anchor 6)', () => {
+  it('gives no base to uppers, stacked runs or a zero base height', () => {
     for (const change of [
       { cabinetTypeId: CABINET_TYPE_IDS.UPPER },
       { stack: { below: 'lower' } },
@@ -82,7 +82,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     expect(hasToeKick(run)).toBe(true);
   });
 
-  it('suppresses furniture-base toe kicks and restores drawing and TK numbering on override (anchor 7)', () => {
+  it('suppresses furniture-base toe kicks and restores drawing and TK numbering on override', () => {
     const document = normalizeElevationDocument(JSON.parse(
       readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8'),
     ));

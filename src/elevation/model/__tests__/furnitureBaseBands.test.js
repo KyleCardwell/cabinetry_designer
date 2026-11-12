@@ -40,7 +40,7 @@ function setup({ profile = {}, runs = [{}], endPanels, wallStops = false } = {},
 }
 
 describe('SPEC-50.5 step 488 furniture base bands', () => {
-  it('returns a plain board with the specified depth and no outline (anchor 1)', () => {
+  it('returns a plain board with the specified depth and no outline', () => {
     const { bands: [bands], parts } = setup();
     expect(bands.toeKicks).toEqual([]);
     expect(bands.furnitureBases[0]).toEqual({ x: 29.1875, z: 0, width: 37.625, height: 4, lines: [] });
@@ -50,7 +50,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     });
   });
 
-  it('places fb4 at its top, returning both ends and stopping its line on them (anchor 2)', () => {
+  it('places fb4 at its top, returning both ends and stopping its line on them', () => {
     const { room, bands: [bands], parts } = setup({ profile: { furnitureBaseProfileId: 'fb4' } });
     expect(bands.furnitureBases[0]).toEqual({ x: 29.1875, z: 0, width: 37.625, height: 4,
       outline: OUTLINE, lines: [line(29.1875, 66.8125, 3.6875)] });
@@ -59,7 +59,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     expect(toDrawingPayload(room, settings).elevations[0].parts).toContainEqual(part);
   });
 
-  it('stretches down to six inches while raising the band top and box together (anchor 3)', () => {
+  it('stretches down to six inches while raising the band top and box together', () => {
     const { wall, bands: [bands] } = setup({ profile: { furnitureBaseProfileId: 'fb4' },
       runs: [{ overrides: { toeKickHeight: 6 } }] });
     expect(bands.furnitureBases[0].outline).toEqual([[29.1875, 0, 0], [66.8125, 0, 0],
@@ -69,14 +69,14 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     expect(wall.runs[0].z).toBe(6);
   });
 
-  it('places a one-inch proud base without changing its profile (anchor 4)', () => {
+  it('places a one-inch proud base without changing its profile', () => {
     const { bands: [bands], parts } = setup({ profile: { furnitureBaseProfileId: 'fb4', furnitureBaseProud: 1 } });
     expect(bands.furnitureBases[0].outline).toEqual([[29, 0, 0], [67, 0, 0], [67, 3.6875, 0],
       [66.6875, 4, 0], [29.3125, 4, 0], [29, 3.6875, 0]]);
     expect(parts.find(({ kind }) => kind === 'furniture_base').front).toBe(25.875);
   });
 
-  it('returns the deeper base and copes the shallower onto its contour (anchor 5)', () => {
+  it('returns the deeper base and copes the shallower onto its contour', () => {
     const { bands: [deep, shallow] } = setup({ profile: { furnitureBaseProfileId: 'fb4' },
       runs: [{}, { x: 66, depth: 21 }] });
     expect(deep.furnitureBases[0].outline).toEqual(OUTLINE);
@@ -85,7 +85,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     expect(shallow.furnitureBases[0].lines).toEqual([line(66.8125, 102.8125, 3.6875)]);
   });
 
-  it('squares both a furniture base and its touching toe kick at the shared side (anchor 6)', () => {
+  it('squares both a furniture base and its touching toe kick at the shared side', () => {
     const { bands: [deep, shallow] } = setup({ profile: { furnitureBaseProfileId: 'fb4' },
       runs: [{}, { x: 66, depth: 21, overrides: { baseKind: 'toe_kick' }, ends: {} }] });
     expect(deep.furnitureBases[0].outline).toEqual([[29.1875, 0, 0], [66, 0, 0], [66, 4, 0],
@@ -95,7 +95,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     expect(shallow.furnitureBases).toEqual([]);
   });
 
-  it('keeps furnitureBase null throughout the golden rooms and preserves their payloads (anchor 7)', () => {
+  it('keeps furnitureBase null throughout the golden rooms and preserves their payloads', () => {
     for (const stored of document.rooms) {
       const room = syncRoom(stored, settings);
       for (const wall of room.walls) {

@@ -19,7 +19,7 @@ const picked = { ...DEFAULT_PROFILE, topMoldProfileId: 'tm3', crownProfileId: 'c
 const codes = (result) => result.warnings.map(({ code }) => code);
 
 describe('SPEC-50.2 molding profile model', () => {
-  it('grows and shrinks top mold only above the line, refusing a too-short target (anchor 1)', () => {
+  it('grows and shrinks top mold only above the line, refusing a too-short target', () => {
     const before = structuredClone(tm3);
     for (const target of [8, 2]) {
       expect(stretchProfileGeometry(tm3, target)).toEqual({
@@ -46,7 +46,7 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(stretched).toEqual(expected);
   });
 
-  it('defaults to half top-mold height, checks range at save, and limits stretch kinds (anchor 2)', () => {
+  it('defaults to half top-mold height, checks range at save, and limits stretch kinds', () => {
     expect(defaultStretchY(tm3)).toBe(1.5);
     const draft = setProfileStretch(tm3, 3);
     expect(draft.stretch).toEqual({ y: 3 });
@@ -95,7 +95,7 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(defaultStretchY(tied)).toBe(1.5625);
   });
 
-  it('resolves the default picked molding heights and overlap without warnings (anchor 3)', () => {
+  it('resolves the default picked molding heights and overlap without warnings', () => {
     const result = moldingProfiles(picked, settings);
     expect(result).toEqual({
       overhang: 0.25,
@@ -110,7 +110,7 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(crownOverlap(resolved)).toBe(1.5);
   });
 
-  it('draws too-short top mold unstretched and reports a gap from typed heights (anchor 4)', () => {
+  it('draws too-short top mold unstretched and reports a gap from typed heights', () => {
     const result = moldingProfiles({ ...picked, topMoldHeight: 1 }, settings);
     expect(codes(result)).toEqual(['top-mold-too-short', 'crown-gap']);
     expect(result.topMold.geometry).toBe(tm3.geometry);
@@ -120,14 +120,14 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(resolved.topMoldHeight).toBe(1);
   });
 
-  it('warns when top mold is above crown total without changing the typed height (anchor 5)', () => {
+  it('warns when top mold is above crown total without changing the typed height', () => {
     const result = moldingProfiles({ ...picked, topMoldHeight: 7 }, settings);
     expect(codes(result)).toEqual(['top-mold-above-crown']);
     expect(result.topMold.height).toBe(7);
     expect(result.topMold.geometry.points.f).toEqual([-0.125, 7]);
   });
 
-  it('ignores missing and wrong-kind picks, keeping typed heights and warning order (anchor 6)', () => {
+  it('ignores missing and wrong-kind picks, keeping typed heights and warning order', () => {
     for (const crownProfileId of ['nope', 'tm3']) {
       const profile = { ...picked, crownProfileId };
       const result = moldingProfiles(profile, settings);

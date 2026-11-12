@@ -4,7 +4,7 @@ import elevationReducer, {
   addShape, updateShape, setShapeArchived, deleteShape, createInitialElevationState,
 } from '../elevationSlice.js';
 
-it('SH2 anchor 1: bumps geometry versions for box, views and stretch, and keeps metadata versions', () => {
+it('bumps geometry versions for box, views and stretch, and keeps metadata versions (SH2)', () => {
   const shape = newShape([], 'shape-1');
   const initial = elevationReducer(createInitialElevationState(), addShape({ shape }));
   expect(initial.settings.shapes[0]).toEqual(shape);
@@ -26,7 +26,7 @@ it('SH2 anchor 1: bumps geometry versions for box, views and stretch, and keeps 
   expect(renamed.settings.shapes[0].version).toBe(2);
 });
 
-it('SH2 validates shape lists, guards duplicate live names on restore, removes locally and locks issued versions', () => {
+it('validates shape lists, guards duplicate live names on restore, removes locally and locks issued versions (SH2)', () => {
   const shape = { ...newShape([], 'shape-1'), name: 'Rod' };
   let state = elevationReducer(createInitialElevationState(), addShape({ shape }));
   for (const invalid of [null, { ...shape, id: 'shape-2', name: 'ROD' }, { ...shape, box: {} }, shape]) {

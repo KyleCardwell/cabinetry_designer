@@ -7,7 +7,7 @@ import useElevationKeys from './useElevationKeys.js';
 vi.mock('react', async (original) => ({ ...await original(), useEffect: vi.fn() }));
 vi.mock('react-redux', () => ({ useSelector: vi.fn() }));
 
-it('LL3 5: Delete removes the selected layout line', () => {
+it('5: Delete removes the selected layout line (LL3)', () => {
   const dispatch = vi.fn();
   let listener;
   let cleanup;

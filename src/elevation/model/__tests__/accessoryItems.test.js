@@ -6,7 +6,7 @@ import {
 const a = { accessoryId: 'a' };
 const full = Array.from({ length: 12 }, (_, i) => ({ accessoryId: String(i), qty: 20 }));
 
-it('IN12c a: shared items retain the IN12b storage shape and limits', () => {
+it('shared items retain the IN12b storage shape and limits (IN12c)', () => {
   for (const items of [[a], [{ ...a, qty: 1 }], [{ ...a, qty: 2 }], full]) expect(isAccessoryItems(items)).toBe(true);
   for (const items of [[], [a, a], [...full, a], [{ accessoryId: '' }], [{ qty: 2 }],
     ...[0, 21, 2.5, null, undefined, '2'].map((qty) => [{ ...a, qty }]),
@@ -15,7 +15,7 @@ it('IN12c a: shared items retain the IN12b storage shape and limits', () => {
   }
 });
 
-it('IN13a a anchor 7: merges positions from the first placed occurrence and preserves a rename destination', () => {
+it('merges positions from the first placed occurrence and preserves a rename destination (IN13a)', () => {
   const placed = { accessoryId: 'a', fromBottom: 40 };
   const second = { accessoryId: 'a', fromBottom: 60 };
   expect(mergeAccessoryItems([a], [second])).toEqual([{ ...second, qty: 2 }]);
@@ -33,7 +33,7 @@ it('IN13a a anchor 7: merges positions from the first placed occurrence and pres
   expect(second).toEqual({ accessoryId: 'a', fromBottom: 60 });
 });
 
-it('IN12c a anchor 4: adds, increments, resets, merges renamed ids and removes without mutation', () => {
+it('adds, increments, resets, merges renamed ids and removes without mutation (IN12c)', () => {
   const once = addAccessoryItem(undefined, 'a');
   expect(addAccessoryItem(once, 'a')).toEqual([{ accessoryId: 'a', qty: 2 }]);
   expect(once).toEqual([a]);
@@ -64,7 +64,7 @@ it('IN12c a anchor 4: adds, increments, resets, merges renamed ids and removes w
   }
 });
 
-it('IN12c a: merging keeps first occurrence order, caps quantities and rejects bad arguments or overflow', () => {
+it('merging keeps first occurrence order, caps quantities and rejects bad arguments or overflow (IN12c)', () => {
   const first = [a, { accessoryId: 'b', qty: 19 }];
   const second = [{ accessoryId: 'b', qty: 3 }, a, { accessoryId: 'c' }];
   const before = structuredClone([first, second]);
@@ -86,7 +86,7 @@ it('IN12c a: merging keeps first occurrence order, caps quantities and rejects b
 });
 
 
-it('SH3 a anchor 3: accepts mirror true on any item and rejects false or nonboolean stored values', () => {
+it('accepts mirror true on any item and rejects false or nonboolean stored values (SH3)', () => {
   const item = { accessoryId: 'a', qty: 1, fromBottom: 66, mirror: true };
   expect(isAccessoryItems([item], { placed: true })).toBe(true);
   expect(isAccessoryItems([{ accessoryId: 'a', mirror: true }])).toBe(true);
@@ -96,7 +96,7 @@ it('SH3 a anchor 3: accepts mirror true on any item and rejects false or nonbool
   }
 });
 
-it('SH3 a: edits mirror sparsely and keeps the first item mirror when merging or renaming', () => {
+it('edits mirror sparsely and keeps the first item mirror when merging or renaming (SH3)', () => {
   const mirrored = { accessoryId: 'a', mirror: true, fromBottom: 66 };
   const before = structuredClone(mirrored);
   expect(setAccessoryItem([a], 0, { mirror: true })).toEqual([{ ...a, mirror: true }]);

@@ -20,15 +20,15 @@ function room10bt({ shortReturn = false, blank = false } = {}) {
   return { synced, wall: synced.walls[1], run: synced.walls[1].runs[0] };
 }
 
-describe('FX7 blind panel without a blind width', () => {
-  it('anchor 1: keeps the typed-width panel when the return is short', () => {
+describe('blind panel without a blind width (FX7)', () => {
+  it('keeps the typed-width panel when the return is short', () => {
     const { synced, wall, run } = room10bt({ shortReturn: true });
     const entry = blindEntries(synced, wall, run, S).entries[0];
     expect(entry).toMatchObject({ covered: false, boxWidth: 42, panel: { x: 60.875, width: 27.125 } });
     expect(entry.unsized).toBeUndefined();
   });
 
-  it('anchor 2: shows the panel with a blank width and no box extension or box warnings', () => {
+  it('shows the panel with a blank width and no box extension or box warnings', () => {
     const { synced, wall, run } = room10bt({ shortReturn: true, blank: true });
     const { entries, warnings } = blindEntries(synced, wall, run, S);
     expect(entries[0]).toMatchObject({
@@ -41,13 +41,13 @@ describe('FX7 blind panel without a blind width', () => {
     expect(widths.get(`${run.id}:right`)).toBe(27.25);
   });
 
-  it('anchor 3: a covered blank end has no entry, so nothing changes', () => {
+  it('a covered blank end has no entry, so nothing changes', () => {
     const { synced, wall, run } = room10bt({ blank: true });
     expect(blindEntries(synced, wall, run, S)).toEqual({ entries: [], warnings: [] });
     expect(blindPartWidths(synced, wall, run, S).size).toBe(0);
   });
 
-  it('anchor 4: no Blind sub-label on the blind column while the width is blank', () => {
+  it('no Blind sub-label on the blind column while the width is blank', () => {
     for (const shortReturn of [false, true]) {
       const { synced, wall, run } = room10bt({ shortReturn, blank: true });
       const scene = runScene(synced, wall, run, S);

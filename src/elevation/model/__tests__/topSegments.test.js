@@ -41,8 +41,8 @@ const heights = (run) => splitRun(run, settings).pieces.map(({ height }) => heig
 const warnings = (run) => roomDiagnostics(makeRoom(run), settings).r.warnings
   .filter(({ code }) => code.startsWith('top-segment-'));
 
-describe('ST4 step b top segments', () => {
-  it('anchor 1: derives a two-inch drop for B without storing it on the column', () => {
+describe('top segments (ST4)', () => {
+  it('derives a two-inch drop for B without storing it on the column', () => {
     const run = makeRun();
     const before = structuredClone(run);
     expect(splitRun(run, settings).pieces.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })))
@@ -56,7 +56,7 @@ describe('ST4 step b top segments', () => {
     expect(run).toEqual(before);
   });
 
-  it('anchor 2: wins over a stored manual top while preserving it and the manual bottom', () => {
+  it('wins over a stored manual top while preserving it and the manual bottom', () => {
     const run = makeRun();
     run.grid = updateRootItem(run.grid, 'B', { top: manual(1) });
     expect(heights(run)).toEqual([30.5, 28.5, 30.5]);
@@ -69,7 +69,7 @@ describe('ST4 step b top segments', () => {
     expect(heights({ ...run, topSegments: [] })).toEqual([30.5, 26.5, 30.5]);
   });
 
-  it('anchor 3: uses the wood reveal on B and the run stone reveal on A', () => {
+  it('uses the wood reveal on B and the run stone reveal on A', () => {
     const faces = facesFor(makeRun());
     expect(faces.get('B').reveals.values.top).toBe(0.125);
     expect(faces.get('B').reveals.sources.top).toBe('rule:wood-top');
@@ -77,13 +77,13 @@ describe('ST4 step b top segments', () => {
     expect(faces.get('A').reveals.sources.top).toBe('rule:stone-top');
   });
 
-  it('anchor 4: resolves C to A inclusively in run order', () => {
+  it('resolves C to A inclusively in run order', () => {
     const run = makeRun([{ ...segment, from: 'C', to: 'A', kind: 'stone', drop: 1 }]);
     expect(topSegmentRange(run, run.topSegments[0]).map(({ id }) => id)).toEqual(['A', 'B', 'C']);
     expect(heights(run)).toEqual([29.5, 29.5, 29.5]);
   });
 
-  it('anchor 5: warns about either missing endpoint and leaves boxes and reveals unchanged', () => {
+  it('warns about either missing endpoint and leaves boxes and reveals unchanged', () => {
     for (const endpoints of [{ from: 'gone' }, { to: 'gone' }]) {
       const run = makeRun([{ ...segment, ...endpoints }]);
       expect(heights(run)).toEqual([30.5, 30.5, 30.5]);
@@ -94,7 +94,7 @@ describe('ST4 step b top segments', () => {
     }
   });
 
-  it('anchor 6: ignores the entire later overlapping segment and keeps A full height', () => {
+  it('ignores the entire later overlapping segment and keeps A full height', () => {
     const run = makeRun([{ ...segment, to: 'C' }, { ...segment, id: 'later', from: 'A' }]);
     expect(heights(run)).toEqual([30.5, 28.5, 28.5]);
     expect(resolveTopSegments(run).segments.map(({ id }) => id)).toEqual(['s']);
@@ -103,7 +103,7 @@ describe('ST4 step b top segments', () => {
     }]);
   });
 
-  it('anchor 7: ignores segments on runs without a countertop', () => {
+  it('ignores segments on runs without a countertop', () => {
     for (const top of ['none', 'crown', 'topMold']) {
       const run = { ...makeRun(), top };
       expect(heights(run)).toEqual([30.5, 30.5, 30.5]);
@@ -113,7 +113,7 @@ describe('ST4 step b top segments', () => {
     }
   });
 
-  it('anchor 8: accepts overlap mode without dropping boxes or overriding manual offsets', () => {
+  it('accepts overlap mode without dropping boxes or overriding manual offsets', () => {
     const run = makeRun([{ ...segment, mode: 'overlap' }]);
     expect(heights(run)).toEqual([30.5, 30.5, 30.5]);
     expect(columnSteps(run).size).toBe(0);
@@ -179,7 +179,7 @@ describe('ST4 step b top segments', () => {
   });
 });
 
-describe('ST5 step a top overlap reveals', () => {
+describe('top overlap reveals (ST5)', () => {
   const overlap = { ...segment, kind: 'stone', drop: 1, mode: 'overlap' };
   const overlapRun = () => makeRun([overlap]);
   const insetRun = (cabinetStyleId) => ({
@@ -190,7 +190,7 @@ describe('ST5 step a top overlap reveals', () => {
     }))),
   });
 
-  it('anchor 1: preserves the Euro box and adds the stone overlap only to B', () => {
+  it('preserves the Euro box and adds the stone overlap only to B', () => {
     const run = overlapRun();
     const before = structuredClone(run);
     expect(columnOverlaps(run)).toEqual(new Map([['B', { value: 1, segmentId: 's' }]]));
@@ -209,14 +209,14 @@ describe('ST5 step a top overlap reveals', () => {
       .toEqual(new Map([['B', { value: 1, segmentId: 's' }]]));
   });
 
-  it('anchor 2: adds the overlap to the segment wood reveal', () => {
+  it('adds the overlap to the segment wood reveal', () => {
     const run = makeRun([{ ...overlap, kind: 'wood' }]);
     expect(facesFor(run).get('B').reveals).toMatchObject({
       values: { top: 1.125 }, sources: { top: 'rule:top-overlap' },
     });
   });
 
-  it('anchor 3: keeps a manual top reveal above the overlap rule', () => {
+  it('keeps a manual top reveal above the overlap rule', () => {
     const run = overlapRun();
     run.grid = updateRootItem(run.grid, 'B', { reveals: { top: 0.5 } });
     expect(facesFor(run).get('B').reveals).toMatchObject({
@@ -224,20 +224,20 @@ describe('ST5 step a top overlap reveals', () => {
     });
   });
 
-  it('anchor 4: adds the overlap to the plain inset rail and lowers the opening top to 32', () => {
+  it('adds the overlap to the plain inset rail and lowers the opening top to 32', () => {
     const layout = facesFor(insetRun(14)).get('B');
     expect(layout.reveals).toMatchObject({ values: { top: 2.5 }, sources: { top: 'rule:top-overlap' } });
     expect(layout.openings[0]).toMatchObject({ x: 31, width: 28 });
     expect(layout.openings[0].z + layout.openings[0].height).toBe(32);
   });
 
-  it('anchor 5: includes the quarter-inch bead in the overlap reveal', () => {
+  it('includes the quarter-inch bead in the overlap reveal', () => {
     expect(facesFor(insetRun(15)).get('B').reveals).toMatchObject({
       values: { top: 2.75 }, sources: { top: 'rule:top-overlap' },
     });
   });
 
-  it('anchor 6: applies overlap only to the top drawer of a nested drawer-over-door column', () => {
+  it('applies overlap only to the top drawer of a nested drawer-over-door column', () => {
     const run = overlapRun();
     run.grid.cells[1].node = {
       id: 'B', cols: [{ id: 'B:c', size: null, sizeMode: 'auto' }],

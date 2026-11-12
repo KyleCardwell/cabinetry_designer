@@ -6,7 +6,7 @@ import { syncRoom } from '../../model/room.js';
 import elevationReducer, { createInitialElevationState, setItemPin } from '../elevationSlice.js';
 import { isRoom, toRoomDocument } from '../persistence.js';
 
-describe('DR3b stored return pins', () => {
+describe('stored return pins (DR3b)', () => {
   it('accepts the return shape on root tracks, sets its anchor, copies and clears it', () => {
     const initial = {
       ...createInitialElevationState(null), activeRoomId: 'room-1', activeWallId: 'H',

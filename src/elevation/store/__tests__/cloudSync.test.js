@@ -30,7 +30,7 @@ async function openStore(options = {}, permissions) {
 
 const saves = (api) => api.calls.filter(([name]) => !['loadTeamSettings', 'listProfiles', 'listDoorDesigns', 'getProject'].includes(name));
 
-describe('DB4 f cloud sync', () => {
+describe('cloud sync (DB4)', () => {
   it('saves nothing just because the shop data loaded', async () => {
     const { api, sync } = await openStore();
     expect((await sync.flush()).ok).toBe(true);

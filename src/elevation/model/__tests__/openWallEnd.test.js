@@ -25,7 +25,7 @@ const topEdges = ({ room, wall, run }) => {
   return [top.x, top.x + top.width];
 };
 
-describe('FX4 b anchored ends at an open wall end act as free ends', () => {
+describe('anchored ends at an open wall end act as free ends (FX4)', () => {
   it('Room 9 Wall 4: a wood top anchored to a peninsula end overhangs 3/4" there', () => {
     const open = setup();
     expect(cornerAt(open.room, open.wall, 'right').type).toBe('open');
@@ -56,8 +56,8 @@ describe('FX4 b anchored ends at an open wall end act as free ends', () => {
   });
 });
 
-describe('FX4 b.1 open ends at any wall thickness', () => {
-  it('returns the top at both open ends of a 4 1/2" wall and allows a waterfall (anchor 1)', () => {
+describe('b.1 open ends at any wall thickness (FX4)', () => {
+  it('returns the top at both open ends of a 4 1/2" wall and allows a waterfall', () => {
     const thick = setup({ thickness: 4.5, runOverrides: { waterfall: { right: {} } } });
     expect(isOpenWallEnd(thick.room, thick.wall, thick.run, 'right', settings)).toBe(true);
     expect(topEdges(setup({ thickness: 4.5 }))).toEqual([-0.75, 60.75]);
@@ -65,13 +65,13 @@ describe('FX4 b.1 open ends at any wall thickness', () => {
       .toEqual({ left: null, right: { baseToLeg: false }, warnings: [] });
   });
 
-  it('keeps the right top edge at 60 with a connected return wall (anchor 2)', () => {
+  it('keeps the right top edge at 60 with a connected return wall', () => {
     const thick = setup({ thickness: 4.5, connected: true });
     expect(isOpenWallEnd(thick.room, thick.wall, thick.run, 'right', settings)).toBe(false);
     expect(topEdges(thick)).toEqual([-0.75, 60]);
   });
 
-  it('preserves Room 9 Wall 4 top edges at 18 13/16 … 79 7/8 (anchor 3)', () => {
+  it('preserves Room 9 Wall 4 top edges at 18 13/16 … 79 7/8', () => {
     const input = setup({ length: 79.125, runOverrides: { x: 19.5625, width: 59.5625,
       anchors: { left: false, right: true } } });
     expect(topEdges(input)).toEqual([18.8125, 79.875]);

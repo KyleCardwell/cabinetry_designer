@@ -54,7 +54,7 @@ function expectChains(actual, expected) {
   });
 }
 
-describe('PT2 step b exposed plan top edges', () => {
+describe('exposed plan top edges (PT2)', () => {
   it.each([
     ['1: wood miter', 'wood', 'miter', [[0, 0], [25.625, 25.625]]],
     ['2: wood butt', 'wood', 'butt', [[25.625, 0], [25.625, 25.625]]],
@@ -178,8 +178,8 @@ describe('PT2 step b exposed plan top edges', () => {
   });
 });
 
-describe('PT2 step c top edges in the plan payload', () => {
-  it('anchor 1: the corner room carries its edge chain and mitered joint as countertop parts', () => {
+describe('top edges in the plan payload (PT2)', () => {
+  it('the corner room carries its edge chain and mitered joint as countertop parts', () => {
     const tops = planParts(corner, settings).filter(({ kind }) => kind === 'countertop');
     const inPlan = (points) => planTopPoints(corner, corner.walls[0], points);
     expectChains(tops, [
@@ -195,7 +195,7 @@ describe('PT2 step c top edges in the plan payload', () => {
   });
 });
 
-describe('CC7 step e corner countertop pieces in plan', () => {
+describe('corner countertop pieces in plan (CC7)', () => {
   let owner, ownerWall, returnWall;
 
   beforeEach(() => {

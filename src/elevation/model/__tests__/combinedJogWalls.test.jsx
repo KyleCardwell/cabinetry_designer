@@ -45,8 +45,8 @@ function setup() {
   return { room, combined: combinedViewOf(room, 'W4') };
 }
 
-describe('DM6 step e combined jog walls', () => {
-  it('anchor 2: keeps the tall end-on from Wall 2 only, with face x 95 1/8…120 in both outputs', () => {
+describe('combined jog walls (DM6)', () => {
+  it('keeps the tall end-on from Wall 2 only, with face x 95 1/8…120 in both outputs', () => {
     const { room, combined } = setup();
     for (const returns of ['section', 'end']) {
       room.elevationOptions = { W4: { returns } };

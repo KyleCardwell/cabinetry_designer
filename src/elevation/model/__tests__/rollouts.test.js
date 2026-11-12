@@ -35,8 +35,8 @@ const root = (options) => sectionRollouts(input(options)).get('r');
 const codes = (entry) => entry.warnings.map(({ code }) => code);
 const shelves = (args) => sectionShelves({ ...args, rollouts: sectionRollouts(args) }).get('r');
 
-describe('IN4c usable roll-out depth and cabinet back notches', () => {
-  it('anchor 6: sizes from usable depth, preserves overrides and aggregates the notch warning', () => {
+describe('usable roll-out depth and cabinet back notches (IN4c)', () => {
+  it('sizes from usable depth, preserves overrides and aggregates the notch warning', () => {
     const args = input();
     args.interior.sections[0].depth = 21.5;
     expect(sectionRollouts(args).get('r').rollouts[0])
@@ -71,8 +71,8 @@ function roomWith(leaves, { width = 24 * leaves.length } = {}) {
   return buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
 }
 
-describe('IN9 step b section roll-outs and shelves above them', () => {
-  it('anchor 1: sizes one left-hinged base roll-out and leaves one auto shelf above its space', () => {
+describe('section roll-outs and shelves above them (IN9)', () => {
+  it('sizes one left-hinged base roll-out and leaves one auto shelf above its space', () => {
     const args = input();
     const before = structuredClone(args);
     expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r',
@@ -90,7 +90,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(args).toEqual(before);
   });
 
-  it('anchor 2: spaces two auto roll-outs with 9 31/32 gaps and removes auto shelves and line bore', () => {
+  it('spaces two auto roll-outs with 9 31/32 gaps and removes auto shelves and line bore', () => {
     const args = input({ rollouts: { count: 2 } });
     const entry = sectionRollouts(args).get('r');
     expect(entry.rollouts.map(({ at }) => at)).toEqual([0.5625, 14.78125]);
@@ -98,7 +98,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(shelves(args)).toMatchObject({ zone: { height: 9.71875 }, count: 0, lineBore: false, hinges: true });
   });
 
-  it('anchor 3: resolves cabinet and individual slides without drawer slide rules', () => {
+  it('resolves cabinet and individual slides without drawer slide rules', () => {
     const leaf = { drawerSlideId: 'accuride-3832' };
     expect(root({ leaf }).rollouts[0]).toMatchObject({ width: 20.25, depth: 22, source: 'cabinet', clips: null });
     expect(root({ leaf, rollouts: { count: 1, items: [{ slideId: 'blum-562h' }] } }).rollouts[0])
@@ -107,7 +107,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
       .toMatchObject({ slideId: 'blum-562h', source: 'room', height: 4.25, depth: 9 });
   });
 
-  it('anchor 5: uses a full-width stack for one or two sink roll-outs without an action-time split', () => {
+  it('uses a full-width stack for one or two sink roll-outs without an action-time split', () => {
     const options = { width: 36, leaf: { purpose: 'sink', face: face('pair_door') } };
     const one = root(options);
     expect(one.rollouts[0]).toMatchObject({ width: 31.5, depth: 18, at: 0.5625, spacers: { left: 1.25, right: 1.25 } });
@@ -115,14 +115,14 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(two.rollouts.map(({ width, at }) => [width, at])).toEqual([[31.5, 0.5625], [31.5, 14.78125]]);
   });
 
-  it('anchor 6: spaces auto runs on either side of a typed section-relative position', () => {
+  it('spaces auto runs on either side of a typed section-relative position', () => {
     const entry = root({ z: 40, rollouts: { count: 3, items: [{}, { at: 10 }, {}] } });
     expect(entry.rollouts.map(({ at }) => at)).toEqual([0.5625, 10, 19.5]);
     expect(entry.rollouts.map(({ zSource }) => zSource)).toEqual(['auto', 'manual', 'auto']);
     expect(entry.warnings).toEqual([]);
   });
 
-  it('anchor 7: warns when slide spaces overlap in a stack', () => {
+  it('warns when slide spaces overlap in a stack', () => {
     const entry = root({ rollouts: { count: 2, items: [{}, { at: 3 }] } });
     expect(entry.rollouts.map(({ space }) => space)).toEqual([
       { z: 0.75, height: 5.0625 }, { z: 3.1875, height: 5.0625 },
@@ -131,7 +131,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(entry.rollouts.every((rollout) => codes(rollout).includes('rollouts-overlap'))).toBe(true);
   });
 
-  it('anchor 8: uses the same 23 9/16 clear zone below a drawer as shelves', () => {
+  it('uses the same 23 9/16 clear zone below a drawer as shelves', () => {
     const args = input({ leaf: { face: stack(face('drawer_front', { size: 5.875 }), face()) },
       reveals: { ...euro, top: 0.25 }, rollouts: { count: 2 } });
     const entry = sectionRollouts(args).get('r');
@@ -141,7 +141,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(entry.rollouts[1].z - entry.rollouts[0].z - 4.25).toBe(7.25);
   });
 
-  it('anchor 9: uses right-only spacers and standard clips in a raised-deck face frame base', () => {
+  it('uses right-only spacers and standard clips in a raised-deck face frame base', () => {
     const room = roomWith([{ id: 'c', face: face('door', { hinge: 'right' }), style: { cabinetStyleId: 14 } }]);
     const entry = wallRollouts(room, room.walls[0], 'front', settings).get('c').get('r');
     expect(entry.zone).toEqual({ z: 5.5, height: 28.25 });
@@ -149,7 +149,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
       clips: 'standard', at: 0.5625, z: 6.0625 });
   });
 
-  it('anchor 10: shares room and per-cabinet maple material lookup and excludes face frames', () => {
+  it('shares room and per-cabinet maple material lookup and excludes face frames', () => {
     const room = roomWith([{ id: 'c' }]);
     const wall = room.walls[0];
     const plain = wallRollouts(room, wall, 'front', settings).get('c').get('r').rollouts[0];
@@ -165,7 +165,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
       .toMatchObject({ maple: false, width: 20.75, clips: 'standard' });
   });
 
-  it('AU8: the roll-out maple extra width follows the shop setting', () => {
+  it('the roll-out maple extra width follows the shop setting (AU8)', () => {
     const room = roomWith([{ id: 'c' }]);
     room.reportParts = { c: { boxes: 'Pre-finished Maple' } };
     const rollout = (extra) => wallRollouts(room, room.walls[0], 'front', { ...settings, prefinishedMapleExtra: extra })
@@ -175,13 +175,13 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(rollout(0)).toMatchObject({ maple: false, mapleExtra: 0, width: 20.75, x: plain.x });
   });
 
-  it('anchor 11: uses both spacers and warns when a covering door has no resolved hinge', () => {
+  it('uses both spacers and warns when a covering door has no resolved hinge', () => {
     const entry = root({ leaf: { face: face('door', { hinge: undefined }) } });
     expect(entry.rollouts[0]).toMatchObject({ width: 19.5, spacers: { left: 1.25, right: 1.25 } });
     expect(codes(entry)).toContain('rollout-hinge-unknown');
   });
 
-  it('anchor 13: keeps typed depth and height and warns on depth beyond the interior and tall boxes', () => {
+  it('keeps typed depth and height and warns on depth beyond the interior and tall boxes', () => {
     const deep = root({ rollouts: { count: 1, items: [{ depth: 24 }] } });
     expect(deep.rollouts[0]).toMatchObject({ depth: 24, depthAuto: 21, depthSource: 'manual',
       depthRule: null, slideLength: 24 });

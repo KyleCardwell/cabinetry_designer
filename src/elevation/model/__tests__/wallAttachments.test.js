@@ -19,8 +19,8 @@ const roomI = room({
   roomLines: [roomLine('R1', { from: 'right', value: 120 })],
 });
 
-describe('LL8 b wall attachment data', () => {
-  it('anchor 1: validates, saves/loads and independently clones a wall attachment', () => {
+describe('wall attachment data (LL8)', () => {
+  it('validates, saves/loads and independently clones a wall attachment', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].attach = attach('R1');
     expect(isRoom(subject)).toBe(true);
@@ -34,7 +34,7 @@ describe('LL8 b wall attachment data', () => {
     expect(subject.walls[1].attach.offset).toBe(0);
   });
 
-  it('anchor 2: preserves absent attachments through clone and save/load and rejects at: top', () => {
+  it('preserves absent attachments through clone and save/load and rejects at: top', () => {
     expect(cloneRoom(roomI).walls.every((entry) => !Object.hasOwn(entry, 'attach'))).toBe(true);
     const saved = JSON.parse(JSON.stringify(toRoomDocument(roomI)));
     expect(saved.walls.every((entry) => !Object.hasOwn(entry, 'attach'))).toBe(true);
@@ -46,19 +46,19 @@ describe('LL8 b wall attachment data', () => {
     expect(isRoom(invalid)).toBe(false);
   });
 
-  it('anchor 3: allows the square island, rejects the perpendicular wall and missing room lines', () => {
+  it('allows the square island, rejects the perpendicular wall and missing room lines', () => {
     expect(canAttachWall(roomI, 'wall-2', 'R1')).toEqual({ ok: true, reason: null });
     expect(canAttachWall(roomI, 'wall-3', 'R1')).toEqual({ ok: false, reason: 'not-square' });
     expect(canAttachWall(roomI, 'wall-2', 'R9')).toEqual({ ok: false, reason: 'no-line' });
   });
 
-  it('anchor 4: rejects a line measured from the attached wall itself', () => {
+  it('rejects a line measured from the attached wall itself', () => {
     const subject = cloneRoom(roomI);
     subject.roomLines.push(roomLine('R2', { wallId: 'wall-2' }));
     expect(canAttachWall(subject, 'wall-2', 'R2')).toEqual({ ok: false, reason: 'own-group' });
   });
 
-  it('anchor 5: finds the held wall from either leg and rejects a second attachment in the group', () => {
+  it('finds the held wall from either leg and rejects a second attachment in the group', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].attach = attach('R1');
     subject.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
@@ -74,7 +74,7 @@ describe('LL8 b wall attachment data', () => {
     }
   });
 
-  it('anchor 6: rejects attachment chains in either order', () => {
+  it('rejects attachment chains in either order', () => {
     const subject = cloneRoom(roomI);
     subject.walls.push(wall({ id: 'wall-4', x1: 180, y1: 160, x2: 60, y2: 160 }));
     subject.roomLines.push(roomLine('R3', { wallId: 'wall-2' }));

@@ -127,7 +127,7 @@ const expectedWindowGeometry = {
 };
 
 describe('opening geometry', () => {
-  it('1. resolves a left-measured jamb-mode door', () => {
+  it('resolves a left-measured jamb-mode door', () => {
     expect(casingSides('door')).toEqual({
       top: true,
       left: true,
@@ -137,7 +137,7 @@ describe('opening geometry', () => {
     expect(openingGeometry(door(), 120, settings)).toEqual(expectedDoorGeometry);
   });
 
-  it('2. resolves the equivalent casing-mode door identically', () => {
+  it('resolves the equivalent casing-mode door identically', () => {
     const casingDoor = door({
       measureMode: 'casing',
       width: 42,
@@ -147,12 +147,12 @@ describe('opening geometry', () => {
     expect(openingGeometry(casingDoor, 120, settings)).toEqual(expectedDoorGeometry);
   });
 
-  it('3. resolves a right-measured jamb-mode window', () => {
+  it('resolves a right-measured jamb-mode window', () => {
     expect(casingSides('window').bottom).toBe(true);
     expect(openingGeometry(windowOpening(), 120, settings)).toEqual(expectedWindowGeometry);
   });
 
-  it('4. resolves the equivalent casing-mode window identically', () => {
+  it('resolves the equivalent casing-mode window identically', () => {
     const casingWindow = windowOpening({
       measureMode: 'casing',
       width: 42,
@@ -163,7 +163,7 @@ describe('opening geometry', () => {
     expect(openingGeometry(casingWindow, 120, settings)).toEqual(expectedWindowGeometry);
   });
 
-  it('5. collapses casing measurements onto jamb measurements without casing', () => {
+  it('collapses casing measurements onto jamb measurements without casing', () => {
     const geometry = openingGeometry(door({ casing: null }), 120, settings);
     expect(geometry.casing).toBeNull();
     expect(geometry.jamb).toEqual(expectedDoorGeometry.jamb);
@@ -181,7 +181,7 @@ describe('opening geometry', () => {
 });
 
 describe('opening measurement conversions', () => {
-  it('6. round-trips door measurement mode without changing geometry', () => {
+  it('round-trips door measurement mode without changing geometry', () => {
     const original = door();
     const casingMode = setMeasureMode(original, 'casing', 120, settings);
     expect(casingMode).toMatchObject({
@@ -200,7 +200,7 @@ describe('opening measurement conversions', () => {
     }
   });
 
-  it('7. round-trips the measured offset side without moving the window', () => {
+  it('round-trips the measured offset side without moving the window', () => {
     const original = windowOpening();
     const left = setOffsetSide(original, 'left', 120, settings);
     expect(left).toMatchObject({ offsetFrom: 'left', offset: 72 });
@@ -211,7 +211,7 @@ describe('opening measurement conversions', () => {
     expect(roundTrip.offset).toBeCloseTo(12, 9);
   });
 
-  it('8. makes mode and offset-side conversion commute', () => {
+  it('makes mode and offset-side conversion commute', () => {
     const original = windowOpening();
     const modeThenSide = setOffsetSide(
       setMeasureMode(original, 'casing', 120, settings),
@@ -235,7 +235,7 @@ describe('opening validation', () => {
     length: 120,
   });
 
-  it('9. rejects casing beyond a wall end and accepts casing touching it', () => {
+  it('rejects casing beyond a wall end and accepts casing touching it', () => {
     expect(validateOpeningPlacement(
       resolvedWall(),
       door({ offset: 1 }),
@@ -248,7 +248,7 @@ describe('opening validation', () => {
     )).toEqual({ ok: true, reason: null });
   });
 
-  it('10. rejects casing above the wall', () => {
+  it('rejects casing above the wall', () => {
     expect(validateOpeningPlacement(
       resolvedWall(),
       windowOpening({ sillZ: 66 }),
@@ -256,7 +256,7 @@ describe('opening validation', () => {
     )).toEqual({ ok: false, reason: 'opening-too-tall' });
   });
 
-  it('11. rejects overlapping casing but allows touching casing', () => {
+  it('rejects overlapping casing but allows touching casing', () => {
     const first = door();
     expect(validateOpeningPlacement(
       resolvedWall([first]),
@@ -270,7 +270,7 @@ describe('opening validation', () => {
     )).toEqual({ ok: true, reason: null });
   });
 
-  it('12. rejects a jamb narrower than the opening minimum', () => {
+  it('rejects a jamb narrower than the opening minimum', () => {
     expect(validateOpeningPlacement(
       resolvedWall(),
       windowOpening({ width: 4 }),
@@ -280,7 +280,7 @@ describe('opening validation', () => {
 });
 
 describe('opening creation and hit testing', () => {
-  it('18. creates a valid default door at the requested jamb edge', () => {
+  it('creates a valid default door at the requested jamb edge', () => {
     const targetWall = wall();
     const targetRoom = room([targetWall]);
     const opening = createOpening(
@@ -308,7 +308,7 @@ describe('opening creation and hit testing', () => {
     )).toEqual({ ok: true, reason: null });
   });
 
-  it('19. clamps a door so its casing ends at the wall', () => {
+  it('clamps a door so its casing ends at the wall', () => {
     const targetWall = wall();
     const targetRoom = room([targetWall]);
     const opening = createOpening(
@@ -320,7 +320,7 @@ describe('opening creation and hit testing', () => {
       .toMatchObject({ x: 78, width: 42 });
   });
 
-  it('20. defaults window sill height and counts labels across the room', () => {
+  it('defaults window sill height and counts labels across the room', () => {
     const firstWall = wall({ id: 'A' });
     const secondWall = wall({ id: 'B', y1: 60, y2: 60 });
     const targetRoom = room([firstWall, secondWall]);
@@ -364,7 +364,7 @@ describe('opening creation and hit testing', () => {
   });
 });
 
-describe('UI10 opening labels', () => {
+describe('opening labels (UI10)', () => {
   const wallAt = (id, x1, openings) => ({ id, x1, y1: 0, x2: x1 + 144, y2: 0, openings });
   const labels = (room) => Object.fromEntries(
     room.walls.flatMap((wall) => wall.openings.map((opening) => [opening.id, opening.label])),

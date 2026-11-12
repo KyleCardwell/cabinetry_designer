@@ -22,8 +22,8 @@ const roomR = room({
   roomLines: [roomLine('R1', { wallId: 'wall-1', from: 'right', value: 99 })],
 });
 
-describe('LL7 b room line projection', () => {
-  it('anchor 1: projects Room R onto both parallel faces and places the sink', () => {
+describe('room line projection (LL7)', () => {
+  it('projects Room R onto both parallel faces and places the sink', () => {
     const synced = syncRoom(roomR, DEFAULT_SETTINGS);
     const [w1, w2, w3] = synced.walls;
     expect(w1._roomLines).toEqual([
@@ -44,13 +44,13 @@ describe('LL7 b room line projection', () => {
     expect(roomR.walls[1]).not.toHaveProperty('_roomLines');
   });
 
-  it('anchor 2: follows a reference distance of 100', () => {
+  it('follows a reference distance of 100', () => {
     const synced = syncRoom({ ...roomR, roomLines: [{ ...roomR.roomLines[0], value: 100 }] }, DEFAULT_SETTINGS);
     expect(synced.walls[1]._roomLines.map((entry) => entry.value)).toEqual([40, 80]);
     expect(synced.walls[1].runs[0].x).toBe(22);
   });
 
-  it('anchor 3: keeps the sink centre at plan x 141 when its wall moves right', () => {
+  it('keeps the sink centre at plan x 141 when its wall moves right', () => {
     const moved = cloneRoom(roomR);
     Object.assign(moved.walls[1], { x1: 190, x2: 70 });
     const synced = syncRoom(moved, DEFAULT_SETTINGS);
@@ -58,13 +58,13 @@ describe('LL7 b room line projection', () => {
     expect(synced.walls[1].runs[0].x).toBe(31);
   });
 
-  it('anchor 4: leaves projections and attached runs outside the wall unclamped', () => {
+  it('leaves projections and attached runs outside the wall unclamped', () => {
     const synced = syncRoom({ ...roomR, roomLines: [{ ...roomR.roomLines[0], value: 30 }] }, DEFAULT_SETTINGS);
     expect(synced.walls[1]._roomLines.map((entry) => entry.value)).toEqual([-30, 150]);
     expect(synced.walls[1].runs[0].x).toBe(-48);
   });
 
-  it('anchor 5: retains an attached line only on the out-of-square face that uses it', () => {
+  it('retains an attached line only on the out-of-square face that uses it', () => {
     const subject = cloneRoom(roomR);
     subject.walls[2].runs = [run({
       id: 'square-run', width: 36, attach: attach('R1', 'left'),
@@ -78,7 +78,7 @@ describe('LL7 b room line projection', () => {
     expect(linesOn(synced.walls[2], 'back')).toEqual([]);
   });
 
-  it('anchor 6: removes missing references and detaches at the last synced position', () => {
+  it('removes missing references and detaches at the last synced position', () => {
     const synced = syncRoom(roomR, DEFAULT_SETTINGS);
     for (const subject of [
       { ...synced, roomLines: [{ ...synced.roomLines[0], wallId: 'gone' }] },
@@ -95,7 +95,7 @@ describe('LL7 b room line projection', () => {
     }
   });
 
-  it('anchor 7: prunes attachments to nonexistent room lines', () => {
+  it('prunes attachments to nonexistent room lines', () => {
     const subject = cloneRoom(roomR);
     subject.walls[1].runs[0].attach = attach('R9');
     const synced = syncRoom(subject, DEFAULT_SETTINGS);
@@ -103,14 +103,14 @@ describe('LL7 b room line projection', () => {
     expect(synced.walls[1].runs[0].x).toBe(0);
   });
 
-  it('anchor 8: places an opening centre on the room line through unchanged LL3 rules', () => {
+  it('places an opening centre on the room line through unchanged LL3 rules', () => {
     const subject = cloneRoom(roomR);
     subject.walls[1].openings = [opening({ attach: attach('R1') })];
     const synced = syncRoom(subject, DEFAULT_SETTINGS);
     expect(synced.walls[1].openings[0]).toMatchObject({ offset: 21, width: 36, attach: attach('R1') });
   });
 
-  it('anchor 9: is stable on a second sync and leaves rooms without room lines alone', () => {
+  it('is stable on a second sync and leaves rooms without room lines alone', () => {
     const synced = syncRoom(roomR, DEFAULT_SETTINGS);
     expect(syncRoom(synced, DEFAULT_SETTINGS)).toEqual(synced);
     expect(projectRoomLines(synced)).toBe(synced);
@@ -125,7 +125,7 @@ describe('LL7 b room line projection', () => {
     expect(syncRoom(next, DEFAULT_SETTINGS)).toEqual(next);
   });
 
-  it('anchor 10: strips derived projections on save and rebuilds them after load', () => {
+  it('strips derived projections on save and rebuilds them after load', () => {
     const synced = syncRoom(roomR, DEFAULT_SETTINGS);
     const saved = JSON.parse(JSON.stringify(toRoomDocument(synced)));
     expect(saved.walls.every((entry) => !Object.hasOwn(entry, '_roomLines'))).toBe(true);
@@ -190,15 +190,15 @@ describe('LL7 b room line projection', () => {
   });
 });
 
-describe('LL7 a room line data', () => {
-  it('anchor 1: accepts Room R and saves/loads it unchanged', () => {
+describe('room line data (LL7)', () => {
+  it('accepts Room R and saves/loads it unchanged', () => {
     expect(isRoom(roomR)).toBe(true);
     const saved = JSON.parse(JSON.stringify(toRoomDocument(roomR)));
     expect(roomFromDocument(saved, ELEVATION_SCHEMA_VERSION, DEFAULT_SETTINGS))
       .toEqual({ ok: true, room: roomR });
   });
 
-  it('anchor 2: rejects malformed room lines and duplicate ids without checking references', () => {
+  it('rejects malformed room lines and duplicate ids without checking references', () => {
     for (const overrides of [
       { extra: true }, { label: '' }, { value: -1 }, { from: 'up' },
       { id: '' }, { id: 1 }, { label: ' '.repeat(2) }, { label: 'a'.repeat(25) },
@@ -216,7 +216,7 @@ describe('LL7 a room line data', () => {
     expect(isRoomLine(roomLine('R2', { label: 'a'.repeat(24) }))).toBe(true);
   });
 
-  it('anchor 3: clones the room line array and each line independently', () => {
+  it('clones the room line array and each line independently', () => {
     const copy = cloneRoom(roomR);
     expect(copy.roomLines).toEqual(roomR.roomLines);
     expect(copy.roomLines).not.toBe(roomR.roomLines);
@@ -228,7 +228,7 @@ describe('LL7 a room line data', () => {
     expect(cloneRoom(empty).roomLines).not.toBe(empty.roomLines);
   });
 
-  it('anchor 4: keeps roomLines absent through clone and save/load', () => {
+  it('keeps roomLines absent through clone and save/load', () => {
     const plain = room({ walls: [wall()] });
     expect(cloneRoom(plain)).not.toHaveProperty('roomLines');
     const saved = JSON.parse(JSON.stringify(toRoomDocument(plain)));
@@ -238,7 +238,7 @@ describe('LL7 a room line data', () => {
     expect(loaded.room).not.toHaveProperty('roomLines');
   });
 
-  it('anchor 5: assigns the lowest unused R label, ignoring other labels and face lines', () => {
+  it('assigns the lowest unused R label, ignoring other labels and face lines', () => {
     expect(nextRoomLineLabel(room())).toBe('R1');
     expect(nextRoomLineLabel(room({ roomLines: [
       roomLine('R1'), roomLine('Range CL'), roomLine('R3'),
@@ -246,7 +246,7 @@ describe('LL7 a room line data', () => {
     expect(nextRoomLineLabel(room({ roomLines: [roomLine('R01'), roomLine('L1')] }))).toBe('R1');
   });
 
-  it('anchor 6: resolves Room R at x 141, point (141, 0), or null for a missing wall', () => {
+  it('resolves Room R at x 141, point (141, 0), or null for a missing wall', () => {
     const reference = roomR.roomLines[0];
     const resolved = roomLineFrame(roomR, reference);
     expect(resolved).toEqual({

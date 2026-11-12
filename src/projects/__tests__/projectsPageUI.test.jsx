@@ -85,8 +85,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('DB5 b projects page and New project dialog', () => {
-  it('creates only trimmed nonempty fields, closes, reloads and navigates (anchor 3)', async () => {
+describe('projects page and New project dialog (DB5)', () => {
+  it('creates only trimmed nonempty fields, closes, reloads and navigates', async () => {
     api.replies.createProject = { ok: true, est_project_id: 42 };
     const page = renderComponent(ProjectsPage);
     await page.flush();

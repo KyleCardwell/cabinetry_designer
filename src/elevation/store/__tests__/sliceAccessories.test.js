@@ -4,7 +4,7 @@ import { isUuid } from '../../model/cloudRows.js';
 import elevationReducer, { addAccessory, updateAccessory, deleteAccessory, createInitialElevationState } from '../elevationSlice.js';
 import { stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('IN12b step b accessory reducers', () => {
+describe('accessory reducers (IN12b)', () => {
   it('adds blank accessories with fresh UUIDs and unique names, then deep copies all fields', () => {
     const initial = stateWithRun();
     expect(createInitialElevationState().teamServices).toEqual([]);

@@ -27,19 +27,19 @@ function anchor({ kind = 90, depthB = null, framed = false, ownerOverrides = {} 
   return { subject, view, owner: syncedOwner, corner: cornerEnd(subject, view, syncedOwner, 'left', S) };
 }
 
-describe('CC7 step a corner band turns', () => {
+describe('corner band turns (CC7)', () => {
   const point = (actual, expected) => actual.forEach((value, index) => {
     expect(Math.abs(value - expected[index])).toBeLessThan(1e-3);
   });
 
-  it('anchor 1: turns an E90 countertop at the two fronts', () => {
+  it('turns an E90 countertop at the two fronts', () => {
     const { corner } = anchor();
     expect(cornerBandTurns(corner, 'countertop', 25.625)).toEqual({
       frontA: 25.625, frontB: 25.625, a: [25.625, 25.625], b: [25.625, 25.625],
     });
   });
 
-  it('anchor 2: transfers countertop projection and toe kick setback to the shallower E90 leg', () => {
+  it('transfers countertop projection and toe kick setback to the shallower E90 leg', () => {
     const { corner } = anchor({ depthB: 15 });
     const top = cornerBandTurns(corner, 'countertop', 25.625);
     const toe = cornerBandTurns(corner, 'toeKick', 21);
@@ -47,7 +47,7 @@ describe('CC7 step a corner band turns', () => {
     expect(toe).toEqual({ frontA: 21, frontB: 12, a: [12, 21], b: [12, 21] });
   });
 
-  it('anchor 3: offsets the E45 countertop from the door face', () => {
+  it('offsets the E45 countertop from the door face', () => {
     const { corner } = anchor({ kind: 45 });
     const turn = cornerBandTurns(corner, 'countertop', 25.625);
     expect(turn).toMatchObject({ frontA: 25.625, frontB: 25.625 });
@@ -55,7 +55,7 @@ describe('CC7 step a corner band turns', () => {
     point(turn.b, [25.625, 36.3732]);
   });
 
-  it('anchor 4: sets the E45 toe kick back from the box diagonal', () => {
+  it('sets the E45 toe kick back from the box diagonal', () => {
     const { corner } = anchor({ kind: 45 });
     const turn = cornerBandTurns(corner, 'toeKick', 21);
     expect(turn).toMatchObject({ frontA: 21, frontB: 21 });
@@ -63,7 +63,7 @@ describe('CC7 step a corner band turns', () => {
     point(turn.b, [21, 34.0074]);
   });
 
-  it('anchor 5: uses the F45 frame diagonal and framed door face independently', () => {
+  it('uses the F45 frame diagonal and framed door face independently', () => {
     const { corner } = anchor({ kind: 45, framed: true });
     const top = cornerBandTurns(corner, 'countertop', 25.5625);
     const toe = cornerBandTurns(corner, 'toeKick', 21);
@@ -75,7 +75,7 @@ describe('CC7 step a corner band turns', () => {
     point(toe.b, [21, 34.7574]);
   });
 
-  it('anchor 6: intersects the unequal-depth E45u bands at each leg front', () => {
+  it('intersects the unequal-depth E45u bands at each leg front', () => {
     const { corner } = anchor({ kind: 45, depthB: 15 });
     const top = cornerBandTurns(corner, 'countertop', 25.625);
     const toe = cornerBandTurns(corner, 'toeKick', 21);
@@ -90,7 +90,7 @@ describe('CC7 step a corner band turns', () => {
     }
   });
 
-  it('anchor 7: extracts E90 fronts and copes owner bands at the return leg (CC7 step c)', () => {
+  it('extracts E90 fronts and copes owner bands at the return leg (CC7 step c)', () => {
     const { subject, view, owner } = anchor();
     expect(bandFronts(subject, view, owner, S)).toEqual({
       toeKick: 21, furnitureBase: null, countertop: 25.625, topMold: null, crown: null,

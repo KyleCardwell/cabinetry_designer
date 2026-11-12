@@ -154,7 +154,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('anchor 1: a right-to-left wall projects −10 world x to run x +10, previews then commits on click', () => {
+it('a right-to-left wall projects −10 world x to run x +10, previews then commits on click', () => {
   state = structuredClone(state);
   state.rooms[0].walls[0].flipped = true;
   render();
@@ -174,7 +174,7 @@ it('anchor 1: a right-to-left wall projects −10 world x to run x +10, previews
   expect(tree[0].props.style.cursor).not.toBe('move');
 });
 
-it('anchor 2: a 90° wall projects +6.2 world y to run x +6; typed fractions stay exact through Enter', () => {
+it('a 90° wall projects +6.2 world y to run x +6; typed fractions stay exact through Enter', () => {
   state = structuredClone(state);
   Object.assign(state.rooms[0].walls[0], { x2: 0, y2: 120 });
   render();

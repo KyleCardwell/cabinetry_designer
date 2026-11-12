@@ -135,8 +135,8 @@ describe('SPEC-48 editing profile points', () => {
   });
 });
 
-describe('SH2.1 step a group point moves', () => {
-  it('anchor 1: translates an entire arc with both ends, independently of pick order and direction', () => {
+describe('group point moves (SH2.1)', () => {
+  it('translates an entire arc with both ends, independently of pick order and direction', () => {
     const before = structuredClone(ARC);
     const moved = moveProfilePoints(ARC, ['b', 'c'], [1, 0.5]);
     expect(moved.geometry.points).toEqual({ a: [0, 0], b: [3, 0.5], c: [3, 2.5] });
@@ -151,7 +151,7 @@ describe('SH2.1 step a group point moves', () => {
     expect(ARC).toEqual(before);
   });
 
-  it('anchor 2: preserves the sweep and direction when only one arc end moves', () => {
+  it('preserves the sweep and direction when only one arc end moves', () => {
     const moved = moveProfilePoints(ARC, ['c'], [0, 2]);
     expect(moved.geometry.points).toEqual({ a: [0, 0], b: [2, 0], c: [2, 4] });
     expect(moved.geometry.loops[0].segs[1]).toEqual({
@@ -163,7 +163,7 @@ describe('SH2.1 step a group point moves', () => {
       .toEqual(moveProfilePoint(COVE, 'b', [0.25, 0.25]));
   });
 
-  it('anchor 3: rejects unknown, empty, duplicate or malformed ids and non-finite amounts', () => {
+  it('rejects unknown, empty, duplicate or malformed ids and non-finite amounts', () => {
     for (const [ids, delta] of [
       [['b', 'zz'], [1, 0]], [[], [1, 0]], [['b', 'b'], [1, 0]], [['b'], [NaN, 0]],
       [['b'], [0, Infinity]], [['b'], [1]], [['b'], null], [['b'], [1, 2, 3]],

@@ -45,8 +45,8 @@ beforeEach(() => {
   useMemo.mockImplementation((fn) => fn());
 });
 
-describe('SH7.5 step d run end legs', () => {
-  it('anchor 3: writes Returns Both and depth 4, with blanks following settings and invalid numbers refused', () => {
+describe('run end legs (SH7.5)', () => {
+  it('writes Returns Both and depth 4, with blanks following settings and invalid numbers refused', () => {
     selectLegs('both');
     selectFit('between');
     change(field(legs(), 'Left end Returns'), 'both');

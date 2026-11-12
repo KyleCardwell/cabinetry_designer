@@ -14,7 +14,7 @@ function base() {
 }
 const missing = (state) => missingSlides(state.rooms[0], state.settings, state.layers);
 
-it('IN6 a anchor 4: counts pull-out slide picks and moves or clears them, preserving other picks', () => {
+it('counts pull-out slide picks and moves or clears them, preserving other picks (IN6)', () => {
   const state = base();
   const cabinet = gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0];
   delete cabinet.drawerSlideId;
@@ -39,7 +39,7 @@ it('IN6 a anchor 4: counts pull-out slide picks and moves or clears them, preser
   expect(cabinet.face.children[0].drawerBox).toEqual({ slideId: U });
 });
 
-it('IN5 e anchor 1: counts cabinet and box picks plus layer settings, sorted by id', () => {
+it('counts cabinet and box picks plus layer settings, sorted by id (IN5)', () => {
   // Kyle confirmed id sorting: UUIDs precede x (the spec table lists these in reverse).
   expect(missing(base())).toEqual([
     { slideId: U, roomUses: 2, setIn: [] },
@@ -50,7 +50,7 @@ it('IN5 e anchor 1: counts cabinet and box picks plus layer settings, sorted by 
   expect(missingSlides({}, base().settings)).toEqual([]);
 });
 
-it('IN5 e anchor 2: moves both picks or clears them, removing an empty drawerBox', () => {
+it('moves both picks or clears them, removing an empty drawerBox (IN5)', () => {
   const state = base();
   const action = { roomId: 'room-1', slideId: U, reassignTo: 'accuride-3832' };
   const moved = elevationReducer(state, moveMissingSlide(action));

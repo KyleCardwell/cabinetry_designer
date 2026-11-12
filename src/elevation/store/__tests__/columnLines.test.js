@@ -42,8 +42,8 @@ function pieces(state) {
 const centre = (piece) => piece.x + piece.width / 2;
 const windowAt = (overrides = {}) => opening({ id: 'W', kind: 'window', label: 'W1', sillZ: 36, height: 40, ...overrides });
 
-describe('LL4 a column attach actions', () => {
-  it('4. a new line through a column changes nothing else', () => {
+describe('column attach actions (LL4)', () => {
+  it('a new line through a column changes nothing else', () => {
     const start = reduce(initial());
     const before = pieces(start);
     const state = reduce(start, attachColumnToNewLine({ ...at, runId: 'R', itemId: 'B', id: 'N' }));
@@ -62,7 +62,7 @@ describe('LL4 a column attach actions', () => {
     expect(wallOf(state).lines).toEqual([{ id: 'N', label: 'L1', wallSide: 'back', from: 'right', value: 0 }]);
   });
 
-  it('5. Centre on W1 makes a line through the window and centres the column on it', () => {
+  it('Centre on W1 makes a line through the window and centres the column on it', () => {
     const state = reduce(
       initial({ openings: [windowAt()], count: 4 }),
       attachColumnToOpening({ ...at, runId: 'R', itemId: 'B', openingId: 'W', id: 'N' }),
@@ -74,7 +74,7 @@ describe('LL4 a column attach actions', () => {
     expect(centre(pieces(state).B)).toBeCloseTo(42, 9);
   });
 
-  it('6. Centre on W1 reuses the window line with the centre as offset', () => {
+  it('Centre on W1 reuses the window line with the centre as offset', () => {
     const state = reduce(
       initial({ openings: [windowAt({ attach: attach('L1', 'left') })], lines: [line('L1', 100)], count: 8 }),
       attachColumnToOpening({ ...at, runId: 'R', itemId: 'B', openingId: 'W', id: 'N' }),
@@ -84,7 +84,7 @@ describe('LL4 a column attach actions', () => {
     expect(centre(pieces(state).B)).toBeCloseTo(118, 9);
   });
 
-  it('7. a second attached column locks both widths to the current split', () => {
+  it('a second attached column locks both widths to the current split', () => {
     const lines = [line('L1', 45), line('L2', 75)];
     const first = reduce(
       initial({ lines, count: 4, runOverrides: { width: 120 } }),
@@ -100,7 +100,7 @@ describe('LL4 a column attach actions', () => {
     expect(itemOf(state, 'C').width).toBe(current.C.width);
   });
 
-  it('8. refuses a window on a back-face line for a front run', () => {
+  it('refuses a window on a back-face line for a front run', () => {
     const start = initial({
       openings: [windowAt({ attach: attach('B1') })],
       lines: [line('B1', 100, { wallSide: 'back' })],

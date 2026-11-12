@@ -46,8 +46,8 @@ const stack = (bead = BEAD, stretch = 0, drawn = ['q1', 'q2', 'q3', 'q4']) => bu
   ] },
 });
 
-describe('SH5 step a extrusion builder', () => {
-  it('anchor 1: New extrusion is a 1 5/16 round rod 30 long that stretches', () => {
+describe('extrusion builder (SH5)', () => {
+  it('New extrusion is a 1 5/16 round rod 30 long that stretches', () => {
     const rod = newShape([], 'rod', 'extrude');
     expect(rod.kind).toBe('accessory');
     expect(rod.name).toBe('New shape');
@@ -58,7 +58,7 @@ describe('SH5 step a extrusion builder', () => {
     expect(isShape(rod)).toBe(true);
   });
 
-  it('anchor 2: a cleat gets lines at drawn points inside its bounds only', () => {
+  it('a cleat gets lines at drawn points inside its bounds only', () => {
     expect(CLEAT.views.front.loops.map((l) => l.id)).toEqual(['outline', 'line1']);
     expect(pts(CLEAT.views.front)[0]).toEqual([[0, 0], [24, 0], [24, 1.5], [0, 1.5]]);
     expect(CLEAT.views.front.points.l1a).toEqual([0, 1.25]);
@@ -70,7 +70,7 @@ describe('SH5 step a extrusion builder', () => {
     expect(CLEAT.stretch).toEqual({});
   });
 
-  it('anchor 3: length 0 is a problem and keeps the views; stretches gives one x zone', () => {
+  it('length 0 is a problem and keeps the views; stretches gives one x zone', () => {
     const zero = buildShape({ ...CLEAT, builder: { ...CLEAT.builder, length: 0 } });
     expect(shapeBuilderProblems(zero)).toEqual([{ problem: 'length' }]);
     expect(builderProblemText({ problem: 'length' })).toBe('The extrusion needs a length.');
@@ -80,7 +80,7 @@ describe('SH5 step a extrusion builder', () => {
     expect(buildShape({ ...CLEAT, builder: { ...CLEAT.builder, stretches: true } }).stretch).toEqual({ x: [[0, 24]] });
   });
 
-  it('anchor 4: a recipe change bumps the version, a rename does not', () => {
+  it('a recipe change bumps the version, a rename does not', () => {
     const rod = newShape([], 'rod', 'extrude');
     const update = (state, shape) => produce(state, (draft) => {
       shapeReducers.updateShape(draft, { payload: { shape } });
@@ -93,7 +93,7 @@ describe('SH5 step a extrusion builder', () => {
     expect(state.settings.shapes[0].version).toBe(2);
   });
 
-  it('anchor 5: an extrusion moves and flips on y and z only', () => {
+  it('an extrusion moves and flips on y and z only', () => {
     const rod = newShape([], 'rod', 'extrude');
     const moved = moveShapeOriginTo(rod, { z: 0.65625 });
     expect(moved.views.side.points.p1).toEqual([0.65625, -0.65625]);
@@ -104,7 +104,7 @@ describe('SH5 step a extrusion builder', () => {
     expect(flipShape(CLEAT, 'z').box).toEqual({ x: 0, y: 0, z: -1.5, w: 24, h: 1.5, d: 0.75 });
   });
 
-  it('anchor 6: convert to drawn drops the recipe only; a bad recipe is not a shape', () => {
+  it('convert to drawn drops the recipe only; a bad recipe is not a shape', () => {
     const rod = newShape([], 'rod', 'extrude');
     const drawn = convertShapeToDrawn(rod);
     expect(Object.hasOwn(drawn, 'builder')).toBe(false);
@@ -124,8 +124,8 @@ describe('SH5 step a extrusion builder', () => {
   });
 });
 
-describe('SH5 step b leg / column stack builder', () => {
-  it('anchor 1: New leg / column is one 3 1/2 x 34 1/2 square that stretches', () => {
+describe('leg / column stack builder (SH5)', () => {
+  it('New leg / column is one 3 1/2 x 34 1/2 square that stretches', () => {
     const leg = newShape([], 'leg', 'stack');
     expect(leg.kind).toBe('leg');
     expect(leg.box).toEqual({ x: -1.75, y: -1.75, z: 0, w: 3.5, h: 34.5, d: 3.5 });
@@ -134,7 +134,7 @@ describe('SH5 step b leg / column stack builder', () => {
     expect(isShape(leg)).toBe(true);
   });
 
-  it('anchor 2: front of the leg: squares, the mirrored bead and lines across', () => {
+  it('front of the leg: squares, the mirrored bead and lines across', () => {
     const { front, side } = stack().views;
     const loop = (id) => front.loops.find((l) => l.id === id);
     const at = (s) => front.points[s.from];
@@ -149,7 +149,7 @@ describe('SH5 step b leg / column stack builder', () => {
     expect(side).toEqual(front);
   });
 
-  it('anchor 3: plan, box and stretch of the leg', () => {
+  it('plan, box and stretch of the leg', () => {
     const leg = stack();
     expect(pts(leg.views.plan)[0]).toEqual([[-1.75, -1.75], [1.75, -1.75], [1.75, 1.75], [-1.75, 1.75]]);
     expect(leg.views.plan.points.c1).toEqual([1.5, 0]);
@@ -159,7 +159,7 @@ describe('SH5 step b leg / column stack builder', () => {
     expect(isShape(leg)).toBe(true);
   });
 
-  it('anchor 4: placed shorter, the top block shrinks and the turning stays', () => {
+  it('placed shorter, the top block shrinks and the turning stays', () => {
     const leg = stack();
     const resolved = resolveShape(leg, { h: 30 });
     const front = resolved.shape.views.front;
@@ -171,7 +171,7 @@ describe('SH5 step b leg / column stack builder', () => {
     ]);
   });
 
-  it('anchor 5: a bead drawn top to bottom makes the same loop', () => {
+  it('a bead drawn top to bottom makes the same loop', () => {
     const reversed = {
       ...BEAD, loops: [{ id: 'L1', closed: false, segs: [
         { type: 'line', from: 'q4', to: 'q3' },
@@ -185,7 +185,7 @@ describe('SH5 step b leg / column stack builder', () => {
     expect(coords(stack(reversed))).toEqual(coords(stack()));
   });
 
-  it('anchor 6: stack problems', () => {
+  it('stack problems', () => {
     expect(shapeBuilderProblems(stack(BEAD, 1))).toEqual([{ problem: 'stretch' }]);
     const closed = structuredClone(BEAD);
     closed.loops[0].segs.push({ type: 'line', from: 'q4', to: 'q1' });
@@ -227,8 +227,8 @@ const TAPERED_LEG = buildShape({
   ] },
 });
 
-describe('SH5.1 step a tapered sections', () => {
-  it('anchor 1: all-sides taper has square ids, centred views, plan and box', () => {
+describe('tapered sections (SH5.1)', () => {
+  it('all-sides taper has square ids, centred views, plan and box', () => {
     const leg = TAPERED_LEG;
     expect(pts(leg.views.front)).toEqual([
       [[-1.75, 25], [1.75, 25], [1.75, 33], [-1.75, 33]],
@@ -249,7 +249,7 @@ describe('SH5.1 step a tapered sections', () => {
     expect(isShape(leg)).toBe(true);
   });
 
-  it('anchor 2: inside taper keeps the right and front faces plumb', () => {
+  it('inside taper keeps the right and front faces plumb', () => {
     const leg = structuredClone(TAPERED_LEG);
     leg.builder.sections[1].taper = 'inside';
     const made = buildShape(leg);
@@ -261,7 +261,7 @@ describe('SH5.1 step a tapered sections', () => {
     expect(isShape(made)).toBe(true);
   });
 
-  it('anchor 3: taper stretches through the existing z zone without changing widths', () => {
+  it('taper stretches through the existing z zone without changing widths', () => {
     const leg = buildShape({ ...TAPERED_LEG, builder: { ...TAPERED_LEG.builder, stretch: 1 } });
     expect(leg.stretch).toEqual({ z: [[0, 25]] });
     const resolved = resolveShape(leg, { h: 37 });
@@ -275,7 +275,7 @@ describe('SH5.1 step a tapered sections', () => {
     expect(TAPERED_LEG.views.front.points.s2p3).toEqual([1, 25]);
   });
 
-  it('anchor 4: a flared inside taper has asymmetric view bounds and a centred plan square', () => {
+  it('a flared inside taper has asymmetric view bounds and a centred plan square', () => {
     const leg = buildShape({ ...TAPERED_LEG, builder: { type: 'stack', sections: [
       { type: 'tapered', shape: 'square', top: 2, bottom: 3, height: 10, taper: 'inside' },
     ] } });
@@ -286,7 +286,7 @@ describe('SH5.1 step a tapered sections', () => {
     expect(isShape(leg)).toBe(true);
   });
 
-  it('anchor 5: validates taper drafts, section structure and the stretch rule', () => {
+  it('validates taper drafts, section structure and the stretch rule', () => {
     expect(newStackSection('tapered')).toEqual({
       type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 12, taper: 'all',
     });
@@ -318,7 +318,7 @@ describe('SH5.1 step a tapered sections', () => {
     }
   });
 
-  it('anchor 5a: a round taper has the same elevation and adds a plan circle', () => {
+  it('a round taper has the same elevation and adds a plan circle', () => {
     const leg = structuredClone(TAPERED_LEG);
     leg.builder.sections[1].shape = 'round';
     const made = buildShape(leg);
@@ -334,7 +334,7 @@ describe('SH5.1 step a tapered sections', () => {
     expect(buildShape(leg).views.plan.points.c1).toEqual([2, 0]);
   });
 
-  it('anchor 6: SH5 leg is unchanged and turned arcs survive a separate inside-taper side build', () => {
+  it('SH5 leg is unchanged and turned arcs survive a separate inside-taper side build', () => {
     const original = stack();
     expect(buildShape(original)).toEqual(original);
     const leg = structuredClone(original);

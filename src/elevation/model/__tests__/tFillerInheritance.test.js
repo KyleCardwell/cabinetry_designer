@@ -24,7 +24,7 @@ function teesOf(current) {
   return teeFillers(current, candidate, cellPieces(candidate, layoutRun(current, host, candidate, S)), S);
 }
 
-describe('FX8 a T-filler inheritance', () => {
+describe('a T-filler inheritance (FX8)', () => {
   it.each([
     [1, undefined, undefined, undefined, undefined],
     [2, 'all', undefined, undefined, 'all'],
@@ -52,7 +52,7 @@ describe('FX8 a T-filler inheritance', () => {
     expect(syncRoom(current, S)).toEqual(current);
   });
 
-  it('anchor 6: saves the room choice, omits the derived value and rebuilds it on load', () => {
+  it('saves the room choice, omits the derived value and rebuilds it on load', () => {
     const current = syncRoom({ ...source, tFiller: 'all' }, S);
     const saved = toRoomDocument(current);
     expect(saved.tFiller).toBe('all');
@@ -62,7 +62,7 @@ describe('FX8 a T-filler inheritance', () => {
     expect(syncRoom(loaded.room, S).walls[0].runs[0]._tFiller).toBe('all');
   });
 
-  it('anchor 7: inherits before the Room 10 BT blind credit and run flex are laid out', () => {
+  it('inherits before the Room 10 BT blind credit and run flex are laid out', () => {
     const input = JSON.parse(readFileSync(new URL('./fixtures/room10bt.json', import.meta.url), 'utf8'));
     delete input.walls[1].runs[0].tFiller;
     input.tFiller = 'all';
@@ -74,7 +74,7 @@ describe('FX8 a T-filler inheritance', () => {
     expect(syncRoom(current, S)).toEqual(current);
   });
 
-  it.each(['room', 'wall', 'run'])('anchor 8: validates all choices at the %s level', (level) => {
+  it.each(['room', 'wall', 'run'])('validates all choices at the %s level', (level) => {
     for (const value of [undefined, 'none', 'seams', 'all', true, 'every', null]) {
       const input = structuredClone(source);
       input.wallOrder = ['wall-1'];

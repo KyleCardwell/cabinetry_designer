@@ -52,7 +52,7 @@ function deskRun(overrides = {}) {
 
 const widths = (run) => splitRun(run, S).pieces.map(({ width }) => width);
 
-describe('FX3 rounding sees nested auto columns', () => {
+describe('rounding sees nested auto columns (FX3)', () => {
   it('Room 9 desk: two drawer cells over a void come out 28 each, the filler takes the rest', () => {
     expect(widths(deskRun())).toEqual([2.625, 56, 1.5625]);
   });
@@ -133,7 +133,7 @@ const inner = ({ room, wall }) => horizontalChains(room, wall, 'lower', D).inner
   .filter((segment) => segment.runId === 'R')
   .map(({ kind, start, end, pieceId, trackId }) => [kind, start, end, pieceId ?? null, trackId ?? null]);
 
-describe('FX3 cabinet row shows the cells of a column holding a void', () => {
+describe('cabinet row shows the cells of a column holding a void (FX3)', () => {
   it('Room 9 desk: filler, two drawer cabinets (with their tracks), end panel', () => {
     expect(inner(synced(deskRun({ x: 50 })))).toEqual([
       ['piece', 50, 52.625, 'R:left', null],

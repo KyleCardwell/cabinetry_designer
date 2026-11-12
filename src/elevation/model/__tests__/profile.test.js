@@ -27,7 +27,7 @@ const room = { profile: { ...DEFAULT_SETTINGS.defaultProfile } };
 const wall = { profile: {}, height: 96 };
 
 describe('height profiles', () => {
-  it('1. computes the molding stack and default box top', () => {
+  it('computes the molding stack and default box top', () => {
     const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
     expect(moldingStack(profile)).toBe(6);
     expect(moldingStack({
@@ -46,7 +46,7 @@ describe('height profiles', () => {
     expect(counterTop(profile)).toBe(36);
   });
 
-  it('2. reports a negative overlap as a gap between molding parts', () => {
+  it('reports a negative overlap as a gap between molding parts', () => {
     expect(crownOverlap({
       ...DEFAULT_SETTINGS.defaultProfile,
       topMoldHeight: 3,
@@ -81,7 +81,7 @@ describe('height profiles', () => {
     ).warnings).toContainEqual({ code: 'crown-above-ceiling' });
   });
 
-  it('3. honors base countertop and upper-clearance overrides', () => {
+  it('honors base countertop and upper-clearance overrides', () => {
     const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
     const base = run(CABINET_TYPE_IDS.BASE, {
       overrides: { countertopThickness: 3 },
@@ -95,7 +95,7 @@ describe('height profiles', () => {
     }), profile, [], wall)).toMatchObject({ z: 56, height: 34 });
   });
 
-  it('4. applies a wall crown-top override', () => {
+  it('applies a wall crown-top override', () => {
     const profile = resolveProfile(
       DEFAULT_SETTINGS,
       room,
@@ -111,7 +111,7 @@ describe('height profiles', () => {
     });
   });
 
-  it('5. uses the tallest overlapping counter and warns for mixed heights', () => {
+  it('uses the tallest overlapping counter and warns for mixed heights', () => {
     const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
     const bases = [
       run(CABINET_TYPE_IDS.BASE, { id: 'base-a' }),
@@ -125,7 +125,7 @@ describe('height profiles', () => {
     expect(result.warnings).toContainEqual({ code: 'mixed-counter-heights' });
   });
 
-  it('6. reports no room for an upper box under a low crown top', () => {
+  it('reports no room for an upper box under a low crown top', () => {
     const profile = resolveProfile(
       DEFAULT_SETTINGS,
       { profile: { ...DEFAULT_SETTINGS.defaultProfile, crownTop: 60 } },

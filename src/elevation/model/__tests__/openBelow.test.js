@@ -30,8 +30,8 @@ function fixture({ bottomKind = 'void', voidAbove = false, manual, styleId = 13,
   return runFaceLayouts(cabinetRoom, resolveWall(cabinetRoom, cabinetWall), cabinetRun, settings);
 }
 
-describe('FX11 a bottom reveal over an open cell', () => {
-  it('anchor 1: overhangs the open bottom cell by 1/8 inch', () => {
+describe('bottom reveal over an open cell (FX11)', () => {
+  it('overhangs the open bottom cell by 1/8 inch', () => {
     const layout = fixture().get('cabinet');
     expect(layout.box.z).toBe(44);
     expect(layout.reveals.values.bottom).toBe(-0.125);
@@ -41,7 +41,7 @@ describe('FX11 a bottom reveal over an open cell', () => {
     expect(REVEAL_SOURCE_LABELS['rule:open-below']).toBe('rule: open below');
   });
 
-  it('anchor 2: retains stacked seams when the bottom cell is a cabinet', () => {
+  it('retains stacked seams when the bottom cell is a cabinet', () => {
     const layouts = fixture({ bottomKind: 'cabinet' });
     expect(layouts.get('cabinet').reveals.values.bottom).toBe(0);
     expect(layouts.get('cabinet').reveals.sources.bottom).toBe('rule:stacked-seam');
@@ -50,7 +50,7 @@ describe('FX11 a bottom reveal over an open cell', () => {
     expect(layouts.get('bottom').reveals.sources.top).toBe('rule:stacked-seam');
   });
 
-  it('anchor 4: applies a typed bottom reveal after the open-below rule', () => {
+  it('applies a typed bottom reveal after the open-below rule', () => {
     const layout = fixture({ manual: 0.125 }).get('cabinet');
     expect(layout.box.z).toBe(44);
     expect(layout.reveals.values.bottom).toBe(0.125);

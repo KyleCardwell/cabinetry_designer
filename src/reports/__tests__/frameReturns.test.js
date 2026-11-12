@@ -9,7 +9,7 @@ import { shippingList } from '../shippingList.js';
 
 const frameRows = (room) => shippingList(room, settings).rows.filter(({ kind }) => kind === 'frame');
 
-describe('IE1 step f frame return notes', () => {
+describe('frame return notes (IE1)', () => {
   it('puts Room 8 default and typed returns on each cabinet region frame only', () => {
     for (const [width, expected] of [[undefined, '6"'], [4, '4"'], [4.375, '4 3/8"']]) {
       const { room, scene } = room8Upper((run, source) => {
@@ -68,11 +68,11 @@ describe('IE1 step f frame return notes', () => {
   });
 });
 
-describe('ST3 step c frame step return notes', () => {
+describe('frame step return notes (ST3)', () => {
   const stepFrameNotes = (room) => shippingList(syncRoom(room, notchedFrameSettings), notchedFrameSettings)
     .rows.filter(({ kind }) => kind === 'frame').map(({ notes }) => notes);
 
-  it('anchors 1 and 2: prints top returns after the notch, left to right, with default or custom width', () => {
+  it('prints top returns after the notch, left to right, with default or custom width', () => {
     for (const width of [undefined, 4]) {
       const room = notchedFrameRoom();
       if (width) findLeaf(room.walls[0].runs[0].grid, 'A').stepEnds = { right: { type: 'return', width } };
@@ -94,7 +94,7 @@ describe('ST3 step c frame step return notes', () => {
     ]]);
   });
 
-  it('anchor 3: omits None and panel choices', () => {
+  it('omits None and panel choices', () => {
     const room = notchedFrameRoom();
     const run = room.walls[0].runs[0];
     findLeaf(run.grid, 'A').stepEnds = { right: 'none' };

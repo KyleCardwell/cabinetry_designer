@@ -5,36 +5,36 @@ import { cleanOverrides, isValidSettingValue, resolveSetting, resolveSettings, w
 const team = (values) => ({ level: 'team', id: 'shop', values });
 const room = (values) => ({ level: 'room', id: 'kitchen', values });
 
-describe('DB1 a settings resolver', () => {
-  it('returns the deepest leaf and its source (anchor 2)', () => {
+describe('settings resolver (DB1)', () => {
+  it('returns the deepest leaf and its source', () => {
     expect(resolveSetting('roundTo', [team({ roundTo: 0.5 }), room({ roundTo: 0.25 })]))
       .toEqual({ value: 0.25, source: { level: 'room', id: 'kitchen' } });
   });
 
-  it('falls back to code defaults for absent leaves (anchor 3)', () => {
+  it('falls back to code defaults for absent leaves', () => {
     expect(resolveSetting('roundTo', [team({}), room({})]))
       .toEqual({ value: 0.5, source: { level: 'default' } });
     expect(resolveSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('merges nested settings by leaf rather than by block (anchor 4)', () => {
+  it('merges nested settings by leaf rather than by block', () => {
     expect(resolveSettings([team({ insetFrame: { stile: 1 } }), room({ insetFrame: { rail: 2 } })]).insetFrame)
       .toEqual({ stile: 1, rail: 2, midRail: 1.5, mullion: 1.5, upperDrop: 0.75, thickness: 0.8125 });
   });
 
-  it('reports an equal inherited value as a deliberate room pin (anchor 5)', () => {
+  it('reports an equal inherited value as a deliberate room pin', () => {
     expect(resolveSetting('roundTo', [team({ roundTo: 0.5 }), room({ roundTo: 0.5 })]))
       .toEqual({ value: 0.5, source: { level: 'room', id: 'kitchen' } });
   });
 
-  it('cleans room overrides, pruning invalid and managed parents (anchor 6)', () => {
+  it('cleans room overrides, pruning invalid and managed parents', () => {
     expect(cleanOverrides({
       roundTo: 0.25, doorPanelDefault: 0.75, bogus: 1,
       faceReveals: { 1: { top: 0 } }, insetFrame: { stile: 'x' },
     }, 'room')).toEqual({ roundTo: 0.25 });
   });
 
-  it('sets and removes leaves without mutating, pruning empty parents (anchor 7)', () => {
+  it('sets and removes leaves without mutating, pruning empty parents', () => {
     const original = {};
     const set = withOverride(original, 'insetFrame.stile', 1);
     expect(set).toEqual({ insetFrame: { stile: 1 } });
@@ -104,8 +104,8 @@ describe('DB1 a settings resolver', () => {
   });
 });
 
-describe('DB2 c setting value validation', () => {
-  it('checks registry kinds without rejecting managed keys (anchor 6)', () => {
+describe('setting value validation (DB2)', () => {
+  it('checks registry kinds without rejecting managed keys', () => {
     expect(isValidSettingValue('roundTo', 0.25)).toBe(true);
     expect(isValidSettingValue('roundTo', NaN)).toBe(false);
     expect(isValidSettingValue('defaultEnds.left', 'none')).toBe(true);
@@ -125,15 +125,15 @@ describe('DB2 c setting value validation', () => {
 });
 
 
-describe('RP1 a report settings', () => {
-  it('resolves project wood over team wood (anchor 1)', () => {
+describe('report settings (RP1)', () => {
+  it('resolves project wood over team wood', () => {
     expect(resolveSetting('report.wood', [
       { level: 'team', values: { report: { wood: 'PAINT GRADE' } } },
       { level: 'project', values: { report: { wood: 'MAPLE' } } },
     ])).toEqual({ value: 'MAPLE', source: { level: 'project' } });
   });
 
-  it('allows Job # from project through room, excluding team (anchor 2)', () => {
+  it('allows Job # from project through room, excluding team', () => {
     const values = { report: { jobNumber: '573' } };
     expect(cleanOverrides(values, 'team')).toEqual({});
     for (const level of ['project', 'phase', 'room']) expect(cleanOverrides(values, level)).toEqual(values);
@@ -141,7 +141,7 @@ describe('RP1 a report settings', () => {
     expect(resolveSetting('report.jobNumber', [{ level: 'team', values }]).value).toBe('');
   });
 
-  it('rejects room company overrides and permits company fields only at team (anchor 3)', () => {
+  it('rejects room company overrides and permits company fields only at team', () => {
     expect(cleanOverrides({ report: { companyName: 'X' } }, 'room')).toEqual({});
     const report = { companyName: 'X', companyPhone: '555', companyFax: '556', doorFormNote: 'No midrails' };
     expect(cleanOverrides({ report }, 'team')).toEqual({ report });
@@ -151,7 +151,7 @@ describe('RP1 a report settings', () => {
     }
   });
 
-  it('validates trimmed strings up to 120 characters (anchor 4)', () => {
+  it('validates trimmed strings up to 120 characters', () => {
     expect(isValidSettingValue('report.wood', 12)).toBe(false);
     expect(isValidSettingValue('report.wood', 'x'.repeat(121))).toBe(false);
     expect(isValidSettingValue('report.wood', 'OAK')).toBe(true);
@@ -159,7 +159,7 @@ describe('RP1 a report settings', () => {
     for (const value of [null, undefined, {}, [], true]) expect(isValidSettingValue('report.wood', value)).toBe(false);
   });
 
-  it('defaults every report text to blank and wire brushed to false (anchor 5)', () => {
+  it('defaults every report text to blank and wire brushed to false', () => {
     expect(resolveSettings().report).toEqual({
       companyAddress: '', companyCity: '', companyState: '', companyZip: '',
       companyName: '', companyPhone: '', companyFax: '', doorFormNote: '', jobNumber: '',
@@ -181,7 +181,7 @@ describe('RP1 a report settings', () => {
 });
 
 
-it('IN4b d validates slide IDs and resolves only through room level', () => {
+it('validates slide IDs and resolves only through room level (IN4b)', () => {
   const key = 'drawerSlideId';
   expect(resolveSetting(key)).toEqual({ value: 'blum-562h', source: { level: 'default' } });
   for (const level of ['team', 'project', 'phase', 'room']) {

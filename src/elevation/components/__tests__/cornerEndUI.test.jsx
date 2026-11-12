@@ -44,9 +44,9 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('CC3 step d corner run end fields', () => {
+describe('corner run end fields (CC3)', () => {
 
-  it('anchor 3: creates a 45 corner and a manual 36-inch root column', () => {
+  it('creates a 45 corner and a manual 36-inch root column', () => {
     corner(45);
     expect(run().ends.left).toEqual({ type: 'corner', width: null, corner: {
       kind: 45, legB: null, depthB: null, returnPiece: 'auto', returnWidth: null, doors: null, legBFace: null,
@@ -55,7 +55,7 @@ describe('CC3 step d corner run end fields', () => {
     expect(field('type').props.value).toBe('corner:45');
   });
 
-  it('anchor 5: edits leg A through its outer root track and resets blank to 36', () => {
+  it('edits leg A through its outer root track and resets blank to 36', () => {
     corner();
     expect(field('corner leg A').type).toBe(InchInput);
     expect(field('corner leg A').props.value).toBe(36);
@@ -68,7 +68,7 @@ describe('CC3 step d corner run end fields', () => {
     expect(run().grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 36 });
   });
 
-  it('anchor 6: shows automatic leg B and depth B and stores or clears their overrides', () => {
+  it('shows automatic leg B and depth B and stores or clears their overrides', () => {
     corner();
     expect(field('corner leg B').props).toMatchObject({ value: null, placeholder: '36', allowAuto: true, allowBlank: true });
     expect(field('corner depth B').props).toMatchObject({ value: null, placeholder: '24', allowAuto: true, allowBlank: true });

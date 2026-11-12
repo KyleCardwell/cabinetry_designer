@@ -154,7 +154,7 @@ function clickSpan(index = 1) {
   render();
 }
 
-it('anchor 3: typing 26 and Enter dispatches the landed payload once', () => {
+it('typing 26 and Enter dispatches the landed payload once', () => {
   clickSpan(); typeValue('26'); inputKey('Enter');
   expect(actions()).toEqual([setWallLanding({
     wallId: 'wall-2', endpoint: 'end', ref: 'right', to: 'near', offset: 26, move: 'landed',
@@ -162,7 +162,7 @@ it('anchor 3: typing 26 and Enter dispatches the landed payload once', () => {
   expect(entry()).toBeUndefined();
 });
 
-it('anchor 4: Tab chooses Move Wall 3 and Enter dispatches the host payload', () => {
+it('Tab chooses Move Wall 3 and Enter dispatches the host payload', () => {
   clickSpan(); inputKey('Tab');
   expect(entry()).toMatchObject({ label: 'Move Wall 3', modeKey: 'host', value: 39, min: 0 });
   typeValue('26'); inputKey('Enter');
@@ -171,7 +171,7 @@ it('anchor 4: Tab chooses Move Wall 3 and Enter dispatches the host payload', ()
   })]);
 });
 
-it('anchor 5: clicking 0–80.5 starts at 80.5 and commits ref left and to near', () => {
+it('clicking 0–80.5 starts at 80.5 and commits ref left and to near', () => {
   // A stored center measurement must become near when entered through the plan span.
   state = { ...state, rooms: [{ ...state.rooms[0], walls: state.rooms[0].walls.map((wall) => wall.id === 'wall-2'
     ? { ...wall, landings: { ...wall.landings, end: { ...wall.landings.end, to: 'center' } } } : wall) }] };

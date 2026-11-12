@@ -31,8 +31,8 @@ function resolved(subject, settings = S, side = 'left') {
     frame: cornerFrame(synced, view, owner, side, settings, layout, faces) };
 }
 
-describe('CC6 step d corner faces in frame openings', () => {
-  it('anchor 1: fits Room B leg A in its frame opening at the neighbour’s height', () => {
+describe('corner faces in frame openings (CC6)', () => {
+  it('fits Room B leg A in its frame opening at the neighbour’s height', () => {
     const { entry, neighbour, frame } = resolved(ROOM_B);
     expect(frame.legs[0].openings[0]).toEqual({ p0: 24.9375, p1: 35.25, z: 5.5, height: 27.5 });
     expect(entry.openings).toEqual([{ path: 'r', x: 24.9375, width: 10.3125, z: 5.5, height: 27.5 }]);
@@ -45,7 +45,7 @@ describe('CC6 step d corner faces in frame openings', () => {
     expect(square.faces[0]).toMatchObject({ x: 24.9375, width: 10.3125, z: 5.5, height: 27.5 });
   });
 
-  it('anchor 2: fits both a door and panel in the leg B return opening', () => {
+  it('fits both a door and panel in the leg B return opening', () => {
     for (const legBFace of ['door', 'panel']) {
       const subject = structuredClone(ROOM_B);
       subject.walls[0].runs[0].ends.left.corner.legBFace = legBFace;
@@ -58,7 +58,7 @@ describe('CC6 step d corner faces in frame openings', () => {
     }
   });
 
-  it('anchor 3: fits Room C at true size and projects around the shared front miter points', () => {
+  it('fits Room C at true size and projects around the shared front miter points', () => {
     const subject = structuredClone(ROOM_B);
     subject.walls[0].runs[0].ends.left.corner.kind = 45;
     const { entry, frame, corner } = resolved(subject);
@@ -78,7 +78,7 @@ describe('CC6 step d corner faces in frame openings', () => {
     expect(entry.faces[0]).toMatchObject({ z: 5.59375, height: 27.3125 });
   });
 
-  it('anchor 4: chooses pair doors from the opening width and uses the ordinary 1/8 pair gap', () => {
+  it('chooses pair doors from the opening width and uses the ordinary 1/8 pair gap', () => {
     for (const [width, pair] of [[60, true], [49.5, false]]) {
       const subject = structuredClone(ROOM_B);
       subject.walls[0].runs[0].grid.cols[0].size = width;
@@ -94,7 +94,7 @@ describe('CC6 step d corner faces in frame openings', () => {
     }
   });
 
-  it('anchor 5: preserves Euro Room A’s CC3.1 sizing, long doors and ordered diagonal', () => {
+  it('preserves Euro Room A’s CC3.1 sizing, long doors and ordered diagonal', () => {
     const subject = structuredClone(ROOM_B);
     subject.style.cabinetStyleId = 13;
     let result = resolved(subject);

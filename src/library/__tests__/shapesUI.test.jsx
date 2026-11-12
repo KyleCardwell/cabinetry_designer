@@ -118,7 +118,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('SH2 d anchor 2: front point edit saves p3 [30, 3] at version 2 without creating plan or side', () => {
+it('front point edit saves p3 [30, 3] at version 2 without creating plan or side (SH2)', () => {
   add();
   const initial = structuredClone(elevation.settings.shapes[0]);
   let canvas = component(editor(), ProfileCanvas);
@@ -180,7 +180,7 @@ function shapeKey(key, options = {}) {
   return event;
 }
 
-it('SH2 e anchor 3: Set as 0,0 on front r3 shifts every shared axis, box and zones across tabs and panels', () => {
+it('Set as 0,0 on front r3 shifts every shared axis, box and zones across tabs and panels (SH2)', () => {
   openRod();
   selectView('plan');
   button(editor(), 'Draw this view').props.onClick();
@@ -214,7 +214,7 @@ const stretchPanel = () => render(StretchPanel, component(editor(), StretchPanel
 const addZone = (axis) => field(stretchPanel(), `Add ${axis} zone`).props.onClick();
 const setZone = (axis, index, end, value) => field(stretchPanel(), `${axis} zone ${index} ${end}`).props.onCommit(value);
 
-it('SH2 f anchor 3: From 3 clears the arc conflict and saves x 3–27 with one version bump', () => {
+it('From 3 clears the arc conflict and saves x 3–27 with one version bump (SH2)', () => {
   openRod();
   addZone('x');
   setZone('x', 1, 'From', 2);

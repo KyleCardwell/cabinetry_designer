@@ -10,7 +10,7 @@ const mdf = { ...DEFAULT_DOOR_STYLE, id: 'mdf', designId: 'slab-mdf', thickness:
 const thinner = { ...mdf, id: 'thin-mdf', thickness: 0.625 };
 const room = { doorStyles: [mdf, thinner], doorStyleId: 'mdf' };
 
-describe('FL1 step a run filler face thickness', () => {
+describe('run filler face thickness (FL1)', () => {
   it('uses the shop thickness for mixed MDF and five-piece faces (A2), and the thickest for all MDF', () => {
     const run = { grid: gridFromItems('run', [
       { id: 'a', kind: 'cabinet', width: null },

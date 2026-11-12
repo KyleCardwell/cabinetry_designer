@@ -35,8 +35,8 @@ function endPiece(current, side) {
   return sceneOf(current).drawnPieces.find(({ id }) => id === `${UPPER}:${side}`);
 }
 
-describe('FX13: joined run ends keep their extend', () => {
-  it('anchor 1: the automatic joint end keeps Extend down to the floor', () => {
+describe('joined run ends keep their extend (FX13)', () => {
+  it('the automatic joint end keeps Extend down to the floor', () => {
     const current = load((run) => { run.ends.left.extend = { down: { to: 'floor' } }; });
     expect(upperOf(current).ends.left).toMatchObject({ auto: true, extend: { down: { to: 'floor' } } });
     const again = syncRoom(current, S);
@@ -44,30 +44,30 @@ describe('FX13: joined run ends keep their extend', () => {
     expect(endPiece(current, 'left')).toMatchObject({ kind: 'end_panel', z: 0, height: 114, extended: ['down'] });
   });
 
-  it('anchor 2: the right end extends as before', () => {
+  it('the right end extends as before', () => {
     const current = load((run) => { run.ends.right.extend = { down: { to: 'floor' } }; });
     expect(endPiece(current, 'right')).toMatchObject({ kind: 'filler', z: 0, height: 114, extended: ['down'] });
   });
 
-  it('anchor 3: the automatic joint end keeps its height pick', () => {
+  it('the automatic joint end keeps its height pick', () => {
     const current = load((run) => { run.ends.left.height = 'full'; });
     expect(upperOf(syncRoom(current, S)).ends.left.height).toBe('full');
   });
 });
 
-describe('FX13: a manual run at the box top keeps its crown', () => {
-  it('anchor 4: manual upper topping out at 114 gets the auto molding', () => {
+describe('a manual run at the box top keeps its crown (FX13)', () => {
+  it('manual upper topping out at 114 gets the auto molding', () => {
     const current = load();
     const auto = load((run) => { run.heightMode = 'auto'; });
     expect(topKind(current)).not.toBe('none');
     expect(topKind(current)).toBe(topKind(auto));
   });
 
-  it('anchor 5: manual upper 2" short has no top', () => {
+  it('manual upper 2" short has no top', () => {
     expect(topKind(load((run) => { run.height = 58; }))).toBe('none');
   });
 
-  it('anchor 6: a picked none still wins', () => {
+  it('a picked none still wins', () => {
     expect(topKind(load((run) => { run.top = 'none'; }))).toBe('none');
   });
 });

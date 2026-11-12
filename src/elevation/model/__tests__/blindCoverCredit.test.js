@@ -30,8 +30,8 @@ function room10bt(settings = S, edit = () => {}) {
   return { synced, currentWall, currentRun, layout, ts, openings };
 }
 
-describe('BT1 a blind cover credit', () => {
-  it('anchor 1: returns the blind cover to the fillers and keeps the shared flex width', () => {
+describe('blind cover credit (BT1)', () => {
+  it('returns the blind cover to the fillers and keeps the shared flex width', () => {
     const { synced, currentWall, currentRun, layout, ts, openings } = room10bt();
     expect(rows(layout.pieces)).toEqual([[0, 1.625], [1.625, 30], [31.625, 29.25], [60.875, 2.3125]]);
     expect(ts.tees.find(({ end }) => end === 'left')).toMatchObject({ x: 0, width: 2.375 });
@@ -47,7 +47,7 @@ describe('BT1 a blind cover credit', () => {
     expect(syncRoom(synced, S)).toEqual(synced);
   });
 
-  it('anchor 2: gives equal openings and visible ends with default minimums', () => {
+  it('gives equal openings and visible ends with default minimums', () => {
     const { layout, ts, openings } = room10bt(DEFAULT_SETTINGS);
     expect(rows(layout.pieces)).toEqual([[0, 1.125], [1.125, 30.5], [31.625, 29.75], [61.375, 1.8125]]);
     expect(openings).toEqual([29, 29, 29, 29]);
@@ -55,12 +55,12 @@ describe('BT1 a blind cover credit', () => {
     expect(layout.pieces.at(-1).width).toBe(1.8125);
   });
 
-  it('anchor 3: leaves the widths unchanged when the blind end T is off', () => {
+  it('leaves the widths unchanged when the blind end T is off', () => {
     const { layout } = room10bt(S, (r) => { r.endFiller = { ...r.endFiller, right: { tFiller: false } }; });
     expect(rows(layout.pieces)).toEqual([[0, 1.75], [1.75, 29.5], [31.25, 29.5], [60.75, 2.4375]]);
   });
 
-  it('anchor 4: leaves the no-T layout unchanged', () => {
+  it('leaves the no-T layout unchanged', () => {
     const { layout, ts } = room10bt(S, (r) => { delete r.tFiller; });
     expect(rows(layout.pieces)).toEqual([[0, 2.125], [2.125, 29.5], [31.625, 29.5], [61.125, 2.0625]]);
     expect(ts.tees).toEqual([]);

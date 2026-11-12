@@ -15,8 +15,8 @@ const four = legPreset('four', { shapeId: 'leg', proud: 0.5 }, () => ['LF', 'LB'
 const R = run({ x: 10, width: 36, legs: four });
 const W = wall({ x1: 0, y1: 0, x2: 144, y2: 0, runs: [R] });
 
-describe('SH7.2 step c leg fill drawing payloads', () => {
-  it('anchors 1 and 2: exports the LF panel bounds and four plan points at its own top', () => {
+describe('leg fill drawing payloads (SH7.2)', () => {
+  it('exports the LF panel bounds and four plan points at its own top', () => {
     for (const wallSide of ['front', 'back']) {
       for (const rotated of [false, true]) {
         const placed = run({ ...R, wallSide,
@@ -91,7 +91,7 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
     }
   });
 
-  it('anchor 4: preserves the entire payload without fills, with and without legs', () => {
+  it('preserves the entire payload without fills, with and without legs', () => {
     // Captured before step c, including elevation parts and plan parts/shapes; PT2 c changed only the top lines.
     for (const [legs, hash] of [
       [four, '273b9e96f24dcc21556cbbe28c03ac4754743c80722735d01e0fabbf1256a002'],
@@ -116,8 +116,8 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
   });
 });
 
-describe('SH7.3 step b panel return drawing payloads', () => {
-  it('anchors 3–4: exports each return with panel fields and transformed plan points at the panel top', () => {
+describe('panel return drawing payloads (SH7.3)', () => {
+  it('exports each return with panel fields and transformed plan points at the panel top', () => {
     for (const wallSide of ['front', 'back']) {
       for (const rotated of [false, true]) {
         for (const [index, start, end] of [[0, 11.0625, 14.75], [2, 41.25, 44.9375]]) {

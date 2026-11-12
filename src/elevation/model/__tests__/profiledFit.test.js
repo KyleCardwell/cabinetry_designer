@@ -44,22 +44,22 @@ function stacked(face, settings = S, cabinetStyleId = 14, extra = {}, roomOverri
   return runFaceLayouts(r, resolveWall(r, w), target, settings).get('a');
 }
 
-describe('FX4 c2 per-face profiled fit', () => {
-  it('anchor 1: golden square pair fills its opening', () => {
+describe('c2 per-face profiled fit (FX4)', () => {
+  it('golden square pair fills its opening', () => {
     expect(rects(golden().get(CAB).faces)).toEqual(square);
   });
 
-  it('anchor 2: the team outside profile fits both pair halves', () => {
+  it('the team outside profile fits both pair halves', () => {
     expect(rects(golden({ ...document.settings, teamDoorStyle: PROFILED }).get(CAB).faces)).toEqual(profiled);
   });
 
-  it('anchor 3: the opening stays at its square dimensions', () => {
+  it('the opening stays at its square dimensions', () => {
     const layout = golden({ ...document.settings, teamDoorStyle: PROFILED }).get(CAB);
     expect(rects(layout.openings)).toEqual([[78.25, 5.75, 32.5, 27]]);
     expect(layout.openings).toEqual(golden().get(CAB).openings);
   });
 
-  it('anchor 4: a cabinet doorStyleId profiles only that cabinet', () => {
+  it('a cabinet doorStyleId profiles only that cabinet', () => {
     const before = golden();
     const after = golden(document.settings, (r, target) => {
       r.doorStyles = [{ ...PROFILED, id: 'profiled' }];
@@ -71,7 +71,7 @@ describe('FX4 c2 per-face profiled fit', () => {
     }
   });
 
-  it('anchor 5: a square drawer fills its slot above a profiled door', () => {
+  it('a square drawer fills its slot above a profiled door', () => {
     const face = { direction: 'vertical', children: [
       { type: 'drawer_front', size: 6 }, { type: 'door', size: null },
     ] };
@@ -83,7 +83,7 @@ describe('FX4 c2 per-face profiled fit', () => {
     expect(actual.openings).toEqual(entry.openings);
   });
 
-  it('anchor 6: the short-face rule uses the profiled size even when the square size reaches slabBelow', () => {
+  it('the short-face rule uses the profiled size even when the square size reaches slabBelow', () => {
     const entry = stacked({ direction: 'vertical', children: [
       { type: 'drawer_front', size: 4.8125 }, { type: 'door', size: null },
     ] });
@@ -92,7 +92,7 @@ describe('FX4 c2 per-face profiled fit', () => {
     ]);
   });
 
-  it('anchor 8: outside profiles leave every G1 Euro face unchanged', () => {
+  it('outside profiles leave every G1 Euro face unchanged', () => {
     const r = document.rooms.find(({ name }) => name === 'G1 Euro kitchen');
     for (const w of r.walls) {
       const view = resolveWall(r, w, 'front');

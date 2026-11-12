@@ -52,7 +52,7 @@ function currentDocument() {
   };
 }
 
-it('IN12b anchor 6: defaults missing accessories, round trips saved entries and rejects invalid libraries', () => {
+it('defaults missing accessories, round trips saved entries and rejects invalid libraries (IN12b)', () => {
   const document = currentDocument();
   delete document.settings.accessories;
   const serialized = JSON.stringify(document);
@@ -78,7 +78,7 @@ it('IN12b anchor 6: defaults missing accessories, round trips saved entries and 
   }
 });
 
-describe('IN1a cabinet purpose persistence', () => {
+describe('cabinet purpose persistence (IN1a)', () => {
 
   it('accepts a known purpose on a cabinet only', () => {
     const base = normalizeElevationDocument(currentDocument());
@@ -94,8 +94,8 @@ describe('IN1a cabinet purpose persistence', () => {
   });
 });
 
-describe('IN1b cabinet box persistence', () => {
-  it('accepts nonempty cabinet overrides and preserves them through save and load (anchor 4)', () => {
+describe('cabinet box persistence (IN1b)', () => {
+  it('accepts nonempty cabinet overrides and preserves them through save and load', () => {
     const base = normalizeElevationDocument(currentDocument());
     for (const box of [
       { top: 'overlay', finTop: true },
@@ -113,7 +113,7 @@ describe('IN1b cabinet box persistence', () => {
     }
   });
 
-  it('rejects empty, malformed and non-cabinet box overrides (anchor 4)', () => {
+  it('rejects empty, malformed and non-cabinet box overrides', () => {
     const base = normalizeElevationDocument(currentDocument());
     expect(isElevationDocument(base)).toBe(true);
     for (const box of [
@@ -137,8 +137,8 @@ describe('IN1b cabinet box persistence', () => {
   });
 });
 
-describe('IN2 interior persistence', () => {
-  it('IN7 round-trips empty sections and seam/banding keys and rejects invalid divider data', () => {
+describe('interior persistence (IN2)', () => {
+  it('round-trips empty sections and seam/banding keys and rejects invalid divider data (IN7)', () => {
     const base = normalizeElevationDocument(currentDocument());
     const linked = {
       direction: 'horizontal',
@@ -181,7 +181,7 @@ describe('IN2 interior persistence', () => {
     }
   });
 
-  it('round-trips root and nested cabinet interiors and rejects other stored shapes and leaf kinds (anchor 5)', () => {
+  it('round-trips root and nested cabinet interiors and rejects other stored shapes and leaf kinds', () => {
     const interior = {
       direction: 'horizontal',
       children: [{ direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }] }, {}],
@@ -220,8 +220,8 @@ describe('IN2 interior persistence', () => {
   });
 });
 
-describe('HP3c step a pull reference persistence', () => {
-  it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4 anchor 5)', () => {
+describe('pull reference persistence (HP3c)', () => {
+  it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4)', () => {
     const base = normalizeElevationDocument(currentDocument());
     expect(isElevationDocument(base)).toBe(true);
     for (const [value, valid] of [[0, false], [40, true], [null, true], [-1, false], ['40', false], [Infinity, false]]) {
@@ -239,7 +239,7 @@ describe('HP3c step a pull reference persistence', () => {
     expect(normalizeElevationDocument(old).settings.pullHeight).toBe(45);
   });
 
-  it('validates wall, run, cabinet and leaf picks and loads old rooms with default pulls (anchor 8)', () => {
+  it('validates wall, run, cabinet and leaf picks and loads old rooms with default pulls', () => {
     const base = normalizeElevationDocument(currentDocument());
     expect(isElevationDocument(base)).toBe(true);
     for (const target of ['wall', 'run', 'cabinet']) {
@@ -270,10 +270,10 @@ describe('HP3c step a pull reference persistence', () => {
   });
 });
 
-describe('IN4b step a sandbox slide persistence', () => {
+describe('sandbox slide persistence (IN4b)', () => {
   const custom = { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Shop slide', hardwareSlideId: 3 };
 
-  it('rejects duplicate names and ids, invalid slides and altered built-in mounts (anchor 6)', () => {
+  it('rejects duplicate names and ids, invalid slides and altered built-in mounts', () => {
     for (const slides of [
       [{ ...custom, name: 'X' }, { ...custom, id: 'other', name: 'x' }],
       [...BUILT_IN_SLIDES, custom, { ...custom, name: 'Other' }],
@@ -291,13 +291,13 @@ describe('IN4b step a sandbox slide persistence', () => {
   });
 });
 
-describe('HP3b step a sandbox pull persistence', () => {
+describe('sandbox pull persistence (HP3b)', () => {
   const bar = {
     id: 'p1', name: 'Bar', kind: 'pull', length: 5, centers: 4, width: 0.375,
     projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
   };
 
-  it('rejects name clashes and other invalid saved lists without repairing their entries (anchor 6)', () => {
+  it('rejects name clashes and other invalid saved lists without repairing their entries', () => {
     for (const pulls of [
       [...BUILT_IN_PULLS, bar, { ...bar, id: 'p2', name: 'BAR' }],
       [...BUILT_IN_PULLS, bar, { ...bar, name: 'Other' }],
@@ -316,8 +316,8 @@ describe('HP3b step a sandbox pull persistence', () => {
   });
 });
 
-describe('FL2 corner lap persistence', () => {
-  it('A2: round-trips over and into, and rejects invalid lap values on load', () => {
+describe('corner lap persistence (FL2)', () => {
+  it('round-trips over and into, and rejects invalid lap values on load (A2)', () => {
     const document = currentDocument();
     const run = document.rooms[0].walls[0].runs[0];
     run.endFiller = { left: { cornerLap: 'over' }, right: { cornerLap: 'into' } };
@@ -415,7 +415,7 @@ afterEach(() => {
 
 describe('elevation persistence migration', () => {
 
-  it('60. defaults missing joints and round-trips joined runs unchanged', () => {
+  it('defaults missing joints and round-trips joined runs unchanged', () => {
     const withoutJoints = currentDocument();
     globalThis.window = {
       localStorage: storageWith([[
@@ -437,7 +437,7 @@ describe('elevation persistence migration', () => {
     expect(loadElevationDocument()).toEqual(normalizeElevationDocument(joined));
   });
 
-  it('61. clears missing joint anchors and rejects invalid joint offsets', () => {
+  it('clears missing joint anchors and rejects invalid joint offsets', () => {
     const stale = tbtDocument();
     stale.rooms[0].walls[0].runs[0].anchors.right.jointId = 'J9';
     globalThis.window = {
@@ -454,7 +454,7 @@ describe('elevation persistence migration', () => {
     expect(loadElevationDocument()).toBeNull();
   });
 
-  it('14. defaults a missing elevationForced field and rejects non-boolean values', () => {
+  it('defaults a missing elevationForced field and rejects non-boolean values', () => {
     const current = currentDocument();
     delete current.rooms[0].walls[0].elevationForced;
     globalThis.window = {
@@ -497,7 +497,7 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(false);
   });
 
-  it('IN7.4 round-trips base and standard matches and rejects misplaced matches', () => {
+  it('round-trips base and standard matches and rejects misplaced matches (IN7.4)', () => {
     const current = normalizeElevationDocument(currentDocument());
     const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
     const matched = { direction: 'vertical', size: null, match: 'base', children: [
@@ -518,7 +518,7 @@ describe('elevation persistence migration', () => {
     }
   });
 
-  it('21. round-trips a valid cabinet face and rejects a malformed one', () => {
+  it('round-trips a valid cabinet face and rejects a malformed one', () => {
     const current = currentDocument();
     const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
     const face = {
@@ -551,7 +551,7 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(true);
   });
 
-  it('43. round-trips styles, run face options and manual reveals', () => {
+  it('round-trips styles, run face options and manual reveals', () => {
     const current = currentDocument();
     const room = current.rooms[0];
     const run = room.walls[0].runs[0];
@@ -580,7 +580,7 @@ describe('elevation persistence migration', () => {
     });
   });
 
-  it('44. rejects malformed styles, run face options and reveals', () => {
+  it('rejects malformed styles, run face options and reveals', () => {
     const current = currentDocument();
     const room = current.rooms[0];
     const run = room.walls[0].runs[0];
@@ -615,7 +615,7 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(false);
   });
 
-  it('25. rejects a malformed opening so the editor can start fresh', () => {
+  it('rejects a malformed opening so the editor can start fresh', () => {
     const current = currentDocument();
     current.rooms[0].walls[0].openings.push({
       id: 'door-1',
@@ -640,7 +640,7 @@ describe('elevation persistence migration', () => {
 });
 
 describe('wall side persistence', () => {
-  it('105. accepts valid wall sides and rejects invalid run and joint sides', () => {
+  it('accepts valid wall sides and rejects invalid run and joint sides', () => {
     const valid = tbtDocument();
     valid.rooms[0].walls[0].runs[0].wallSide = 'back';
     expect(isElevationDocument(valid)).toBe(true);
@@ -656,7 +656,7 @@ describe('wall side persistence', () => {
 });
 
 describe('wall end panel persistence', () => {
-  it('125. validates complete endpoint panel shapes when present', () => {
+  it('validates complete endpoint panel shapes when present', () => {
     const valid = tbtDocument();
     valid.rooms[0].walls[0].endPanels = { start: { width: null }, end: null };
     expect(isElevationDocument(valid)).toBe(true);
@@ -676,7 +676,7 @@ describe('wall end panel persistence', () => {
 });
 
 describe('wall landing persistence', () => {
-  it('142. validates wall landings and wall run anchors', () => {
+  it('validates wall landings and wall run anchors', () => {
     const empty = tbtDocument();
     empty.rooms[0].walls[0].landings = { start: null, end: null };
     expect(isElevationDocument(empty)).toBe(true);
@@ -718,7 +718,7 @@ describe('SPEC-19 soffit persistence', () => {
     ...overrides,
   });
 
-  it('164. validates soffits and soffit anchors and defaults older settings', () => {
+  it('validates soffits and soffit anchors and defaults older settings', () => {
     const valid = tbtDocument();
     valid.rooms[0].walls[0].soffits = [SF()];
     expect(isElevationDocument(valid)).toBe(true);
@@ -743,7 +743,7 @@ describe('SPEC-19 soffit persistence', () => {
 });
 
 describe('SPEC-23 part number persistence', () => {
-  it('194. validates, defaults and preserves room part number fields', () => {
+  it('validates, defaults and preserves room part number fields', () => {
     const omitted = tbtDocument();
     delete omitted.rooms[0].partNumberStart;
     delete omitted.rooms[0].partNumberOverrides;
@@ -774,7 +774,7 @@ describe('SPEC-23 part number persistence', () => {
 });
 
 describe('SPEC-25 blind corner persistence', () => {
-  it('206. validates optional blind widths and round-trips them unchanged', () => {
+  it('validates optional blind widths and round-trips them unchanged', () => {
     const omitted = tbtDocument();
     expect(isElevationDocument(omitted)).toBe(true);
 
@@ -794,7 +794,7 @@ describe('SPEC-25 blind corner persistence', () => {
 });
 
 describe('SPEC-27 end filler persistence', () => {
-  it('215. defaults return settings and validates optional end filler details', () => {
+  it('defaults return settings and validates optional end filler details', () => {
     expect(DEFAULT_SETTINGS.fillerReturnDepth).toBe(2.5);
     expect(DEFAULT_SETTINGS.fillerReturnThickness).toBe(0.75);
     expect(DEFAULT_SETTINGS.fillerThickness).toBe(0.8125);
@@ -836,7 +836,7 @@ describe('SPEC-27 end filler persistence', () => {
 });
 
 describe('SPEC-28 blind end persistence', () => {
-  it('221. defaults and validates blind ends and zero return depth', () => {
+  it('defaults and validates blind ends and zero return depth', () => {
     expect(DEFAULT_SETTINGS.blindFillerWidth).toBe(6);
 
     const older = tbtDocument();
@@ -987,7 +987,7 @@ describe('SPEC-34 cell kinds', () => {
     return document;
   }
 
-  it('IN15a round-trips Auto and typed spacing picks on nested and root shelves', () => {
+  it('round-trips Auto and typed spacing picks on nested and root shelves (IN15a)', () => {
     for (const nested of [false, true]) {
       for (const shelves of [{ back: false }, { back: true, bottom: 0, top: 0 },
         { back: false, count: 12, bottom: 6.25, top: 2 }]) {
@@ -1259,7 +1259,7 @@ describe('SPEC-37 T-filler persistence', () => {
   });
 });
 
-it('EP1 a defaults sheet thickness on old documents and round-trips room overrides', () => {
+it('defaults sheet thickness on old documents and round-trips room overrides (EP1)', () => {
   const saved = currentDocument();
   delete saved.settings.sheetThickness;
   saved.rooms[0].settingsOverrides = { sheetThickness: 0.6875 };
@@ -1274,7 +1274,7 @@ it('EP1 a defaults sheet thickness on old documents and round-trips room overrid
   expect(normalizeElevationDocument(toElevationDocument(loaded)).settings.sheetThickness).toBe(0.5);
 });
 
-it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothing (not a built-in)', () => {
+it('keeps a saved Micro Shaker as the team\'s own design and appends nothing (not a built-in)', () => {
   const saved = currentDocument();
   saved.settings.doorDesigns = [...structuredClone(DOOR_DESIGNS), structuredClone(MICRO_SHAKER)];
   const encoded = JSON.stringify(saved);
@@ -1292,7 +1292,7 @@ it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothin
     .toEqual(['five-piece-square', 'slab', 'slab-mdf']);
 });
 
-it('IN9 defaults older roll-out settings, preserves picks and validates stored roll-outs on load/save', () => {
+it('defaults older roll-out settings, preserves picks and validates stored roll-outs on load/save (IN9)', () => {
   const legacy = currentDocument();
   delete legacy.settings.rolloutHeight;
   delete legacy.settings.rolloutSpacer;
@@ -1332,8 +1332,8 @@ it('IN9 defaults older roll-out settings, preserves picks and validates stored r
   }
 });
 
-describe('IN8 shelf and flag persistence', () => {
-  it('IN13b anchor 7: defaults older settings and round-trips shoe settings and section counts', () => {
+describe('shelf and flag persistence (IN8)', () => {
+  it('defaults older settings and round-trips shoe settings and section counts (IN13b)', () => {
     expect(DEFAULT_SETTINGS.shoeShelfAngle).toBe(12);
     expect(DEFAULT_SETTINGS.shoeShelfClear).toBe(6);
     const legacy = currentDocument();

@@ -5,8 +5,8 @@ import {
 
 const squash = { pivot: 36, k: 0.5 };
 
-describe('CC3 step a drawing squash helpers', () => {
-  it('anchor 10: projects x and width while preserving height, z and the true face width', () => {
+describe('drawing squash helpers (CC3)', () => {
+  it('projects x and width while preserving height, z and the true face width', () => {
     const rect = { x: 20, z: 4, width: 16, height: 30 };
     expect(squashX(30, squash)).toBe(33);
     expect(squashRect(rect, squash)).toEqual({ x: 28, z: 4, width: 8, height: 30 });
@@ -33,7 +33,7 @@ describe('CC3 step a drawing squash helpers', () => {
     expect(entries).toEqual(before);
   });
 
-  it('anchor 10: projects detail rectangles, openings, lines and miter endpoints only', () => {
+  it('projects detail rectangles, openings, lines and miter endpoints only', () => {
     const part = { pieceId: 'cc', x: 20, width: 16, z: 4, height: 30,
       openings: [{ x: 23, width: 10, z: 7, height: 24 }],
       lines: [{ x: 21, width: 14, z: 5, height: 28 }],
@@ -54,7 +54,7 @@ describe('CC3 step a drawing squash helpers', () => {
     expect(details).toEqual(before);
   });
 
-  it('anchor 10: projects pull centres without resizing hardware or changing other pieces', () => {
+  it('projects pull centres without resizing hardware or changing other pieces', () => {
     const pull = { pieceId: 'cc', centers: [{ x: 30, z: 10 }], along: 6, across: 0.375 };
     const other = { ...pull, pieceId: 'a' };
     const pulls = [pull, other];

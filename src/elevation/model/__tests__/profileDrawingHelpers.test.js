@@ -4,8 +4,8 @@ import { addCircleLoop, addRectangleLoop, deleteProfileSegment, mirrorCopyLoop }
 
 const square = { ...newSectionProfile([], 'square'), drawnPoints: { elevation: ['p1'], plan: ['p2'] } };
 
-describe('SH2 drawing helpers', () => {
-  it('anchor 1: rectangles start low-left and run counter-clockwise regardless of pick order', () => {
+describe('drawing helpers (SH2)', () => {
+  it('rectangles start low-left and run counter-clockwise regardless of pick order', () => {
     const result = addRectangleLoop(square, [3, 3], [0.5, 1]);
     expect(Object.values(result.geometry.points).slice(4)).toEqual([[0.5, 1], [3, 1], [3, 3], [0.5, 3]]);
     expect(result.geometry.loops[1]).toEqual({ id: 'L2', closed: true, segs: [
@@ -26,7 +26,7 @@ describe('SH2 drawing helpers', () => {
     expect(addRectangleLoop(null, [0, 0], [1, 1])).toBeNull();
   });
 
-  it('anchor 2: circles have the exact horizontal endpoints and two ccw arcs', () => {
+  it('circles have the exact horizontal endpoints and two ccw arcs', () => {
     const result = addCircleLoop(square, [1.5, 1.5], 0.625);
     expect(result.geometry.points.p5).toEqual([2.125, 1.5]);
     expect(result.geometry.points.p6).toEqual([0.875, 1.5]);
@@ -39,7 +39,7 @@ describe('SH2 drawing helpers', () => {
     expect(isSectionProfileDraft(result)).toBe(true);
   });
 
-  it('anchor 3: mirror copy reflects arc centers, reverses ccw and leaves the source unchanged', () => {
+  it('mirror copy reflects arc centers, reverses ccw and leaves the source unchanged', () => {
     const circle = addCircleLoop(square, [1.5, 1.5], 0.625);
     const source = structuredClone(circle);
     const result = mirrorCopyLoop(circle, 'L2', 'x', 15);
@@ -66,7 +66,7 @@ describe('SH2 drawing helpers', () => {
     expect(mirrorCopyLoop(source, 'L1', 'y', NaN)).toBeNull();
   });
 
-  it('anchor 4: deleting from a closed loop opens it starting after the removed segment', () => {
+  it('deleting from a closed loop opens it starting after the removed segment', () => {
     const result = deleteProfileSegment(square, 'L1', 1);
     expect(result.geometry.loops).toEqual([{ id: 'L1', closed: false, segs: [
       square.geometry.loops[0].segs[2], square.geometry.loops[0].segs[3], square.geometry.loops[0].segs[0],
@@ -75,7 +75,7 @@ describe('SH2 drawing helpers', () => {
     expect(result.drawnPoints).toEqual(square.drawnPoints);
   });
 
-  it('anchor 4: deleting the middle of an open loop splits it, with the next free loop id', () => {
+  it('deleting the middle of an open loop splits it, with the next free loop id', () => {
     const open = deleteProfileSegment(square, 'L1', 3);
     const withCircle = addCircleLoop(open, [2, 2], 1);
     const result = deleteProfileSegment(withCircle, 'L1', 1);
@@ -86,7 +86,7 @@ describe('SH2 drawing helpers', () => {
     expect(result.geometry.points).toEqual(withCircle.geometry.points);
   });
 
-  it('anchor 4: trims either open end, removes empty loops, and allows removing the last segment', () => {
+  it('trims either open end, removes empty loops, and allows removing the last segment', () => {
     const open = deleteProfileSegment(square, 'L1', 3);
     expect(deleteProfileSegment(open, 'L1', 0).geometry.loops[0].segs).toEqual(open.geometry.loops[0].segs.slice(1));
     const one = deleteProfileSegment(deleteProfileSegment(open, 'L1', 2), 'L1', 1);

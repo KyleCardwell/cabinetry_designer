@@ -44,7 +44,7 @@ function connectedRoom(overrides = {}) {
 }
 
 describe('wallOutline', () => {
-  it('9. miters both outlines at room R corner', () => {
+  it('miters both outlines at room R corner', () => {
     const room = connectedRoom();
     expect(wallOutline(room, room.walls[0])).toEqual([
       { x: 0, y: 0 },
@@ -60,13 +60,13 @@ describe('wallOutline', () => {
     ]);
   });
 
-  it('10. uses both wall thicknesses for a shared miter', () => {
+  it('uses both wall thicknesses for a shared miter', () => {
     const room = connectedRoom({ wallB: { thickness: 6 } });
     expect(wallOutline(room, room.walls[0])[2]).toEqual({ x: 126, y: -4.5 });
     expect(wallOutline(room, room.walls[1])[3]).toEqual({ x: 126, y: -4.5 });
   });
 
-  it('11. intersects the back lines at a 135-degree corner', () => {
+  it('intersects the back lines at a 135-degree corner', () => {
     const room = connectedRoom({
       wallB: { x2: 120 + 67.8823, y2: 67.8823 },
     });
@@ -75,7 +75,7 @@ describe('wallOutline', () => {
     expect(backEnd.y).toBeCloseTo(-4.5, 6);
   });
 
-  it('12. keeps plain offsets for parallel lines and over-limit miters', () => {
+  it('keeps plain offsets for parallel lines and over-limit miters', () => {
     const collinear = connectedRoom({ wallB: { x2: 200, y2: 0 } });
     expect(wallOutline(collinear, collinear.walls[0])[2]).toEqual({ x: 120, y: -4.5 });
     expect(wallOutline(collinear, collinear.walls[1])[3]).toEqual({ x: 120, y: -4.5 });

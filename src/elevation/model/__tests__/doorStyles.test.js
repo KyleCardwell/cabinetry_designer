@@ -54,7 +54,7 @@ describe('SPEC-46 door designs and the team default style', () => {
 });
 
 describe('SPEC-46 door style shapes', () => {
-  it('MR1a anchor 3: accepts optional positive mid widths unchanged', () => {
+  it('accepts optional positive mid widths unchanged (MR1a)', () => {
     for (const mid of [{}, { stile: 4 }, { rail: 3.5 }, { rail: 3.5, stile: 4 }]) {
       const candidate = style({ mid });
       expect(isDoorStyle(candidate)).toBe(true);
@@ -62,7 +62,7 @@ describe('SPEC-46 door style shapes', () => {
     }
   });
 
-  it('MR1a anchor 4: rejects nonpositive, nonfinite and unknown mid widths', () => {
+  it('rejects nonpositive, nonfinite and unknown mid widths (MR1a)', () => {
     for (const key of ['rail', 'stile']) {
       for (const value of [0, -1, NaN, Infinity, '4', null, undefined]) {
         expect(isDoorStyle(style({ mid: { [key]: value } }))).toBe(false);
@@ -73,7 +73,7 @@ describe('SPEC-46 door style shapes', () => {
     }
   });
 
-  it('RP1 b accepts optional material up to 120 trimmed characters (anchors 1 and 2)', () => {
+  it('accepts optional material up to 120 trimmed characters (RP1)', () => {
     expect(isDoorStyle({ ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' })).toBe(true);
     expect(isDoorStyle(style())).toBe(true);
     expect(isDoorStyle(style({ material: 'x'.repeat(120) }))).toBe(true);
@@ -83,7 +83,7 @@ describe('SPEC-46 door style shapes', () => {
     }
   });
 
-  it('479. accepts up to six strict applied moldings with finite offsets, optionally absent', () => {
+  it('accepts up to six strict applied moldings with finite offsets, optionally absent', () => {
     const { appliedMoldings, ...withoutMoldings } = style();
     void appliedMoldings;
     expect([
@@ -178,7 +178,7 @@ describe('SPEC-46 door style shapes', () => {
   });
 });
 
-it('MR2b anchor 5: accepts a mid layout and rejects retired lists and invalid trees', () => {
+it('accepts a mid layout and rejects retired lists and invalid trees (MR2b)', () => {
   expect(isPartSizes({ layout: { split: 'rows', children: [{}, {}] } })).toBe(true);
   expect(isPartSizes({ midRails: [{ at: 5 }] })).toBe(false);
   for (const layout of [undefined, null, {}, { split: 'rows', children: [{}] },

@@ -5,8 +5,8 @@ import elevationReducer, { createInitialElevationState, setSetting } from '../el
 import { settingsFor } from '../slices/helpers.js';
 import { run, stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('DB2 c shop-standard setting leaves', () => {
-  it('changes one inset-frame leaf while preserving siblings (anchor 1)', () => {
+describe('shop-standard setting leaves (DB2)', () => {
+  it('changes one inset-frame leaf while preserving siblings', () => {
     const initial = createInitialElevationState(null);
     const originalSettings = structuredClone(initial.settings);
     const state = elevationReducer(initial, setSetting({ key: 'insetFrame.stile', value: 1 }));
@@ -16,7 +16,7 @@ describe('DB2 c shop-standard setting leaves', () => {
     expect(initial.settings).toEqual(originalSettings);
   });
 
-  it('ignores invalid values, unknown keys, prefs and unsafe paths (anchor 2)', () => {
+  it('ignores invalid values, unknown keys, prefs and unsafe paths', () => {
     const state = createInitialElevationState(null);
     for (const [key, value] of [
       ['roundTo', 'x'], ['bogus', 1], ['defaultEnds.left', 'bogus'],
@@ -30,7 +30,7 @@ describe('DB2 c shop-standard setting leaves', () => {
     expect({}.polluted).toBeUndefined();
   });
 
-  it('accepts soffit choices and strict booleans (anchor 3)', () => {
+  it('accepts soffit choices and strict booleans', () => {
     let state = createInitialElevationState(null);
     state = elevationReducer(state, setSetting({ key: 'defaultSoffitMolding', value: 'topMold' }));
     expect(state.settings.defaultSoffitMolding).toBe('topMold');
@@ -38,7 +38,7 @@ describe('DB2 c shop-standard setting leaves', () => {
     expect(state.settings.openingsHaveCasing).toBe(false);
   });
 
-  it('keeps room A pinned at 2 while room B inherits stile 1 (anchor 4)', () => {
+  it('keeps room A pinned at 2 while room B inherits stile 1', () => {
     const initial = createInitialElevationState(null);
     initial.rooms[0].settingsOverrides = { insetFrame: { stile: 2 } };
     initial.rooms.push({ ...cloneRoom(initial.rooms[0]), id: 'room-b' });
@@ -48,7 +48,7 @@ describe('DB2 c shop-standard setting leaves', () => {
     expect(state.rooms[0].settingsOverrides).toEqual({ insetFrame: { stile: 2 } });
   });
 
-  it('accepts managed shop settings and re-syncs runs in every room (anchor 5)', () => {
+  it('accepts managed shop settings and re-syncs runs in every room', () => {
     const initial = stateWithRun(run({ width: 120, ends: {
       left: { type: 'none' }, right: { type: 'none' },
     } }));

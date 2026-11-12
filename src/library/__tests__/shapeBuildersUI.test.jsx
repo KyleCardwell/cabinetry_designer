@@ -107,7 +107,7 @@ const openLeg = () => {
   ] } }) }));
 };
 
-it('SH5 c anchor 2: length 36 saves a 36 long front, x zone 0–36 and one version bump', () => {
+it('length 36 saves a 36 long front, x zone 0–36 and one version bump (SH5)', () => {
   create('New extrusion');
   field(extrude(), 'Extrusion length').props.onCommit(36);
   save();
@@ -115,7 +115,7 @@ it('SH5 c anchor 2: length 36 saves a 36 long front, x zone 0–36 and one versi
   expect(elevation.settings.shapes[0].views.front.points.f2).toEqual([36, -0.65625]);
 });
 
-it('SH5.1 c anchor 1: inside taper keeps the outside faces plumb and adds 12 to 34.5', () => {
+it('inside taper keeps the outside faces plumb and adds 12 to 34.5 (SH5.1)', () => {
   create('New leg / column');
   button(stack(), 'Add tapered').props.onClick();
   field(stack(), 'Section 2 taper').props.onChange({ target: { value: 'inside' } });
@@ -162,7 +162,7 @@ const origin = () => render(OriginPanel, component(editor(), OriginPanel).props)
 
 afterEach(() => vi.unstubAllGlobals());
 
-it('SH5.1 f anchor 2: width 5 derives read-only depth 5, with Front/Plan editing and x/z fitting', () => {
+it('width 5 derives read-only depth 5, with Front/Plan editing and x/z fitting (SH5.1)', () => {
   openS();
   tickMirror(true);
   field(sizeBox(), 'W').props.onCommit(5);

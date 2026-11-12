@@ -28,14 +28,14 @@ beforeEach(() => {
   subject = room({ walls: [ownerWall, returnWall] });
 });
 
-describe('CC2 step d corner return warnings', () => {
-  it('anchor 1: includes the exposed panel in the return footprint', () => {
+describe('corner return warnings (CC2)', () => {
+  it('includes the exposed panel in the return footprint', () => {
     expect(cornerReturnFootprint(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).toEqual({
       wallId: 'wall-2', wallSide: 'front', x0: 107.1875, x1: 144, z0: 0, z1: owner.z + owner.height,
     });
   });
 
-  it('anchor 2: reports an unanchored overlap on both runs and in room diagnostics', () => {
+  it('reports an unanchored overlap on both runs and in room diagnostics', () => {
     const other = run({ id: 'other', x: 120, width: 24 });
     returnWall.runs = [other];
     const ownerWarnings = [{ code: 'corner-overlap', side: 'left', runId: other.id,
@@ -64,7 +64,7 @@ describe('CC2 step d corner return warnings', () => {
     expect(cornerReturnWarnings(subject, returnWall, other, DEFAULT_SETTINGS)).toEqual([]);
   });
 
-  it('anchor 5: a covering return run ends at the footprint with no warnings', () => {
+  it('a covering return run ends at the footprint with no warnings', () => {
     const ret = run({ id: 'return', z: 0, x: 8, width: 100,
       anchors: { right: true }, ends: { right: { type: 'none' } },
     });
@@ -77,7 +77,7 @@ describe('CC2 step d corner return warnings', () => {
     expect(cornerReturnWarnings(subject, returnWall, ret, DEFAULT_SETTINGS)).toEqual([]);
   });
 
-  it('anchor 6: warns for return end panels and blinds, allowing none and filler', () => {
+  it('warns for return end panels and blinds, allowing none and filler', () => {
     const ret = run({ id: 'return', z: 0, x: 8, width: 100, anchors: { right: true } });
     returnWall.runs = [ret];
     for (const type of ['end_panel', 'blind', 'none', 'filler']) {
@@ -125,7 +125,7 @@ describe('CC2 step d corner return warnings', () => {
   });
 });
 
-describe('CC2 step b return runs die into the corner', () => {
+describe('return runs die into the corner (CC2)', () => {
   let ret;
   beforeEach(() => {
     ret = run({ id: 'return', z: 0, x: 0, width: 100,
@@ -212,7 +212,7 @@ describe('CC2 step b return runs die into the corner', () => {
   });
 });
 
-describe('CC2 step b peninsula return runs (Room P)', () => {
+describe('peninsula return runs (Room P) (CC2)', () => {
   let host, pen, hostRun, penRun, penSide;
   beforeEach(() => {
     hostRun = run({ id: 'host-run', x: 0, width: 72, autoCount: false,
@@ -307,7 +307,7 @@ describe('CC2 step b peninsula return runs (Room P)', () => {
   });
 });
 
-describe('CC2 step a return-side piece and reach', () => {
+describe('return-side piece and reach (CC2)', () => {
   it.each([
     [1, {}, false, { type: 'end_panel', width: 0.8125, covered: false, auto: true }, 36.8125],
     [2, {}, true, { type: 'none', width: 0, covered: true, auto: true }, 36],
@@ -335,7 +335,7 @@ describe('CC2 step a return-side piece and reach', () => {
       .toMatchObject({ returnSide: expected, reach });
   });
 
-  it('anchor 10: defaults auto columns without a layout and reads the correct outer manual column', () => {
+  it('defaults auto columns without a layout and reads the correct outer manual column', () => {
     owner.grid.cols[0] = { ...owner.grid.cols[0], sizeMode: 'auto', size: null };
     expect(cornerLegs(owner, 'left')).toEqual({ legA: 36, legB: 36 });
     owner.grid.cols[0].size = 42;

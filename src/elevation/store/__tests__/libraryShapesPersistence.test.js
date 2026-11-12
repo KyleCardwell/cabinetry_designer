@@ -9,7 +9,7 @@ import {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it('SH2 round-trips archived and live shapes and rejects malformed or conflicting sandbox libraries', () => {
+it('round-trips archived and live shapes and rejects malformed or conflicting sandbox libraries (SH2)', () => {
   const shape = newShape([], 'shape-1');
   const settings = copySettings();
   settings.shapes = [shape, { ...shape, id: 'archived', archived: true }];

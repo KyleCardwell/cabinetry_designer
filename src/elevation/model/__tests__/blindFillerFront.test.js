@@ -17,7 +17,7 @@ function planOf(source, settings = DEFAULT_SETTINGS, wallIndex = 0) {
   };
 }
 
-describe('FX9 c: blind filler in front of the blind box', () => {
+describe('blind filler in front of the blind box (FX9)', () => {
   it.each([
     [1, true, false, 'right', 24, 24.8125],
     [2, false, false, 'right', 24, 24.8125],

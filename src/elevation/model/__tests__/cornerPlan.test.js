@@ -18,7 +18,7 @@ function expectPolygon(actual, expected) {
   }));
 }
 
-describe('CC5 step a corner plan pieces', () => {
+describe('corner plan pieces (CC5)', () => {
   let subject, ownerWall, returnWall, owner;
   // Room A specifies a 7/8" front offset with 3/4" faces and a 13/16" return panel.
   const settings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125 };
@@ -46,7 +46,7 @@ describe('CC5 step a corner plan pieces', () => {
       runFaceLayouts(subject, ownerWall, owner, settings, layout));
   };
 
-  it('anchors 1–2: adds the L box and B door while preserving box bounds and the A door', () => {
+  it('adds the L box and B door while preserving box bounds and the A door', () => {
     const { boxes, faces } = pieces();
     expect(boxes.find(({ key }) => key === 'cc')).toEqual({ key: 'cc', start: 0, end: 36,
       back: 0, front: 24, polygon: [[0, 0], [36, 0], [36, 24], [24, 24], [24, 36], [0, 36]] });
@@ -57,7 +57,7 @@ describe('CC5 step a corner plan pieces', () => {
       polygon: [[24.125, 25], [24.875, 25], [24.875, 35.9375], [24.125, 35.9375]] });
   });
 
-  it.each(['auto', 'none', 'filler'])('anchor 3: return piece %s', (returnPiece) => {
+  it.each(['auto', 'none', 'filler'])('return piece %s', (returnPiece) => {
     owner.ends.left.corner.returnPiece = returnPiece;
     const piece = pieces().faces.find(({ key }) => key === 'cc:return');
     if (returnPiece === 'none') {
@@ -92,7 +92,7 @@ describe('CC5 step a corner plan pieces', () => {
     expect(additions.dropFaceKeys).toEqual(new Set(['cc:r']));
   });
 
-  it.each([90, 45])('anchor 6: mirrors a right-end %s around u = 72', (kind) => {
+  it.each([90, 45])('mirrors a right-end %s around u = 72', (kind) => {
     owner.width = 144;
     owner.ends.left.corner.kind = kind;
     const left = pieces();
@@ -118,7 +118,7 @@ describe('CC5 step a corner plan pieces', () => {
     if (kind === 90) expect(face).toMatchObject({ start: 119.125, end: 119.875 });
   });
 
-  it('CC6.1: keeps Room C’s framed 45 box on the five-point diagonal box', () => {
+  it('keeps Room C’s framed 45 box on the five-point diagonal box (CC6.1)', () => {
     subject.style = { cabinetStyleId: 14 };
     delete owner.style;
     owner.width = 144;
@@ -136,14 +136,14 @@ describe('CC5 step a corner plan pieces', () => {
       [[0, 0], [35.4514, 0], [35.4514, 24.5486], [24.5486, 35.4514], [0, 35.4514]]);
   });
 
-  it('CC6.1: carries the seven-point Euro 45 box into planParts in y-up coordinates', () => {
+  it('carries the seven-point Euro 45 box into planParts in y-up coordinates (CC6.1)', () => {
     owner.ends.left.corner.kind = 45;
     const part = planParts(subject, settings).find(({ id }) => id === 'cc');
     expect(part).toMatchObject({ kind: 'cabinet', runId: owner.id, top: owner.z + owner.height,
       points: [[0, 0], [36, 0], [36, -24], [35.25, -24], [24, -35.25], [24, -36], [0, -36]] });
   });
 
-  it('CC6.1: builds the plan DXF export payload with the seven-point box and diagonal door', () => {
+  it('builds the plan DXF export payload with the seven-point box and diagonal door (CC6.1)', () => {
     owner.ends.left.corner.kind = 45;
     // Sync derives the front offset from the thickest door, including the neighbour.
     owner.doorStyleId = 'thin';
@@ -156,13 +156,13 @@ describe('CC5 step a corner plan pieces', () => {
       [[35.9709, -24.9665], [24.9665, -35.9709], [24.4362, -35.4406], [35.4406, -24.4362]]);
   });
 
-  it('anchor 7: draws a panel on B with the same thin face polygon', () => {
+  it('draws a panel on B with the same thin face polygon', () => {
     owner.ends.left.corner.legBFace = 'panel';
     expect(pieces().faces.find(({ key }) => key === 'cc:B:r')).toMatchObject({ kind: 'face',
       polygon: [[24.125, 25], [24.875, 25], [24.875, 35.9375], [24.125, 35.9375]] });
   });
 
-  it.each(['inactive', 'recess', 'outset'])('anchor 8: keeps ordinary rectangles for an %s corner', (mode) => {
+  it.each(['inactive', 'recess', 'outset'])('keeps ordinary rectangles for an %s corner', (mode) => {
     if (mode === 'inactive') owner.anchors.left = false;
     else if (mode === 'recess') owner._plane = { offset: -6 };
     else owner.outset = 2;

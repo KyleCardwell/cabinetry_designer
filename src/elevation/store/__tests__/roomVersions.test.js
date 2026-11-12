@@ -76,14 +76,14 @@ const renameCrown = (store, name) => {
   store.dispatch(updateSectionProfile({ profileId: CROWN, profile: { ...profile, name } }));
 };
 
-describe('DB8a issue', () => {
+describe('issue (DB8a)', () => {
   const U = '0192a1b2-c3d4-7e5f-8a9b-00000000a001';
   const pullWalls = (pullId = null) => stateWithRun(run({ autoCount: false, drawerPullId: 'none', items: [
     { ...auto('c1'), doorPullId: U, face: { type: 'door', size: null, pullId } },
   ] })).rooms[0].walls;
   const bar = { ...BUILT_IN_PULLS[0], id: U, name: 'Bar' };
 
-  it('HP3c step d: issues the used pulls with row versions and opens their frozen library', async () => {
+  it('issues the used pulls with row versions and opens their frozen library (HP3c)', async () => {
     const api = versionApi(roomRow({}, { walls: pullWalls() }));
     api.db.pulls.push({ pull_id: U, ...pullToRow(bar), version: 3, archived_at: null });
     const ctx = await setup({ api });
@@ -104,7 +104,7 @@ describe('DB8a issue', () => {
     expect(settingsFor(elevation, elevation.rooms[0]).pulls.at(-1)).toEqual(bar);
   });
 
-  it('HP3c step d anchor 2: refuses missing room or resolved pulls, reporting door designs first', async () => {
+  it('refuses missing room or resolved pulls, reporting door designs first (HP3c)', async () => {
     for (const where of ['face', 'settings', 'both']) {
       const style = { ...structuredClone(DEFAULT_DOOR_STYLE), id: 'ds-a', label: 'A', designId: 'gone-design' };
       const api = versionApi(roomRow({}, {
@@ -125,7 +125,7 @@ describe('DB8a issue', () => {
     }
   });
 
-  it('RP1 b freezes room and team style material and restores both when opening the issue', async () => {
+  it('freezes room and team style material and restores both when opening the issue (RP1)', async () => {
     const style = { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' };
     const api = versionApi(roomRow({}, { doorStyles: [style] }));
     api.db.teamSettings.settings.teamDoorStyle = { ...DEFAULT_DOOR_STYLE, material: 'WHITE OAK' };
@@ -205,7 +205,7 @@ describe('DB8a issue', () => {
   });
 });
 
-describe('DB8a room status', () => {
+describe('room status (DB8a)', () => {
   it('approves against the room version and records who', async () => {
     const ctx = await setup();
     editPart(ctx.store, 7);
@@ -223,7 +223,7 @@ describe('DB8a room status', () => {
   });
 });
 
-describe('DB8a opening an issued version', () => {
+describe('opening an issued version (DB8a)', () => {
   async function issuedThenChanged() {
     const ctx = await setup();
     editPart(ctx.store, 7);
@@ -312,13 +312,13 @@ describe('DB8a opening an issued version', () => {
 });
 
 
-describe('IN5 e issued slides', () => {
+describe('issued slides (IN5)', () => {
   const C = { ...structuredClone(BUILT_IN_SLIDES[0]), id: '0192a1b2-c3d4-7e5f-8a9b-00000000a001', name: 'Custom slide' };
   const walls = (slideId) => stateWithRun(run({ autoCount: false, items: [
     { ...auto('c1'), drawerSlideId: slideId, face: { type: 'drawer_front', size: null } },
   ] })).rooms[0].walls;
 
-  it('anchor 4: opens a custom slide from its frozen snapshot and falls back for legacy snapshots', async () => {
+  it('opens a custom slide from its frozen snapshot and falls back for legacy snapshots', async () => {
     const api = versionApi(roomRow({}, { walls: walls(C.id) }));
     api.db.slides.push({ slide_id: C.id, ...slideToRow(C), version: 3, archived_at: null });
     const ctx = await setup({ api });
@@ -339,7 +339,7 @@ describe('IN5 e issued slides', () => {
     expect(elevationOf(ctx.store).settings.slides).toEqual(BUILT_IN_SLIDES);
   });
 
-  it('anchor 3: refuses missing room and resolved-setting slides before calling the issue API', async () => {
+  it('refuses missing room and resolved-setting slides before calling the issue API', async () => {
     for (const where of ['room', 'settings']) {
       const api = versionApi(roomRow({}, { walls: walls(where === 'room' ? C.id : 'accuride-3832') }));
       if (where === 'settings') api.db.project.phases[0].overrides.drawerSlideId = C.id;
@@ -354,13 +354,13 @@ describe('IN5 e issued slides', () => {
 });
 
 
-describe('IN12b f issued accessories', () => {
+describe('issued accessories (IN12b)', () => {
   const susan = { ...newAccessory([], '0192a1b2-c3d4-7e5f-8a9b-00000000a001'), name: 'Susan', labor: { '7': 15 } };
   const walls = (accessoryId) => stateWithRun(run({ autoCount: false, items: [
     { ...auto('c1'), interior: { accessories: [{ accessoryId }] } },
   ] })).rooms[0].walls;
 
-  it('anchors 4–5: issues used accessories and opens the frozen library after archiving, with legacy fallback', async () => {
+  it('issues used accessories and opens the frozen library after archiving, with legacy fallback', async () => {
     const api = versionApi(roomRow({}, { walls: walls(susan.id) }));
     api.db.accessories.push({ accessory_id: susan.id, ...accessoryToRow(susan), version: 3, archived_at: null });
     api.db.accessories.push({ accessory_id: 'tray', ...accessoryToRow({ ...newAccessory([], 'tray'), name: 'Tray' }), version: 2, archived_at: null });
@@ -388,7 +388,7 @@ describe('IN12b f issued accessories', () => {
     expect(elevationOf(ctx.store).settings.accessories).toEqual([]);
   });
 
-  it('anchor 4: rejects missing accessories before calling the issue API', async () => {
+  it('rejects missing accessories before calling the issue API', async () => {
     const api = versionApi(roomRow({}, { walls: walls('gone') }));
     const ctx = await setup({ api });
     const reply = await ctx.store.dispatch(issueRoomVersion({ label: 'Accessories' }));

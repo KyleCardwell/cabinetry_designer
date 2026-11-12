@@ -36,7 +36,7 @@ function input({ width = 24, height = 30.5, depth = 24, x = 0, z = 0, leaf: patc
 const shelves = (options) => sectionShelves(input(options));
 const root = (options) => shelves(options).get('r');
 
-describe('IN15b step b physical-section flags', () => {
+describe('physical-section flags (IN15b)', () => {
   it('shares auto flags and first-member picks across zones, keeping real sections independent', () => {
     for (const shelves of [{ count: 2 }, { count: 0, shoe: 2 }, { count: 0 }]) {
       for (const pick of [undefined, false, true]) {
@@ -86,8 +86,8 @@ function roomWith(leaves, { width = 24 * leaves.length, height = 30.5, depth = 2
   return buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
 }
 
-describe('IN8 shelves and section flags', () => {
-  it('IN10 anchor 8: shares resolved interior data and preserves shelf Maps on either face', () => {
+describe('shelves and section flags (IN8)', () => {
+  it('shares resolved interior data and preserves shelf Maps on either face (IN10)', () => {
     for (const cabinetStyleId of [13, 14]) {
       const room = roomWith([
         { id: 'a', face: stack(face('drawer_front', { size: 5.875 }), face()),
@@ -123,7 +123,7 @@ describe('IN8 shelves and section flags', () => {
     }
   });
 
-  it('anchor 1: sizes one base shelf from the clear section and enables both flags', () => {
+  it('sizes one base shelf from the clear section and enables both flags', () => {
     const args = input();
     expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r',
       edges: { left: 'box', right: 'box', top: 'box', bottom: 'box' } }]);
@@ -135,13 +135,13 @@ describe('IN8 shelves and section flags', () => {
     expect(args).toEqual(before);
   });
 
-  it('IN8.2: deducts shelf clearance on both sides of a 30-inch section', () => {
+  it('deducts shelf clearance on both sides of a 30-inch section (IN8.2)', () => {
     const args = input({ width: 31.5, settings: { ...settings, shelfWidthClearance: 0.25 } });
     expect(args.interior.sections[0].width).toBe(30);
     expect(sectionShelves(args).get('r').width).toBe(29.5);
   });
 
-  it('anchor 2: leaves a 23 9/16 shelf zone below the top drawer space', () => {
+  it('leaves a 23 9/16 shelf zone below the top drawer space', () => {
     const args = input({ leaf: { face: stack(face('drawer_front', { size: 5.875 }), face()) },
       reveals: { ...euro, top: 0.25 } });
     expect(args.interior.dividers).toEqual([]);
@@ -150,17 +150,17 @@ describe('IN8 shelves and section flags', () => {
     expect(sectionShelves(args).get('r')).toMatchObject({ count: 1, zone: { z: 0.75, height: 23.5625 } });
   });
 
-  it('anchor 3: three drawer fronts have no shelves, hinge plates or line bore', () => {
+  it('three drawer fronts have no shelves, hinge plates or line bore', () => {
     expect(root({ width: 18, leaf: { face: stack(face('drawer_front'), face('drawer_front'), face('drawer_front')) } }))
       .toMatchObject({ count: 0, hinges: false, lineBore: false, positions: [], warnings: [] });
   });
 
-  it('anchor 4: sizes an upper pair-door shelf using its 28 1/2 clear height and 11 depth', () => {
+  it('sizes an upper pair-door shelf using its 28 1/2 clear height and 11 depth', () => {
     expect(root({ width: 30, height: 30, depth: 12, leaf: { face: face('pair_door') } }))
       .toMatchObject({ zone: { z: 0.75, height: 28.5 }, count: 1, width: 28.375, depth: 10.875 });
   });
 
-  it('anchor 5: wide pairs partition unless cabinet nosing supplies the full-width shelf', () => {
+  it('wide pairs partition unless cabinet nosing supplies the full-width shelf', () => {
     const plain = input({ width: 42, leaf: { face: face('pair_door') } });
     expect(plain.interior.dividers).toMatchObject([{ kind: 'partition', seam: 'r:pair' }]);
     expect(plain.interior.sections.map(({ width }) => width)).toEqual([19.875, 19.875]);
@@ -180,13 +180,13 @@ describe('IN8 shelves and section flags', () => {
       .interior.dividers).toHaveLength(1);
   });
 
-  it('anchor 6: a sink pair keeps hinge plates with no shelves or line bore', () => {
+  it('a sink pair keeps hinge plates with no shelves or line bore', () => {
     expect(root({ width: 36, leaf: { purpose: 'sink', face: face('pair_door') } }))
       .toMatchObject({ count: 0, hinges: true, lineBore: false });
     for (const purpose of ['cooktop', 'oven']) expect(root({ leaf: { purpose } }).count).toBe(0);
   });
 
-  it('anchor 7: a face frame base uses the raised deck and a 28 1/4 shelf zone', () => {
+  it('a face frame base uses the raised deck and a 28 1/4 shelf zone', () => {
     const room = roomWith([{ id: 'c', face: face(), style: { cabinetStyleId: 14 } }]);
     const resolved = wallShelves(room, room.walls[0], 'front', settings).get('c').get('r');
     expect(resolved).toMatchObject({ zone: { z: 5.5, height: 28.25 }, count: 1 });
@@ -194,7 +194,7 @@ describe('IN8 shelves and section flags', () => {
     expect(resolved.zone.z + resolved.zone.height - 4).toBe(29.75);
   });
 
-  it('IN8.2: auto count keeps at least the minimum clear between shelves', () => {
+  it('auto count keeps at least the minimum clear between shelves (IN8.2)', () => {
     // 11" minimum. Clear zone → count: base 29 → 1, tall top 78 9/16 → 5 (not 6), upper 76 1/2 → 5, upper 57 → 3 (not 4).
     const count = (height) => sectionShelves({ ...input(), interior: { ...input().interior,
       sections: input().interior.sections.map((section) => ({ ...section, height })) } }).get('r');
@@ -202,7 +202,7 @@ describe('IN8 shelves and section flags', () => {
     expect(count(78.5625).positions[0] - count(78.5625).zone.z).toBeCloseTo(12.46875, 9);
   });
 
-  it('anchor 8: spaces typed shelves with equal clear gaps and warns below three inches', () => {
+  it('spaces typed shelves with equal clear gaps and warns below three inches', () => {
     const three = root({ leaf: { interior: { shelves: { count: 3 } } } });
     expect(three).toMatchObject({ count: 3, countSource: 'manual', warnings: [],
       positions: [7.4375, 14.875, 22.3125] });
@@ -362,7 +362,7 @@ describe('IN8 shelves and section flags', () => {
   });
 });
 
-describe('IN13b shoe shelves', () => {
+describe('shoe shelves (IN13b)', () => {
   const shoeRoot = (shoe, { leaf = {}, ...options } = {}) => root({ ...options,
     leaf: { ...leaf, interior: { ...leaf.interior, shelves: { ...leaf.interior?.shelves, shoe } } } });
   const closeArray = (actual, expected) => {
@@ -370,7 +370,7 @@ describe('IN13b shoe shelves', () => {
     expected.forEach((value, index) => expect(actual[index]).toBeCloseTo(value, 5));
   };
 
-  it('anchor 1: resolves two hardwood shoe shelves and the flat zone above their nosing', () => {
+  it('resolves two hardwood shoe shelves and the flat zone above their nosing', () => {
     const args = input({ leaf: { interior: { shelves: { shoe: 2 } } } });
     const before = structuredClone(args);
     const entry = sectionShelves(args).get('r');
@@ -388,7 +388,7 @@ describe('IN13b shoe shelves', () => {
     expect(args).toEqual(before);
   });
 
-  it('anchor 2: computes auto flat shelves in the zone above four tall-cabinet shoe shelves', () => {
+  it('computes auto flat shelves in the zone above four tall-cabinet shoe shelves', () => {
     const entry = shoeRoot(4, { height: 84 });
     expect(root({ height: 84 }).count).toBe(6);
     closeArray(entry.shoe.positions, [0.75, 8.283511, 15.817022, 23.350533]);
@@ -401,7 +401,7 @@ describe('IN13b shoe shelves', () => {
     expect(entry.warnings).toEqual([]);
   });
 
-  it('anchor 3: warns about shoe clearance using the typed flat count gap', () => {
+  it('warns about shoe clearance using the typed flat count gap', () => {
     const entry = shoeRoot(4, { height: 84, leaf: { interior: { shelves: { count: 8 } } } });
     expect(entry).toMatchObject({ count: 8, countSource: 'manual' });
     expect(entry.gap).toBeCloseTo(5.818440, 5);
@@ -413,7 +413,7 @@ describe('IN13b shoe shelves', () => {
     expect(crowded.warnings.at(-1).clear).toBe(0);
   });
 
-  it('anchor 4: warns when the shoe-only stack leaves less than six inches above it', () => {
+  it('warns when the shoe-only stack leaves less than six inches above it', () => {
     const entry = shoeRoot(4);
     expect(entry).toMatchObject({ count: 0, gap: null });
     expect(entry.shoe.top).toBeCloseTo(24.884044, 5);
@@ -423,26 +423,26 @@ describe('IN13b shoe shelves', () => {
     expect(entry.warnings[0].clear).toBeCloseTo(4.865956, 5);
   });
 
-  it('anchor 5: retains an overflowing typed stack and clamps the flat zone and clearance', () => {
+  it('retains an overflowing typed stack and clamps the flat zone and clearance', () => {
     const entry = shoeRoot(5);
     expect(entry.shoe.top).toBeCloseTo(32.417554, 5);
     expect(entry).toMatchObject({ zone: { z: 29.75, height: 0 }, count: 0,
       warnings: [{ code: 'shoe-shelves-tight', clear: 0 }] });
   });
 
-  it('anchor 6: keeps shoe shelves solid with nosing when flat shelves are glass', () => {
+  it('keeps shoe shelves solid with nosing when flat shelves are glass', () => {
     const entry = shoeRoot(2, { leaf: { interior: { shelves: { glass: true } } } });
     expect(entry).toMatchObject({ thickness: 0.25, glass: true, nosing: null });
     expect(entry.shoe).toMatchObject({ thickness: 0.75, nosing: { kind: 'hardwood' } });
   });
 
-  it('anchor 7: inherits folded nosing and its extra ordered depth', () => {
+  it('inherits folded nosing and its extra ordered depth', () => {
     const entry = shoeRoot(2, { leaf: { shelves: { nosing: 'folded' } } });
     expect(entry.shoe.nosing.kind).toBe('folded');
     expect(entry.shoe.orderedDepth).toBeCloseTo(25.067206, 5);
   });
 
-  it('anchor 8: honors typed shoe shelves for appliance sections, missing shelf faces and whole accessories', () => {
+  it('honors typed shoe shelves for appliance sections, missing shelf faces and whole accessories', () => {
     for (const purpose of ['sink', 'cooktop', 'oven']) {
       expect(shoeRoot(2, { leaf: { purpose } })).toMatchObject({ shoe: { count: 2 }, count: 0, lineBore: true });
     }
@@ -453,18 +453,18 @@ describe('IN13b shoe shelves', () => {
     }
   });
 
-  it('anchor 9: preserves a manual line bore override on a shoe-only section', () => {
+  it('preserves a manual line bore override on a shoe-only section', () => {
     expect(shoeRoot(2, { leaf: { interior: { lineBore: false } } }))
       .toMatchObject({ count: 0, lineBore: false, lineBoreSource: 'manual' });
   });
 
-  it('anchor 10: reduces to flat geometry at a zero-degree slope', () => {
+  it('reduces to flat geometry at a zero-degree slope', () => {
     const { shoe } = shoeRoot(1, { settings: { ...settings, shoeShelfAngle: 0 } });
     for (const [key, value] of Object.entries({ angle: 0, depth: 22.875, rise: 0.75,
       pitch: 7.5, nosingTop: 1.5, frontHeight: 1.5 })) expect(shoe[key]).toBeCloseTo(value, 5);
   });
 
-  it('anchor 11: adds only shoe: null when shoe shelves are absent or zero', () => {
+  it('adds only shoe: null when shoe shelves are absent or zero', () => {
     const absent = root();
     expect(absent.shoe).toBeNull();
     expect(shoeRoot(0)).toEqual(absent);

@@ -17,8 +17,8 @@ import { wallSideFrame } from '../wallSides.js';
 const byId = (room, id) => room.walls.find((entry) => entry.id === id);
 const target = { hostId: 'wall-3', side: 'back', x: 85 };
 
-describe('WL2 a: existing wall ends and near misses', () => {
-  it('anchor 1: finds only wall-2 two inches from the back face in K2', () => {
+describe('existing wall ends and near misses (WL2)', () => {
+  it('finds only wall-2 two inches from the back face in K2', () => {
     expect(NEAR_MISS_DISTANCE).toBe(6);
     expect(wallSideFrame(K2, byId(K2, 'wall-3'), 'back')).toMatchObject({
       leftPoint: { x: -123.5, y: 13.5 },
@@ -34,7 +34,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     }]);
   });
 
-  it('anchor 2: excludes landed ends and gaps past six inches', () => {
+  it('excludes landed ends and gaps past six inches', () => {
     expect(wallNearMisses(K)).toEqual([]);
     const farther = {
       ...K2,
@@ -57,7 +57,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     }]);
   });
 
-  it('anchor 4: rejects an end whose thickness extends past the face', () => {
+  it('rejects an end whose thickness extends past the face', () => {
     const withWing = {
       ...K2,
       walls: [...K2.walls, wall({
@@ -96,7 +96,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     }
   });
 
-  it('anchor 5: lands the free end without flipping or moving the other walls', () => {
+  it('lands the free end without flipping or moving the other walls', () => {
     const result = landEndpointOnFace(K2, 'wall-2', 'end', target);
     expect(result).toMatchObject({ ok: true, reason: null, message: null });
     expect(byId({ walls: result.walls }, 'wall-2')).toMatchObject({
@@ -114,7 +114,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
       .toEqual(byId({ walls: result.walls }, 'wall-2'));
   });
 
-  it('anchor 6: a flipped wall stays flipped, measuring from the other edge', () => {
+  it('a flipped wall stays flipped, measuring from the other edge', () => {
     const flipped = {
       ...K2,
       walls: K2.walls.map((entry) => entry.id === 'wall-2'
@@ -130,7 +130,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     expect(landingLabel(flipped, result.landing)).toBe('34 1/2" from Free end');
   });
 
-  it('anchor 7: rejects off-face, parallel, and nonfree ends without editing walls', () => {
+  it('rejects off-face, parallel, and nonfree ends without editing walls', () => {
     for (const [endpoint, face, reason, message] of [
       ['end', { ...target, x: 130 }, 'off-face', 'Wall 2 would miss the end of Wall 3.'],
       ['end', { hostId: 'wall-4', side: 'front', x: 10 },
@@ -143,7 +143,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     }
   });
 
-  it('anchor 8: rejects landing onto a wall already landed on this one', () => {
+  it('rejects landing onto a wall already landed on this one', () => {
     const withWing = {
       ...K,
       walls: [...K.walls, wall({
@@ -161,7 +161,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     });
   });
 
-  it('anchor 9: snaps along the dragged line only to the facing back face', () => {
+  it('snaps along the dragged line only to the facing back face', () => {
     const options = { excludeWallId: 'wall-2', from: { x: -38.5, y: 83.5 } };
     for (const y of [16, 11]) {
       expect(snapToWallFace(K2, { x: -38.5, y }, 6, options)).toEqual({
@@ -171,7 +171,7 @@ describe('WL2 a: existing wall ends and near misses', () => {
     expect(snapToWallFace(K2, { x: -38.5, y: 25 }, 6, options)).toBeNull();
   });
 
-  it('anchor 10: without options retains the projection snap', () => {
+  it('without options retains the projection snap', () => {
     expect(snapToWallFace(K2, { x: -38.5, y: 16 }, 6)).toEqual({
       wallId: 'wall-2', side: 'front', x: 67.5, point: { x: -38.5, y: 16 },
     });

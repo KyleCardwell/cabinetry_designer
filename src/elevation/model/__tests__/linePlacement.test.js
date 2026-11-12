@@ -22,7 +22,7 @@ const openingOf = (state, id = 'W') => wallOf(state).openings.find((candidate) =
 const geometryOf = (state, id = 'W') => openingGeometry(openingOf(state, id), wallOf(state).x2, settings);
 const jambX = (state, id) => geometryOf(state, id).jamb.x;
 
-describe('LL3 openings placed by layout lines', () => {
+describe('openings placed by layout lines (LL3)', () => {
   it('1–2. centres the window on a line from either end', () => {
     const left = synced({ lines: [line('L1', 100)], openings: [windowW({ attach: attach('L1') })] });
     expect(jambX(left)).toBe(82);
@@ -34,7 +34,7 @@ describe('LL3 openings placed by layout lines', () => {
     expect(openingOf(right).offset).toBe(122);
   });
 
-  it('3. keeps the opening’s own readout terms', () => {
+  it('keeps the opening’s own readout terms', () => {
     const state = synced({
       lines: [line('L1', 100)],
       openings: [windowW({ offsetFrom: 'right', offsetAnchor: 'center', offset: 198, attach: attach('L1') })],
@@ -55,28 +55,28 @@ describe('LL3 openings placed by layout lines', () => {
     expect(openingOf(casing).offset).toBe(58);
   });
 
-  it('6. mirrors a back-face line', () => {
+  it('mirrors a back-face line', () => {
     const state = synced({
       lines: [line('B', 30, { wallSide: 'back' })], openings: [windowW({ attach: attach('B', 'left', 2) })],
     });
     expect(jambX(state)).toBe(172);
   });
 
-  it('7. follows a right-measured line when the wall length changes', () => {
+  it('follows a right-measured line when the wall length changes', () => {
     const lines = [line('L1', 99, { from: 'right' })];
     const openings = [windowW({ attach: attach('L1') })];
     expect(openingOf(synced({ length: 235, lines, openings })).offset).toBe(118);
     expect(openingOf(synced({ length: 240, lines, openings })).offset).toBe(123);
   });
 
-  it('10. does not clamp a window pushed off the wall', () => {
+  it('does not clamp a window pushed off the wall', () => {
     const state = synced({ lines: [line('L1', 10)], openings: [windowW({ attach: attach('L1') })] });
     expect(jambX(state)).toBe(-8);
     const resolved = { ...wallOf(state), length: 240 };
     expect(validateOpeningPlacement(resolved, openingOf(state), settings).reason).toBe('opening-out-of-bounds');
   });
 
-  it('11. numbers windows after placing them', () => {
+  it('numbers windows after placing them', () => {
     const state = synced({
       lines: [line('L1', 180)],
       openings: [
@@ -89,7 +89,7 @@ describe('LL3 openings placed by layout lines', () => {
     expect(openingOf(state, 'Wa').label).toBe('W2');
   });
 
-  it('12. runs anchored to the casing follow the line', () => {
+  it('runs anchored to the casing follow the line', () => {
     const anchored = (value) => synced({
       lines: [line('L1', value)],
       openings: [windowW({ attach: attach('L1') })],
@@ -103,7 +103,7 @@ describe('LL3 openings placed by layout lines', () => {
     expect(rightEdge(anchored(110))).toBe(89);
   });
 
-  it('13. leaves rooms without attachments alone', () => {
+  it('leaves rooms without attachments alone', () => {
     expect(placeAttachedOpenings(room8, settings)).toBe(room8);
     const state = synced({ lines: [line('L1', 100)], openings: [windowW({ attach: attach('L1') })] });
     expect(placeAttachedOpenings(state, settings)).toBe(state);

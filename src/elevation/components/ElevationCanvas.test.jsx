@@ -173,7 +173,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('anchor 1: M moves a selected cabinet’s run by +20.3 inches, rounds the preview and commits on click', () => {
+it('M moves a selected cabinet’s run by +20.3 inches, rounds the preview and commits on click', () => {
   key('m');
   expect(active()).toBe(true);
   expect(tree[0].props.style.cursor).toBe('move');
@@ -190,7 +190,7 @@ it('anchor 1: M moves a selected cabinet’s run by +20.3 inches, rounds the pre
   expect(tree[0].props.style.cursor).not.toBe('move');
 });
 
-it('anchor 2: typing 20 then Enter moves to x 32 exactly, and typed fractions bypass rounding', () => {
+it('typing 20 then Enter moves to x 32 exactly, and typed fractions bypass rounding', () => {
   key('M');
   type('20');
   expect(previewX()).toBe(32);

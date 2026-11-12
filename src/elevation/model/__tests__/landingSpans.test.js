@@ -4,7 +4,7 @@ import { K } from '../../../test/fixtures/landingRoomK.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { landingSpans } from '../index.js';
 
-it('anchor 1: Room K has the two back spans and no front spans', () => {
+it('Room K has the two back spans and no front spans', () => {
   expect(landingSpans(K, K.walls[2], 'back', DEFAULT_SETTINGS)).toEqual([
     { start: 0, end: 80.5, wallId: 'wall-2', endpoint: 'end', ref: 'left' },
     { start: 85, end: 124, wallId: 'wall-2', endpoint: 'end', ref: 'right' },

@@ -90,8 +90,8 @@ const spans = (chain) => chain.map(({ kind, start, end, runIds }) => (
   runIds ? [kind, start, end, runIds] : [kind, start, end]
 ));
 
-describe('DM3 step a elevation rows', () => {
-  it('anchor 1: touching runs are one run-row segment, then the open space and the next run', () => {
+describe('elevation rows (DM3)', () => {
+  it('touching runs are one run-row segment, then the open space and the next run', () => {
     const { room, wall } = anchorRoom();
     const { outer } = horizontalChains(room, wall, 'lower', S);
     expect(spans(outer)).toEqual([
@@ -102,7 +102,7 @@ describe('DM3 step a elevation rows', () => {
     expect(outer[0].runId).toBe('tall');
   });
 
-  it('anchor 2: the piece row holds the three runs\' pieces only, with nothing across 84–120', () => {
+  it('the piece row holds the three runs\' pieces only, with nothing across 84–120', () => {
     const { room, wall } = anchorRoom();
     const { inner } = horizontalChains(room, wall, 'lower', S);
     expect(inner.length).toBeGreaterThan(3);
@@ -115,7 +115,7 @@ describe('DM3 step a elevation rows', () => {
     expect(inner.at(-1).end).toBe(156);
   });
 
-  it('anchor 3: the upper run row keeps the tall span and merges the touching uppers', () => {
+  it('the upper run row keeps the tall span and merges the touching uppers', () => {
     const { room, wall } = anchorRoom();
     expect(spans(horizontalChains(room, wall, 'upper', S).outer)).toEqual([
       ['tall-span', 0, 24],
@@ -125,7 +125,7 @@ describe('DM3 step a elevation rows', () => {
     ]);
   });
 
-  it('anchor 4: the wall row carries the overall; no openings row on a face with runs', () => {
+  it('the wall row carries the overall; no openings row on a face with runs', () => {
     const { room, wall } = anchorRoom();
     expect(wallRow(room, wall, S)).toEqual([{ start: 0, end: 156, kind: 'wall' }]);
     expect(openingChain(room, wall, S)).toEqual([]);
@@ -137,7 +137,7 @@ describe('DM3 step a elevation rows', () => {
       .toEqual([[0, 156, '156']]);
   });
 
-  it('anchor 5: a run corner to corner is the whole run row and leaves out the wall row (Wall 2)', () => {
+  it('a run corner to corner is the whole run row and leaves out the wall row (Wall 2)', () => {
     const link = (wallId, endpoint) => ({ wallId, endpoint });
     const room = syncRoom({
       id: 'K',
@@ -163,7 +163,7 @@ describe('DM3 step a elevation rows', () => {
     expect(wallRow(room, wall, S, outer)).toEqual([]);
   });
 
-  it('anchor 6: a face with no runs and a door keeps its openings row and has no wall row', () => {
+  it('a face with no runs and a door keeps its openings row and has no wall row', () => {
     const door = {
       ...windowOpening, id: 'door-1', kind: 'door', label: 'D1', measureMode: 'jamb', width: 36, height: 80,
       sillZ: 0, offset: 24,

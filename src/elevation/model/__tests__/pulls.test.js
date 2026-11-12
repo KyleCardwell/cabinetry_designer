@@ -6,7 +6,7 @@ import {
 import { copySettings } from '../../store/slices/helpers.js';
 import { BUILT_IN_SLIDES, isSlide, newSlide } from '../slides.js';
 
-it('LP1 anchor 1: requires fixed-unit pricing fields on built-in pulls and slides', () => {
+it('requires fixed-unit pricing fields on built-in pulls and slides (LP1)', () => {
   for (const [items, validate] of [[BUILT_IN_PULLS, isPull], [BUILT_IN_SLIDES, isSlide]]) {
     for (const item of items) {
       expect(validate(item)).toBe(true);
@@ -30,7 +30,7 @@ it('LP1 anchor 1: requires fixed-unit pricing fields on built-in pulls and slide
   }
 });
 
-it('LP1 copies pricing and independent labor for new pulls and slides', () => {
+it('copies pricing and independent labor for new pulls and slides (LP1)', () => {
   for (const [items, copy] of [[BUILT_IN_PULLS, newPull], [BUILT_IN_SLIDES, newSlide]]) {
     const base = { ...items[0], price: 12, actualCost: 8, labor: { '7': 4 } };
     const created = copy(items, base, 'priced-copy');
@@ -48,8 +48,8 @@ const BAR = {
 const KNOB = { id: 'k', name: 'Knob', kind: 'knob', diameter: 1.25, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} };
 const TAB = { id: 't', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} };
 
-describe('HP3b step a pull model', () => {
-  it('validates bar sizes, optional centers and the estimator link (anchor 1)', () => {
+describe('pull model (HP3b)', () => {
+  it('validates bar sizes, optional centers and the estimator link', () => {
     const withoutCenters = { ...BAR };
     delete withoutCenters.centers;
     expect(isPull(BAR)).toBe(true);
@@ -62,7 +62,7 @@ describe('HP3b step a pull model', () => {
     ]) expect(isPull({ ...BAR, ...patch })).toBe(false);
   });
 
-  it('requires the exact sizes for knobs and tabs and finite positive sizes for every kind (anchor 2)', () => {
+  it('requires the exact sizes for knobs and tabs and finite positive sizes for every kind', () => {
     expect(isPull(KNOB)).toBe(true);
     expect(isPull(TAB)).toBe(true);
     const withoutProjection = { ...KNOB };
@@ -88,7 +88,7 @@ describe('HP3b step a pull model', () => {
     }
   });
 
-  it('requires unique identities and case-insensitive names plus both built-in kinds (anchor 3)', () => {
+  it('requires unique identities and case-insensitive names plus both built-in kinds', () => {
     expect(isPullList(BUILT_IN_PULLS)).toBe(true);
     expect(isPullList([...BUILT_IN_PULLS, BAR, TAB])).toBe(true);
     expect(isPullList(BUILT_IN_PULLS.map((pull) => ({ ...pull, name: `${pull.name} edited`, projection: 2 })))).toBe(true);
@@ -102,7 +102,7 @@ describe('HP3b step a pull model', () => {
     ]) expect(isPullList(list)).toBe(false);
   });
 
-  it('copies kind and sizes with a fresh identity, unique name and cleared estimator link (anchor 4)', () => {
+  it('copies kind and sizes with a fresh identity, unique name and cleared estimator link', () => {
     const before = structuredClone(BUILT_IN_PULLS);
     const copy = newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'x');
     expect(copy).toEqual({

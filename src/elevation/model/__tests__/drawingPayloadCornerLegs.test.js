@@ -16,7 +16,7 @@ const key = 'corner-leg:wall-1:run-1:left';
 const faceId = `${key}:r`;
 const rect = ({ x, z, width, height }) => ({ x, z, width, height });
 
-describe('CC5 step d return corner elevation payload', () => {
+describe('return corner elevation payload (CC5)', () => {
   let subject, ownerWall, returnWall, owner;
   const settings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125 };
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('CC5 step d return corner elevation payload', () => {
   const payload = () => cornerLegPayload(subject, resolveWall(subject, returnWall), settings);
   const draw = () => faceDrawing(subject, returnWall, 'front', settings);
 
-  it('anchor 1: exports the 90 leg, edge-on panel and B face with their own depths and ids', () => {
+  it('exports the 90 leg, edge-on panel and B face with their own depths and ids', () => {
     const before = structuredClone(subject);
     const box = runScene(subject, ownerWall, owner, settings).faceLayouts.get('cc').box;
     expect(payload().parts.filter(({ kind }) => !['countertop', 'toe_kick'].includes(kind))).toEqual([
@@ -55,7 +55,7 @@ describe('CC5 step d return corner elevation payload', () => {
     expect(subject).toEqual(before);
   });
 
-  it('anchor 2: references drawn faces and keeps pull centres and swing endpoints on the B door', () => {
+  it('references drawn faces and keeps pull centres and swing endpoints on the B door', () => {
     const drawing = draw();
     const face = drawing.parts.find(({ id }) => id === faceId);
     const ids = new Set(drawing.parts.map(({ id }) => id));
@@ -77,7 +77,7 @@ describe('CC5 step d return corner elevation payload', () => {
     ]);
   });
 
-  it('anchor 3: exports the 45 projection with squashed details and pull centres', () => {
+  it('exports the 45 projection with squashed details and pull centres', () => {
     owner.ends.left.corner.kind = 45;
     const scene = runScene(subject, ownerWall, owner, settings);
     const { squash } = scene.faceLayouts.get('cc').cornerReturn;
@@ -102,7 +102,7 @@ describe('CC5 step d return corner elevation payload', () => {
     });
   });
 
-  it('anchor 4: exports a face-on filler and omits the panel when a return run covers it', () => {
+  it('exports a face-on filler and omits the panel when a return run covers it', () => {
     owner.ends.left.corner.returnPiece = 'filler';
     expect(payload().parts.find(({ id }) => id === `${key}:panel`)).toEqual({
       id: `${key}:panel`, kind: 'filler', runId: owner.id, x: 106.5, width: 1.5,
@@ -114,13 +114,13 @@ describe('CC5 step d return corner elevation payload', () => {
     expect(payload().parts.some(({ id }) => id === `${key}:panel`)).toBe(false);
   });
 
-  it('anchor 5: exports an explicit B panel as a face without a pull', () => {
+  it('exports an explicit B panel as a face without a pull', () => {
     owner.ends.left.corner.legBFace = 'panel';
     expect(payload().parts.find(({ id }) => id === faceId)).toMatchObject({ kind: 'face' });
     expect(payload().pulls).toEqual([]);
   });
 
-  it('anchor 6: excludes the owner face, opposite return face and inactive corners', () => {
+  it('excludes the owner face, opposite return face and inactive corners', () => {
     const empty = { parts: [], doorDetails: [], swingMarks: [], pulls: [] };
     expect(cornerLegPayload(subject, resolveWall(subject, ownerWall), settings)).toEqual(empty);
     expect(cornerLegPayload(subject, resolveWall(subject, returnWall, 'back'), settings)).toEqual(empty);
@@ -128,7 +128,7 @@ describe('CC5 step d return corner elevation payload', () => {
     expect(payload()).toEqual(empty);
   });
 
-  it('anchor 7: includes the leg once with unique ids in a combined return elevation', () => {
+  it('includes the leg once with unique ids in a combined return elevation', () => {
     const continuation = wall({ id: 'wall-3', x1: 0, y1: 288, x2: 0, y2: 144, elevationForced: true });
     subject.walls.push(continuation);
     subject.wallOrder.push(continuation.id);
@@ -144,7 +144,7 @@ describe('CC5 step d return corner elevation payload', () => {
     }
   });
 
-  it('anchor 8: adds no records to rooms without corner ends', () => {
+  it('adds no records to rooms without corner ends', () => {
     owner.ends.left = { type: 'none' };
     expect(payload()).toEqual({ parts: [], doorDetails: [], swingMarks: [], pulls: [] });
     expect(draw().parts.some(({ id }) => id.startsWith('corner-leg:'))).toBe(false);
@@ -174,7 +174,7 @@ describe('CC5 step d return corner elevation payload', () => {
     }
   });
 
-  it('CC7 anchor 1: exports the E90 countertop and toe kick with owner ids and leg depths', () => {
+  it('exports the E90 countertop and toe kick with owner ids and leg depths (CC7)', () => {
     const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const synced = syncRoom(subject, S);
     const parts = faceDrawing(synced, synced.walls[1], 'front', S).parts
@@ -190,7 +190,7 @@ describe('CC5 step d return corner elevation payload', () => {
     for (const part of parts) expect(part).not.toHaveProperty('top');
   });
 
-  it('CC7 anchor 2: carries the E45 countertop turn line through the return payload', () => {
+  it('carries the E45 countertop turn line through the return payload (CC7)', () => {
     owner.ends.left.corner.kind = 45;
     const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const synced = syncRoom(subject, S);

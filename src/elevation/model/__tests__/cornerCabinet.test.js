@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cornerCabinetShape, cornerFaceLayout } from '../cornerCabinet.js';
 
-describe('CC6.1 step a Euro 45 box and door fit', () => {
+describe('Euro 45 box and door fit (CC6.1)', () => {
   const base = { kind: 45, legA: 36, legB: 36, depthA: 24, depthB: 24,
     construction: 'euro', sideThickness: 0.75, doorThickness: 13 / 16,
     offsetA: 0.875, offsetB: 0.875, sideReveal: 1 / 16, diagonalReveal: 1 / 8 };
@@ -84,7 +84,7 @@ describe('CC6.1 step a Euro 45 box and door fit', () => {
   });
 });
 
-describe('CC1 step b cornerCabinetShape', () => {
+describe('cornerCabinetShape (CC1)', () => {
   it.each([
     ['upper', 24, 12],
     ['base', 36, 24],
@@ -166,12 +166,12 @@ describe('CC1 step b cornerCabinetShape', () => {
   });
 });
 
-describe('CC3.1 step b cornerFaceLayout', () => {
+describe('cornerFaceLayout (CC3.1)', () => {
   const base = { kind: 90, legA: 36, legB: 36, depthA: 24, depthB: 24,
     offsetA: 0.875, offsetB: 0.875, sideReveal: 1 / 16, gap: 1 / 8,
     diagonalReveal: 1 / 8, doors: 'equal' };
 
-  it('anchor 1: equal 90 doors clear the other face and gap', () => {
+  it('equal 90 doors clear the other face and gap', () => {
     expect(cornerFaceLayout(base)).toEqual({
       a: { cornerReveal: 1 }, b: { cornerReveal: 1 }, shown: { a: 11.125, b: 11.125 },
     });
@@ -185,7 +185,7 @@ describe('CC3.1 step b cornerFaceLayout', () => {
     });
   });
 
-  it('anchor 3: uneven 90 doors retain independent shown widths', () => {
+  it('uneven 90 doors retain independent shown widths', () => {
     expect(cornerFaceLayout({ ...base, legB: 30, depthB: 15 })).toEqual({
       a: { cornerReveal: 1 }, b: { cornerReveal: 1 }, shown: { a: 20.125, b: 5.125 },
     });
@@ -207,7 +207,7 @@ describe('CC3.1 step b cornerFaceLayout', () => {
     ]) expect(actual).toBeCloseTo(expected, 3);
   });
 
-  it('anchor 7: a sixteenth diagonal reveal orders the next eighth wider', () => {
+  it('a sixteenth diagonal reveal orders the next eighth wider', () => {
     const result = cornerFaceLayout({ ...base, kind: 45, diagonalReveal: 1 / 16 });
     expect(result.ordered).toBeCloseTo(15.6875, 3);
     expect(result.reveal).toBeCloseTo(0.067, 3);

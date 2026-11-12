@@ -23,8 +23,8 @@ const allBorders = [true, true, true, true];
 const document = (overrides = {}, copyIds = ['master']) => shippingListDocument(list, { ...header, ...overrides }, copyIds);
 const titleRows = (node) => node.table.body[0][0].table.body;
 
-describe('RP2 step g shipping list PDF definition', () => {
-  it('builds one complete table per copy in canonical order (anchor 1)', () => {
+describe('shipping list PDF definition (RP2)', () => {
+  it('builds one complete table per copy in canonical order', () => {
     const before = structuredClone({ list, header });
     const definition = document({}, ['order', 'master']);
     expect(definition).toMatchObject({
@@ -45,7 +45,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(document({}, ['order', 'order', 'unknown']).content).toHaveLength(1);
   });
 
-  it('centers and shades all six bold bordered headings (anchor 2)', () => {
+  it('centers and shades all six bold bordered headings', () => {
     expect(document().content[0].table.body[1]).toEqual(
       ['Part #', 'Built', 'Shipped', 'Description', 'Notes', 'Size'].map((text) => ({
         text, alignment: 'center', bold: true, fillColor: '#D9D9D9', border: allBorders,
@@ -53,7 +53,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     );
   });
 
-  it('borders every body cell, stacks notes and leaves checkboxes and shelf numbers blank (anchors 3, 4)', () => {
+  it('borders every body cell, stacks notes and leaves checkboxes and shelf numbers blank', () => {
     const rows = document().content[0].table.body.slice(2);
     expect(rows[0]).toEqual([
       { text: '1', alignment: 'center', border: allBorders },
@@ -67,7 +67,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     for (const row of rows) for (const cell of row) expect(cell.border).toEqual(allBorders);
   });
 
-  it('keeps mixed numbers together while allowing breaks at x in every copy (RP2.3 anchors 2, 5)', () => {
+  it('keeps mixed numbers together while allowing breaks at x in every copy (RP2.3)', () => {
     const sizes = [
       ['1 5/8 x 30 1/2 x 3 3/16', '1\u00a05/8 x\u00a030\u00a01/2 x\u00a03\u00a03/16'],
       ['34 15/16 x 30 1/2 x 23 15/16', '34\u00a015/16 x\u00a030\u00a01/2 x\u00a023\u00a015/16'],
@@ -85,7 +85,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(input).toEqual(before);
   });
 
-  it('preserves lineal feet, blank shelf sizes, integers and simple fractions (RP2.3 anchors 3, 4, 5)', () => {
+  it('preserves lineal feet, blank shelf sizes, integers and simple fractions (RP2.3)', () => {
     const sizes = ['Lineal Feet: 24', '', '24 x 30 x 3/4'];
     const input = { ...list, rows: sizes.map((size) => ({ ...list.rows[0], size })) };
     const rows = shippingListDocument(input, header, ['master']).content[0].table.body.slice(2);
@@ -94,7 +94,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     );
   });
 
-  it('builds the bold nested title with job, room, materials and right-aligned copy labels (anchor 7)', () => {
+  it('builds the bold nested title with job, room, materials and right-aligned copy labels', () => {
     const definition = document({}, [...COPIES.map(({ id }) => id)].reverse());
     definition.content.forEach((node, index) => {
       expect(node.table.body[0]).toEqual([
@@ -118,7 +118,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(titleRows(document({ jobNumber: '' }).content[0])[0][2].text).toBe('');
   });
 
-  it('adds the full-width red edgeband alert only when set (anchor 5)', () => {
+  it('adds the full-width red edgeband alert only when set', () => {
     const rows = titleRows(document({ edgebandAlert: 'EDGEBAND ALL SHELVES' }).content[0]);
     expect(rows).toHaveLength(7);
     expect(rows.at(-1)).toEqual([
@@ -129,7 +129,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     }
   });
 
-  it('ends each copy with a bold bordered room note only when set (anchor 6)', () => {
+  it('ends each copy with a bold bordered room note only when set', () => {
     const definition = shippingListDocument({ ...list, roomNote: 'Ship Fri' }, header, ['master', 'order']);
     for (const node of definition.content) {
       expect(node.table.body).toHaveLength(7);
@@ -144,7 +144,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     }
   });
 
-  it('uses the door form footer and border layout with page numbers restarting per copy (anchor 9)', () => {
+  it('uses the door form footer and border layout with page numbers restarting per copy', () => {
     const shipping = document({}, ['order', 'master']);
     const door = doorOrderDocument({ pages: [] }, header, ['order', 'master']);
     expect(shipping.footer(3, 4)).toEqual(door.footer(3, 4));
@@ -164,13 +164,13 @@ describe('RP2 step g shipping list PDF definition', () => {
     for (const property of ['paddingLeft', 'paddingRight']) expect(layout[property]()).toBe(4);
   });
 
-  it('shares the quarter-inch page margins with the door form (RP2.1 anchor 1)', () => {
+  it('shares the quarter-inch page margins with the door form (RP2.1)', () => {
     expect(PAGE_MARGINS).toEqual([18, 18, 18, 36]);
     expect(document().pageMargins).toBe(PAGE_MARGINS);
     expect(doorOrderDocument({ pages: [] }, header, ['order']).pageMargins).toBe(PAGE_MARGINS);
   });
 
-  it('disables inherited shipping borders while preserving the door form layout (RP2.2 anchors 1, 5)', () => {
+  it('disables inherited shipping borders while preserving the door form layout (RP2.2)', () => {
     expect(document().content[0].layout).toEqual({ ...BORDER_LAYOUT, defaultBorder: false });
     const door = doorOrderDocument({ pages: [{
       header: { style: 'Slab', thickness: '3/4' },
@@ -180,13 +180,13 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(door.content[0].layout).not.toHaveProperty('defaultBorder');
   });
 
-  it('builds and sanitizes shipping list filenames (anchor 8)', () => {
+  it('builds and sanitizes shipping list filenames', () => {
     expect(shippingListFileName({ job: 'Cardwell' }, 'Kitchen')).toBe('Cardwell - Kitchen - Main Shipping List.pdf');
     expect(shippingListFileName({ job: '' }, 'A/B')).toBe('Room - A-B - Main Shipping List.pdf');
     expect(shippingListFileName({ job: 'A<>:"' }, 'B\\|?*\n')).toBe('A---- - B----- - Main Shipping List.pdf');
   });
 
-  it('preserves plain fractions throughout all copies, headers, notes and footer (anchor 10)', () => {
+  it('preserves plain fractions throughout all copies, headers, notes and footer', () => {
     const definition = shippingListDocument({ ...list, roomNote: 'Scribe 3/4' }, {
       ...header, wood: '1 1/8 OAK', finish: '1/2 sheen', boxes: '3/4 MAPLE', edgebandAlert: '1/8 EDGEBAND',
     }, COPIES.map(({ id }) => id));

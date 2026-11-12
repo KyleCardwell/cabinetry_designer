@@ -49,7 +49,7 @@ beforeEach(() => {
   currentRoom = room({ walls: [currentWall] });
 });
 
-describe('AU10 step a auto inch fields', () => {
+describe('auto inch fields (AU10)', () => {
   // Wall Base proud is already pinned by furnitureBaseUI.test.jsx's Wall cases:
   // "switches base kind and saves the active furniture profile and proud" and
   // "inherits and clears proud, kind and profile picks according to scope".

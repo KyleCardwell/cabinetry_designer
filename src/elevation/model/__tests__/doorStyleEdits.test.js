@@ -8,7 +8,7 @@ const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', thickness: 1 };
 const { name, ...UNNAMED } = DEFAULT_DOOR_STYLE;
 void name;
 
-describe('RP1 b door style material', () => {
+describe('door style material (RP1)', () => {
   it('keeps material when copying team or room styles and changing designs', () => {
     for (const base of [DEFAULT_DOOR_STYLE, A]) {
       const original = { ...base, material: 'MAPLE/MDF' };
@@ -174,7 +174,7 @@ describe('SPEC-46.1 the room\'s door style list', () => {
 
 describe('Step 527 design defaults', () => {
   const [five, slab, mdf] = DOOR_DESIGNS;
-  it('sets MDF thickness and restores hardwood thickness without clearing other dimensions (anchor 7)', () => {
+  it('sets MDF thickness and restores hardwood thickness without clearing other dimensions', () => {
     const toMdf = applyDesignDefaults(DEFAULT_DOOR_STYLE, five, mdf);
     expect(toMdf).toEqual({ ...DEFAULT_DOOR_STYLE, designId: 'slab-mdf', thickness: 0.75 });
     expect([toMdf.stiles, toMdf.rails, toMdf.panel.thickness, toMdf.shortFace.slabBelow])
@@ -182,7 +182,7 @@ describe('Step 527 design defaults', () => {
     expect(applyDesignDefaults(toMdf, mdf, slab)).toEqual({ ...DEFAULT_DOOR_STYLE, designId: 'slab', thickness: 0.8125 });
   });
 
-  it('preserves hand-typed values for absent or equal defaults (anchor 8)', () => {
+  it('preserves hand-typed values for absent or equal defaults', () => {
     const typed = { ...DEFAULT_DOOR_STYLE, thickness: 1 };
     const custom = { ...five, id: 'd1', defaults: {} };
     expect(applyDesignDefaults(typed, five, custom)).toEqual({ ...typed, designId: 'd1' });

@@ -54,8 +54,8 @@ const shippingNames = ({ shipping }) => shipping.rows.filter(({ kind }) => kind 
 const segments = ({ chains }) => chains.map(({ inner }) => inner.filter(({ kind }) => kind === 'molding')
   .map(({ start, end }) => [start, end]));
 
-describe('DM4 step a crown and top mold picks', () => {
-  it('anchor 1: draws both picked moldings at the original heights without warnings', () => {
+describe('crown and top mold picks (DM4)', () => {
+  it('draws both picked moldings at the original heights without warnings', () => {
     const result = setup('cr45', 'tm3');
     expect(result.bands.topMold).toMatchObject({ z: 90, height: 3 });
     expect(result.bands.crown).toMatchObject({ z: 91.5, height: 4.5 });
@@ -65,7 +65,7 @@ describe('DM4 step a crown and top mold picks', () => {
     expect(segments(result)).toEqual([[[90, 96]], [[90, 96]]]);
   });
 
-  it('anchor 2: crown None draws only top mold and warns about the three-inch gap', () => {
+  it('crown None draws only top mold and warns about the three-inch gap', () => {
     const result = setup('none', 'tm3');
     expect(result.bands.crown).toBeNull();
     expect(result.bands.topMold).toMatchObject({ z: 90, height: 3 });
@@ -82,7 +82,7 @@ describe('DM4 step a crown and top mold picks', () => {
     }
   });
 
-  it('anchor 3: top mold None puts crown on the faces with no top mold number', () => {
+  it('top mold None puts crown on the faces with no top mold number', () => {
     const result = setup('cr45', 'none');
     expect(result.bands.topMold).toBeNull();
     expect(result.bands.crown).toMatchObject({ x: 15.5, z: 91.5, height: 4.5, width: 69 });
@@ -97,7 +97,7 @@ describe('DM4 step a crown and top mold picks', () => {
     expect(segments(result)).toEqual([[[90, 96]], [[90, 96]]]);
   });
 
-  it('anchor 4: both None omit bands, parts, numbers, shipping lines and molding warnings', () => {
+  it('both None omit bands, parts, numbers, shipping lines and molding warnings', () => {
     const result = setup('none', 'none');
     expect(result.bands.topMold).toBeNull();
     expect(result.bands.crown).toBeNull();
@@ -110,7 +110,7 @@ describe('DM4 step a crown and top mold picks', () => {
     expect(segments(result)).toEqual([[], []]);
   });
 
-  it('anchor 5: unpicked shop values inherit, warn and leave the box unchanged without drawing bands', () => {
+  it('unpicked shop values inherit, warn and leave the box unchanged without drawing bands', () => {
     for (const value of [null, undefined]) {
       const result = setup(value, value);
       expect(result.resolved.picked).toEqual({ crown: 'unpicked', topMold: 'unpicked' });
@@ -125,7 +125,7 @@ describe('DM4 step a crown and top mold picks', () => {
     }
   });
 
-  it('anchor 6: stored room/wall null inherits shop picks; topMold tops never draw crown', () => {
+  it('stored room/wall null inherits shop picks; topMold tops never draw crown', () => {
     const result = setup('cr45', 'tm3', { roomProfile: { crownProfileId: null, topMoldProfileId: null },
       wallProfile: { crownProfileId: null, topMoldProfileId: null } });
     expect(result.profile).toMatchObject({ crownProfileId: 'cr45', topMoldProfileId: 'tm3' });

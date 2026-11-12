@@ -15,8 +15,8 @@ const R = run({ x: 10, width: 36, legs });
 const W = wall({ runs: [R] });
 const ROOM = room({ walls: [W] });
 
-describe('SH7.4 step a square leg model', () => {
-  it('anchor 1: places Four square legs with one closed front rectangle and one plan rectangle', () => {
+describe('square leg model (SH7.4)', () => {
+  it('places Four square legs with one closed front rectangle and one plan rectangle', () => {
     const before = structuredClone(R);
     expect(isLegList(legs)).toBe(true);
     expect(legs.map(({ from, yFrom }) => [from, yFrom])).toEqual([
@@ -55,7 +55,7 @@ describe('SH7.4 step a square leg model', () => {
     expect(R).toEqual(before);
   });
 
-  it('anchors 2 and 8: uses per-leg dimensions before width and depth settings', () => {
+  it('uses per-leg dimensions before width and depth settings', () => {
     const picks = [
       [{ w: 2, d: 4 }, settings, { width: 2, back: 21.375, w: 2, d: 4 }],
       [{}, { ...settings, squareLegWidth: 4 }, { width: 4, back: 22.375, w: 4, d: 3 }],
@@ -71,19 +71,19 @@ describe('SH7.4 step a square leg model', () => {
     expect(legShapeOf({ shapeId: 'missing' }, settings)).toBeUndefined();
   });
 
-  it('anchor 3: stretches the whole square leg to the four-inch feet height', () => {
+  it('stretches the whole square leg to the four-inch feet height', () => {
     const [placed] = runLegs(ROOM, W, { ...R, legs: [{ ...legs[0], height: 'feet' }] }, settings);
     expect(placed).toMatchObject({ bounds: { z: 0, height: 4 }, size: { h: 4 }, warnings: [] });
     expect(placed.outlines[0].outline.map(([, z]) => z)).toEqual([0, 0, 4, 4]);
   });
 
-  it('anchor 4: reserves three inches at each run end unless the legs do not take room', () => {
+  it('reserves three inches at each run end unless the legs do not take room', () => {
     expect(legRoom(R, settings)).toEqual({ left: 3, right: 3 });
     expect(legRoom({ ...R, legs: legs.map((leg) => ({ ...leg, takesRoom: false })) }, settings))
       .toEqual({ left: 0, right: 0 });
   });
 
-  it('anchor 5: fills between the front and back square legs using their depths', () => {
+  it('fills between the front and back square legs using their depths', () => {
     const spec = { square, height: 'full', x: 0, y: 0 };
     const filled = { ...R, legs: undefined, ends: noEnds, endLegs: {
       left: { legs: 'both', front: { ...spec, y: 0.5 }, back: spec, fit: 'between' },
@@ -93,7 +93,7 @@ describe('SH7.4 step a square leg model', () => {
     ]);
   });
 
-  it('anchor 6: exports four leg shapes without blocks, even at the unstretched height of one', () => {
+  it('exports four leg shapes without blocks, even at the unstretched height of one', () => {
     for (const height of ['full', 1]) {
       const placedRun = { ...R, legs: legs.map((leg) => ({ ...leg, height })) };
       const placedWall = { ...W, runs: [placedRun] };
@@ -109,7 +109,7 @@ describe('SH7.4 step a square leg model', () => {
     }
   });
 
-  it('anchor 7: accepts exactly one library or square shape with only positive finite square dimensions', () => {
+  it('accepts exactly one library or square shape with only positive finite square dimensions', () => {
     const { square: omitted, ...base } = legs[0];
     expect(omitted).toEqual({});
     const valid = [{ square: {} }, { square: { w: 2.5 } }, { square: { d: 4 } },

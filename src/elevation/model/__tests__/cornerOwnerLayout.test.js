@@ -9,7 +9,7 @@ import { resolveRunAnchorDatum } from '../runAnchors.js';
 import { splitRun } from '../splitRun.js';
 import { wallViewForRun } from '../wallSides.js';
 
-describe('CC1 step d owner layout at a wall corner (Room A)', () => {
+describe('owner layout at a wall corner (Room A) (CC1)', () => {
   let subject, ownerWall, returnWall, owner;
   beforeEach(() => {
     owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')],
@@ -25,7 +25,7 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
     subject = room({ walls: [ownerWall, returnWall] });
   });
 
-  it('anchor 1: reaches the corner with no reserve and no return run', () => {
+  it('reaches the corner with no reserve and no return run', () => {
     expect(resolveRunAnchorDatum(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
       .toEqual({ x: 0, type: 'corner' });
     const expected = { face: 0, back: 0, lap: 0, total: 0, source: 'corner', neighborRunId: null };
@@ -35,7 +35,7 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
       .toEqual(expected);
   });
 
-  it('anchor 2: keeps the owner reserve zero while the return run reserves the CC2 reach', () => {
+  it('keeps the owner reserve zero while the return run reserves the CC2 reach', () => {
     const returning = run({ id: 'return', depth: 24, anchors: { left: false, right: true } });
     returnWall.runs = [returning];
     expect(resolveRunAnchorDatum(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS))
@@ -49,7 +49,7 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
       .toBeCloseTo(frontDepth(returning, DEFAULT_SETTINGS), 3);
   });
 
-  it('anchor 3: starts with the 36-inch corner cabinet instead of a left end piece', () => {
+  it('starts with the 36-inch corner cabinet instead of a left end piece', () => {
     returnWall.runs = [run({ id: 'return', depth: 24, anchors: { left: false, right: true } })];
     const syncedOwner = syncRoom(subject, DEFAULT_SETTINGS).walls[0].runs[0];
     const layout = splitRun(syncedOwner, DEFAULT_SETTINGS);
@@ -59,7 +59,7 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
     expect(layout.errors).toEqual([]);
   });
 
-  it('anchor 4: lays out an unanchored corner end exactly like none', () => {
+  it('lays out an unanchored corner end exactly like none', () => {
     owner.anchors.left = false;
     const layout = splitRun(owner, DEFAULT_SETTINGS);
     const none = { ...owner, ends: { ...owner.ends, left: { type: 'none', width: null } } };
@@ -86,7 +86,7 @@ describe('CC1 step d owner layout at a wall corner (Room A)', () => {
   });
 });
 
-describe('CC1 step d owner layout at a peninsula (Room P)', () => {
+describe('owner layout at a peninsula (Room P) (CC1)', () => {
   let subject, host, pen, hostRun, penRun, penSide;
   beforeEach(() => {
     hostRun = run({ id: 'host-run', width: 120, autoCount: false,

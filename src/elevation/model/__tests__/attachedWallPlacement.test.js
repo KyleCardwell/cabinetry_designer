@@ -24,8 +24,8 @@ joined.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
 joined.walls.push(wall({ id: 'wall-5', x1: 60, y1: 96, x2: 60, y2: 150,
   connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }));
 
-describe('LL8 c walls held on room lines', () => {
-  it('anchor 1: places the island before projecting R1 and placing the sink', () => {
+describe('walls held on room lines (LL8)', () => {
+  it('places the island before projecting R1 and placing the sink', () => {
     const before = structuredClone(roomI);
     const synced = syncRoom(roomI, DEFAULT_SETTINGS);
     expect(synced.walls[1]).toMatchObject({ x1: 190, y1: 96, x2: 70, y2: 96, runs: [{ x: 42 }] });
@@ -34,26 +34,26 @@ describe('LL8 c walls held on room lines', () => {
     expect(roomI).toEqual(before);
   });
 
-  it('anchor 2: moving the line moves the island with the sink still centred', () => {
+  it('moving the line moves the island with the sink still centred', () => {
     const subject = syncRoom(roomI, DEFAULT_SETTINGS);
     subject.roomLines[0].value = 100;
     expect(syncRoom(subject, DEFAULT_SETTINGS).walls[1])
       .toMatchObject({ x1: 200, y1: 96, x2: 80, y2: 96, runs: [{ x: 42 }] });
   });
 
-  it('anchor 3: holds the front left end on the line', () => {
+  it('holds the front left end on the line', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].attach = attach('R1', 'left');
     expect(syncRoom(subject, DEFAULT_SETTINGS).walls[1]).toMatchObject({ x1: 130, y1: 96, x2: 10, y2: 96 });
   });
 
-  it('anchor 4: applies a positive offset toward the front elevation right', () => {
+  it('applies a positive offset toward the front elevation right', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].attach = attach('R1', 'center', 3);
     expect(syncRoom(subject, DEFAULT_SETTINGS).walls[1]).toMatchObject({ x1: 187, y1: 96, x2: 67, y2: 96 });
   });
 
-  it('anchor 5: translates both legs of the connected island', () => {
+  it('translates both legs of the connected island', () => {
     // The fixture warning applies: joining W5 flips W2's frame; keep the plan anchors below.
     expect(wallFrame(joined, joined.walls[1])).toMatchObject({ r: { x: 1, y: 0 }, n: { x: 0, y: 1 } });
     const synced = syncRoom(joined, DEFAULT_SETTINGS);
@@ -63,7 +63,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(synced.walls[3].connections).toEqual(joined.walls[3].connections);
   });
 
-  it('anchor 6: an unattached run rides along at its stored x without compensation', () => {
+  it('an unattached run rides along at its stored x without compensation', () => {
     const subject = cloneRoom(roomI);
     subject.walls[1].runs = [run({ x: 10, width: 36 })];
     const placed = placeAttachedWalls(subject);
@@ -73,7 +73,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(syncRoom(subject, DEFAULT_SETTINGS).walls[1].runs[0].x).toBe(10);
   });
 
-  it('anchor 7: a second sync changes nothing and unattached rooms keep identity through both stages', () => {
+  it('a second sync changes nothing and unattached rooms keep identity through both stages', () => {
     for (const fixture of [roomI, joined]) {
       const once = syncRoom(fixture, DEFAULT_SETTINGS);
       expect(syncRoom(once, DEFAULT_SETTINGS)).toEqual(once);
@@ -88,7 +88,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(wallAttachmentStatus(subject, 'missing')).toBeNull();
   });
 
-  it('anchor 8: deleting R1 drops the attachment and leaves the island at its last synced place', () => {
+  it('deleting R1 drops the attachment and leaves the island at its last synced place', () => {
     const subject = syncRoom(roomI, DEFAULT_SETTINGS);
     delete subject.roomLines;
     expect(wallAttachmentStatus(subject, 'wall-2')).toBeNull();
@@ -97,7 +97,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(synced.walls[1]).toMatchObject({ x1: 190, y1: 96, x2: 70, y2: 96 });
   });
 
-  it('anchor 9: the later group attachment loses even when that later wall is not square', () => {
+  it('the later group attachment loses even when that later wall is not square', () => {
     const subject = cloneRoom(joined);
     subject.walls[3].attach = attach('R1');
     const synced = syncRoom(subject, DEFAULT_SETTINGS);
@@ -106,7 +106,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(subject.walls[3].attach).toEqual(attach('R1'));
   });
 
-  it('anchor 10: keeps an out-of-square attachment without placing its group', () => {
+  it('keeps an out-of-square attachment without placing its group', () => {
     const subject = cloneRoom(roomI);
     subject.walls[0].y2 = 10;
     expect(pruneWallAttachments(subject)).toBe(subject);
@@ -116,7 +116,7 @@ describe('LL8 c walls held on room lines', () => {
     expect(wallAttachmentStatus(synced, 'wall-2')).toEqual({ line: synced.roomLines[0], square: false });
   });
 
-  it('anchor 11: locks along moves from either leg, but allows across moves', () => {
+  it('locks along moves from either leg, but allows across moves', () => {
     for (const fixture of [roomI, joined]) {
       const subject = syncRoom(fixture, DEFAULT_SETTINGS);
       // With W5 joined, existing topology numbers the held wall as Wall 3.

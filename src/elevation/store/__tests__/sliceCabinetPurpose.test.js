@@ -3,7 +3,7 @@ import elevationReducer, { setCabinetPurpose } from '../elevationSlice.js';
 import { gridLeaves } from '../../model/grid.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
-describe('IN1a cabinet purpose', () => {
+describe('cabinet purpose (IN1a)', () => {
   const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
   const base = () => {
     const state = stateWithRun(run({ autoCount: false, items: [auto('c1'), auto('c2'), { id: 'p1', kind: 'panel', width: 1 }] }));

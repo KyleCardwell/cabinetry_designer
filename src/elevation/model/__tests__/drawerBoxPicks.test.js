@@ -12,8 +12,8 @@ const resolved = (slideId, source, warnings = []) => ({
   slideId, slide: BUILT_IN_SLIDES.find(({ id }) => id === slideId), source, warnings,
 });
 
-describe('IN6 step a pull-out boxes', () => {
-  it('anchor 1: permits pull-out box dimensions and rejects retired charging picks', () => {
+describe('pull-out boxes (IN6)', () => {
+  it('permits pull-out box dimensions and rejects retired charging picks', () => {
     expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } }))).toBe(true);
     expect(isFaceNode(leaf('door', { drawerBox: { height: 12.125 } }))).toBe(false);
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(false);
@@ -28,7 +28,7 @@ describe('IN6 step a pull-out boxes', () => {
     expect(isFaceNode(leaf('pair_door', { action: 'pullout', drawerBox: { depth: 21 } }))).toBe(false);
   });
 
-  it('anchor 2: patches pull-out boxes and ignores retired charging patches atomically', () => {
+  it('patches pull-out boxes and ignores retired charging patches atomically', () => {
     const face = { ...tree(), children: [leaf(), leaf('door', { action: 'pullout' })] };
     const picked = setFaceDrawerBox(face, 'r.1', { depth: 21 });
     expect(picked.children[1].drawerBox).toEqual({ depth: 21 });
@@ -51,7 +51,7 @@ describe('IN6 step a pull-out boxes', () => {
       .toEqual({ height: 4.125, slideId: 'blum-562h' });
   });
 
-  it('anchor 3: drops picks on type or action changes, retains qualifying picks, and starts splits empty', () => {
+  it('drops picks on type or action changes, retains qualifying picks, and starts splits empty', () => {
     const pullout = leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } });
     for (const action of [null, 'swing', 'sliding', 'flipper', 'pocket']) {
       const changed = setFaceAction(pullout, 'r', action);
@@ -77,8 +77,8 @@ describe('IN6 step a pull-out boxes', () => {
   });
 });
 
-describe('IN5 step a drawer box picks', () => {
-  it('validates nonempty box overrides only on drawer front leaves (anchor 1)', () => {
+describe('drawer box picks (IN5)', () => {
+  it('validates nonempty box overrides only on drawer front leaves', () => {
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { height: 3.625 } }))).toBe(true);
     for (const drawerBox of [
       {}, { slideId: '' }, { height: 0 }, { width: 16 }, null, [], 'box',
@@ -94,7 +94,7 @@ describe('IN5 step a drawer box picks', () => {
     expect(isFaceNode({ ...tree(), children: [leaf('drawer_front', { drawerBox }), leaf()] })).toBe(true);
   });
 
-  it('merges and clears box keys atomically, ignoring ineligible and invalid edits (anchor 2)', () => {
+  it('merges and clears box keys atomically, ignoring ineligible and invalid edits', () => {
     const face = tree();
     const sized = setFaceDrawerBox(face, 'r.0', { height: 3.625 });
     expect(sized.children[0].drawerBox).toEqual({ height: 3.625 });
@@ -114,7 +114,7 @@ describe('IN5 step a drawer box picks', () => {
     expect(setFaceDrawerBox(leaf(), 'r', { depth: 18 }).drawerBox).toEqual({ depth: 18 });
   });
 
-  it('keeps picks for the same type and drops them on a type change or split (anchor 3)', () => {
+  it('keeps picks for the same type and drops them on a type change or split', () => {
     const drawer = leaf('drawer_front', { drawerBox: { height: 3.625, slideId: 'accuride-3832' } });
     expect(setFaceType(drawer, 'r', 'drawer_front')).toEqual(drawer);
     for (const type of FACE_TYPES.filter((type) => type !== 'drawer_front')) {
@@ -130,7 +130,7 @@ describe('IN5 step a drawer box picks', () => {
     expect(makeDrawerStack(drawer, 'r', 2).children).toEqual([leaf(), leaf()]);
   });
 
-  it('resolves box, rule, cabinet and room slides in order (anchor 5)', () => {
+  it('resolves box, rule, cabinet and room slides in order', () => {
     expect(resolveBoxSlide(settings, { cabinet: 'accuride-3832' })).toEqual(resolved('accuride-3832', 'cabinet'));
     expect(resolveBoxSlide(settings, { box: 'blum-562h', cabinet: 'accuride-3832' }))
       .toEqual(resolved('blum-562h', 'box'));
@@ -154,7 +154,7 @@ describe('IN5 step a drawer box picks', () => {
       .toEqual(resolved('accuride-3832', 'rule', [missing('accessory')]));
   });
 
-  it('warns for missing picks and falls through to the next valid slide (anchor 6)', () => {
+  it('warns for missing picks and falls through to the next valid slide', () => {
     expect(resolveBoxSlide(settings, { box: 'gone', cabinet: 'accuride-3832' }))
       .toEqual(resolved('accuride-3832', 'cabinet', [missing('box')]));
     expect(resolveBoxSlide({ ...settings, drawerSlideId: 'accuride-3832' }, {}))
@@ -174,8 +174,8 @@ describe('IN5 step a drawer box picks', () => {
 });
 
 
-describe('IN12c c drawer box accessories', () => {
-  it('anchor 1: validates shared item lists only on drawer fronts', () => {
+describe('drawer box accessories (IN12c)', () => {
+  it('validates shared item lists only on drawer fronts', () => {
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [{ accessoryId: 'a' }] } }))).toBe(true);
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [] } }))).toBe(false);
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(false);
@@ -192,7 +192,7 @@ describe('IN12c c drawer box accessories', () => {
     } }))).toBe(true);
   });
 
-  it('anchor 2: stores and clears items, prunes empty boxes, and rejects invalid patches atomically', () => {
+  it('stores and clears items, prunes empty boxes, and rejects invalid patches atomically', () => {
     const face = tree();
     const accessories = [{ accessoryId: 'a', qty: 2 }];
     const picked = setFaceDrawerBox(face, 'r.0', { accessories });

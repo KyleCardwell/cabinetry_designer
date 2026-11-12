@@ -12,7 +12,7 @@ const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 afterEach(() => { delete globalThis.window; });
 
 describe('SPEC-50.9 step 501 top overhang data', () => {
-  it('drops invalid sides and empty objects on load and save, preserving valid zeroes (anchor 4)', () => {
+  it('drops invalid sides and empty objects on load and save, preserving valid zeroes', () => {
     const saved = savedDocument();
     currentRun(saved).topOverhang = { front: -1, back: 'x', right: 2 };
     expect(isElevationDocument(saved)).toBe(false);

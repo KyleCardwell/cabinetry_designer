@@ -46,7 +46,7 @@ function texts(value) {
 }
 
 describe('door order PDF definition', () => {
-  it('repeats every form in canonical copy order with page breaks (anchor 5)', () => {
+  it('repeats every form in canonical copy order with page breaks', () => {
     expect(COPIES).toEqual([
       { id: 'master', label: 'MASTER COPY' }, { id: 'shop', label: 'SHOP COPY' },
       { id: 'install', label: 'INSTALL COPY' }, { id: 'nike', label: 'NIKE COPY' },
@@ -83,7 +83,7 @@ describe('door order PDF definition', () => {
     expect(texts(noRevision.footer(1, 2))).not.toContain('Revision 2');
   });
 
-  it('repeats the bordered title block, type title and shaded headings (anchor 1)', () => {
+  it('repeats the bordered title block, type title and shaded headings', () => {
     const definition = doorOrderDocument(order, header, ['master']);
     expect(definition).toMatchObject({
       pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [18, 18, 18, 36],
@@ -163,7 +163,7 @@ describe('door order PDF definition', () => {
     expect(texts(content).some((text) => text.startsWith('Thickness'))).toBe(false);
   });
 
-  it('keeps notes aligned with values and wrapping across the last two columns (anchor 8)', () => {
+  it('keeps notes aligned with values and wrapping across the last two columns', () => {
     const rows = titleRows(doorOrderDocument(order, header, ['order']).content[0]);
     expect(rows.find(([cell]) => cell.text === 'Notes:')).toEqual([
       { text: 'Notes:', bold: true },
@@ -177,7 +177,7 @@ describe('door order PDF definition', () => {
     }
   });
 
-  it('omits null or empty optional rows and puts slab vendor beside Edge Profile (anchor 4)', () => {
+  it('omits null or empty optional rows and puts slab vendor beside Edge Profile', () => {
     for (const blank of [null, '']) {
       const slab = {
         ...slabPage,
@@ -253,7 +253,7 @@ describe('door order PDF definition', () => {
     expect(doorOrderFileName({ job: 'A<>:"' }, 'B\\|?*\n')).toBe('A---- - B----- - Door Order Form.pdf');
   });
 
-  it('keeps all dimensions and notes in plain fractions throughout the definition (anchor 6)', () => {
+  it('keeps all dimensions and notes in plain fractions throughout the definition', () => {
     const definition = doorOrderDocument(order, header, COPIES.map(({ id }) => id));
     const serialized = JSON.stringify({ ...definition, footer: definition.footer(1, 10) });
     expect(serialized).not.toMatch(/[⅛¼⅜½⅝¾⅞]/);

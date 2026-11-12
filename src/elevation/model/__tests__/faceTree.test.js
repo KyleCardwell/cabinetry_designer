@@ -24,8 +24,8 @@ function deepFreeze(value) {
 
 const DOOR = deepFreeze({ type: 'door', size: null });
 
-describe('IN14 panel material edits', () => {
-  it('anchor 2: sets glass and removes the key with null, including nested pair doors', () => {
+describe('panel material edits (IN14)', () => {
+  it('sets glass and removes the key with null, including nested pair doors', () => {
     const glass = setFacePanelMaterial(DOOR, 'r', 'glass');
     expect(glass).toEqual({ type: 'door', size: null, panelMaterial: 'glass' });
     expect(setFacePanelMaterial(glass, 'r', null)).toEqual(DOOR);
@@ -36,7 +36,7 @@ describe('IN14 panel material edits', () => {
     expect(isFaceNode(next)).toBe(true);
   });
 
-  it('anchor 3: returns the original object for invalid targets, ids and unchanged values', () => {
+  it('returns the original object for invalid targets, ids and unchanged values', () => {
     const drawer = { type: 'drawer_front', size: null };
     const pullout = { ...DOOR, action: 'pullout' };
     const glass = { ...DOOR, panelMaterial: 'glass' };
@@ -48,7 +48,7 @@ describe('IN14 panel material edits', () => {
     ]) expect(setFacePanelMaterial(deepFreeze(tree), path, id)).toBe(tree);
   });
 
-  it('anchor 4: drops panel material on a type change or pullout and preserves it for other actions', () => {
+  it('drops panel material on a type change or pullout and preserves it for other actions', () => {
     const glass = deepFreeze({ ...DOOR, panelMaterial: 'glass' });
     expect(setFaceType(glass, 'r', 'pair_door')).toEqual({ type: 'pair_door', size: null });
     expect(setFaceAction(glass, 'r', 'pullout')).toEqual({ ...DOOR, action: 'pullout' });
@@ -91,7 +91,7 @@ const NESTED = deepFreeze({
   ],
 });
 
-describe('IN7.3 face group matches', () => {
+describe('face group matches (IN7.3)', () => {
   const face = deepFreeze({ direction: 'vertical', size: null, children: [
     DOOR,
     { direction: 'vertical', size: null, match: 'base', children: [
@@ -100,7 +100,7 @@ describe('IN7.3 face group matches', () => {
     ] },
   ] });
 
-  it('anchors 5–6: typing a height removes match; clearing match returns to auto', () => {
+  it('typing a height removes match; clearing match returns to auto', () => {
     const typed = setFaceSize(face, 'r.1', 30);
     expect(typed.children[1]).toEqual({ direction: 'vertical', size: 30, children: face.children[1].children });
     const cleared = setFaceMatch(face, 'r.1', null);
@@ -118,7 +118,7 @@ describe('IN7.3 face group matches', () => {
     expect(setFaceMatch(face, 'r.1', 'tall')).toBe(face);
   });
 
-  it('anchor 7: the drawer stack option matches an eligible group and clears the old size', () => {
+  it('the drawer stack option matches an eligible group and clears the old size', () => {
     const source = deepFreeze({ direction: 'vertical', size: null, children: [DOOR, { ...DOOR, size: 30 }] });
     const stacked = makeDrawerStack(source, 'r.1', 4, { match: true });
     expect(stacked.children[1]).toEqual({
@@ -131,7 +131,7 @@ describe('IN7.3 face group matches', () => {
     expect(source.children[1]).toEqual({ ...DOOR, size: 30 });
   });
 
-  it('anchor 8: the root, horizontal children and stacks without the option keep their sizes', () => {
+  it('the root, horizontal children and stacks without the option keep their sizes', () => {
     const source = { direction: 'vertical', size: null, children: [DOOR, { ...DOOR, size: 30 }] };
     for (const options of [undefined, { match: false }]) {
       const stacked = makeDrawerStack(source, 'r.1', 4, options);
@@ -165,7 +165,7 @@ describe('IN7.3 face group matches', () => {
 });
 
 describe('faceTree', () => {
-  it('9: splits a leaf root into a group', () => {
+  it('splits a leaf root into a group', () => {
     expect(splitFace(DOOR, 'r', 'vertical', 3)).toEqual({
       direction: 'vertical',
       size: null,
@@ -173,7 +173,7 @@ describe('faceTree', () => {
     });
   });
 
-  it('10: same direction flattens into the parent', () => {
+  it('same direction flattens into the parent', () => {
     expect(splitFace(TWO, 'r.1', 'vertical', 2).children).toEqual([
       { type: 'drawer_front', size: 6 },
       { type: 'door', size: null },
@@ -181,17 +181,17 @@ describe('faceTree', () => {
     ]);
   });
 
-  it('11: other direction nests and keeps the size', () => {
+  it('other direction nests and keeps the size', () => {
     expect(splitFace(TWO, 'r.0', 'horizontal', 2)).toEqual(NESTED);
   });
 
-  it('12: count clamps, non-leaf is unchanged', () => {
+  it('count clamps, non-leaf is unchanged', () => {
     expect(splitFace(DOOR, 'r', 'vertical', 1).children).toHaveLength(2);
     expect(splitFace(DOOR, 'r', 'vertical', 20).children).toHaveLength(8);
     expect(splitFace(TWO, 'r', 'vertical', 2)).toBe(TWO);
   });
 
-  it('13: setGroupCount grows, shrinks and collapses', () => {
+  it('setGroupCount grows, shrinks and collapses', () => {
     const four = setGroupCount(BASE3, 'r', 4);
     expect(four.children.map((c) => c.size)).toEqual([6, null, null, null]);
     expect(four.children.every((c) => c.type === 'drawer_front')).toBe(true);
@@ -199,13 +199,13 @@ describe('faceTree', () => {
     expect(setGroupCount(BASE3, 'r', 1)).toEqual({ type: 'drawer_front', size: null });
   });
 
-  it('14: removeFace', () => {
+  it('removeFace', () => {
     expect(removeFace(TWO, 'r.1')).toEqual({ type: 'drawer_front', size: null });
     expect(removeFace(NESTED, 'r.0.1')).toEqual(TWO);
     expect(removeFace(TWO, 'r')).toBe(TWO);
   });
 
-  it('15: setFaceType and setFaceSize', () => {
+  it('setFaceType and setFaceSize', () => {
     expect(setFaceType(TWO, 'r.1', 'pair_door').children[1].type).toBe('pair_door');
     expect(setFaceType(TWO, 'r', 'door')).toBe(TWO);
     expect(setFaceType(TWO, 'r.1', 'shelf')).toBe(TWO);
@@ -215,11 +215,11 @@ describe('faceTree', () => {
     expect(setFaceSize(TWO, 'r.0', 0)).toBe(TWO);
   });
 
-  it('16: equalizeGroup makes every child auto', () => {
+  it('equalizeGroup makes every child auto', () => {
     expect(equalizeGroup(BASE3, 'r').children.map((c) => c.size)).toEqual([null, null, null]);
   });
 
-  it('17: outline and lookups', () => {
+  it('outline and lookups', () => {
     const rows = faceOutline(NESTED);
     expect(rows.map((row) => row.path)).toEqual(['r', 'r.0', 'r.0.0', 'r.0.1', 'r.1']);
     expect(rows.map((row) => row.depth)).toEqual([0, 1, 2, 2, 1]);
@@ -229,7 +229,7 @@ describe('faceTree', () => {
     expect(parentFacePath('r')).toBeNull();
   });
 
-  it('179. makes nested drawer stacks from leaves', () => {
+  it('makes nested drawer stacks from leaves', () => {
     const face = {
       direction: 'vertical',
       size: null,
@@ -279,7 +279,7 @@ describe('faceTree', () => {
     expect(setFaceType(hinged, 'r.1', 'drawer_front').children[1]).toEqual({ type: 'drawer_front', size: null });
   });
 
-  it('HP1 anchor 1: accepts top and bottom hinges and rejects unknown edges', () => {
+  it('accepts top and bottom hinges and rejects unknown edges (HP1)', () => {
     for (const hinge of ['top', 'bottom']) {
       const hinged = setFaceHinge(DOOR, 'r', hinge);
       expect(hinged).toEqual({ ...DOOR, hinge });
@@ -289,7 +289,7 @@ describe('faceTree', () => {
     expect(setFaceHinge(DOOR, 'r', 'up')).toBe(DOOR);
   });
 
-  it('HP1 anchor 2: pullout and sliding clear hinges and reject hinge edits', () => {
+  it('pullout and sliding clear hinges and reject hinge edits (HP1)', () => {
     const door = deepFreeze({ ...DOOR, hinge: 'left' });
     for (const action of ['pullout', 'sliding']) {
       const next = setFaceAction(door, 'r', action);
@@ -304,7 +304,7 @@ describe('faceTree', () => {
     expect(door).toEqual({ ...DOOR, hinge: 'left' });
   });
 
-  it('HP1 anchor 3: flipper and pocket keep only side hinges', () => {
+  it('flipper and pocket keep only side hinges (HP1)', () => {
     for (const action of ['flipper', 'pocket']) {
       for (const hinge of ['top', 'bottom']) {
         expect(setFaceAction({ ...DOOR, hinge }, 'r', action)).toEqual({ ...DOOR, action });
@@ -319,7 +319,7 @@ describe('faceTree', () => {
     }
   });
 
-  it('HP1 anchor 4: pair actions exclude pullout and swing is never stored', () => {
+  it('pair actions exclude pullout and swing is never stored (HP1)', () => {
     const pair = deepFreeze({ type: 'pair_door', size: null });
     expect(setFaceAction(pair, 'r', 'pullout')).toBe(pair);
     for (const action of ['flipper', 'pocket', 'sliding']) {
@@ -340,7 +340,7 @@ describe('faceTree', () => {
     expect(TWO.children[1]).toEqual(DOOR);
   });
 
-  it('HP1 anchor 6: changing a leaf type drops hinge and action', () => {
+  it('changing a leaf type drops hinge and action (HP1)', () => {
     const door = deepFreeze({ ...DOOR, hinge: 'left', action: 'pocket' });
     for (const type of ['drawer_front', 'pair_door']) {
       expect(setFaceType(door, 'r', type)).toEqual({ type, size: null });
@@ -352,11 +352,11 @@ describe('faceTree', () => {
   });
 });
 
-describe('IN7.4 standard face editing', () => {
+describe('standard face editing (IN7.4)', () => {
   const front = { type: 'drawer_front', size: null, match: 'standard' };
   const tree = (node = front) => deepFreeze({ direction: 'vertical', size: null, children: [node, DOOR] });
 
-  it.each([2, 3, 4, 5])('anchor 8: %i drawers make all but the bottom two standard', (count) => {
+  it.each([2, 3, 4, 5])('%i drawers make all but the bottom two standard', (count) => {
     const next = makeDrawerStack(DOOR, 'r', count);
     expect(next.children.map(({ match }) => match ?? null))
       .toEqual(Array.from({ length: count }, (_, index) => index < count - 2 ? 'standard' : null));

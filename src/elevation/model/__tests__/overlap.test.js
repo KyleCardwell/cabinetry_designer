@@ -96,7 +96,7 @@ describe('runsConflict', () => {
 });
 
 describe('validateRunPlacement', () => {
-  it('11. allows a left overhang and reports its amount', () => {
+  it('allows a left overhang and reports its amount', () => {
     const candidate = run('candidate', CABINET_TYPE_IDS.BASE, { x: -6, width: 60 });
     const wall = { length: 120, height: 96, runs: [candidate] };
 
@@ -107,7 +107,7 @@ describe('validateRunPlacement', () => {
       .toContainEqual({ code: 'overhang', left: 6, right: 0 });
   });
 
-  it('12. rejects overhang beyond the limit and warns for a valid right overhang', () => {
+  it('rejects overhang beyond the limit and warns for a valid right overhang', () => {
     const wall = { length: 120, height: 96, runs: [] };
     expect(validateRunPlacement(
       wall,

@@ -8,8 +8,8 @@ import { isValidSettingValue } from '../settingsResolve.js';
 
 const leaf = (type, patch = {}) => ({ type, size: null, ...patch });
 
-describe('HP4 step a pull placement keys', () => {
-  it('validates positions, orientation and counts only on eligible leaves (anchor 1)', () => {
+describe('pull placement keys (HP4)', () => {
+  it('validates positions, orientation and counts only on eligible leaves', () => {
     expect([
       leaf('door', { pullAt: 'height' }),
       leaf('drawer_front', { pullAt: 'height' }),
@@ -45,7 +45,7 @@ describe('HP4 step a pull placement keys', () => {
     }
   });
 
-  it('sets and clears placement atomically, preserving identity for invalid or unchanged edits (anchor 2)', () => {
+  it('sets and clears placement atomically, preserving identity for invalid or unchanged edits', () => {
     const door = leaf('door', { pullId: 'none' });
     const placed = setFacePullPlacement(door, 'r', { pullAt: 'center', pullOrientation: 'horizontal' });
     expect(placed).toEqual({ ...door, pullAt: 'center', pullOrientation: 'horizontal' });
@@ -77,7 +77,7 @@ describe('HP4 step a pull placement keys', () => {
       .toEqual(leaf('pair_door', { pullAt: 'height' }));
   });
 
-  it('drops all placement keys on a type change or split and keeps eligible pull picks (anchor 3)', () => {
+  it('drops all placement keys on a type change or split and keeps eligible pull picks', () => {
     const drawer = leaf('drawer_front', {
       pullId: 'none', pullAt: 'top-rail', pullOrientation: 'horizontal', pullCount: 3,
     });
@@ -99,7 +99,7 @@ describe('HP4 step a pull placement keys', () => {
     }
   });
 
-  it('registers the 45-inch tall pull height through room level and in team rows (anchor 4)', () => {
+  it('registers the 45-inch tall pull height through room level and in team rows', () => {
     expect(isValidSettingValue('pullHeight', 42)).toBe(true);
     expect(DEFAULT_SETTINGS.pullHeight).toBe(45);
     expect(teamSettingsToRow(DEFAULT_SETTINGS)).toHaveProperty('pullHeight', 45);

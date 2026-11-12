@@ -34,8 +34,8 @@ const span = (synced, runId = 'run-1') => {
   return { x, width };
 };
 
-describe('LL6 a: width from cabinets in sync', () => {
-  it('anchor 1: a left-held run takes its contents width', () => {
+describe('width from cabinets in sync (LL6)', () => {
+  it('a left-held run takes its contents width', () => {
     const synced = sync([r1()]);
     expect(span(synced)).toEqual({ x: 0, width: 56.25 });
     const layout = pieces(synced);
@@ -46,13 +46,13 @@ describe('LL6 a: width from cabinets in sync', () => {
     expect(layout.errors).toEqual([]);
   });
 
-  it('anchor 2: without the flag nothing changes', () => {
+  it('without the flag nothing changes', () => {
     const plain = r1();
     delete plain.widthFrom;
     expect(span(sync([plain]))).toEqual({ x: 0, width: 80 });
   });
 
-  it('anchor 3: a right-held run keeps its right edge', () => {
+  it('a right-held run keeps its right edge', () => {
     const synced = sync([r1({
       x: 40, anchors: { left: false, right: true },
       ends: { left: { type: 'end_panel', width: 0.75 }, right: { type: 'filler', width: null } },
@@ -60,18 +60,18 @@ describe('LL6 a: width from cabinets in sync', () => {
     expect(span(synced)).toEqual({ x: 63.75, width: 56.25 });
   });
 
-  it('anchor 4: both ends free keeps x', () => {
+  it('both ends free keeps x', () => {
     const synced = sync([r1({ x: 10, anchors: { left: false, right: false }, ends: { left: none, right: none } })]);
     expect(span(synced)).toEqual({ x: 10, width: 54 });
   });
 
-  it('anchor 5: both ends held is blocked', () => {
+  it('both ends held is blocked', () => {
     const both = r1({ anchors: { left: true, right: true } });
     expect(cellWidthsBlocker(both, wall())).toBe('no-free-end');
     expect(span(sync([both])).width).toBe(120);
   });
 
-  it('anchor 6: an auto cabinet blocks it', () => {
+  it('an auto cabinet blocks it', () => {
     const withAuto = r1({ items: [fixed('A', 30), auto('B')] });
     expect(cellWidthsBlocker(withAuto, wall())).toBe('auto-item');
     const synced = sync([withAuto]);
@@ -81,34 +81,34 @@ describe('LL6 a: width from cabinets in sync', () => {
     ]);
   });
 
-  it('anchor 7: a free run on a line keeps its contents width and slides onto the line', () => {
+  it('a free run on a line keeps its contents width and slides onto the line', () => {
     const synced = sync([r1({
       x: 10, anchors: { left: false, right: false }, ends: { left: none, right: none }, attach: attach('L1'),
     })], { lines: [line('L1', 60)] });
     expect(span(synced)).toEqual({ x: 33, width: 54 });
   });
 
-  it('anchor 8: a line plus a held end blocks it', () => {
+  it('a line plus a held end blocks it', () => {
     const lined = r1({ attach: attach('L1', 'left') });
     expect(cellWidthsBlocker(lined, wall({ lines: [line('L1', 20)] }))).toBe('line-sized');
   });
 
-  it('anchor 9: a column on a line blocks it', () => {
+  it('a column on a line blocks it', () => {
     const placed = r1({ items: [{ ...fixed('A', 30), attach: attach('L1') }, fixed('B', 24)] });
     expect(cellWidthsBlocker(placed, wall({ lines: [line('L1', 20)] }))).toBe('placed-column');
     expect(isWidthFromCells(placed, wall({ lines: [line('L1', 20)] }))).toBe(false);
   });
 
-  it('anchor 10: run flex does not move it', () => {
+  it('run flex does not move it', () => {
     expect(span(sync([r1()], {}, { ...settings, runFlex: 0.25 }))).toEqual({ x: 0, width: 56.25 });
   });
 
-  it('anchor 11: syncing twice equals once', () => {
+  it('syncing twice equals once', () => {
     const once = sync([r1()]);
     expect(syncRoom(once, settings)).toEqual(once);
   });
 
-  it('anchor 12: a run joined on its left grows from the joint; the joint stays', () => {
+  it('a run joined on its left grows from the joint; the joint stays', () => {
     const synced = sync([
       run({ id: 'L', width: 40, autoCount: false, anchors: { left: true, right: joint('J1') },
         ends: { left: none, right: none }, items: [auto('X')] }),
@@ -119,7 +119,7 @@ describe('LL6 a: width from cabinets in sync', () => {
     expect(synced.walls[0].joints[0].x).toBe(40);
   });
 
-  it('anchor 13: validation accepts only cells', () => {
+  it('validation accepts only cells', () => {
     const good = sync([r1()]);
     expect(isRoom(good)).toBe(true);
     const bad = structuredClone(good);

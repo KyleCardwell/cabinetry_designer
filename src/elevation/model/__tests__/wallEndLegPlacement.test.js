@@ -32,9 +32,9 @@ function inspect(input, options = settings, runId = 'R') {
     legs: runLegs(synced, wallSideView(w, r.wallSide), r, options) };
 }
 
-describe('SH7.6 step b wall end placement and room', () => {
+describe('wall end placement and room (SH7.6)', () => {
 
-  it('anchor 2: places a named wall leg at the end line and reserves it once', () => {
+  it('places a named wall leg at the end line and reserves it once', () => {
     const input = room({ walls: [W] });
     const before = structuredClone(input);
     const { synced, r, panel, legs } = inspect(input);
@@ -48,7 +48,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(input).toEqual(before);
   });
 
-  it('anchor 3: places both depth edges with their default mirrors', () => {
+  it('places both depth edges with their default mirrors', () => {
     const { r, panel, legs } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { faces: { front: E } } } })] }));
     expect(legs[0]).toMatchObject({ front: 25.375, back: 21.875, leg: { mirror: true } });
@@ -57,7 +57,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(r.x).toBe(4.3125);
   });
 
-  it('anchor 4: proud x reduces the reserve and moves the panel out', () => {
+  it('proud x reduces the reserve and moves the panel out', () => {
     const { r, panel, legs } = inspect(room({ walls: [wall({ ...W,
       endLegs: { start: { faces: { front: { legs: 'front', front: { ...S, x: 1 } } } } } })] }));
     expect(legs[0].bounds.x).toBe(-1);
@@ -65,7 +65,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(r.x).toBe(3.3125);
   });
 
-  it('anchor 5: without a panel each face reserves only its own legs', () => {
+  it('without a panel each face reserves only its own legs', () => {
     const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W, runs: [R, Rb],
       endPanels: { start: null, end: null } })] }));
     expect(r.x).toBe(3.5);
@@ -75,7 +75,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(cornerReserveParts(synced, w, 'right', back, settings).total).toBe(0);
   });
 
-  it('anchor 6: back-only legs move the panel and both faces together', () => {
+  it('back-only legs move the panel and both faces together', () => {
     const input = room({ walls: [wall({ ...W, runs: [R, Rb],
       endLegs: { start: { faces: { back: { legs: 'front', front: S } } } } })] });
     const { w, r, panel } = inspect(input);
@@ -90,7 +90,7 @@ describe('SH7.6 step b wall end placement and room', () => {
   });
 
   it.each([{ ...S, takesRoom: false }, { ...S, y: 5 }])(
-    'anchor 7: places nontaking legs without reserving room (%j)', (spec) => {
+    'places nontaking legs without reserving room (%j)', (spec) => {
       const { r, panel, legs } = inspect(room({ walls: [wall({ ...W,
         endLegs: { start: { faces: { front: { legs: 'front', front: spec } } } } })] }));
       expect(r.x).toBe(0.8125);
@@ -100,7 +100,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     },
   );
 
-  it('anchor 8: wall ownership suppresses run-end legs and restores them when removed', () => {
+  it('wall ownership suppresses run-end legs and restores them when removed', () => {
     const own = run({ ...R, endLegs: { left: { legs: 'front', front: Sf } } });
     const { synced, r } = inspect(room({ walls: [wall({ ...W, runs: [own] })] }));
     expect(runLegList(r).map(({ id }) => id)).toEqual(['w:wallleg:start-front-front']);
@@ -113,7 +113,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(without.r).not.toHaveProperty('_wallLegs');
   });
 
-  it('anchor 9: uses the flexed end line independently of run x', () => {
+  it('uses the flexed end line independently of run x', () => {
     const source = room({ walls: [wall({ ...W, _endFlex: { start: 1 },
       runs: [run({ ...R, x: 3.3125 })] })] });
     const w = source.walls[0];
@@ -137,7 +137,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     expect(syncRoom(flexed.synced, options)).toEqual(flexed.synced);
   });
 
-  it('anchor 10: connecting or landing a previously active end clears derived legs', () => {
+  it('connecting or landing a previously active end clears derived legs', () => {
     const active = inspect(room({ walls: [W] })).synced;
     for (const field of ['connections', 'landings']) {
       const linked = wall({ ...active.walls[0], [field]: { start: { wallId: 'other', endpoint: 'end' } } });
@@ -150,7 +150,7 @@ describe('SH7.6 step b wall end placement and room', () => {
     }
   });
 
-  it('anchor 11: flipping keeps stored endpoint data and ids at the same wall end', () => {
+  it('flipping keeps stored endpoint data and ids at the same wall end', () => {
     const source = wall({ ...W, endLegs: { start: { faces: { front: E } } } });
     const flipped = flipRunsForWall(source);
     expect(flipped.endLegs).toEqual(source.endLegs);

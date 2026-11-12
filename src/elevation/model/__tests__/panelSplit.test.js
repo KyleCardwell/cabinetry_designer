@@ -28,8 +28,8 @@ function splitStored(cellId, direction) {
   return { run: syncedRun, scene: runScene(room, syncedWall, syncedRun, state.settings) };
 }
 
-describe('FX5 step e split panel cells', () => {
-  it('anchor 1: splits Room 9b Wall 4 back panel down into two 12 1/4 inch panels', () => {
+describe('split panel cells (FX5)', () => {
+  it('splits Room 9b Wall 4 back panel down into two 12 1/4 inch panels', () => {
     const { run, scene } = splitStored(BACK, 'down');
     const stack = run.grid.cells[0].node;
     expect(stack.rows).toHaveLength(2);
@@ -41,7 +41,7 @@ describe('FX5 step e split panel cells', () => {
       .map(({ kind, height }) => [kind, height])).toEqual([['panel', 12.25], ['panel', 12.25]]);
   });
 
-  it('anchor 2: splits the back panel across into three automatic root panel columns', () => {
+  it('splits the back panel across into three automatic root panel columns', () => {
     const { run } = splitStored(BACK, 'across');
     const items = rootItems(run.grid);
     expect(items).toHaveLength(3);
@@ -53,7 +53,7 @@ describe('FX5 step e split panel cells', () => {
     expect(run.autoCount).toBe(false);
   });
 
-  it('anchor 3: keeps the front side panel column at a manual 0.75 inches when stacked', () => {
+  it('keeps the front side panel column at a manual 0.75 inches when stacked', () => {
     const { run, scene } = splitStored(SIDE, 'down');
     const stack = run.grid.cells[1].node;
     expect(run.grid.cols[1]).toMatchObject({ size: 0.75, sizeMode: 'manual' });
@@ -65,7 +65,7 @@ describe('FX5 step e split panel cells', () => {
       .map(({ kind, width }) => [kind, width])).toEqual([['panel', 0.75], ['panel', 0.75]]);
   });
 
-  it('anchor 4: copies only panel properties and keeps doors, sizes and extend on the original', () => {
+  it('copies only panel properties and keeps doors, sizes and extend on the original', () => {
     const leaf = { id: 'panel', ...panel, doors: 'cover', sizes: { depth: 12 }, extend: { left: 2 } };
     const grid = run({ items: [{ ...leaf, width: 30 }] }).grid;
     const split = splitGridCell(grid, leaf.id, 'down', 2, ids());

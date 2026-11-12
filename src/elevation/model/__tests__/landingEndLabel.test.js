@@ -31,13 +31,13 @@ const K = room({
   ],
 });
 
-describe('WL1 d: named landing ends', () => {
-  it('anchor 1: labels the back left corner and back right free end in Room K', () => {
+describe('named landing ends (WL1)', () => {
+  it('labels the back left corner and back right free end in Room K', () => {
     expect(landingEndLabel(K, K.walls[2], 'back', 'left')).toBe('Wall 4 corner');
     expect(landingEndLabel(K, K.walls[2], 'back', 'right')).toBe('Free end');
   });
 
-  it('anchor 2: labels the front left as the free start endpoint', () => {
+  it('labels the front left as the free start endpoint', () => {
     expect(landingEndLabel(K, K.walls[2], 'front', 'left')).toBe('Free end');
     expect(landingEndLabel(K, K.walls[2], 'front', 'right')).toBe('Wall 4 corner');
   });

@@ -73,7 +73,7 @@ describe('SPEC-46.1.1 sheet slab panels', () => {
   });
 });
 
-describe('EP1 a room sheet thickness', () => {
+describe('room sheet thickness (EP1)', () => {
   const room = { settingsOverrides: { sheetThickness: 0.6875 } };
   const settings = effectiveSettings({ settings: S }, room);
 

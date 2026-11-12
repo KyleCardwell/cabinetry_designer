@@ -10,7 +10,7 @@ import { stackedColumn } from './fixtures/pinnedColumn.js';
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 
 // LL4: wall-end pins became layout lines; same positions.
-describe('DR3a stacked columns on a layout line', () => {
+describe('stacked columns on a layout line (DR3a)', () => {
   it.each([
     ['anchor 1: no line', null, 40, 40, 80, 40],
     ['anchor 2: center at 50', [50, 'center'], 30, 30, 70, 50],

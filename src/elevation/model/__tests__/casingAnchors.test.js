@@ -41,7 +41,7 @@ function openingAnchor(clearance = null) {
 }
 
 describe('opening run anchors', () => {
-  it('26. anchors a run right edge to the casing using the default clearance', () => {
+  it('anchors a run right edge to the casing using the default clearance', () => {
     const room = syncRoom(testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor() } })],
     }), DEFAULT_SETTINGS);
@@ -49,7 +49,7 @@ describe('opening run anchors', () => {
     expect(room.walls[0].runs[0].x + room.walls[0].runs[0].width).toBe(69);
   });
 
-  it('27. honors an explicit casing clearance', () => {
+  it('honors an explicit casing clearance', () => {
     const room = syncRoom(testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor(4) } })],
     }), DEFAULT_SETTINGS);
@@ -57,14 +57,14 @@ describe('opening run anchors', () => {
     expect(room.walls[0].runs[0].x + room.walls[0].runs[0].width).toBe(65);
   });
 
-  it('28. derives width between a corner datum and an opening datum', () => {
+  it('derives width between a corner datum and an opening datum', () => {
     const room = syncRoom(testRoom({
       runs: [cabinetRun({ anchors: { left: true, right: openingAnchor(4) } })],
     }), DEFAULT_SETTINGS);
     expect(room.walls[0].runs[0]).toMatchObject({ x: 0, width: 65 });
   });
 
-  it('29. follows a moved opening in one room sync', () => {
+  it('follows a moved opening in one room sync', () => {
     const room = testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor() } })],
     });
@@ -73,7 +73,7 @@ describe('opening run anchors', () => {
     expect(run.x + run.width).toBe(63);
   });
 
-  it('31. warns only for vertically compatible unanchored run ends', () => {
+  it('warns only for vertically compatible unanchored run ends', () => {
     const settings = { ...DEFAULT_SETTINGS, casingClearance: 4 };
     const room = testRoom({ runs: [
       cabinetRun({ id: 'base', x: 26.5, width: 40 }),
@@ -91,7 +91,7 @@ describe('opening run anchors', () => {
       .toBe(false);
   });
 
-  it('13. allows a run under casing without warning before the jamb', () => {
+  it('allows a run under casing without warning before the jamb', () => {
     const room = testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor(-2) } })],
     });
@@ -102,7 +102,7 @@ describe('opening run anchors', () => {
       .some(({ code }) => code === 'blocks-opening')).toBe(false);
   });
 
-  it('14. warns when a negative casing offset carries the run past the jamb', () => {
+  it('warns when a negative casing offset carries the run past the jamb', () => {
     const room = testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor(-5) } })],
     });
@@ -133,7 +133,7 @@ describe('opening run anchors', () => {
 });
 
 describe('openingClearances', () => {
-  it('32. measures from the nearest compatible run to each casing edge', () => {
+  it('measures from the nearest compatible run to each casing edge', () => {
     const room = testRoom({ runs: [cabinetRun({ x: 20, width: 40 })] });
     expect(openingClearances(room, room.walls[0], DEFAULT_SETTINGS)).toEqual([
       { openingId: 'window-1', label: 'W1', side: 'left', start: 60, end: 69,
@@ -143,7 +143,7 @@ describe('openingClearances', () => {
     ]);
   });
 
-  it('33. marks only a segment shorter than the required clearance', () => {
+  it('marks only a segment shorter than the required clearance', () => {
     const settings = { ...DEFAULT_SETTINGS, casingClearance: 4 };
     const room = testRoom({ runs: [cabinetRun({ x: 27, width: 40 })] });
     const [left, right] = openingClearances(room, room.walls[0], settings);

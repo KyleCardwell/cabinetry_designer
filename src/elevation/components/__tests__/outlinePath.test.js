@@ -6,8 +6,8 @@ const context = () => Object.fromEntries(
   ['beginPath', 'moveTo', 'lineTo', 'arc', 'closePath', 'fillStrokeShape'].map((name) => [name, vi.fn()]),
 );
 
-describe('SH3 step d open outlines', () => {
-  it('anchor 4: traces a two-point line without closing it', () => {
+describe('open outlines (SH3)', () => {
+  it('traces a two-point line without closing it', () => {
     const ctx = context();
     outlinePath([[1, 2, 0], [4, 6, 0]], transform, { closed: false })(ctx);
     expect(ctx.moveTo.mock.calls).toEqual([[1, -2]]);

@@ -15,8 +15,8 @@ const initial = createInitialElevationState({ rooms: [room({ walls: [wall({ runs
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 const hand = { ...S, id: 'h1', from: 'left', yFrom: 'front' };
 
-describe('SH7.5 step c end-leg actions', () => {
-  it('anchors 1–2: an active between fit replaces the end piece and clearing it restores End panel', () => {
+describe('end-leg actions (SH7.5)', () => {
+  it('an active between fit replaces the end piece and clearing it restores End panel', () => {
     const endLegs = { ...E, fit: 'between', panel: { returns: 'both' } };
     const state = elevationReducer(initial, setRunEndLegs({ ...target, side: 'left', endLegs }));
     expect(currentRun(state).endLegs).toEqual({ left: endLegs });
@@ -36,7 +36,7 @@ describe('SH7.5 step c end-leg actions', () => {
     expect(currentRun(fitted)).not.toHaveProperty('_endThickness');
   });
 
-  it('anchor 3: normalizes incompatible fits and panel fields, preserving an untouched end object', () => {
+  it('normalizes incompatible fits and panel fields, preserving an untouched end object', () => {
     const previous = currentRun(initial).ends.left;
     const state = elevationReducer(initial, setRunEndLegs({ ...target, side: 'left',
       endLegs: { legs: 'front', front: Sf, fit: 'between', panel: { returns: 'both' } } }));
@@ -56,7 +56,7 @@ describe('SH7.5 step c end-leg actions', () => {
     expect(currentRun(incompatible).ends.left).toEqual({ type: 'filler', width: null });
   });
 
-  it('anchors 4–5: manually picked end pieces clear fit/panel, and Blind removes only its end legs', () => {
+  it('manually picked end pieces clear fit/panel, and Blind removes only its end legs', () => {
     const fitted = elevationReducer(initial, applyRunLegPreset({ ...target,
       ...legPresetEnds('four', { shapeId: 'leg', proud: 0.5, fit: 'panel' }) }));
     const withPanel = elevationReducer(fitted, setRunEndLegs({ ...target, side: 'left',
@@ -74,7 +74,7 @@ describe('SH7.5 step c end-leg actions', () => {
     expect(currentRun(both).endLegs).toEqual({ right: { ...E, fit: 'between' } });
   });
 
-  it('anchor 6: removing a behind fit restores Filler and drops empty end-leg containers', () => {
+  it('removing a behind fit restores Filler and drops empty end-leg containers', () => {
     const fitted = elevationReducer(initial, setRunEndLegs({ ...target, side: 'left',
       endLegs: { legs: 'front', front: Sf, fit: 'behind' } }));
     expect(currentRun(fitted).ends.left).toEqual({ type: 'none', width: null });
@@ -89,7 +89,7 @@ describe('SH7.5 step c end-leg actions', () => {
     expect(currentRun(one).ends.right).toBe(currentRun(two).ends.right);
   });
 
-  it('anchor 7: invalid end specs and targets leave the entire state unchanged', () => {
+  it('invalid end specs and targets leave the entire state unchanged', () => {
     for (const endLegs of [{ ...E, front: { ...Sf, height: 0 } }, { ...E, back: undefined },
       { ...E, fit: 'unknown' }, { ...E, extra: true }, { legs: 'front', front: Sf, back: S },
       { ...E, fit: 'between', panel: { returns: 'side' } }]) {
@@ -102,7 +102,7 @@ describe('SH7.5 step c end-leg actions', () => {
     }
   });
 
-  it('anchor 8: applies Four with active panel fits to both ends in one action and round-trips it', () => {
+  it('applies Four with active panel fits to both ends in one action and round-trips it', () => {
     const preset = legPresetEnds('four', { shapeId: 'leg', proud: 0.5, fit: 'panel' });
     const before = structuredClone(preset);
     const state = elevationReducer(initial, applyRunLegPreset({ ...target, ...preset }));
@@ -115,7 +115,7 @@ describe('SH7.5 step c end-leg actions', () => {
     expect(preset).toEqual(before);
   });
 
-  it('anchor 12: replacing preset ends clears old fits and preserves hand legs and unnamed ends', () => {
+  it('replacing preset ends clears old fits and preserves hand legs and unnamed ends', () => {
     const source = { ...initial, rooms: [room({ walls: [wall({ runs: [{ ...R, legs: [hand] }] })] })] };
     const fitted = elevationReducer(source, setRunEndLegs({ ...target, side: 'left', endLegs: { ...E, fit: 'between' } }));
     const replaced = elevationReducer(fitted, applyRunLegPreset({ ...target,

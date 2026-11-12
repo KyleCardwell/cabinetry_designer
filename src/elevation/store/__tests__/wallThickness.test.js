@@ -15,8 +15,8 @@ afterEach(() => vi.unstubAllGlobals());
 const segment = { x1: 0, y1: 0, x2: 144, y2: 0 };
 const wallOf = (state) => state.rooms[0].walls[0];
 
-describe('UI9d wall thickness inheritance', () => {
-  it('inherits default 4.5, team 6, room 5.5, then overrides to zero and resets (anchors 1–5)', () => {
+describe('wall thickness inheritance (UI9d)', () => {
+  it('inherits default 4.5, team 6, room 5.5, then overrides to zero and resets', () => {
     let state = elevationReducer(createInitialElevationState(null), addWallSegment(segment));
     const wallId = wallOf(state).id;
     const roomId = state.rooms[0].id;
@@ -32,7 +32,7 @@ describe('UI9d wall thickness inheritance', () => {
     expect(wallOf(state)).toMatchObject({ thicknessOverride: null, thickness: 5.5 });
   });
 
-  it('registers the room setting in Walls before Openings & soffits (anchor 8)', () => {
+  it('registers the room setting in Walls before Openings & soffits', () => {
     const groups = groupsFor('room');
     expect(groups.find(({ id }) => id === 'walls'))
       .toEqual({ id: 'walls', label: 'Walls', keys: ['wallThickness'] });

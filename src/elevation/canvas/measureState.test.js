@@ -15,8 +15,8 @@ const pick = (x, y, pointOnly = false) => snapMeasure({ x, y }, geometry, 0.5, {
 const click = (state, x, y, pointOnly) => measureReducer(state, { type: 'click', pick: pick(x, y, pointOnly) });
 const initial = () => measureReducer(undefined, { type: 'reset' });
 
-describe('MS2a measure reducer', () => {
-  it('anchor 4: stores a snapped diagonal and clears the first pick without mutating old state', () => {
+describe('measure reducer (MS2a)', () => {
+  it('stores a snapped diagonal and clears the first pick without mutating old state', () => {
     const first = click(initial(), 0.1, 0.1);
     const state = click(first, 48, 34.4);
     expect(first).toEqual({ first: pick(0, 0), hover: null, measures: [] });
@@ -28,7 +28,7 @@ describe('MS2a measure reducer', () => {
     expect(state.measures[0].result.distance).toBeCloseTo(59.1122, 4);
   });
 
-  it('anchor 5: ignores the same corner, including free and on-edge point picks, but keeps zero line measures', () => {
+  it('ignores the same corner, including free and on-edge point picks, but keeps zero line measures', () => {
     const first = click(initial(), 0.1, 0.1);
     expect(click(first, 0.2, 0)).toBe(first);
     expect(first.first.point).toEqual({ x: 0, y: 0 });
@@ -44,7 +44,7 @@ describe('MS2a measure reducer', () => {
     expect(state.first).toBeNull();
   });
 
-  it('anchor 6: previews the hover pick only while both picks exist', () => {
+  it('previews the hover pick only while both picks exist', () => {
     expect(measurePreview(initial())).toBeNull();
     const first = click(initial(), 0.1, 0.1);
     expect(measurePreview(first)).toBeNull();
@@ -116,8 +116,8 @@ function renderMeasure() {
   };
 }
 
-describe('MS2a useMeasure', () => {
-  it('anchor 7: Escape clears a first pick, then two measurements, then returns false', () => {
+describe('useMeasure (MS2a)', () => {
+  it('Escape clears a first pick, then two measurements, then returns false', () => {
     const hook = renderMeasure();
     for (let i = 0; i < 2; i += 1) {
       hook.act('click', { x: 0.1, y: 0.1 });

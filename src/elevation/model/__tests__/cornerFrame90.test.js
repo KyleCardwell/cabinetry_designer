@@ -34,8 +34,8 @@ function frameOf(subject, settings = S, side = 'left', supplied = false) {
   return cornerFrame(subject, resolved, owner, side, settings, layout, faces);
 }
 
-describe('CC6 step b Corner 90 frame', () => {
-  it('anchor 1: runs A long, with its neighbour lapping and a 10.3125 opening', () => {
+describe('Corner 90 frame (CC6)', () => {
+  it('runs A long, with its neighbour lapping and a 10.3125 opening', () => {
     const result = frameOf(roomB());
     expect(result).toMatchObject({ columnId: 'cc', kind: 90, side: 'left',
       frame: { z: 4, height: 30.5, thickness: 0.8125 }, warnings: [] });
@@ -46,7 +46,7 @@ describe('CC6 step b Corner 90 frame', () => {
     expect(result.members.filter(({ side }) => side === 'A').map(({ length }) => length)).toEqual([11.25, 11.25]);
   });
 
-  it('anchor 2: butts B into A and covers its return panel with an own stile', () => {
+  it('butts B into A and covers its return panel with an own stile', () => {
     const result = frameOf(roomB());
     expect(result.legs[1]).toEqual({ id: 'B', x0: 24.8125, x1: 36.8125,
       rails: [{ p0: 24.8125, p1: 35.25, z: 4, height: 1.5 },
@@ -60,17 +60,17 @@ describe('CC6 step b Corner 90 frame', () => {
     });
   });
 
-  it('anchor 3: overhangs a bare return end by lap', () => {
+  it('overhangs a bare return end by lap', () => {
     expect(frameOf(roomB({ corner: { returnPiece: 'none' } })).legs[1].stileAtEnd)
       .toEqual({ x0: 35.25, x1: 36.75 });
   });
 
-  it('anchor 4: includes a return filler in its wider stile', () => {
+  it('includes a return filler in its wider stile', () => {
     expect(frameOf(roomB({ corner: { returnPiece: 'filler', returnWidth: 1.5 } })).legs[1].stileAtEnd)
       .toEqual({ x0: 35.25, x1: 37.5 });
   });
 
-  it('anchor 5: Room D has no own stile beside a framed return run', () => {
+  it('Room D has no own stile beside a framed return run', () => {
     const subject = roomB({ returnRun: run({ id: 'return', width: 108, autoCount: false,
       items: [auto('r')], anchors: { left: false, right: true },
       ends: { left: { type: 'none' }, right: { type: 'none' } } }) });
@@ -79,19 +79,19 @@ describe('CC6 step b Corner 90 frame', () => {
     expect(leg.rails.every(({ p1 }) => p1 === 35.25)).toBe(true);
   });
 
-  it('anchor 6: an isolated corner column gets an own A stile', () => {
+  it('an isolated corner column gets an own A stile', () => {
     expect(frameOf(roomB({ items: [fixed('cc', 36)] })).legs[0].stileAtEnd)
       .toEqual({ x0: 35.25, x1: 36.75 });
   });
 
-  it('anchor 7: long-door choices do not move the frame openings', () => {
+  it('long-door choices do not move the frame openings', () => {
     const expected = frameOf(roomB()).legs;
     for (const doors of ['a_long', 'b_long']) {
       expect(frameOf(roomB({ corner: { doors } })).legs).toEqual(expected);
     }
   });
 
-  it('anchor 8: Euro, inactive and beaded corners have no frame', () => {
+  it('Euro, inactive and beaded corners have no frame', () => {
     for (const options of [
       { style: { cabinetStyleId: 13 } },
       { owner: { anchors: { left: false, right: false } } },

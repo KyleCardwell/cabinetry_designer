@@ -69,8 +69,8 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('IN5 Drawer boxes section', () => {
-  it('anchor 3: parses 3 5/8 in Height and clears it back to auto', () => {
+describe('Drawer boxes section (IN5)', () => {
+  it('parses 3 5/8 in Height and clears it back to auto', () => {
     let typed = '3 5/8';
     useState.mockImplementation(() => [typed, vi.fn()]);
     InchInput(field('Drawer height r.0').props).props.onBlur();

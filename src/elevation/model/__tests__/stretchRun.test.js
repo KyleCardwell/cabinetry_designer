@@ -22,7 +22,7 @@ function resultRun(result, id = 'run') {
 }
 
 describe('stretchRun', () => {
-  it('14. allows stretching within the overhang limit and rejects beyond it unchanged', () => {
+  it('allows stretching within the overhang limit and rejects beyond it unchanged', () => {
     const room = subject;
     const allowed = stretchRun(room, 'A', 'run', 'left', -10, DEFAULT_SETTINGS);
     expect(allowed.ok).toBe(true);
@@ -33,7 +33,7 @@ describe('stretchRun', () => {
     expect(rejected.room).toBe(room);
   });
 
-  it('17. snaps to and anchors an open wall end', () => {
+  it('snaps to and anchors an open wall end', () => {
     const room = subject;
 
     const right = stretchRun(room, 'A', 'run', 'right', 87.3, DEFAULT_SETTINGS);
@@ -62,7 +62,7 @@ describe('stretchRun', () => {
     });
   });
 
-  it('12. snaps and anchors within two inches of an outside corner', () => {
+  it('snaps and anchors within two inches of an outside corner', () => {
     subject.walls[0].flipped = true;
     subject.walls[0].connections.end = { wallId: 'B', endpoint: 'start' };
     subject.walls.push(wall({ id: 'B', x1: 120, y1: 0, x2: 120, y2: -96,
@@ -87,7 +87,7 @@ describe('stretchRun', () => {
     });
   });
 
-  it('18. rejects conflicts unchanged and snaps within two inches to another run edge', () => {
+  it('rejects conflicts unchanged and snaps within two inches to another run edge', () => {
     subject.walls[0].runs = [
       run({ ...runDefaults, id: 'run' }),
       run({ ...runDefaults, id: 'neighbor',
@@ -107,7 +107,7 @@ describe('stretchRun', () => {
     expect(conflict.room).toBe(room);
   });
 
-  it('19. clamps a stretched run to the minimum width', () => {
+  it('clamps a stretched run to the minimum width', () => {
     const result = stretchRun(
       subject,
       'A',
@@ -138,7 +138,7 @@ describe('stretchRun', () => {
 });
 
 describe('moveRun', () => {
-  it('12. shifts x and keeps width for a clean move', () => {
+  it('shifts x and keeps width for a clean move', () => {
     const result = moveRun(subject, 'A', 'run', 60, DEFAULT_SETTINGS);
 
     expect(result.ok).toBe(true);
@@ -146,7 +146,7 @@ describe('moveRun', () => {
     expect(result.snap).toBeNull();
   });
 
-  it('13. snaps its left edge to the wall end', () => {
+  it('snaps its left edge to the wall end', () => {
     const result = moveRun(subject, 'A', 'run', 1.5, DEFAULT_SETTINGS);
 
     expect(result.ok).toBe(true);
@@ -154,7 +154,7 @@ describe('moveRun', () => {
     expect(result.snap).toEqual({ value: 0, edge: 'left' });
   });
 
-  it("14. snaps its right edge to a neighbour's left edge", () => {
+  it("snaps its right edge to a neighbour's left edge", () => {
     subject.walls[0].runs = [
       run({ ...runDefaults, id: 'run' }),
       run({ ...runDefaults, id: 'other',
@@ -171,7 +171,7 @@ describe('moveRun', () => {
     expect(result.snap).toEqual({ value: 90, edge: 'right' });
   });
 
-  it('15. refuses conflicting and out-of-bounds moves without changing the room', () => {
+  it('refuses conflicting and out-of-bounds moves without changing the room', () => {
     subject.walls[0].runs = [
       run({ ...runDefaults, id: 'run' }),
       run({ ...runDefaults, id: 'other',
@@ -204,7 +204,7 @@ describe('moveRun', () => {
     expect(outOfBounds.room).toBe(source);
   });
 
-  it('16. refuses to move an anchored run', () => {
+  it('refuses to move an anchored run', () => {
     subject.walls[0].runs = [
       run({ ...runDefaults, id: 'run', anchors: { left: true, right: false } }),
     ];
@@ -221,7 +221,7 @@ describe('moveRun', () => {
   });
 });
 
-describe('CC2 step c corner return snap defaults', () => {
+describe('corner return snap defaults (CC2)', () => {
   beforeEach(() => {
     subject = buildRoom({ walls: [
       wall({ runs: [run({ id: 'owner', z: 0, autoCount: false,

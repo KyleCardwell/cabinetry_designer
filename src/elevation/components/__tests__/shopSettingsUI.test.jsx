@@ -107,7 +107,7 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('RP1 a shop report settings', () => {
+describe('shop report settings (RP1)', () => {
   it('shows thirteen shop fields, trims text without interrupting typing, rejects overlong values and clears blanks', () => {
     const group = section(openGroup('Reports'), 'Reports');
     expect(controls(group)).toHaveLength(13);

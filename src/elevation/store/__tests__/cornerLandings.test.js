@@ -20,8 +20,8 @@ const geometry = (subject) => subject.walls.map(({
   id, x1, y1, x2, y2, flipped, connections, landings,
 }) => ({ id, x1, y1, x2, y2, flipped, connections, landings }));
 
-describe('WL3 c: corner and landing store actions', () => {
-  it('anchor 1: makes KC by moving the host and clears the message', () => {
+describe('corner and landing store actions (WL3)', () => {
+  it('makes KC by moving the host and clears the message', () => {
     const state = elevationReducer({ ...initial, message: 'old' }, makeWallCorner({
       wallId: 'wall-2', endpoint: 'end', move: 'host',
     }));
@@ -31,7 +31,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(geometry(initial.rooms[0])).toEqual(geometry(K));
   });
 
-  it('anchor 2: extends KC back to K through the compensation pipeline', () => {
+  it('extends KC back to K through the compensation pipeline', () => {
     const state = elevationReducer({ ...corner, message: 'old' }, extendPastCorner({
       wallId: 'wall-3', endpoint: 'start', amount: 39,
     }));
@@ -40,14 +40,14 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(state.messageAction).toBeNull();
   });
 
-  it('anchor 3: refuses the shrink and offers the exact corner action', () => {
+  it('refuses the shrink and offers the exact corner action', () => {
     const state = elevationReducer(initial, shrink);
     expect(state.rooms).toBe(initial.rooms);
     expect(state.message).toBe(refusal);
     expect(state.messageAction).toEqual(cornerAction);
   });
 
-  it('anchor 4: dispatching the refusal action makes KC', () => {
+  it('dispatching the refusal action makes KC', () => {
     const refused = elevationReducer(initial, shrink);
     const state = elevationReducer(refused, makeWallCorner(refused.messageAction.payload));
     expect(geometry(state.rooms[0])).toEqual(geometry(KC));
@@ -56,7 +56,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(state.messageAction).toBe(refused.messageAction);
   });
 
-  it.each([null, 'another message'])('anchor 5: setMessage(%s) clears the refusal action', (message) => {
+  it.each([null, 'another message'])('setMessage(%s) clears the refusal action', (message) => {
     const refused = elevationReducer(initial, shrink);
     const state = elevationReducer(refused, setMessage(message));
     expect(state.message).toBe(message);
@@ -64,7 +64,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(state.rooms).toBe(refused.rooms);
   });
 
-  it('anchor 6: refuses past a connected host end and clears a previous action', () => {
+  it('refuses past a connected host end and clears a previous action', () => {
     const refused = elevationReducer(initial, shrink);
     const state = elevationReducer(refused, setWallLength({
       wallId: 'wall-3', length: 43, growEnd: 'right',
@@ -74,7 +74,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(state.messageAction).toBeNull();
   });
 
-  it('anchor 7: compensates the released front run and anchors the back run to the landing', () => {
+  it('compensates the released front run and anchors the back run to the landing', () => {
     const subject = room({ ...KC, walls: KC.walls.map((entry) => {
       if (entry.id === 'wall-3') return { ...entry, runs: [
         run({ id: 'back', wallSide: 'back', x: 20, width: 50,
@@ -101,7 +101,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(state.rooms[0].walls[1].runs[0].anchors).toEqual(before.rooms[0].walls[1].runs[0].anchors);
   });
 
-  it('anchor 8: refuses when both host ends are joined without creating a message action', () => {
+  it('refuses when both host ends are joined without creating a message action', () => {
     const subject = room({ ...K, walls: [
       ...K.walls.map((entry) => entry.id === 'wall-3' ? {
         ...entry, connections: { ...entry.connections, start: { wallId: 'wall-5', endpoint: 'start' } },
@@ -120,7 +120,7 @@ describe('WL3 c: corner and landing store actions', () => {
     expect(synced.message).toBe('Wall 4 has no free end to make a corner with Wall 2.');
   });
 
-  it('anchor 9: ignores invalid reducer inputs without changing messages or rooms', () => {
+  it('ignores invalid reducer inputs without changing messages or rooms', () => {
     const before = elevationReducer(initial, shrink);
     const make = { wallId: 'wall-2', endpoint: 'end', move: 'host' };
     const extend = { wallId: 'wall-3', endpoint: 'start', amount: 39 };

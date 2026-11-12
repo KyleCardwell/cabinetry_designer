@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gappedLine } from '../gappedLine.js';
 
 describe('gappedLine', () => {
-  it('DM7 anchors: splits horizontal and vertical lines and preserves any direction', () => {
+  it('anchors: splits horizontal and vertical lines and preserves any direction (DM7)', () => {
     expect(gappedLine({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, 10))
       .toEqual([[0, 0, 40, 0], [60, 0, 100, 0]]);
     expect(gappedLine({ x: 0, y: 0 }, { x: 0, y: 100 }, { x: 0, y: 50 }, 10))
@@ -13,7 +13,7 @@ describe('gappedLine', () => {
       .toEqual([[10, 20, 34, 52], [46, 68, 70, 100]]);
   });
 
-  it('DM7 anchor: clips gaps past either end, including fully covered or untouched lines', () => {
+  it('anchor: clips gaps past either end, including fully covered or untouched lines (DM7)', () => {
     const start = { x: 0, y: 0 };
     const end = { x: 100, y: 0 };
     expect(gappedLine(start, end, { x: 5, y: 0 }, 10)).toEqual([[15, 0, 100, 0]]);

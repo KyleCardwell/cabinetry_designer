@@ -25,7 +25,7 @@ const anchors = [
   ] },
 ];
 
-describe('GM2 glass drafting marks', () => {
+describe('glass drafting marks (GM2)', () => {
   it.each(anchors)('matches the $width × $height anchor exactly', ({ width, height, lines }) => {
     expect(glassMarks({ x: 0, z: 0, width, height })).toEqual(lines);
   });

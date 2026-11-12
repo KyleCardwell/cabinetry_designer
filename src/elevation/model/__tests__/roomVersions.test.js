@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { drawingRevision } from '../roomVersions.js';
 
-describe('DB8b drawing revision', () => {
+describe('drawing revision (DB8b)', () => {
   it('labels an issued version from its issued metadata', () => {
     expect(drawingRevision('version', {
       issued: { label: 'KC 10/15/26', seq: 2 },

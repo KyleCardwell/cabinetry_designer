@@ -41,14 +41,14 @@ const entry = (leafId, side, edge = 'top', z = 32.5, height = 2) => ({
 });
 const expected = [entry('A', 'right'), entry('C', 'left')];
 
-describe('ST3 step b step panel pieces', () => {
+describe('step panel pieces (ST3)', () => {
   const withPanel = () => {
     const run = makeRun();
     findLeaf(run.grid, 'A').stepEnds = { right: { type: 'panel' } };
     return run;
   };
 
-  it('anchor 1: places the 13/16 panel over B without moving or resizing any box', () => {
+  it('places the 13/16 panel over B without moving or resizing any box', () => {
     const baseline = cellsOf(sync(makeRun()));
     const source = withPanel();
     const before = structuredClone(source);
@@ -67,7 +67,7 @@ describe('ST3 step b step panel pieces', () => {
     expect(stepEndSides(run, cells, S).filter((side) => side.choice !== 'none')).toEqual(run._stepEnds);
   });
 
-  it('anchor 2: numbers the drawn and pickable panel immediately after A and ships it as an end panel', () => {
+  it('numbers the drawn and pickable panel immediately after A and ships it as an end panel', () => {
     const room = syncRoom(makeRoom(withPanel()), S);
     const wall = room.walls[0];
     const run = wall.runs[0];
@@ -84,7 +84,7 @@ describe('ST3 step b step panel pieces', () => {
     });
   });
 
-  it('anchor 3: preserves frame bounds, notches, capture sides and the default door hinge', () => {
+  it('preserves frame bounds, notches, capture sides and the default door hinge', () => {
     const sceneOf = (source) => {
       const room = syncRoom(makeRoom(source), S);
       return runScene(room, room.walls[0], room.walls[0].runs[0], S);
@@ -138,8 +138,8 @@ function nestedRun(offsets = { top: manual(2) }) {
   return run;
 }
 
-describe('ST3 step a step sides and stored choice', () => {
-  it('anchor 1: derives the two top returns at z 32.5 without changing layout or input', () => {
+describe('step sides and stored choice (ST3)', () => {
+  it('derives the two top returns at z 32.5 without changing layout or input', () => {
     const run = makeRun();
     const before = structuredClone(run);
     const resolved = sync(run);
@@ -153,7 +153,7 @@ describe('ST3 step a step sides and stored choice', () => {
     expect(sync(resolved)).toEqual(resolved);
   });
 
-  it('anchor 2: omits the explicit None entry from derived data', () => {
+  it('omits the explicit None entry from derived data', () => {
     const run = makeRun();
     findLeaf(run.grid, 'A').stepEnds = { right: 'none' };
     const resolved = sync(run);
@@ -163,19 +163,19 @@ describe('ST3 step a step sides and stored choice', () => {
     });
   });
 
-  it('anchor 3: uses the stored four-inch return width', () => {
+  it('uses the stored four-inch return width', () => {
     const run = makeRun();
     findLeaf(run.grid, 'A').stepEnds = { right: { type: 'return', width: 4 } };
     expect(sync(run)._stepEnds).toEqual([{ ...expected[0], width: 4 }, expected[1]]);
   });
 
-  it('anchor 4: mirrors the step at the bottom, starting at z 4 with height 3', () => {
+  it('mirrors the step at the bottom, starting at z 4 with height 3', () => {
     expect(sync(makeRun({ bottom: manual(3) }))._stepEnds).toEqual([
       entry('A', 'right', 'bottom', 4, 3), entry('C', 'left', 'bottom', 4, 3),
     ]);
   });
 
-  it('anchor 5: removes stale step entries in Euro runs and follows inherited leaf styles', () => {
+  it('removes stale step entries in Euro runs and follows inherited leaf styles', () => {
     const run = { ...makeRun(), style: { cabinetStyleId: 13 }, _stepEnds: expected };
     expect(sync(run)).not.toHaveProperty('_stepEnds');
     delete run.style;

@@ -156,7 +156,7 @@ describe('joints', () => {
     expect(runShortLabel(makeTbt().walls[0].runs[0])).toBe('Tall 0"–24"');
   });
 
-  it('62. derives joint members in run order and preserves valid joints', () => {
+  it('derives joint members in run order and preserves valid joints', () => {
     const wall = makeTbt().walls[0];
 
     expect(jointMembers(wall, 'J1')).toEqual([
@@ -166,7 +166,7 @@ describe('joints', () => {
     expect(pruneJoints(wall)).toEqual(wall);
   });
 
-  it('63. resolves every run edge from its joint datum', () => {
+  it('resolves every run edge from its joint datum', () => {
     const room = makeTbt();
     Object.assign(room.walls[0].runs[1], { x: 20, width: 30 });
 
@@ -176,7 +176,7 @@ describe('joints', () => {
     expect(synced.walls[0].runs[2]).toMatchObject({ id: 'T2', x: 60, width: 24 });
   });
 
-  it('64. moves a joint while keeping every member opposite edge fixed', () => {
+  it('moves a joint while keeping every member opposite edge fixed', () => {
     const result = moveJoint(makeTbt(), 'A', 'J1', 30, DEFAULT_SETTINGS);
     const wall = result.room.walls[0];
 
@@ -195,7 +195,7 @@ describe('joints', () => {
     ]);
   });
 
-  it('65. clamps a joint to the overlap of member minimum widths', () => {
+  it('clamps a joint to the overlap of member minimum widths', () => {
     const result = moveJoint(makeTbt(), 'A', 'J1', 70, DEFAULT_SETTINGS);
 
     expect(result).toMatchObject({
@@ -207,7 +207,7 @@ describe('joints', () => {
     expect(result.room.walls[0].runs[1]).toMatchObject({ id: 'B', x: 51, width: 9 });
   });
 
-  it('66. holds a joint fixed when a member layout is rigid', () => {
+  it('holds a joint fixed when a member layout is rigid', () => {
     const room = makeTbt();
     room.walls[0].runs[1].items[0].width = 36;
 
@@ -221,7 +221,7 @@ describe('joints', () => {
     });
   });
 
-  it('67. resolves signed joint offsets toward a run body', () => {
+  it('resolves signed joint offsets toward a run body', () => {
     const room = makeTbt();
     room.walls[0].runs[1].anchors.left.offset = 1.5;
 
@@ -231,7 +231,7 @@ describe('joints', () => {
     expect(synced.walls[0].runs[1]).toMatchObject({ id: 'B', x: 25.5, width: 34.5 });
   });
 
-  it('68. moves all members on the same side of a joint', () => {
+  it('moves all members on the same side of a joint', () => {
     const room = makeTbt();
     room.walls[0].runs.push(makeRun('U', {
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
@@ -255,7 +255,7 @@ describe('joints', () => {
     expect(runs.find((run) => run.id === 'U')).toMatchObject({ x: 30, width: 30 });
   });
 
-  it('69. compensates joint datums when a wall start moves', () => {
+  it('compensates joint datums when a wall start moves', () => {
     const room = makeTbt();
     const changed = {
       ...room,
@@ -273,7 +273,7 @@ describe('joints', () => {
     ]);
   });
 
-  it('70. mirrors joint datums and swaps member sides with the wall', () => {
+  it('mirrors joint datums and swaps member sides with the wall', () => {
     const flipped = flipRunsForWall(makeTbt().walls[0]);
 
     expect(flipped.joints).toEqual([{ id: 'J1', x: 96 }, { id: 'J2', x: 60 }]);
@@ -291,7 +291,7 @@ describe('joints', () => {
     expect(flipped.runs[2]).toMatchObject({ id: 'T2', x: 36, width: 24 });
   });
 
-  it('71. prunes an under-subscribed joint and frees its remaining member', () => {
+  it('prunes an under-subscribed joint and frees its remaining member', () => {
     const room = makeTbt();
     room.walls[0].runs = room.walls[0].runs.filter((run) => run.id !== 'T2');
 
@@ -306,7 +306,7 @@ describe('joints', () => {
     });
   });
 
-  it('72. stretches a joined side by moving its joint', () => {
+  it('stretches a joined side by moving its joint', () => {
     const result = stretchRun(makeTbt(), 'A', 'B', 'right', 66, DEFAULT_SETTINGS);
     const wall = result.room.walls[0];
 
@@ -322,7 +322,7 @@ describe('joints', () => {
 });
 
 describe('joining run edges', () => {
-  it('73. joins two free edges into a new joint', () => {
+  it('joins two free edges into a new joint', () => {
     const room = makeRoom([
       makeRun('P', { x: 0, width: 30 }),
       makeRun('Q', { cabinetTypeId: CABINET_TYPE_IDS.TALL, x: 30, width: 24, height: 80 }),
@@ -349,7 +349,7 @@ describe('joining run edges', () => {
     });
   });
 
-  it('74. joins a free edge to an existing joint and keeps its far edge', () => {
+  it('joins a free edge to an existing joint and keeps its far edge', () => {
     const room = makeTbt();
     room.walls[0].runs.push(makeRun('U', {
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
@@ -376,7 +376,7 @@ describe('joining run edges', () => {
     });
   });
 
-  it('75. refuses to join two sides of the same run', () => {
+  it('refuses to join two sides of the same run', () => {
     const room = makeTbt();
     const result = joinEdges(
       room,
@@ -389,7 +389,7 @@ describe('joining run edges', () => {
     expect(result).toMatchObject({ ok: false, reason: 'joint-same-run', room });
   });
 
-  it('76. joins a stretch that snaps to a butting run edge', () => {
+  it('joins a stretch that snaps to a butting run edge', () => {
     const room = makeRoom([
       makeRun('P', { x: 0, width: 30, items: [{ id: 'P-cabinet', kind: 'cabinet', width: null }] }),
       makeRun('Q', {
@@ -408,7 +408,7 @@ describe('joining run edges', () => {
     expect(result.room.walls[0].runs[0]).toMatchObject({ x: 0, width: 40 });
   });
 
-  it('77. does not join snapped edges without vertical overlap', () => {
+  it('does not join snapped edges without vertical overlap', () => {
     const room = makeRoom([
       makeRun('R', { x: 40, width: 24 }),
       makeRun('S', {
@@ -429,7 +429,7 @@ describe('joining run edges', () => {
     expect(result.room.walls[0].joints ?? []).toHaveLength(0);
   });
 
-  it('78. joins a newly placed run to a touching edge', () => {
+  it('joins a newly placed run to a touching edge', () => {
     const room = makeRoom([makeRun('T1', {
       cabinetTypeId: CABINET_TYPE_IDS.TALL,
       x: 0,
@@ -449,7 +449,7 @@ describe('joining run edges', () => {
     expect(result.room.walls[0].joints[0].x).toBe(24);
   });
 
-  it('99. joins newly placed runs within one sixty-fourth of an inch', () => {
+  it('joins newly placed runs within one sixty-fourth of an inch', () => {
     const joinAt = (x) => {
       const room = makeRoom([makeRun('T1', {
         cabinetTypeId: CABINET_TYPE_IDS.TALL,
@@ -494,27 +494,27 @@ describe('joint end panels', () => {
     };
   }
 
-  it('82. leaves every end exposed when deeper neighbors do not cover its full height', () => {
+  it('leaves every end exposed when deeper neighbors do not cover its full height', () => {
     expect(joinedEnds(makeTbu())).toEqual({
       tall: 'end_panel', base: 'end_panel', upper: 'end_panel',
     });
   });
 
-  it('83. covers shallower runs while preserving a gap in the tall coverage', () => {
+  it('covers shallower runs while preserving a gap in the tall coverage', () => {
     const room = makeTbu();
     room.walls[0].runs.find((run) => run.id === 'T').depth = 25;
 
     expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'none', upper: 'none' });
   });
 
-  it('84. counts equal depth as coverage', () => {
+  it('counts equal depth as coverage', () => {
     const room = makeTbu();
     room.walls[0].runs.find((run) => run.id === 'U').depth = 12;
 
     expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'end_panel', upper: 'none' });
   });
 
-  it('85. treats an offset edge as a gap', () => {
+  it('treats an offset edge as a gap', () => {
     const room = makeTbu();
     room.walls[0].runs.find((run) => run.id === 'T').depth = 25;
     room.walls[0].runs.find((run) => run.id === 'B').anchors.left.offset = 0.5;
@@ -524,21 +524,21 @@ describe('joint end panels', () => {
 });
 
 describe('joint glyphs', () => {
-  it('89. places one glyph in each shorter run of a stacked joint', () => {
+  it('places one glyph in each shorter run of a stacked joint', () => {
     expect(jointGlyphs(makeTbu().walls[0], 'J1')).toEqual([
       { ownerRunId: 'B', z: 19.25 },
       { ownerRunId: 'U', z: 69 },
     ]);
   });
 
-  it('90. assigns each tall-to-base glyph to the base', () => {
+  it('assigns each tall-to-base glyph to the base', () => {
     const wall = makeTbt().walls[0];
 
     expect(jointGlyphs(wall, 'J1')).toEqual([{ ownerRunId: 'B', z: 19.25 }]);
     expect(jointGlyphs(wall, 'J2')).toEqual([{ ownerRunId: 'B', z: 19.25 }]);
   });
 
-  it('91. gives every unpaired member its own glyph', () => {
+  it('gives every unpaired member its own glyph', () => {
     const room = makeRoom([
       makeRun('P', {
         x: 0,
@@ -566,7 +566,7 @@ describe('joint glyphs', () => {
 });
 
 describe('sliding joined runs', () => {
-  it('93. slides a run through both joints without changing its width', () => {
+  it('slides a run through both joints without changing its width', () => {
     const result = moveRun(makeTbt(), 'A', 'B', 30, DEFAULT_SETTINGS);
     const wall = result.room.walls[0];
 
@@ -579,7 +579,7 @@ describe('sliding joined runs', () => {
     ]);
   });
 
-  it('94. clamps a joined slide when its neighbor reaches minimum width', () => {
+  it('clamps a joined slide when its neighbor reaches minimum width', () => {
     const result = moveRun(makeTbt(), 'A', 'B', 44, DEFAULT_SETTINGS);
     const wall = result.room.walls[0];
 
@@ -597,7 +597,7 @@ describe('sliding joined runs', () => {
     ]);
   });
 
-  it('95. holds a joined slide when its neighbor is rigid', () => {
+  it('holds a joined slide when its neighbor is rigid', () => {
     const room = makeTbt();
     const t2 = room.walls[0].runs.find((run) => run.id === 'T2');
     Object.assign(t2.items[0], { width: 24 });
@@ -619,7 +619,7 @@ describe('sliding joined runs', () => {
     ]);
   });
 
-  it('96. slides a run through its remaining joint after pruning the other', () => {
+  it('slides a run through its remaining joint after pruning the other', () => {
     const room = makeTbt();
     room.walls[0].runs = room.walls[0].runs.filter((run) => run.id !== 'T2');
 
@@ -636,7 +636,7 @@ describe('sliding joined runs', () => {
     });
   });
 
-  it('97. still refuses non-joint anchors and reports free moves', () => {
+  it('still refuses non-joint anchors and reports free moves', () => {
     const anchoredRoom = makeTbt();
     anchoredRoom.walls[0].runs.find((run) => run.id === 'T1').anchors.left = true;
 

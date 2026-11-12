@@ -10,7 +10,7 @@ import {
   addSectionAccessory, isAccessoryItems, isFaceNode, isSectionAccessories, setFaceDrawerBox, setSectionAccessory,
 } from '../index.js';
 
-it('IN13a a anchors 5–6: validates section-only placement and preserves it through edits and splits', () => {
+it('validates section-only placement and preserves it through edits and splits (IN13a)', () => {
   const item = { accessoryId: 'a', fromBottom: 40, mirror: true };
   expect(isSectionAccessories([item])).toBe(true);
   expect(isAccessoryItems([item], { placed: true })).toBe(true);
@@ -39,12 +39,12 @@ it('IN13a a anchors 5–6: validates section-only placement and preserves it thr
   expect(removeDivider(split, 'r', 0).accessories).toEqual([{ ...item, qty: 2 }]);
 });
 
-describe('IN2 stored interior tree', () => {
+describe('stored interior tree (IN2)', () => {
   const vertical = () => ({
     direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }],
   });
 
-  it('accepts stored sections and recursive groups (anchors 1 and 3)', () => {
+  it('accepts stored sections and recursive groups', () => {
     expect(isInteriorNode({})).toBe(true);
     expect(isStoredInterior({})).toBe(true);
     expect(isStoredInterior(vertical())).toBe(true);
@@ -70,7 +70,7 @@ describe('IN2 stored interior tree', () => {
     })).toBe(true);
   });
 
-  it('rejects wrong families, seams, fields and nonpositive dimensions (anchor 2)', () => {
+  it('rejects wrong families, seams, fields and nonpositive dimensions', () => {
     for (const node of [null, [], 1, 'section', new Date(), { fill: 'shelves' }]) {
       expect(isInteriorNode(node)).toBe(false);
       expect(isStoredInterior(node)).toBe(false);
@@ -106,12 +106,12 @@ function deepFreeze(value) {
   return value;
 }
 
-describe('IN7 divider data', () => {
+describe('divider data (IN7)', () => {
   const group = (divider, direction = 'vertical') => deepFreeze({
     direction, children: [{}, {}], dividers: [divider],
   });
 
-  it('anchor 1: accepts seam links, typed linked positions and shelf banding', () => {
+  it('accepts seam links, typed linked positions and shelf banding', () => {
     for (const divider of [
       { kind: 'fixed', seam: 'r:0' },
       { kind: 'fixed', seam: 'r.1:2', at: 30 },
@@ -121,7 +121,7 @@ describe('IN7 divider data', () => {
     expect(isStoredInterior(group({ kind: 'partition', seam: 'r.0:2' }, 'horizontal'))).toBe(true);
   });
 
-  it('anchor 2: restricts pair seams and banding and rejects malformed fields', () => {
+  it('restricts pair seams and banding and rejects malformed fields', () => {
     expect(isStoredInterior(group({ kind: 'fixed', seam: 'r:pair' }))).toBe(false);
     expect(isStoredInterior(group({ kind: 'partition', seam: 'r:pair' }, 'horizontal'))).toBe(true);
     for (const kind of ['partition', 'double_partition', 'stretcher']) {
@@ -136,7 +136,7 @@ describe('IN7 divider data', () => {
     }
   });
 
-  it('anchor 5: keeps seam links through position, depth and equalize edits', () => {
+  it('keeps seam links through position, depth and equalize edits', () => {
     const linked = group({ kind: 'fixed', seam: 'r:0' });
     const positioned = setDividerPosition(linked, 'r', 0, 30);
     expect(positioned.dividers[0]).toEqual({ kind: 'fixed', seam: 'r:0', at: 30 });
@@ -149,7 +149,7 @@ describe('IN7 divider data', () => {
     expect(equalizeDividers(right, 'r')).toEqual(pair);
   });
 
-  it('anchor 6: drops banding for stretchers and preserves links and other overrides', () => {
+  it('drops banding for stretchers and preserves links and other overrides', () => {
     expect(setDividerKind(group({ kind: 'fixed', banding: false }), 'r', 0, 'stretcher').dividers[0])
       .toEqual({ kind: 'stretcher' });
     const linked = group({ kind: 'fixed', seam: 'r:0', banding: true, at: 30, depth: 10 });
@@ -181,7 +181,7 @@ describe('IN7 divider data', () => {
     }
   });
 
-  it('anchor 3: returns stored empty sections when collapsing or editing an absent tree', () => {
+  it('returns stored empty sections when collapsing or editing an absent tree', () => {
     const tree = group({ kind: 'fixed' });
     expect(removeDivider(tree, 'r', 0)).toEqual({});
     expect(clearSplit(tree, 'r')).toEqual({});
@@ -199,7 +199,7 @@ describe('IN7 divider data', () => {
   });
 });
 
-describe('IN2 interior tree edits', () => {
+describe('interior tree edits (IN2)', () => {
   const two = deepFreeze({
     direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed' }],
   });
@@ -224,7 +224,7 @@ describe('IN2 interior tree edits', () => {
     }
   });
 
-  it('anchors 1 and 2: splits an absent root and nests a perpendicular split', () => {
+  it('splits an absent root and nests a perpendicular split', () => {
     for (const absent of [null, undefined]) expect(splitSection(absent, 'r', 'vertical', 2)).toEqual(two);
     expect(splitSection(two, 'r.0', 'horizontal', 2)).toEqual(nested);
     const deep = splitSection(nested, 'r.0.1', 'vertical', 2, 'stretcher');
@@ -234,7 +234,7 @@ describe('IN2 interior tree edits', () => {
     expect(isStoredInterior(deep)).toBe(true);
   });
 
-  it('anchor 3: flattens same-direction splits and preserves existing seams on both sides', () => {
+  it('flattens same-direction splits and preserves existing seams on both sides', () => {
     const manual = deepFreeze({ ...two, dividers: [{ kind: 'fixed', at: 36 }] });
     expect(splitSection(manual, 'r.1', 'vertical', 3, 'stretcher')).toEqual({
       direction: 'vertical', children: [{}, {}, {}, {}],
@@ -254,7 +254,7 @@ describe('IN2 interior tree edits', () => {
     }
   });
 
-  it('anchors 4 and 5: removes only seams between sections and collapses the last split', () => {
+  it('removes only seams between sections and collapses the last split', () => {
     expect(removeDivider(nested, 'r', 0)).toBe(nested);
     expect(removeDivider(nested, 'r.0', 0)).toEqual(two);
     expect(removeDivider(two, 'r', 0)).toEqual({});
@@ -268,7 +268,7 @@ describe('IN2 interior tree edits', () => {
     expect(removeDivider(groupOnRight, 'r', 0)).toBe(groupOnRight);
   });
 
-  it('anchor 6: positions partitions from either side, rejects shelf origins and clears auto positions', () => {
+  it('positions partitions from either side, rejects shelf origins and clears auto positions', () => {
     const right = deepFreeze(setDividerPosition(nested, 'r.0', 0, 12, 'right'));
     expect(right.children[0].dividers[0]).toEqual({ kind: 'partition', at: 12, from: 'right' });
     expect(setDividerPosition(right, 'r', 0, 30, 'right')).toBe(right);
@@ -292,7 +292,7 @@ describe('IN2 interior tree edits', () => {
     expect(setDividerPosition(two, 'r', 0, 30, 'left')).toBe(two);
   });
 
-  it('anchor 7: changes kind only within its family and keeps position and depth', () => {
+  it('changes kind only within its family and keeps position and depth', () => {
     expect(setDividerKind(two, 'r', 0, 'partition')).toBe(two);
     expect(setDividerKind(two, 'r', 0, 'double_fixed').dividers[0]).toEqual({ kind: 'double_fixed' });
     expect(setDividerKind(two, 'r', 0, 'fixed')).toBe(two);
@@ -373,7 +373,7 @@ describe('IN2 interior tree edits', () => {
   });
 });
 
-describe('IN8 section shelf and flag data', () => {
+describe('section shelf and flag data (IN8)', () => {
   const group = (children, direction = 'vertical') => ({
     direction, children,
     dividers: Array.from({ length: children.length - 1 }, () => ({
@@ -381,7 +381,7 @@ describe('IN8 section shelf and flag data', () => {
     })),
   });
 
-  it('anchor 1: validates section picks, count boundaries and group restrictions', () => {
+  it('validates section picks, count boundaries and group restrictions', () => {
     expect(SHELF_NOSINGS).toEqual(['none', 'hardwood', 'folded']);
     expect(isInteriorNode({ shelves: { count: 0 }, lineBore: true })).toBe(true);
     expect(isInteriorNode({ ...group([{}, {}]), shelves: {} })).toBe(false);
@@ -400,7 +400,7 @@ describe('IN8 section shelf and flag data', () => {
     }
   });
 
-  it('anchor 2: patches and resets shelves without retaining empty objects or dropping explicit defaults', () => {
+  it('patches and resets shelves without retaining empty objects or dropping explicit defaults', () => {
     const picked = deepFreeze(setSectionShelves({}, 'r', { count: 3 }));
     expect(picked).toEqual({ shelves: { count: 3 } });
     expect(setSectionShelves(picked, 'r', { count: null })).toEqual({});
@@ -433,7 +433,7 @@ describe('IN8 section shelf and flag data', () => {
     expect(setSectionFlag(tree, 'r.0', 'unknown', null)).toBe(tree);
   });
 
-  it('anchor 3: copies picks to independent split children and resets count, including flattened splits', () => {
+  it('copies picks to independent split children and resets count, including flattened splits', () => {
     const section = deepFreeze({ shelves: { count: 2, glass: true }, hinges: false });
     const expected = { shelves: { glass: true }, hinges: false };
     const split = splitSection(section, 'r', 'vertical', 2);
@@ -450,7 +450,7 @@ describe('IN8 section shelf and flag data', () => {
     expect(splitSection({ shelves: { count: 1 } }, 'r', 'vertical', 2).children).toEqual([{}, {}]);
   });
 
-  it('anchor 4: merges customized leaves using first-section picks without count', () => {
+  it('merges customized leaves using first-section picks without count', () => {
     const first = { shelves: { nosing: 'hardwood', count: 1 } };
     const second = { lineBore: false };
     const two = deepFreeze(group([first, second]));
@@ -466,10 +466,10 @@ describe('IN8 section shelf and flag data', () => {
   });
 });
 
-describe('IN13b step a shoe shelf data', () => {
+describe('shoe shelf data (IN13b)', () => {
   const group = (children) => ({ direction: 'vertical', children, dividers: [{ kind: 'fixed' }] });
 
-  it('anchors 1–2: accepts only section shoe counts from 0 to 20', () => {
+  it('accepts only section shoe counts from 0 to 20', () => {
     for (const shoe of [0, 4, 20]) expect(isInteriorNode({ shelves: { shoe } })).toBe(true);
     for (const shoe of [-1, 21, 1.5, NaN, Infinity, '3', null, undefined]) {
       expect(isInteriorNode({ shelves: { shoe } })).toBe(false);
@@ -482,7 +482,7 @@ describe('IN13b step a shoe shelf data', () => {
     expect(patchShelfSettings({}, { glass: true, shoe: 2 })).toBeNull();
   });
 
-  it('anchor 3: sets and removes shoe counts while preserving other section picks', () => {
+  it('sets and removes shoe counts while preserving other section picks', () => {
     const picked = deepFreeze(setSectionShelves({}, 'r', { shoe: 3 }));
     expect(picked).toEqual({ shelves: { shoe: 3 } });
     expect(setSectionShelves(picked, 'r', { shoe: null })).toEqual({});
@@ -494,7 +494,7 @@ describe('IN13b step a shoe shelf data', () => {
     expect(setSectionShelves(tree, 'r.0', { shoe: 21 })).toBe(tree);
   });
 
-  it('anchor 4: drops both shelf counts when splitting, including flattened splits', () => {
+  it('drops both shelf counts when splitting, including flattened splits', () => {
     const section = deepFreeze({ shelves: { shoe: 3, count: 2, glass: true } });
     const expected = { shelves: { glass: true } };
     expect(splitSection(section, 'r', 'vertical', 2).children).toEqual([expected, expected]);
@@ -507,7 +507,7 @@ describe('IN13b step a shoe shelf data', () => {
     expect(splitSection({ shelves: { shoe: 3 } }, 'r', 'vertical', 2).children).toEqual([{}, {}]);
   });
 
-  it('anchor 5: drops shoe counts on merge and retains first-section material picks', () => {
+  it('drops shoe counts on merge and retains first-section material picks', () => {
     const tree = deepFreeze(group([{ shelves: { shoe: 2, nosing: 'hardwood' } }, {}]));
     expect(removeDivider(tree, 'r', 0)).toEqual({ shelves: { nosing: 'hardwood' } });
     expect(removeDivider(group([{ shelves: { shoe: 2, count: 3 } }, {}]), 'r', 0)).toEqual({});
@@ -515,7 +515,7 @@ describe('IN13b step a shoe shelf data', () => {
   });
 });
 
-describe('IN9 roll-out data', () => {
+describe('roll-out data (IN9)', () => {
   const group = (children, direction = 'vertical') => ({
     direction, children,
     dividers: Array.from({ length: children.length - 1 }, () => ({
@@ -526,7 +526,7 @@ describe('IN9 roll-out data', () => {
     rollouts: { count: 2, items: [{ at: 1 }, { height: 6 }] }, shelves: { glass: true },
   });
 
-  it('anchor 1: validates roll-outs only on sections, including count boundaries and rejecting removed layouts', () => {
+  it('validates roll-outs only on sections, including count boundaries and rejecting removed layouts', () => {
     expect(MAX_ROLLOUTS).toBe(8);
     expect(isInteriorNode({ rollouts: { count: 2, items: [{}, { at: 10, slideId: 'accuride-3832' }] } }))
       .toBe(true);
@@ -559,7 +559,7 @@ describe('IN9 roll-out data', () => {
     }
   });
 
-  it('anchor 2: pads automatic items and removes trailing empty items after a reset', () => {
+  it('pads automatic items and removes trailing empty items after a reset', () => {
     const added = deepFreeze(setSectionRollouts({}, 'r', { count: 2 }));
     expect(added).toEqual({ rollouts: { count: 2 } });
     const typed = deepFreeze(setRolloutItem(added, 'r', 1, { height: 6 }));
@@ -571,7 +571,7 @@ describe('IN9 roll-out data', () => {
     expect(setRolloutItem(picks, 'r', 0, { at: null, depth: null, slideId: null })).toEqual(typed);
   });
 
-  it('anchor 3: truncates items when lowering count, removes roll-outs and rejects layout patches', () => {
+  it('truncates items when lowering count, removes roll-outs and rejects layout patches', () => {
     const three = deepFreeze({ rollouts: { count: 3, items: [{}, {}, { depth: 18 }] } });
     const two = deepFreeze(setSectionRollouts(three, 'r', { count: 2 }));
     expect(two).toEqual({ rollouts: { count: 2 } });
@@ -627,7 +627,7 @@ describe('IN9 roll-out data', () => {
     expect(isStoredInterior(edited)).toBe(true);
   });
 
-  it('anchor 4: vertical splits retain roll-outs only in the bottom section and clear positions', () => {
+  it('vertical splits retain roll-outs only in the bottom section and clear positions', () => {
     const result = splitSection(section, 'r', 'vertical', 2);
     expect(result.children).toEqual([
       { shelves: { glass: true } },
@@ -637,12 +637,12 @@ describe('IN9 roll-out data', () => {
     expect(isStoredInterior(result)).toBe(true);
   });
 
-  it('anchor 5: horizontal splits remove roll-outs from every new section', () => {
+  it('horizontal splits remove roll-outs from every new section', () => {
     expect(splitSection(section, 'r', 'horizontal', 2).children)
       .toEqual([{ shelves: { glass: true } }, { shelves: { glass: true } }]);
   });
 
-  it('anchor 6: merges prefer first-section roll-outs, falling back to second and clearing positions', () => {
+  it('merges prefer first-section roll-outs, falling back to second and clearing positions', () => {
     expect(removeDivider(group([{}, { rollouts: { count: 1, items: [{ at: 3 }] } }]), 'r', 0))
       .toEqual({ rollouts: { count: 1 } });
     const first = { shelves: { count: 2, glass: false }, hinges: false, lineBore: true };

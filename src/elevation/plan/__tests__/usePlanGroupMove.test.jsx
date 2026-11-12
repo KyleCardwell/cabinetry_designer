@@ -184,7 +184,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('anchor 3: snaps along 10.2 to 10, syncs the sink at plan x 120 and commits once ahead of picking', () => {
+it('snaps along 10.2 to 10, syncs the sink at plan x 120 and commits once ahead of picking', () => {
   const before = state.rooms[0];
   begin();
   expect(entry().label).toBe('Along Wall 2');
@@ -208,7 +208,7 @@ it('anchor 3: snaps along 10.2 to 10, syncs the sink at plan x 120 and commits o
   expect(active()).toBe(false);
 });
 
-it('anchor 4: Tab resets along to zero, uses Across Wall 2 and Enter commits across 6', () => {
+it('Tab resets along to zero, uses Across Wall 2 and Enter commits across 6', () => {
   begin(); move({ x: 110, y: 96 }); tab();
   expect(entry()).toMatchObject({ label: 'Across Wall 2', value: 0 });
   expect(island().x1).toBe(180);
@@ -218,7 +218,7 @@ it('anchor 4: Tab resets along to zero, uses Across Wall 2 and Enter commits acr
   expect(groupActions()).toEqual([moveWallGroup({ wallId: 'wall-2', across: 6 })]);
 });
 
-it('anchor 5: typed 12 overrides subsequent pointer motion and the input Enter commits it', () => {
+it('typed 12 overrides subsequent pointer motion and the input Enter commits it', () => {
   begin(); type('12'); move({ x: 50, y: 90 });
   expect(island().x1).toBe(168);
   inputKey('Enter');

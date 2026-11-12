@@ -13,7 +13,7 @@ const susan = {
   price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
 };
 
-it('IN12b anchor 1: validates the exact accessory shape and field limits', () => {
+it('validates the exact accessory shape and field limits (IN12b)', () => {
   const blank = newAccessory([], 'x');
   expect(blank).toEqual({
     id: 'x', name: 'New accessory', brand: '', model: '', description: '', reportText: '',
@@ -54,7 +54,7 @@ it('IN12b anchor 1: validates the exact accessory shape and field limits', () =>
   expect(isAccessory({ ...blank, reportText: 'a'.repeat(120) })).toBe(true);
 });
 
-it('IN13a a anchors 1–2: validates size and ordered-length deduction for each place and deep copies size', () => {
+it('validates size and ordered-length deduction for each place and deep copies size (IN13a)', () => {
   const blank = newAccessory([], 'x');
   expect(isAccessory(blank)).toBe(true);
   expect(blank.size).toEqual({ width: null, height: null, depth: null });
@@ -85,7 +85,7 @@ it('IN13a a anchors 1–2: validates size and ordered-length deduction for each 
   expect(rod.size.height).toBe(1.25);
 });
 
-it('IN12b anchor 2: picks the first unused new accessory name ignoring case', () => {
+it('picks the first unused new accessory name ignoring case (IN12b)', () => {
   const first = newAccessory([], 'x');
   expect(newAccessory([first], 'y').name).toBe('New accessory 2');
   const second = { ...newAccessory([], 'y'), name: 'new accessory 2' };
@@ -94,7 +94,7 @@ it('IN12b anchor 2: picks the first unused new accessory name ignoring case', ()
   expect(newAccessory([], 'y').minOpening).not.toBe(first.minOpening);
 });
 
-it('IN12b anchor 3: deep copies pricing and labor and picks a unique copy name', () => {
+it('deep copies pricing and labor and picks a unique copy name (IN12b)', () => {
   const base = { ...susan, labor: { '7': 15 } };
   const before = structuredClone(base);
   const copy = copyAccessory([base], base, 'z');
@@ -112,7 +112,7 @@ it('IN12b anchor 3: deep copies pricing and labor and picks a unique copy name',
   expect(base).toEqual(before);
 });
 
-it('IN12b anchor 4: requires valid entries and unique ids and names ignoring case', () => {
+it('requires valid entries and unique ids and names ignoring case (IN12b)', () => {
   const first = { ...susan, id: 'a', name: 'Susan' };
   expect(isAccessoryList([])).toBe(true);
   expect(isAccessoryList([first, newAccessory([], 'b')])).toBe(true);
@@ -123,7 +123,7 @@ it('IN12b anchor 4: requires valid entries and unique ids and names ignoring cas
   ]) expect(isAccessoryList(list)).toBe(false);
 });
 
-it('IN12b anchor 5: looks up accessories and uses report text or the name', () => {
+it('looks up accessories and uses report text or the name (IN12b)', () => {
   expect(findAccessory('susan', [susan])).toBe(susan);
   expect(findAccessory('missing', [susan])).toBeNull();
   expect(findAccessory('susan', [])).toBeNull();
@@ -131,7 +131,7 @@ it('IN12b anchor 5: looks up accessories and uses report text or the name', () =
   expect(accessoryText(susan)).toBe('6472-28 lazy susan');
 });
 
-it('IN12b keeps accessories in an independent settings library with empty defaults', () => {
+it('keeps accessories in an independent settings library with empty defaults (IN12b)', () => {
   expect(DEFAULT_SETTINGS.accessories).toEqual([]);
   expect(LIBRARY_KEYS).toContain('accessories');
   expect(registryEntry('accessories')).toBeUndefined();
@@ -154,7 +154,7 @@ it('IN12b keeps accessories in an independent settings library with empty defaul
 });
 
 
-it('SH3 a anchor 1: defaults IN13a accessory drawing fields without mutation or shared anchors', () => {
+it('defaults IN13a accessory drawing fields without mutation or shared anchors (SH3)', () => {
   const legacy = { ...susan };
   delete legacy.shapeId;
   delete legacy.depthAnchor;
@@ -172,7 +172,7 @@ it('SH3 a anchor 1: defaults IN13a accessory drawing fields without mutation or 
   expect(copy.depthAnchor).not.toBe(picked.depthAnchor);
 });
 
-it('SH3 a anchor 2: validates drawing ids and complete finite depth anchors without repairing invalid fields', () => {
+it('validates drawing ids and complete finite depth anchors without repairing invalid fields (SH3)', () => {
   const blank = newAccessory([], 'a');
   for (const at of ['front', 'centre', 'back']) {
     for (const offset of [-2, 0, 2]) {

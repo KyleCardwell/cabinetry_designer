@@ -14,8 +14,8 @@ function base() {
 }
 const missing = (state) => missingPulls(state.rooms[0], state.settings, state.layers);
 
-describe('HP3c step c missing pulls', () => {
-  it('anchor 1: counts three stored room uses and a project setting, sorted by id', () => {
+describe('missing pulls (HP3c)', () => {
+  it('counts three stored room uses and a project setting, sorted by id', () => {
     expect(missing(base())).toEqual([
       { pullId: 'gone', roomUses: 3, setIn: [] },
       { pullId: 'old', roomUses: 0, setIn: ['project'] },
@@ -33,7 +33,7 @@ describe('HP3c step c missing pulls', () => {
     ]);
   });
 
-  it('anchor 2: moves all three room uses to the knob and ignores unknown replacements', () => {
+  it('moves all three room uses to the knob and ignores unknown replacements', () => {
     const state = base();
     const moved = elevationReducer(state, moveMissingPull({ roomId: 'room-1', pullId: 'gone', reassignTo: 'knob-1-25' }));
     const room = moved.rooms[0];

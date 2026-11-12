@@ -36,19 +36,19 @@ function openings(run) {
 }
 
 describe('floor openings data shape', () => {
-  it('finds the desk opening between full-height side panels (anchor 1)', () => {
+  it('finds the desk opening between full-height side panels', () => {
     expect(openings(desk())).toEqual([
       { pieceId: 'opening', x: 18.75, width: 22.5, left: 'panel', right: 'panel', baseUnder: false },
     ]);
   });
 
-  it('finds the desk opening between cabinets without panels (anchor 2)', () => {
+  it('finds the desk opening between cabinets without panels', () => {
     expect(openings(desk({ panels: false }))).toEqual([
       { pieceId: 'opening', x: 18, width: 24, left: 'cabinet', right: 'cabinet', baseUnder: false },
     ]);
   });
 
-  it('ignores the void above the bottom drawer (anchor 3)', () => {
+  it('ignores the void above the bottom drawer', () => {
     expect(openings(desk({ topVoid: true }))).toEqual([]);
   });
 

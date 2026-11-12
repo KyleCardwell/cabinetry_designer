@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { shapeFromRow, shapeToRow, teamSettingsFromRow, teamSettingsToRow } from '../cloudRows.js';
 import { newShape } from '../libraryShapes.js';
 
-it('SH2 anchor 2: round-trips archived shapes with independent row versions and rejects malformed data', () => {
+it('round-trips archived shapes with independent row versions and rejects malformed data (SH2)', () => {
   const shape = { ...newShape([], '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'), name: 'Rod', version: 3, archived: true };
   const row = shapeToRow(shape);
   const { id, name, archived, ...data } = shape;

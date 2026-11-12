@@ -150,7 +150,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     ]);
   });
 
-  it('MR2c reads typed widths by layout path and index, including zero-width slab mids', () => {
+  it('reads typed widths by layout path and index, including zero-width slab mids (MR2c)', () => {
     const part = { width: 30, height: 39, sizes: { layout: {
       split: 'rows', children: [
         { split: 'cols', children: [{}, {}, {}], mids: [{}, { width: 4 }] },

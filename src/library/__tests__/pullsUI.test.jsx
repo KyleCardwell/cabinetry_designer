@@ -83,7 +83,7 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('HP3b step b Pulls page and editor', () => {
+describe('Pulls page and editor (HP3b)', () => {
 
   it('validates names and centers, switches kind with clean defaults, and edits positive fractional sizes', () => {
     const custom = { ...newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'custom'), hardwarePullId: 42,

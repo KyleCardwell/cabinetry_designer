@@ -91,8 +91,8 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-describe('IN2 Interior section', () => {
-  it('anchor 4: switching an auto partition at centre 24 to Right stores at 12 from right', () => {
+describe('Interior section (IN2)', () => {
+  it('switching an auto partition at centre 24 to Right stores at 12 from right', () => {
     edit(() => {
       run().width = run().grid.cols[0].size = 36;
       // The right-hand nested span is 12.75..35.25, so its auto divider is at 24.
@@ -121,7 +121,7 @@ describe('IN2 Interior section', () => {
 
 });
 
-describe('IN9 roll-out controls', () => {
+describe('roll-out controls (IN9)', () => {
   const base = (width = 24, type = 'door') => edit(() => {
     run().width = run().grid.cols[0].size = item().width = width;
     item().face = { type, size: null, ...(type === 'door' ? { hinge: 'left' } : {}) };
@@ -129,7 +129,7 @@ describe('IN9 roll-out controls', () => {
   });
   const cards = () => nodes(render()).filter(({ props }) => props['aria-label']?.match(/^Roll-out r\.\d+$/));
 
-  it('anchor 2: stores a sparse position override and moves the box above the deck', () => {
+  it('stores a sparse position override and moves the box above the deck', () => {
     base();
     edit(() => { run().x = 24; run().z = 40; });
     select('r');

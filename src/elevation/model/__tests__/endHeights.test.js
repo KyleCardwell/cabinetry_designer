@@ -48,8 +48,8 @@ const cellsOf = (source) => cellPieces(source, splitRun(source, settings));
 const at = (cells, side = 'left') => cells.pieces.find((piece) => piece.role === `end-${side}`);
 const roomOf = (source) => room({ walls: [wall({ runs: [source] })], wallOrder: ['wall-1'] });
 
-describe('DR2 step a run end heights', () => {
-  it('anchor 1: defaults the filler to the drawer span and the end panel to full height', () => {
+describe('run end heights (DR2)', () => {
+  it('defaults the filler to the drawer span and the end panel to full height', () => {
     const source = setup();
     const before = structuredClone(source);
     const layout = splitRun(source, settings);
@@ -61,19 +61,19 @@ describe('DR2 step a run end heights', () => {
     expect(layout).toEqual(original);
   });
 
-  it('anchor 2: honors full height on the filler', () => {
+  it('honors full height on the filler', () => {
     const source = setup();
     source.ends.left.height = 'full';
     expect(at(cellsOf(source))).toMatchObject({ z: 4, height: 24.5 });
   });
 
-  it('anchor 3: matches the right end panel to the drawer span', () => {
+  it('matches the right end panel to the drawer span', () => {
     const source = setup();
     source.ends.right.height = 'cabinets';
     expect(at(cellsOf(source), 'right')).toMatchObject({ z: 24.5, height: 4 });
   });
 
-  it('anchor 4: keeps a plain cabinet filler at the full cabinet height', () => {
+  it('keeps a plain cabinet filler at the full cabinet height', () => {
     const source = setup({ plain: true });
     const layout = splitRun(source, settings);
     const cells = cellPieces(source, layout);
@@ -81,7 +81,7 @@ describe('DR2 step a run end heights', () => {
     expect(cells.pieces).toBe(layout.pieces);
   });
 
-  it('anchor 5: follows the end column bottom up by 6, and its top drop', () => {
+  it('follows the end column bottom up by 6, and its top drop', () => {
     const source = setup({ plain: true });
     source.grid = updateRootItem(source.grid, 'column', { bottom: { value: 6, source: 'manual' } });
     expect(at(cellsOf(source))).toMatchObject({ z: 10, height: 18.5 });
@@ -89,11 +89,11 @@ describe('DR2 step a run end heights', () => {
     expect(at(cellsOf(source))).toMatchObject({ z: 10, height: 16.5 });
   });
 
-  it('anchor 6: ignores the ten-inch void above an auto cabinet', () => {
+  it('ignores the ten-inch void above an auto cabinet', () => {
     expect(at(cellsOf(setup({ flipped: true })))).toMatchObject({ z: 4, height: 14.5 });
   });
 
-  it('anchor 7: clears stored height on type changes and keeps it on width edits', () => {
+  it('clears stored height on type changes and keeps it on width edits', () => {
     const source = setup();
     source.ends.left.height = 'cabinets';
     const state = { settings, rooms: [roomOf(source)], selection: {} };
@@ -106,7 +106,7 @@ describe('DR2 step a run end heights', () => {
     expect(at(cellsOf(changed))).toMatchObject({ z: 4, height: 24.5 });
   });
 
-  it('anchor 8: carries the four-inch filler through the part and shipping lists and door drop', () => {
+  it('carries the four-inch filler through the part and shipping lists and door drop', () => {
     const resolved = syncRoom(roomOf(setup()), settings);
     const w = resolved.walls[0];
     const r = w.runs[0];

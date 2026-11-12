@@ -102,7 +102,7 @@ function blockWarnings(targetRoom, runId) {
 }
 
 describe('room opening integration', () => {
-  it('13. warns when a base run overlaps a door jamb but not when it touches', () => {
+  it('warns when a base run overlaps a door jamb but not when it touches', () => {
     const blockingRoom = room(wall({
       runs: [run('base', CABINET_TYPE_IDS.BASE, { width: 30 })],
       openings: [door()],
@@ -120,7 +120,7 @@ describe('room opening integration', () => {
     expect(blockWarnings(touchingRoom, 'base')).toEqual([]);
   });
 
-  it('14. ignores casing-only overlap between a base run and window', () => {
+  it('ignores casing-only overlap between a base run and window', () => {
     const targetRoom = room(wall({
       runs: [run('base', CABINET_TYPE_IDS.BASE, { x: 72, width: 36 })],
       openings: [windowOpening()],
@@ -128,7 +128,7 @@ describe('room opening integration', () => {
     expect(blockWarnings(targetRoom, 'base')).toEqual([]);
   });
 
-  it('15. warns when an upper run overlaps the window jamb', () => {
+  it('warns when an upper run overlaps the window jamb', () => {
     const targetRoom = room(wall({
       runs: [run('upper', CABINET_TYPE_IDS.UPPER, {
         x: 72,
@@ -145,7 +145,7 @@ describe('room opening integration', () => {
     });
   });
 
-  it('16. keeps stored end offsets fixed when the wall length changes', () => {
+  it('keeps stored end offsets fixed when the wall length changes', () => {
     const targetWall = wall({
       openings: [
         door({ id: 'left', label: 'D1' }),
@@ -172,7 +172,7 @@ describe('room opening integration', () => {
     expect(afterRight.offsets.left.jamb.edge - beforeRight.offsets.left.jamb.edge).toBe(12);
   });
 
-  it('17. flips the measured side without moving the jamb in plan', () => {
+  it('flips the measured side without moving the jamb in plan', () => {
     const targetWall = wall({ openings: [door()] });
     const beforeRoom = room(targetWall);
     const beforeFrame = wallFrame(beforeRoom, targetWall);

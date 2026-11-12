@@ -20,8 +20,8 @@ const R = run({ id: 'R', x: 10, width: 36, autoCount: false, items: [auto('cabin
 const W = wall({ runs: [R] });
 const input = room({ walls: [W] });
 
-describe('SH7 step d leg parts and shipping list', () => {
-  it('anchor 1: numbers four corners LF, LB, RF, RB after the cabinet, using their placed size', () => {
+describe('leg parts and shipping list (SH7)', () => {
+  it('numbers four corners LF, LB, RF, RB after the cabinet, using their placed size', () => {
     // Reverse storage order so both position and front-depth sorting are exercised.
     const r = room({ walls: [wall({ runs: [{ ...R, legs: [...legs].reverse() }] })] });
     const parts = partNumbers(r, settings).parts;
@@ -37,7 +37,7 @@ describe('SH7 step d leg parts and shipping list', () => {
     );
   });
 
-  it('anchor 2: lists FOOT at Feet as Foot, with its resolved 2 1/2 x 4 x 2 1/2 size', () => {
+  it('lists FOOT at Feet as Foot, with its resolved 2 1/2 x 4 x 2 1/2 size', () => {
     const r = room({ walls: [wall({ runs: [{ ...R,
       legs: [{ ...legs[0], shapeId: 'foot', height: 'feet' }] }] })] });
     expect(shippingList(r, settings).rows.find(({ key }) => key === 'LF'))
@@ -45,7 +45,7 @@ describe('SH7 step d leg parts and shipping list', () => {
     expect(shippingDescription(r, settings, roomParts(r, settings)[1])).toBe('Foot');
   });
 
-  it('anchor 3: lists the stretched LEG at height 30 using its placed height', () => {
+  it('lists the stretched LEG at height 30 using its placed height', () => {
     const r = room({ walls: [wall({ runs: [{ ...R, legs: [{ ...legs[0], height: 30 }] }] })] });
     expect(shippingList(r, settings).rows.find(({ key }) => key === 'LF'))
       .toMatchObject({ number: 2, description: 'Leg', size: '3 1/2 x 30 x 3 1/2' });
@@ -58,7 +58,7 @@ describe('SH7 step d leg parts and shipping list', () => {
       .toEqual([['Foot', '3 1/2 x 34 1/2 x 3 1/2'], ['Leg', '2 1/2 x 4 x 2 1/2']]);
   });
 
-  it('anchor 4: applies report overrides, omits missing/no-height legs and renumbers the others', () => {
+  it('applies report overrides, omits missing/no-height legs and renumbers the others', () => {
     const r = room({ walls: [wall({ runs: [{ ...R, legs: legs.map((leg) =>
       leg.id === 'LB' ? { ...leg, shapeId: 'missing' } : leg) }] })],
     reportParts: { LF: { name: 'Turned leg', note: 'protect finish' } } });

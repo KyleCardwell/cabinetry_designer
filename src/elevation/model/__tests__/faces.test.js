@@ -15,7 +15,7 @@ const NESTED = stack([
   { type: 'pair_door', size: null },
 ]);
 
-describe('IN14 panel material data', () => {
+describe('panel material data (IN14)', () => {
   it('exports the glass material and looks up only known ids', () => {
     expect(PANEL_MATERIALS).toEqual([
       { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
@@ -24,7 +24,7 @@ describe('IN14 panel material data', () => {
     for (const id of ['mesh', null, undefined]) expect(panelMaterial(id)).toBeNull();
   });
 
-  it('anchor 1: accepts known materials only on doors and pair doors without pullout action', () => {
+  it('accepts known materials only on doors and pair doors without pullout action', () => {
     const face = (type, extra) => ({ type, size: null, ...extra });
     expect([
       face('door', { panelMaterial: 'glass' }),
@@ -43,7 +43,7 @@ describe('IN14 panel material data', () => {
     expect(isFaceNode(stack([face('door', { panelMaterial: 'glass' }), drawer()]))).toBe(true);
   });
 
-  it('anchor 5: carries glass on both resolved pair-door halves and on a single door', () => {
+  it('carries glass on both resolved pair-door halves and on a single door', () => {
     for (const type of ['door', 'pair_door']) {
       const { faces } = cabinetFaces({ face: { type, size: null, panelMaterial: 'glass' } }, B30, BASE, DEFAULT_SETTINGS);
       expect(faces).toHaveLength(type === 'door' ? 1 : 2);
@@ -54,14 +54,14 @@ describe('IN14 panel material data', () => {
 });
 
 describe('cabinetFaces', () => {
-  it('1. defaults to a single door inside the base reveals', () => {
+  it('defaults to a single door inside the base reveals', () => {
     expect(cabinetFaces({ id: 'a' }, B18, BASE, DEFAULT_SETTINGS)).toEqual({
       faces: [{ path: 'r', type: 'door', x: 0.0625, z: 4.125, width: 17.875, height: 30.25 }],
       warnings: [],
     });
   });
 
-  it('2. defaults to a pair door above 24 inches', () => {
+  it('defaults to a pair door above 24 inches', () => {
     const { faces } = cabinetFaces({ id: 'a', face: null }, B30, BASE, DEFAULT_SETTINGS);
     const shared = { path: 'r', type: 'pair_door', z: 4.125, width: 14.875, height: 30.25 };
     expect(faces).toEqual([
@@ -74,7 +74,7 @@ describe('cabinetFaces', () => {
     expect(at24[0]).toMatchObject({ type: 'door', width: 23.875 });
   });
 
-  it('3. resolves a 3Df stack top to bottom', () => {
+  it('resolves a 3Df stack top to bottom', () => {
     const face = stack([drawer(6), drawer(), drawer()]);
     const { faces } = cabinetFaces({ id: 'a', face }, B18, BASE, DEFAULT_SETTINGS);
     const shared = { type: 'drawer_front', x: 0.0625, width: 17.875 };
@@ -85,13 +85,13 @@ describe('cabinetFaces', () => {
     ]);
   });
 
-  it('4. applies the upper reveals, including the bottom overhang', () => {
+  it('applies the upper reveals, including the bottom overhang', () => {
     expect(cabinetFaces({ id: 'u' }, U15, UPPER, DEFAULT_SETTINGS).faces).toEqual([
       { path: 'r', type: 'door', x: 0.0625, z: 53.875, width: 14.875, height: 30 },
     ]);
   });
 
-  it('5. resolves nested groups and pair door halves', () => {
+  it('resolves nested groups and pair door halves', () => {
     const { faces } = cabinetFaces({ id: 'a', face: NESTED }, B30, BASE, DEFAULT_SETTINGS);
     expect(faces).toEqual([
       { path: 'r.0.0', type: 'drawer_front', x: 0.0625, z: 28.375, width: 14.875, height: 6 },
@@ -101,20 +101,20 @@ describe('cabinetFaces', () => {
     ]);
   });
 
-  it('6. treats the last child as auto when every child is fixed', () => {
+  it('treats the last child as auto when every child is fixed', () => {
     const face = stack([drawer(6), drawer(6)]);
     const { faces } = cabinetFaces({ id: 'a', face }, B18, BASE, DEFAULT_SETTINGS);
     expect(faces[1]).toMatchObject({ path: 'r.1', height: 24.125 });
   });
 
-  it('7. warns when sections do not fit but still resolves them', () => {
+  it('warns when sections do not fit but still resolves them', () => {
     const face = stack([drawer(20), drawer(10), drawer()]);
     const result = cabinetFaces({ id: 'a', face }, B18, BASE, DEFAULT_SETTINGS);
     expect(result.faces).toHaveLength(3);
     expect(result.warnings).toEqual([{ code: 'face-too-small', path: 'r' }]);
   });
 
-  it('HP1 anchor 7: carries actions to both pair halves and single doors', () => {
+  it('carries actions to both pair halves and single doors (HP1)', () => {
     const face = { type: 'pair_door', size: null, action: 'flipper' };
     const resolved = cabinetFaces({ face }, B30, BASE, DEFAULT_SETTINGS);
     const plain = cabinetFaces({ face: { type: 'pair_door', size: null } }, B30, BASE, DEFAULT_SETTINGS);
@@ -128,7 +128,7 @@ describe('cabinetFaces', () => {
 });
 
 describe('isFaceNode', () => {
-  it('IN7.3 anchor 4: match is only valid on an auto group sized by its vertical parent', () => {
+  it('match is only valid on an auto group sized by its vertical parent (IN7.3)', () => {
     const matched = { ...stack([drawer(), drawer()]), match: 'base' };
     expect(isFaceNode(stack([drawer(), matched]))).toBe(true);
     expect(isFaceNode(stack([drawer(), { ...matched, direction: 'horizontal' }]))).toBe(true);
@@ -142,7 +142,7 @@ describe('isFaceNode', () => {
     expect(isFaceNode(stack([drawer(), { ...matched, size: 30 }]))).toBe(false);
   });
 
-  it('8. accepts valid trees and rejects malformed nodes', () => {
+  it('accepts valid trees and rejects malformed nodes', () => {
     expect(isFaceNode(NESTED)).toBe(true);
     expect(isFaceNode(stack([drawer()]))).toBe(false);
     expect(isFaceNode({ type: 'shelf', size: null })).toBe(false);
@@ -151,7 +151,7 @@ describe('isFaceNode', () => {
     expect(isFaceNode({ type: 'door' })).toBe(false);
   });
 
-  it('HP1 anchor 5: validates hinge edges, door actions, and their combinations', () => {
+  it('validates hinge edges, door actions, and their combinations (HP1)', () => {
     const door = { type: 'door', size: null };
     for (const fields of [
       { hinge: 'bottom' }, { hinge: 'top' }, { action: 'pullout' }, { action: 'sliding' },
@@ -183,14 +183,14 @@ describe('applyHinges', () => {
   const noStops = { left: false, right: false };
   const noCovers = { left: 0, right: 0 };
 
-  it('HP1 b anchor 1: hinges toward the one wall without needing a run centre', () => {
+  it('hinges toward the one wall without needing a run centre (HP1)', () => {
     for (const side of ['left', 'right']) {
       expect(applyHinges([door], noStops, noCovers, { wallSides: { [side]: true } }))
         .toEqual({ faces: [{ ...door, hinge: side, hingeRule: true }], warnings: [] });
     }
   });
 
-  it('HP1 b anchor 2: swings, flippers and pockets hinge toward the nearer run end', () => {
+  it('swings, flippers and pockets hinge toward the nearer run end (HP1)', () => {
     for (const action of [undefined, 'flipper', 'pocket']) {
       for (const [x, hinge] of [[0.0625, 'left'], [100.0625, 'right']]) {
         const face = { ...door, x, ...(action ? { action } : {}) };
@@ -200,7 +200,7 @@ describe('applyHinges', () => {
     }
   });
 
-  it('HP1 b anchor 3: ties within 1e-6 hinge left', () => {
+  it('ties within 1e-6 hinge left (HP1)', () => {
     for (const delta of [0, -0.5e-6, 0.5e-6, 2e-6]) {
       const face = { ...door, x: 60 - door.width / 2 + delta };
       expect(applyHinges([face], noStops, noCovers, { runCenter: 60 }).faces)
@@ -208,19 +208,19 @@ describe('applyHinges', () => {
     }
   });
 
-  it('HP1 b anchor 4: a stop takes precedence over a wall and the nearer end', () => {
+  it('a stop takes precedence over a wall and the nearer end (HP1)', () => {
     expect(applyHinges([door], { left: true, right: false }, noCovers, {
       wallSides: { right: true }, runCenter: 0,
     })).toEqual({ faces: [{ ...door, hinge: 'left', hingeRule: true }], warnings: [] });
   });
 
-  it('HP1 b anchor 5: a covered side takes precedence over a wall without warning', () => {
+  it('a covered side takes precedence over a wall without warning (HP1)', () => {
     expect(applyHinges([door], noStops, { left: 0, right: 0.75 }, {
       wallSides: { right: true }, runCenter: 0,
     })).toEqual({ faces: [{ ...door, hinge: 'left', hingeRule: true }], warnings: [] });
   });
 
-  it('HP1 b anchor 6: stored hinges win and top/bottom never warn about covered sides', () => {
+  it('stored hinges win and top/bottom never warn about covered sides (HP1)', () => {
     for (const hinge of ['top', 'bottom', 'left', 'right']) {
       const face = { ...door, hinge };
       const result = applyHinges([face], { left: true, right: false }, { left: 0.75, right: 0 }, {
@@ -233,7 +233,7 @@ describe('applyHinges', () => {
     }
   });
 
-  it('HP1 b anchor 7: sliding and pullout doors get no automatic hinge', () => {
+  it('sliding and pullout doors get no automatic hinge (HP1)', () => {
     for (const action of ['pullout', 'sliding']) {
       const face = { ...door, action };
       expect(applyHinges([face], { left: true, right: false }, { left: 0, right: 0.75 }, {
@@ -273,7 +273,7 @@ describe('applyHinges', () => {
   });
 });
 
-describe('IN7.4 standard match validation', () => {
+describe('standard match validation (IN7.4)', () => {
   const standard = { type: 'drawer_front', size: null, match: 'standard' };
   const tree = (node) => ({ direction: 'vertical', size: null, children: [node, { type: 'door', size: null }] });
   const row = { direction: 'horizontal', size: null, match: 'standard', children: [
@@ -289,7 +289,7 @@ describe('IN7.4 standard match validation', () => {
     }] }))).toBe(true);
   });
 
-  it('anchor 7: rejects doors, roots, rows containing a door, and a typed standard', () => {
+  it('rejects doors, roots, rows containing a door, and a typed standard', () => {
     expect(isFaceNode(tree({ ...standard, type: 'door' }))).toBe(false);
     expect(isFaceNode(standard)).toBe(false);
     expect(isFaceNode(row)).toBe(false);

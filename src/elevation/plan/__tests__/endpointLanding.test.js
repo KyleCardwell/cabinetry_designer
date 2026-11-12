@@ -67,8 +67,8 @@ const landing = {
   wallId: 'wall-2', endpoint: 'end', hostId: 'wall-3', side: 'back', x: 85,
 };
 
-describe('WL2 c: drag an existing wall end onto a face', () => {
-  it('anchor 1: snaps K2 to the back face and labels the landing from its free end', () => {
+describe('drag an existing wall end onto a face (WL2)', () => {
+  it('snaps K2 to the back face and labels the landing from its free end', () => {
     const subject = harness();
     const { target, applyAlignment } = subject.drag('dragmove', { x: -38.5, y: 16 });
     expect(subject.dispatch.mock.calls.map(([action]) => action)).toEqual([moveWallEndpoint(move)]);
@@ -80,7 +80,7 @@ describe('WL2 c: drag an existing wall end onto a face', () => {
     expect(applyAlignment).not.toHaveBeenCalled();
   });
 
-  it('anchor 2: releases onto the back face once, clears the label, and restores K walls', () => {
+  it('releases onto the back face once, clears the label, and restores K walls', () => {
     const subject = harness();
     subject.drag('dragmove', { x: -38.5, y: 16 });
     subject.drag('dragend', { x: -38.5, y: 13.5 });
@@ -91,7 +91,7 @@ describe('WL2 c: drag an existing wall end onto a face', () => {
     expect(subject.currentRoom().walls).toEqual(syncRoom(K, DEFAULT_SETTINGS).walls);
   });
 
-  it('anchor 3: a pointer inside the host still snaps to the near back face', () => {
+  it('a pointer inside the host still snaps to the near back face', () => {
     const subject = harness();
     subject.drag('dragmove', { x: -38.5, y: 11 });
     expect(subject.dispatch).toHaveBeenCalledWith(moveWallEndpoint(move));
@@ -100,7 +100,7 @@ describe('WL2 c: drag an existing wall end onto a face', () => {
     });
   });
 
-  it('anchor 4: leaving the face radius clears the label and releases without landing', () => {
+  it('leaving the face radius clears the label and releases without landing', () => {
     const subject = harness();
     subject.drag('dragmove', { x: -38.5, y: 16 });
     const { target, applyAlignment } = subject.drag('dragmove', { x: -38.5, y: 25 });
@@ -116,7 +116,7 @@ describe('WL2 c: drag an existing wall end onto a face', () => {
     expect(subject.currentRoom().walls[1].landings.end).toBeNull();
   });
 
-  it('anchor 5: drawing retains projection snapping and names both reference ends', () => {
+  it('drawing retains projection snapping and names both reference ends', () => {
     const subject = harness();
     // Exercise the face-snapped branch: the unmodified K2 endpoint at x = 85
     // otherwise takes priority over this face (covered separately below).

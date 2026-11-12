@@ -12,7 +12,7 @@ import { doorOrder, doorOrderItems, mergeLines, stileRailNotes } from '../doorOr
 
 const style = DEFAULT_DOOR_STYLE;
 
-describe('IE1 step d inside panel door orders', () => {
+describe('inside panel door orders (IE1)', () => {
   it('orders five-piece inside panels under their numbers and honors sheet and shop-built exclusions', () => {
     const { room } = room8Upper();
     const before = structuredClone(room);
@@ -79,13 +79,13 @@ const pageKeys = (order) => order.pages.map(({ styleId, type, sections }) => {
 const lines = (order) => order.pages.flatMap((page) => page.sections.flatMap((section) => section.lines));
 
 describe('door order form data', () => {
-  it('MR1c anchor 1: appends the molding overall width to a mid stile note', () => {
+  it('appends the molding overall width to a mid stile note (MR1c)', () => {
     expect(stileRailNotes(style, {
       ...frame(), midStiles: [{ at: 12, width: 3.25, overall: 4.25 }],
     })).toEqual(['3 1/4" MS 12" oc from left (4 1/4" w/ molding)']);
   });
 
-  it('MR1c anchor 2: keeps plain mid rail notes and appends molding widths when present', () => {
+  it('keeps plain mid rail notes and appends molding widths when present (MR1c)', () => {
     expect(stileRailNotes(style, {
       ...frame(), midRails: [{ at: 31.5, width: 3.625 }],
     })).toEqual(['3 5/8" MR up 31 1/2" oc']);
@@ -94,7 +94,7 @@ describe('door order form data', () => {
     })).toEqual(['3 5/8" MR up 31 1/2" oc (4 5/8" w/ molding)']);
   });
 
-  it('MR1b carries profile mid defaults through face details and end-panel orders', () => {
+  it('carries profile mid defaults through face details and end-panel orders (MR1b)', () => {
     const molding = {
       id: 'mid-molding', name: 'Mid molding', kind: 'applied_molding',
       geometry: {
@@ -127,7 +127,7 @@ describe('door order form data', () => {
     expect(r).toEqual(before);
   });
 
-  it('IN14 anchor 3: keeps same-size glass and standard doors on separate lines with the sash note first', () => {
+  it('keeps same-size glass and standard doors on separate lines with the sash note first (IN14)', () => {
     const r = room([run('run', { id: 'cab', kind: 'cabinet', face: {
       direction: 'horizontal', size: null, children: [
         face('door', null, { panelMaterial: 'glass', sizes: { stiles: { left: 3.5 } } }),
@@ -148,24 +148,24 @@ describe('door order form data', () => {
     ]);
   });
 
-  it('collapses equal short-face rail exceptions (anchor 1)', () => {
+  it('collapses equal short-face rail exceptions', () => {
     expect(stileRailNotes(style, frame({ rails: { top: 1.875, bottom: 1.875 } })))
       .toEqual(['1 7/8" TR & BR']);
   });
 
-  it('attaches a side note to a single exception (anchor 2)', () => {
+  it('attaches a side note to a single exception', () => {
     expect(stileRailNotes(style, frame({ stiles: { left: 3.5 } }), { left: 'scribe' }))
       .toEqual(['3 1/2" LS (scribe)']);
   });
 
-  it('orders side exceptions, mid rails and mid stiles (anchor 3)', () => {
+  it('orders side exceptions, mid rails and mid stiles', () => {
     expect(stileRailNotes(style, {
       ...frame({ rails: { top: 2.625 } }),
       midRails: [{ at: 31.5, width: 3.625 }], midStiles: [{ at: 12, width: 3 }],
     })).toEqual(['2 5/8" TR', '3 5/8" MR up 31 1/2" oc', '3" MS 12" oc from left']);
   });
 
-  it('merges identical lines within a part number, then sorts (anchor 4)', () => {
+  it('merges identical lines within a part number, then sorts', () => {
     expect(mergeLines([4, 3, 4, 9].map((number) => ({
       number, width: number === 4 ? 17.875 : 23.875, height: 30.125, notes: '',
     })))).toEqual([
@@ -175,7 +175,7 @@ describe('door order form data', () => {
     ]);
   });
 
-  it('uses installed drawer sizes and the end panel depth from the drawing (anchor 5)', () => {
+  it('uses installed drawer sizes and the end panel depth from the drawing', () => {
     const r = room([run('run', undefined, {
       width: 18.8125,
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
@@ -199,7 +199,7 @@ describe('door order form data', () => {
     expect(r).toEqual(before);
   });
 
-  it('puts a short-face slab in Slab without frame notes (anchor 6)', () => {
+  it('puts a short-face slab in Slab without frame notes', () => {
     const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) }, {
       width: 18.8125,
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
@@ -213,14 +213,14 @@ describe('door order form data', () => {
     ]);
   });
 
-  it('merges the two 14 7/8 inch halves of a Euro 30 inch pair (anchor 7)', () => {
+  it('merges the two 14 7/8 inch halves of a Euro 30 inch pair', () => {
     const order = doorOrder(room([run('pair', { id: 'cab', kind: 'cabinet', face: face('pair_door') }, { width: 30 })]), settings);
     expect(lines(order)).toEqual([
       { number: 1, qty: 2, width: 14.875, height: 30.125, size: '14 7/8 x 30 1/8', notes: '' },
     ]);
   });
 
-  it('skips joined sheet ends and sheet panel cells (anchor 8)', () => {
+  it('skips joined sheet ends and sheet panel cells', () => {
     const r = room([
       run('joined', { id: 'cab', kind: 'cabinet', face: face('open') }, {
         anchors: { left: { to: 'follow', runId: 'other', side: 'right', offset: 0 }, right: false },
@@ -236,7 +236,7 @@ describe('door order form data', () => {
     ]);
   });
 
-  it('groups resolved styles and builds their header in part number order (anchor 9)', () => {
+  it('groups resolved styles and builds their header in part number order', () => {
     const s = { ...settings, report: { ...settings.report, doorFormNote: 'No Midrails Unless Noted' },
       doorDesigns: [...DOOR_DESIGNS, { ...DOOR_DESIGNS[0], id: '110', code: '110', description: 'Square', vendor: 'Stillwater' }] };
     const a = { ...style, id: 'A', designId: '110', material: 'MAPLE/MDF' };
@@ -255,13 +255,13 @@ describe('door order form data', () => {
     });
   });
 
-  it('has no pages or warnings without faces or panels (anchor 10)', () => {
+  it('has no pages or warnings without faces or panels', () => {
     expect(doorOrder(room([]), settings)).toEqual({ pages: [], warnings: [] });
     expect(doorOrder(room([run('open', { id: 'cab', kind: 'cabinet', face: face('open') })]), settings))
       .toEqual({ pages: [], warnings: [] });
   });
 
-  it.each(['No Midrails Unless Noted', null])('omits frame details from a rule-slab header with note %s (RP1.1 anchors 4–5)', (note) => {
+  it.each(['No Midrails Unless Noted', null])('omits frame details from a rule-slab header with note %s (RP1.1)', (note) => {
     const s = { ...settings, report: { doorFormNote: note } };
     const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) })]), s);
     expect(pageKeys(order)).toEqual([
@@ -276,7 +276,7 @@ describe('door order form data', () => {
     });
   });
 
-  it.each(['', '   '])('uses the upper-cased description when the design code is %j (RP1.1 anchor 8)', (code) => {
+  it.each(['', '   '])('uses the upper-cased description when the design code is %j (RP1.1)', (code) => {
     const s = { ...settings, doorDesigns: [{ ...DOOR_DESIGNS[0], code, description: 'Square' }] };
     const order = doorOrder(room(), s);
     expect(order.pages[0].header.style).toBe('SQUARE');
@@ -400,8 +400,8 @@ describe('door order form data', () => {
   });
 });
 
-describe('RP2 step e vendor items', () => {
-  it('keeps cabinet ownership and unjoined panel note lines (anchor 6)', () => {
+describe('vendor items (RP2)', () => {
+  it('keeps cabinet ownership and unjoined panel note lines', () => {
     const r = room([run('run', undefined, {
       width: 18.8125,
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null,
@@ -437,7 +437,7 @@ describe('RP2 step e vendor items', () => {
     });
   });
 
-  it('omits an explicitly shop-built panel from items and pages (anchor 10)', () => {
+  it('omits an explicitly shop-built panel from items and pages', () => {
     const r = room([run('run', { id: 'cab', kind: 'cabinet', face: face('open') }, {
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
     })], { reportParts: { 'run:right': { shopBuilt: true } } });
@@ -445,7 +445,7 @@ describe('RP2 step e vendor items', () => {
     expect(doorOrder(r, settings)).toEqual({ pages: [], warnings: [] });
   });
 
-  it('omits all three fronts of a shop-built cabinet and keeps another cabinet (anchor 11)', () => {
+  it('omits all three fronts of a shop-built cabinet and keeps another cabinet', () => {
     const r = room([run(), run('other', { id: 'other', kind: 'cabinet', face: face('door') }, { x: 60 })], {
       reportParts: { cab: { shopBuilt: true } },
     });
@@ -456,7 +456,7 @@ describe('RP2 step e vendor items', () => {
   });
 });
 
-describe('MR2c layout order notes and paired doors', () => {
+describe('layout order notes and paired doors (MR2c)', () => {
   const rows = (children) => ({ split: 'rows', children });
   const cols = (children) => ({ split: 'cols', children });
   const sized = (layout, mid) => partSizes(style, DOOR_DESIGNS[0], { width: 30, height: 39, sizes: { layout } }, mid);
@@ -469,7 +469,7 @@ describe('MR2c layout order notes and paired doors', () => {
     return room([pair]);
   };
 
-  it('anchor 1: orders full rails and three partial stiles by true coordinates', () => {
+  it('orders full rails and three partial stiles by true coordinates', () => {
     const layout = rows([cols([{}, { size: 8 }, {}]), cols([{}, {}]), {}]);
     expect(stileRailNotes(style, sized(layout))).toEqual([
       '3" MR up 13 1/2" oc', '3" MR up 25 1/2" oc',
@@ -478,13 +478,13 @@ describe('MR2c layout order notes and paired doors', () => {
     ]);
   });
 
-  it('anchor 2: appends the bounding members of a partial rail', () => {
+  it('appends the bounding members of a partial rail', () => {
     expect(stileRailNotes(style, sized(cols([rows([{}, {}]), {}])))).toEqual([
       '3" MR up 19 1/2" oc, LS to MS1', '3" MS 15" oc from left',
     ]);
   });
 
-  it('anchor 3: mirrors the right half openings and gives asymmetric halves distinct order lines', () => {
+  it('mirrors the right half openings and gives asymmetric halves distinct order lines', () => {
     const r = pairRoom(cols([{ size: 8 }, {}]));
     const before = structuredClone(r);
     const items = doorOrderItems(r, settings).items;
@@ -506,7 +506,7 @@ describe('MR2c layout order notes and paired doors', () => {
     expect(r).toEqual(before);
   });
 
-  it('anchor 4: keeps symmetric pair notes identical and merges the order lines', () => {
+  it('keeps symmetric pair notes identical and merges the order lines', () => {
     const r = pairRoom(cols([{}, {}]));
     expect(doorOrderItems(r, settings).items.map(({ notes }) => notes)).toEqual([
       ['3" MS 15" oc from left'], ['3" MS 15" oc from left'],
@@ -516,7 +516,7 @@ describe('MR2c layout order notes and paired doors', () => {
     }]);
   });
 
-  it('anchor 6: puts partial member ends before the applied molding overall width', () => {
+  it('puts partial member ends before the applied molding overall width', () => {
     const molding = {
       id: 'mid-molding', kind: 'applied_molding', geometry: {
         units: 'in', points: { a: [-0.25, 0], b: [0.5, -0.125] },

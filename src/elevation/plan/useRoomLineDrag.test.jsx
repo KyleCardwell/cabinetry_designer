@@ -89,7 +89,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('anchor 1: takes the press from plan gestures and commits value 90 once on release at x 150, any y', () => {
+it('takes the press from plan gestures and commits value 90 once on release at x 150, any y', () => {
   const before = structuredClone(fixture);
   const event = start();
   const panOrMarquee = vi.fn();
@@ -110,7 +110,7 @@ it('anchor 1: takes the press from plan gestures and commits value 90 once on re
   expect(cursor.releaseHold).toHaveBeenCalledOnce();
 });
 
-it('anchor 3: snaps x 150.3 to 150.5 and commits the stored right distance 89.5', () => {
+it('snaps x 150.3 to 150.5 and commits the stored right distance 89.5', () => {
   start();
   emit('pointermove', 150.3);
   expect(linePoints()[0]).toBe(150.5);
@@ -118,7 +118,7 @@ it('anchor 3: snaps x 150.3 to 150.5 and commits the stored right distance 89.5'
   expect(dispatch.mock.calls).toEqual([[updateRoomLine({ roomLineId: 'R1', value: 89.5 })]]);
 });
 
-it('anchor 4: clamps x 260 at the reference wall end and commits value 0', () => {
+it('clamps x 260 at the reference wall end and commits value 0', () => {
   start();
   emit('pointermove', 260);
   expect(linePoints()[0]).toBe(240);

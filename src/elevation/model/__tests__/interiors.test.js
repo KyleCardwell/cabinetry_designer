@@ -24,8 +24,8 @@ const standard = boxConstruction({});
 const resolve = (tree, dimensions) => resolveInterior(tree, dimensions, standard);
 const section = (result, path) => result.sections.find((entry) => entry.path === path);
 
-describe('IN2 interior rectangles', () => {
-  it('anchor 1: an absent interior is one clear root section', () => {
+describe('interior rectangles (IN2)', () => {
+  it('an absent interior is one clear root section', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({
       tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23, physical: 'r',
@@ -35,7 +35,7 @@ describe('IN2 interior rectangles', () => {
     });
   });
 
-  it('anchor 2: an auto shelf splits the clear height equally, top section first', () => {
+  it('an auto shelf splits the clear height equally, top section first', () => {
     const result = resolve(vertical(fixed), box(24, 84));
     expect(result.sections).toEqual([
       { path: 'r.0', x: 0.75, z: 42.375, width: 22.5, height: 40.875, depth: 23, physical: 'r.0',
@@ -50,14 +50,14 @@ describe('IN2 interior rectangles', () => {
     }]);
   });
 
-  it('anchor 3: a manual shelf is measured from the exterior bottom', () => {
+  it('a manual shelf is measured from the exterior bottom', () => {
     const result = resolve(vertical({ ...fixed, at: 36 }), box(24, 84));
     expect(section(result, 'r.1').height).toBe(34.875);
     expect(section(result, 'r.0')).toMatchObject({ z: 36.375, height: 46.875 });
     expect(result.dividers[0]).toMatchObject({ z: 35.625, fromBottom: 36, auto: false });
   });
 
-  it('anchor 4: a nested partition stops at its parent shelf', () => {
+  it('a nested partition stops at its parent shelf', () => {
     const tree = group('vertical', [{ ...fixed, at: 36 }], [horizontal(partition), {}]);
     const result = resolve(tree, box(36, 84));
     expect(result.dividers[1]).toEqual({
@@ -70,14 +70,14 @@ describe('IN2 interior rectangles', () => {
     expect(section(result, 'r.0.1')).toMatchObject({ x: 18.375, width: 16.875 });
   });
 
-  it('anchor 5: a double partition takes two sheet thicknesses around its centre', () => {
+  it('a double partition takes two sheet thicknesses around its centre', () => {
     const result = resolve(horizontal({ kind: 'double_partition' }), box(48, 30.5));
     expect(result.dividers[0]).toMatchObject({ x: 23.25, width: 1.5, fromLeft: 24 });
     expect(result.sections.map(({ x, width }) => ({ x, width })))
       .toEqual([{ x: 0.75, width: 22.5 }, { x: 24.75, width: 22.5 }]);
   });
 
-  it('anchor 6: a right-origin partition stays measured from the right on resize', () => {
+  it('a right-origin partition stays measured from the right on resize', () => {
     const tree = horizontal({ ...partition, at: 12, from: 'right' });
     const result = resolve(tree, box(36, 30.5));
     expect(result.dividers[0]).toMatchObject({ x: 23.625, fromLeft: 24, fromRight: 12, dimFrom: 'right' });
@@ -87,7 +87,7 @@ describe('IN2 interior rectangles', () => {
       .toMatchObject({ fromLeft: 36, fromRight: 12, dimFrom: 'right' });
   });
 
-  it('anchor 7: auto shelves split only the span above the manual shelf', () => {
+  it('auto shelves split only the span above the manual shelf', () => {
     const result = resolve(vertical(fixed, { ...fixed, at: 30 }), box(24, 84));
     expect(section(result, 'r.2').height).toBe(28.875);
     expect(section(result, 'r.1')).toMatchObject({ z: 30.375, height: 26.0625 });
@@ -95,21 +95,21 @@ describe('IN2 interior rectangles', () => {
     expect(section(result, 'r.0')).toMatchObject({ z: 57.1875, height: 26.0625 });
   });
 
-  it('anchor 8: a stretcher defaults to four inches deep', () => {
+  it('a stretcher defaults to four inches deep', () => {
     const result = resolve(vertical({ kind: 'stretcher', at: 24.5 }), box(18, 30.5));
     expect(result.dividers[0]).toMatchObject({ z: 24.125, width: 16.5, depth: 4, depthAuto: true });
     expect(section(result, 'r.0')).toMatchObject({ z: 24.875, height: 4.875 });
     expect(section(result, 'r.1').height).toBe(23.375);
   });
 
-  it('anchor 9: omitted bottom and left panels give their space back and use an inset back', () => {
+  it('omitted bottom and left panels give their space back and use an inset back', () => {
     const construction = boxConstruction({ box: { bottom: 'none', left: false } });
     expect(resolveInterior(null, box(30, 30, 12), construction)).toMatchObject({
       rect: { x: 0, z: 0, width: 29.25, height: 29.25 }, depth: 11.25,
     });
   });
 
-  it('anchor 10: keeps excessive depth and warns on sections below the minimum', () => {
+  it('keeps excessive depth and warns on sections below the minimum', () => {
     expect(interiorDepth(4, 'applied')).toBe(3.75);
     expect(interiorDepth(24, 'none')).toBe(24);
     const result = resolve(vertical({ ...fixed, at: 1, depth: 30 }), box(30, 30.5));
@@ -211,8 +211,8 @@ const placedInterior = (tree, width, height, x, z) => placeInterior({
   box: { ...box(width, height), x, z }, ...resolve(tree, box(width, height)),
 });
 
-describe('IN3 interior view coordinates and dimensions', () => {
-  it('anchor 1: places an auto shelf and sections, preserving all other fields and the input', () => {
+describe('interior view coordinates and dimensions (IN3)', () => {
+  it('places an auto shelf and sections, preserving all other fields and the input', () => {
     const local = { box: { ...box(24, 84), x: 30, z: 4 }, ...resolve(vertical(fixed), box(24, 84)) };
     const before = structuredClone(local);
     const placed = placeInterior(local);
@@ -235,7 +235,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     expect(local).toEqual(before);
   });
 
-  it('anchor 2: dimensions a manual shelf and its nested auto partition from the box exterior', () => {
+  it('dimensions a manual shelf and its nested auto partition from the box exterior', () => {
     const tree = group('vertical', [{ ...fixed, at: 36 }], [horizontal(partition), {}]);
     expect(interiorDimensions(placedInterior(tree, 36, 84, 10, 0))).toEqual([
       { key: 'r:0', path: 'r', index: 0, axis: 'vertical',
@@ -247,7 +247,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     ]);
   });
 
-  it('anchor 3: dimensions a partition from the right at its top end', () => {
+  it('dimensions a partition from the right at its top end', () => {
     const tree = horizontal({ ...partition, at: 12, from: 'right' });
     expect(interiorDimensions(placedInterior(tree, 36, 30.5, 0, 4))).toEqual([{
       key: 'r:0', path: 'r', index: 0, axis: 'horizontal',
@@ -256,7 +256,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     }]);
   });
 
-  it('anchor 4: assigns lanes by increasing value while keeping divider order', () => {
+  it('assigns lanes by increasing value while keeping divider order', () => {
     const placed = placedInterior(vertical(fixed, { ...fixed, at: 30 }), 24, 84, 0, 0);
     expect(interiorDimensions(placed)).toEqual([
       { key: 'r:0', path: 'r', index: 0, axis: 'vertical',
@@ -268,7 +268,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     ]);
   });
 
-  it('anchor 5: drags on the dimension side, snapping to sixteenths with only a minimum', () => {
+  it('drags on the dimension side, snapping to sixteenths with only a minimum', () => {
     const bottom = interiorDimensions(placedInterior(vertical(fixed), 24, 84, 30, 4))[0];
     const right = interiorDimensions(placedInterior(
       horizontal({ ...partition, at: 12, from: 'right' }), 36, 30.5, 0, 4,
@@ -285,7 +285,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     expect(dragDividerPosition(left, { x: -50, z: 500 })).toEqual({ at: 0.0625, from: 'left' });
   });
 
-  it('anchor 6: resolves two base cabinets and no filler in one elevation parts pass', () => {
+  it('resolves two base cabinets and no filler in one elevation parts pass', () => {
     const stored = structuredClone(document.rooms.find((room) => room.name === 'G1 Euro kitchen'));
     const wall = stored.walls[0];
     const run = wall.runs.find((entry) => entry.id === 'b822e8ac-1a44-47ca-acec-ecb93caf7b8a');
@@ -346,7 +346,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
   });
 });
 
-describe('IN3.1 box part lines (doors-off view)', () => {
+describe('box part lines (doors-off view) (IN3.1)', () => {
   const lines = (construction) => boxPartLines({ width: 30, height: 30.5 }, construction, 0.75);
   it('standard box: sides run the full height, top and bottom run between them', () => {
     expect(lines(standard)).toEqual([
@@ -374,7 +374,7 @@ describe('IN3.1 box part lines (doors-off view)', () => {
   });
 });
 
-describe('IN5.2 raised face frame decks', () => {
+describe('raised face frame decks (IN5.2)', () => {
   const room = (cabinetTypeId, style, height = 30.5) => {
     const run = buildRun({
       id: 'run', cabinetTypeId, x: 24, width: 30, z: cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 54 : 4,

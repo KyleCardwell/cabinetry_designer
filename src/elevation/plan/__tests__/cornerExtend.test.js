@@ -52,8 +52,8 @@ beforeEach(() => {
   liveGestureRef = { current: null };
 });
 
-describe('WL3 e: corner arrow Move corner / Extend past', () => {
-  it('anchor 1: wall-3\'s arrow at the wall-2 corner opens Move corner at its length', () => {
+describe('corner arrow Move corner / Extend past (WL3)', () => {
+  it('wall-3\'s arrow at the wall-2 corner opens Move corner at its length', () => {
     begin('wall-3', 'left');
     expect(controller.entry).toMatchObject({
       kind: 'wall-length', label: 'Move corner', value: 85, modeKey: 'length',
@@ -63,7 +63,7 @@ describe('WL3 e: corner arrow Move corner / Extend past', () => {
     ]);
   });
 
-  it('anchor 2: Tab, 39, Enter extends past wall-2 and gives back Room K', () => {
+  it('Tab, 39, Enter extends past wall-2 and gives back Room K', () => {
     begin('wall-3', 'left');
     controller.cycle();
     expect(controller.entry).toMatchObject({ label: 'Extend past Wall 2', value: 0, min: 0, modeKey: 'extend' });
@@ -75,14 +75,14 @@ describe('WL3 e: corner arrow Move corner / Extend past', () => {
     expect(liveGestureRef.current).toBeNull();
   });
 
-  it('anchor 3: Move corner commits a length change as before', () => {
+  it('Move corner commits a length change as before', () => {
     begin('wall-3', 'left');
     controller.setTyped('90');
     controller.commit();
     expect(dispatch).toHaveBeenCalledWith(setWallLength({ wallId: 'wall-3', length: 90, growEnd: 'left' }));
   });
 
-  it('anchor 4: wall-2\'s arrow at the same corner extends wall-2', () => {
+  it('wall-2\'s arrow at the same corner extends wall-2', () => {
     begin('wall-2', 'right');
     controller.cycle();
     expect(controller.entry.label).toBe('Extend past Wall 3');
@@ -91,7 +91,7 @@ describe('WL3 e: corner arrow Move corner / Extend past', () => {
     expect(dispatch).toHaveBeenCalledWith(extendPastCorner({ wallId: 'wall-2', endpoint: 'end', amount: 10 }));
   });
 
-  it('anchor 5: in Extend mode the drag is the extension, never below 0', () => {
+  it('in Extend mode the drag is the extension, never below 0', () => {
     begin('wall-3', 'left');
     controller.cycle();
     drag({ x: -26.5, y: 9 });
@@ -103,7 +103,7 @@ describe('WL3 e: corner arrow Move corner / Extend past', () => {
     expect(controller.entry).toMatchObject({ modeKey: 'length', value: 97 });
   });
 
-  it('anchor 6: Escape dispatches nothing', () => {
+  it('Escape dispatches nothing', () => {
     begin('wall-3', 'left');
     controller.cycle();
     controller.setTyped('39');

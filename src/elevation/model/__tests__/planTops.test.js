@@ -17,19 +17,19 @@ const stored9b = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', impor
 const settings9b = { ...DEFAULT_SETTINGS, ...stored9b.settingsOverrides };
 const room9b = syncRoom(structuredClone(stored9b), settings9b);
 
-describe('PT1 step d plan top overhangs', () => {
+describe('plan top overhangs (PT1)', () => {
   const base = room({ walls: [wall({ runs: [run({ ...wood, x: 24, width: 60,
     topOverhang: { front: 12 }, items: [auto('cabinet')],
   })] })] });
 
-  it('anchor 1: measures a 12 inch front overhang at the top rectangle midpoint', () => {
+  it('measures a 12 inch front overhang at the top rectangle midpoint', () => {
     expect(planTopOverhangs(base, settings)).toEqual([{
       wallId: 'wall-1', runId: 'run-1', side: 'front', edge: 'front', value: 12,
       from: [54, 24.875], to: [54, 36.875],
     }]);
   });
 
-  it('anchor 2: omits 3 inch overhangs, including the 1e-6 threshold tolerance', () => {
+  it('omits 3 inch overhangs, including the 1e-6 threshold tolerance', () => {
     expect(PLAN_TOP_DIM_MIN).toBe(3);
     const input = structuredClone(base);
     for (const value of [3, 3.0000005, 3.000002]) {
@@ -38,7 +38,7 @@ describe('PT1 step d plan top overhangs', () => {
     }
   });
 
-  it('anchor 3: shifts the front midpoint for a 6 inch right overhang and dimensions that edge', () => {
+  it('shifts the front midpoint for a 6 inch right overhang and dimensions that edge', () => {
     const input = structuredClone(base);
     input.walls[0].runs[0].topOverhang.right = 6;
     expect(planTopOverhangs(input, settings)).toEqual([
@@ -49,11 +49,11 @@ describe('PT1 step d plan top overhangs', () => {
     ]);
   });
 
-  it('anchor 4: Room 9b has no overhang dimensions', () => {
+  it('Room 9b has no overhang dimensions', () => {
     expect(planTopOverhangs(room9b, settings9b)).toEqual([]);
   });
 
-  it('anchor 5: mirrors the island back overhang into the front frame', () => {
+  it('mirrors the island back overhang into the front frame', () => {
     const input = structuredClone(island);
     input.walls[0].runs[1].topOverhang = { front: 12 };
     expect(planTopOverhangs(input, settings)).toEqual([{

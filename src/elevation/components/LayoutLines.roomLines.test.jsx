@@ -47,7 +47,7 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-it('anchor 5: the elevation tool adds at W2 x 80 from the right end, with snapping and face selection', () => {
+it('the elevation tool adds at W2 x 80 from the right end, with snapping and face selection', () => {
   const menu = nodes(ElevationToolbar({})).find(({ type }) => type === AddToolMenu);
   expect(menu.props).toBeDefined();
   expect(menu.props.tools).toContainEqual(['roomLine', 'Room line']);

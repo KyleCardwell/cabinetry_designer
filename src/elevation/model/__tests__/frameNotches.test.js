@@ -33,7 +33,7 @@ function framed(run, suppliedFaces) {
 
 const topNotch = { columnId: 'B', edge: 'top', x: 31, z: 32.5, width: 28, height: 2 };
 
-describe('ST2 step a notched frame regions', () => {
+describe('notched frame regions (ST2)', () => {
   it('works from a plain run layout with no gaps (the properties panel passes one)', () => {
     const run = makeRun({ top: manual(2) });
     const wall = { id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, height: 96, thickness: 4.5,
@@ -45,7 +45,7 @@ describe('ST2 step a notched frame regions', () => {
     expect(frames.regions[0].notches).toEqual([topNotch]);
   });
 
-  it('anchor 1: cuts the lowered B opening span from one unchanged bounding rectangle without warning', () => {
+  it('cuts the lowered B opening span from one unchanged bounding rectangle without warning', () => {
     const run = makeRun({ top: manual(2) });
     const before = structuredClone(run);
     const { frames, region, cells } = framed(run);
@@ -59,7 +59,7 @@ describe('ST2 step a notched frame regions', () => {
     expect(framed(makeRun()).region).not.toHaveProperty('notches');
   });
 
-  it('anchor 2: keeps four full-height stiles and lowers only B top rail, leaving the notch empty', () => {
+  it('keeps four full-height stiles and lowers only B top rail, leaving the notch empty', () => {
     const { members } = framed(makeRun({ top: manual(2) }));
     expect(members.filter(({ kind }) => kind === 'stile')).toEqual(
       [0, 29.5, 59, 88.5].map((x) => ({ kind: 'stile', x, z: 4, width: 1.5, height: 30.5 })),
@@ -75,14 +75,14 @@ describe('ST2 step a notched frame regions', () => {
     expect(members.some((m) => m.x < 59 && m.x + m.width > 31 && m.z + m.height > 32.5)).toBe(false);
   });
 
-  it('anchor 3: raises B bottom rail above its three-inch bottom notch', () => {
+  it('raises B bottom rail above its three-inch bottom notch', () => {
     const { region, members, frames } = framed(makeRun({ bottom: manual(3) }));
     expect(region.notches).toEqual([{ columnId: 'B', edge: 'bottom', x: 31, z: 4, width: 28, height: 3 }]);
     expect(members).toContainEqual({ kind: 'rail', x: 31, z: 7, width: 28, height: 1.5 });
     expect(frames.warnings).toEqual([]);
   });
 
-  it('anchor 4: still warns for an unstepped nested void between unequal-height framed cabinets', () => {
+  it('still warns for an unstepped nested void between unequal-height framed cabinets', () => {
     const run = makeRun();
     run.grid.cells[1].node = {
       id: 'B', cols: [{ id: 'B:c', size: null, sizeMode: 'auto' }],

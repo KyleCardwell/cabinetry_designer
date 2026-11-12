@@ -15,7 +15,7 @@ import { BUILT_IN_SLIDES } from '../slides.js';
 import * as elevationPartsModule from '../elevationParts.js';
 import * as runSceneModule from '../runScene.js';
 
-describe('IN4a drawer box preset heights', () => {
+describe('drawer box preset heights (IN4a)', () => {
   it('gives the ProBox presets by default: 2 1/4..10 1/4, then 11 1/8..22 1/8, by 1"', () => {
     const heights = drawerBoxHeights(DEFAULT_SETTINGS);
     expect(heights).toHaveLength(21);
@@ -70,7 +70,7 @@ function input({ face = base(), width = 18, height = 30.5, depth = 24, inset = f
 const sized = (options) => cabinetDrawerBoxes(input(options));
 const codes = (box) => box.warnings.map(({ code }) => code);
 
-describe('IN4c usable drawer depth and cabinet back notches', () => {
+describe('usable drawer depth and cabinet back notches (IN4c)', () => {
   const atDepth = (interiorDepth, pick = {}, options = {}) => {
     const args = input({ face: stack(drawer(5.875, pick), drawer(), drawer()), ...options });
     args.interior.physicalSections[0].depth = interiorDepth;
@@ -87,14 +87,14 @@ describe('IN4c usable drawer depth and cabinet back notches', () => {
     expect(codes(box)).not.toContain('slide-notch');
   });
 
-  it('anchor 3: keeps a typed depth and reports the nominal slide notch', () => {
+  it('keeps a typed depth and reports the nominal slide notch', () => {
     const box = atDepth(21.5, { depth: 21, slideId: 'blum-562h' });
     expect(box).toMatchObject({ depth: 21, depthSource: 'manual', slideLength: 21, notch: 0.25, source: 'box' });
     expect(box.warnings).toEqual([{ code: 'slide-notch', notch: 0.25, backClearance: 0.75 }]);
     expect(codes(atDepth(21.5, { depth: 24 }))).toEqual(['drawer-too-deep', 'slide-notch']);
   });
 
-  it('anchor 5: uses the larger behind clearance and caps accessory max depth by usable depth', () => {
+  it('uses the larger behind clearance and caps accessory max depth by usable depth', () => {
     const box = atDepth(22.5, { accessories: [{ accessoryId: 'CU' }] });
     expect(box).toMatchObject({ depth: 18, notch: null, depthSource: 'accessory', depthAccessory: 'CU' });
     const args = input({ face: drawer(5.875, { accessories: [{ accessoryId: 'CU' }, { accessoryId: 'OS' }] }) });
@@ -105,7 +105,7 @@ describe('IN4c usable drawer depth and cabinet back notches', () => {
     expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: 18, notch: null });
   });
 
-  it('anchor 7: applies the sink reduction after choosing the usable standard length', () => {
+  it('applies the sink reduction after choosing the usable standard length', () => {
     expect(atDepth(22.5, {}, { leaf: { purpose: 'sink' } }))
       .toMatchObject({ depth: 18, depthRule: 'DRW-006', notch: null });
   });
@@ -122,8 +122,8 @@ describe('IN4c usable drawer depth and cabinet back notches', () => {
   });
 });
 
-describe('IN5 step b drawer box sizing', () => {
-  it('anchor 1: clips Euro spaces to the box and matches equal fronts down', () => {
+describe('drawer box sizing (IN5)', () => {
+  it('clips Euro spaces to the box and matches equal fronts down', () => {
     const args = input();
     const before = structuredClone(args);
     const { boxes, warnings } = cabinetDrawerBoxes(args);
@@ -138,7 +138,7 @@ describe('IN5 step b drawer box sizing', () => {
     expect(args).toEqual(before);
   });
 
-  it('anchor 2: matches the two 8-inch fronts and gives back the absent bottom', () => {
+  it('matches the two 8-inch fronts and gives back the absent bottom', () => {
     const face = stack(drawer(), drawer(8), drawer(8));
     const { boxes } = sized({ face });
     expect(boxes.map(({ height }) => height)).toEqual([12.125, 6.25, 6.25]);
@@ -149,7 +149,7 @@ describe('IN5 step b drawer box sizing', () => {
       .toEqual([12.125, 7.25, 7.25]);
   });
 
-  it('anchor 3: uses frame openings and never adds maple clearance to face frame boxes', () => {
+  it('uses frame openings and never adds maple clearance to face frame boxes', () => {
     for (const prefinishedMaple of [false, true]) {
       const { boxes } = sized({ face: stack(drawer(5), drawer(), drawer()), inset: true, prefinishedMaple });
       expect(boxes.map(({ space }) => space.z)).toEqual([24, 12.75, 1.5]);
@@ -159,7 +159,7 @@ describe('IN5 step b drawer box sizing', () => {
     }
   });
 
-  it('anchor 4: sizes from cabinet and box slides and warns on a missing cabinet pick', () => {
+  it('sizes from cabinet and box slides and warns on a missing cabinet pick', () => {
     const leaf = { drawerSlideId: 'accuride-3832' };
     const cabinet = sized({ leaf }).boxes;
     cabinet.forEach((box) => expect(box).toMatchObject({ width: 15.5, depth: 22, source: 'cabinet' }));
@@ -177,7 +177,7 @@ describe('IN5 step b drawer box sizing', () => {
     })));
   });
 
-  it('anchor 5: keeps typed heights, matches auto twins, and warns for excess and tall boxes', () => {
+  it('keeps typed heights, matches auto twins, and warns for excess and tall boxes', () => {
     const face = base();
     face.children[2].drawerBox = { height: 9.25 };
     const boxes = sized({ face }).boxes;
@@ -194,7 +194,7 @@ describe('IN5 step b drawer box sizing', () => {
     }
   });
 
-  it('anchor 6: keeps typed depth and chooses only nominal lengths that fit the interior', () => {
+  it('keeps typed depth and chooses only nominal lengths that fit the interior', () => {
     for (const [depth, warnings] of [[18, []], [24, ['drawer-too-deep', 'slide-notch']]]) {
       const face = base();
       face.children[2].drawerBox = { depth };
@@ -211,7 +211,7 @@ describe('IN5 step b drawer box sizing', () => {
     }
   });
 
-  it('anchor 7: uses partition sections and warns for side-by-side drawers without a partition', () => {
+  it('uses partition sections and warns for side-by-side drawers without a partition', () => {
     const face = { direction: 'horizontal', size: null, children: [drawer(), drawer()] };
     const interior = { direction: 'horizontal', children: [{}, {}], dividers: [{ kind: 'double_partition' }] };
     const divided = sized({ width: 36, face, leaf: { interior } });
@@ -225,7 +225,7 @@ describe('IN5 step b drawer box sizing', () => {
     });
   });
 
-  it('anchor 8: recognizes prefinished maple and centres the extra sixteenth', () => {
+  it('recognizes prefinished maple and centres the extra sixteenth', () => {
     expect(['Prefinished Maple', 'pre-finished maple ply', 'Maple', ''].map(isPrefinishedMaple))
       .toEqual([true, true, false, false]);
     expect(isPrefinishedMaple(null)).toBe(false);
@@ -236,7 +236,7 @@ describe('IN5 step b drawer box sizing', () => {
     expect(cabinetDrawerBoxes(args).boxes[0].width).toBe(16);
   });
 
-  it('anchor 9: leaves a front with no fitting preset unsized', () => {
+  it('leaves a front with no fitting preset unsized', () => {
     const { boxes } = sized({ face: stack(drawer(5.875), drawer(2.5), drawer()) });
     expect(boxes[1]).toMatchObject({ space: { height: 2.625 }, available: 1.8125,
       height: null, heightAuto: null, heightSource: 'auto' });
@@ -312,7 +312,7 @@ describe('IN5 step b drawer box sizing', () => {
     expect({ ...room, reportParts: before.reportParts }).toEqual(before);
   });
 
-  it('AU8: the pre-finished maple extra width is a shop setting', () => {
+  it('the pre-finished maple extra width is a shop setting (AU8)', () => {
     const plain = sized({}).boxes[0];
     const box = (extra) => cabinetDrawerBoxes({ ...input({ prefinishedMaple: true }),
       settings: { ...settings, prefinishedMapleExtra: extra } }).boxes[0];
@@ -324,8 +324,8 @@ describe('IN5 step b drawer box sizing', () => {
   });
 });
 
-describe('IN6 step b drawer rules', () => {
-  it('anchor 1: changes only tall shallow fronts to Accuride and retains IN5 heights', () => {
+describe('drawer rules (IN6)', () => {
+  it('changes only tall shallow fronts to Accuride and retains IN5 heights', () => {
     const { boxes, warnings } = sized({ depth: 12 });
     expect(boxes[0]).toMatchObject({ slideId: 'blum-562h', depth: 9, width: 16, slideRule: null });
     for (const box of boxes.slice(1)) expect(box).toMatchObject({ slideId: 'accuride-3832',
@@ -334,7 +334,7 @@ describe('IN6 step b drawer rules', () => {
     expect(warnings).toEqual([]);
   });
 
-  it('anchor 2: respects box picks, side mounts, the 15-inch threshold and typed depth', () => {
+  it('respects box picks, side mounts, the 15-inch threshold and typed depth', () => {
     const face = base();
     face.children[2].drawerBox = { slideId: 'blum-562h' };
     expect(sized({ depth: 12, face }).boxes[2]).toMatchObject({ slideId: 'blum-562h',
@@ -353,7 +353,7 @@ describe('IN6 step b drawer rules', () => {
       slideRule: 'DRW-002', depth: 14, depthSource: 'manual', depthRule: null, width: 15.5, slideLength: 14 });
   });
 
-  it('anchor 3: sizes file fronts by their front dimensions, with manual height taking precedence', () => {
+  it('sizes file fronts by their front dimensions, with manual height taking precedence', () => {
     const face = stack(drawer(5.875), drawer());
     const leaf = { purpose: 'file' };
     const { boxes } = sized({ face, leaf });
@@ -377,7 +377,7 @@ describe('IN6 step b drawer rules', () => {
       heightRule: null, slideId: 'blum-562h', slideRule: null });
   });
 
-  it('anchor 4: reduces sink depth from the standard length and retains notes on manual depths', () => {
+  it('reduces sink depth from the standard length and retains notes on manual depths', () => {
     const leaf = { purpose: 'sink', box: { top: 'spreaders' } };
     const sink = sized({ leaf });
     expect(sink.notes).toEqual([{ rule: 'DRW-006', text: 'notch drw around plumbing' }]);
@@ -396,7 +396,7 @@ describe('IN6 step b drawer rules', () => {
     expect(cabinetDrawerBoxes(outside).notes).toEqual([]);
   });
 
-  it('anchor 5: reserves charging clearance and warns when a typed depth consumes it', () => {
+  it('reserves charging clearance and warns when a typed depth consumes it', () => {
     const face = base();
     face.children[0].drawerBox = { accessories: [{ accessoryId: 'CU' }] };
     const blum = sized({ face });
@@ -414,7 +414,7 @@ describe('IN6 step b drawer rules', () => {
     expect(typed.warnings).toEqual([{ code: 'accessory-depth', path: 'r.0', index: 0, name: 'Charging unit', limit: 'clear_behind', inches: 2, has: 1 }]);
   });
 
-  it('anchor 6: selects clips by cabinet style and notes stabilizers only above 36-inch fronts', () => {
+  it('selects clips by cabinet style and notes stabilizers only above 36-inch fronts', () => {
     sized().boxes.forEach((box) => expect(box.clips).toBe('standard'));
     sized({ face: stack(drawer(5), drawer(), drawer()), inset: true }).boxes
       .forEach((box) => expect(box.clips).toBe('adjustable'));
@@ -500,13 +500,13 @@ describe('IN6 step b drawer rules', () => {
   });
 });
 
-describe('IN6 step c ROT and hamper boxes', () => {
+describe('ROT and hamper boxes (IN6)', () => {
   const pullout = (size = null, drawerBox) => ({ type: 'door', action: 'pullout', size,
     ...(drawerBox ? { drawerBox } : {}) });
   const trash = (options = {}) => sized({ face: stack(drawer(5.875), pullout()),
     leaf: { purpose: 'trash' }, ...options });
 
-  it('anchor 1: sizes the standard trash ROT independently of its top drawer', () => {
+  it('sizes the standard trash ROT independently of its top drawer', () => {
     const args = input({ face: stack(drawer(5.875), pullout()), leaf: { purpose: 'trash' } });
     const before = structuredClone(args);
     const { boxes, warnings } = cabinetDrawerBoxes(args);
@@ -519,7 +519,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
     expect(args).toEqual(before);
   });
 
-  it('anchor 2: follows every ROT depth row using box dimensions, including exact boundaries', () => {
+  it('follows every ROT depth row using box dimensions, including exact boundaries', () => {
     for (const [width, expected] of [[15, 13], [24, 22], [30, 28]]) {
       expect(trash({ width }).boxes[1]).toMatchObject({ width: expected, depth: 21, notes: [] });
     }
@@ -543,7 +543,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
     expect(codes(cabinetDrawerBoxes(args).boxes[0])).toContain('drawer-too-deep');
   });
 
-  it('anchor 3: keeps ROT overrides and falls back to a shorter preset or an unsized box', () => {
+  it('keeps ROT overrides and falls back to a shorter preset or an unsized box', () => {
     expect(trash({ face: stack(drawer(5.875), pullout(null, { depth: 21 })) }).boxes[1])
       .toMatchObject({ depth: 21, depthSource: 'manual', depthRule: null, notes: [] });
     expect(trash({ face: stack(drawer(5.875), pullout(null, { height: 12.125 })) }).boxes[1])
@@ -559,7 +559,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
       .not.toContain('rot-short');
   });
 
-  it('anchor 4: places hampers at the top and checks both footprint orientations', () => {
+  it('places hampers at the top and checks both footprint orientations', () => {
     const options = { face: pullout(), leaf: { purpose: 'hamper' }, width: 24 };
     const hamper = sized(options).boxes[0];
     expect(hamper).toMatchObject({ kind: 'hamper', height: 6.25, heightSource: 'rule', heightRule: 'DRW-010',
@@ -572,7 +572,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
       z: 17.375, clearBelow: 16.625, warnings: [] });
   });
 
-  it('anchor 5: warns for low hamper clearance and ignores other pull-out purposes and actions', () => {
+  it('warns for low hamper clearance and ignores other pull-out purposes and actions', () => {
     const low = sized({ width: 24, face: stack(drawer(5.875), drawer(9), pullout()),
       leaf: { purpose: 'hamper' } });
     expect(low.boxes[2]).toMatchObject({ z: 8.8125, clearBelow: 8.0625 });
@@ -610,7 +610,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
     }
   });
 
-  it('anchor 5: retains cabinets with only ROT or hamper boxes in wall order and coordinates', () => {
+  it('retains cabinets with only ROT or hamper boxes in wall order and coordinates', () => {
     const leaves = ['trash', 'hamper', undefined].map((purpose, index) => ({ id: `c${index}`, kind: 'cabinet',
       purpose, face: pullout(), width: null }));
     const run = buildRun({ id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 54, z: 4, height: 30.5, depth: 24,
@@ -626,7 +626,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
   });
 });
 
-describe('IN7.1 drawer box vertical adjustment', () => {
+describe('drawer box vertical adjustment (IN7.1)', () => {
   it('lets a typed box up to 1/8 too tall fit (setting), never changing auto heights', () => {
     const face = base();
     face.children[2].drawerBox = { height: 9.25 };
@@ -646,7 +646,7 @@ describe('IN7.1 drawer box vertical adjustment', () => {
 });
 
 
-describe('IN12c d accessory sizing', () => {
+describe('accessory sizing (IN12c)', () => {
   const items = (...ids) => ids.map((accessoryId) => ({ accessoryId }));
   const withItems = (index, ids, options = {}, pick = {}) => {
     const face = options.face ?? base();
@@ -654,7 +654,7 @@ describe('IN12c d accessory sizing', () => {
     return input({ ...options, face });
   };
 
-  it('anchor 2: caps knife boxes, leaves twins at their inherited height, and checks manual height and outside width', () => {
+  it('caps knife boxes, leaves twins at their inherited height, and checks manual height and outside width', () => {
     const args = withItems(2, ['KN']);
     const result = cabinetDrawerBoxes(args);
     expect(result.boxes[2]).toMatchObject({ height: 4.25, heightSource: 'accessory', heightAccessory: 'KN', heightRule: null });
@@ -668,7 +668,7 @@ describe('IN12c d accessory sizing', () => {
       sizes: [{ dim: 'width', needs: 15, has: 13 }] }] }] });
   });
 
-  it('anchor 3: fixes spice height independently of twins and file height rules', () => {
+  it('fixes spice height independently of twins and file height rules', () => {
     const result = cabinetDrawerBoxes(withItems(1, ['SP'])).boxes;
     expect(result[1]).toMatchObject({ height: 3.25, heightSource: 'accessory', heightAccessory: 'SP' });
     expect(result[2]).toMatchObject({ height: 10.25, heightSource: 'auto' });
@@ -677,7 +677,7 @@ describe('IN12c d accessory sizing', () => {
       source: 'rule', slideRule: 'DRW-003', depth: 22 });
   });
 
-  it('anchor 4: applies organizer slides and notes, with box overrides and archived-slide fallthrough', () => {
+  it('applies organizer slides and notes, with box overrides and archived-slide fallthrough', () => {
     const args = withItems(0, ['PO']);
     const before = structuredClone(args);
     expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ slideId: 'accuride-4034', source: 'accessory',
@@ -693,7 +693,7 @@ describe('IN12c d accessory sizing', () => {
       notes: ['1/2" bottom'], warnings: [{ code: 'slide-missing', level: 'accessory', slideId: 'accuride-4034' }] });
   });
 
-  it('anchors 5–6: chooses the smallest sink/accessory candidate and preserves sink notes', () => {
+  it('chooses the smallest sink/accessory candidate and preserves sink notes', () => {
     const sink = { leaf: { purpose: 'sink' } };
     expect(cabinetDrawerBoxes(withItems(0, ['CU'], sink)).boxes[0]).toMatchObject({ depth: 18, depthSource: 'rule',
       depthRule: 'DRW-006', depthAccessory: null, notes: ['notch drw around plumbing'] });
@@ -702,7 +702,7 @@ describe('IN12c d accessory sizing', () => {
     expect(cabinetDrawerBoxes(withItems(0, ['CU', 'OS'])).boxes[0]).toMatchObject({ depth: 15, depthAccessory: 'OS' });
   });
 
-  it('anchors 7–8: retains indexed missing/wrong-place items and leaves ordinary boxes unchanged', () => {
+  it('retains indexed missing/wrong-place items and leaves ordinary boxes unchanged', () => {
     const args = withItems(0, ['gone', 'Susan']);
     const before = structuredClone(args);
     const result = cabinetDrawerBoxes(args);

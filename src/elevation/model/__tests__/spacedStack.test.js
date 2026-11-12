@@ -3,7 +3,7 @@ import { autoStackCount, spacedStack } from '../spacedStack.js';
 import { floatingShelfLayout, shelfParts } from '../cells.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 
-describe('IN15a spacing rule and floating shelves', () => {
+describe('spacing rule and floating shelves (IN15a)', () => {
   it.each([
     [1, 36, { count: 2 }, 2, 11, [11, 23.5], []],
     [2, 36, { count: 2, bottom: 6 }, 2, 13.5, [6, 21], []],

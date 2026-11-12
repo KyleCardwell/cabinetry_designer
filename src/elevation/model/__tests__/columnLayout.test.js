@@ -9,8 +9,8 @@ const nodeIds = (value) => {
   return Object.entries(value).flatMap(([key, entry]) => key === 'id' ? [entry] : nodeIds(entry));
 };
 
-describe('DR1 column layouts', () => {
-  it('anchor 1: copies the root stack and steps from any nested leaf, deeply and without placement', () => {
+describe('column layouts (DR1)', () => {
+  it('copies the root stack and steps from any nested leaf, deeply and without placement', () => {
     const grid = columnRun().grid;
     const source = grid.cells[1].node;
     source.cells[0].node.reveals = { top: 0.125 };
@@ -36,7 +36,7 @@ describe('DR1 column layouts', () => {
     expect(columnLayoutOf(grid, 'missing')).toBeNull();
   });
 
-  it('anchor 2: preserves the target track and root id, and refreshes every contained id', () => {
+  it('preserves the target track and root id, and refreshes every contained id', () => {
     const grid = columnRun().grid;
     grid.cols[2].id = 'custom-target-track';
     const source = grid.cells[1].node;
@@ -63,7 +63,7 @@ describe('DR1 column layouts', () => {
     expect(grid.cells[2].node).toEqual({ id: 'C', kind: 'cabinet' });
   });
 
-  it('anchor 3: makes distinct descendant ids on two separate pastes onto the same column', () => {
+  it('makes distinct descendant ids on two separate pastes onto the same column', () => {
     const grid = columnRun().grid;
     const layout = columnLayoutOf(grid, 'B2');
     let sequence = 0;
@@ -75,7 +75,7 @@ describe('DR1 column layouts', () => {
     expect(secondIds.every((id) => !firstIds.includes(id))).toBe(true);
   });
 
-  it('anchor 4: returns the same grid for an unchanged source and skipped or missing targets', () => {
+  it('returns the same grid for an unchanged source and skipped or missing targets', () => {
     const grid = columnRun().grid;
     const layout = columnLayoutOf(grid, 'B2');
     const makeId = () => { throw new Error('a no-op must not generate ids'); };

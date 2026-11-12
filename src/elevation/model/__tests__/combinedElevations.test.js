@@ -39,7 +39,7 @@ function steppedRoom(extra = {}) {
 }
 
 describe('combined elevations (Kyle 2026-10-16)', () => {
-  it('IN14 anchor 5: shifts whole interior lines and labels by dx 100, along with glass marks and holes', () => {
+  it('shifts whole interior lines and labels by dx 100, along with glass marks and holes (IN14)', () => {
     const room = roomWith([{ id: 'a', face: { type: 'open', size: null } }]);
     const first = room.walls[0];
     const second = roomWith([{ id: 'b', face: { type: 'door', size: null, panelMaterial: 'glass' } }]).walls[0];

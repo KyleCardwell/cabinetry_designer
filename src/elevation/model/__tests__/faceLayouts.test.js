@@ -41,7 +41,7 @@ const STACKED = {
   },
 };
 
-describe('IN7.3 matched base drawer banks', () => {
+describe('matched base drawer banks (IN7.3)', () => {
   const face = { direction: 'vertical', size: null, children: [
     { type: 'door', size: null },
     { direction: 'vertical', size: null, match: 'base', children: [
@@ -54,7 +54,7 @@ describe('IN7.3 matched base drawer banks', () => {
   const bank = (layout) => layout.faces.filter((front) => front.path.startsWith('r.1.'));
   const height = (rects) => Math.max(...rects.map((rect) => rect.z + rect.height)) - Math.min(...rects.map((rect) => rect.z));
 
-  it('anchor 1: Euro tall resolves 30 1/8 and fronts 5 7/8, 5 7/8, 9, 9 without changing storage', () => {
+  it('Euro tall resolves 30 1/8 and fronts 5 7/8, 5 7/8, 9, 9 without changing storage', () => {
     const run = tall();
     const room = roomWith(run);
     const before = structuredClone(room);
@@ -65,7 +65,7 @@ describe('IN7.3 matched base drawer banks', () => {
     expect(room).toEqual(before);
   });
 
-  it('anchor 2: face frame tall uses a 27 1/2 bank and inset slots', () => {
+  it('face frame tall uses a 27 1/2 bank and inset slots', () => {
     const run = tall();
     const room = roomWith(run, { cabinetStyleId: 14 });
     const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
@@ -74,7 +74,7 @@ describe('IN7.3 matched base drawer banks', () => {
     expect(height(layout.openings.filter((opening) => opening.path.startsWith('r.1.')))).toBe(27.5);
   });
 
-  it('anchor 3: inherits base box height from settings, room, then wall', () => {
+  it('inherits base box height from settings, room, then wall', () => {
     for (const level of ['settings', 'room', 'wall']) {
       const run = tall();
       const room = roomWith(run);
@@ -159,7 +159,7 @@ describe('IN7.3 matched base drawer banks', () => {
 });
 
 describe('runFaceLayouts', () => {
-  it('HP1 b anchor 8: no-end Euro cabinets hinge toward the wall, then the nearer run end', () => {
+  it('no-end Euro cabinets hinge toward the wall, then the nearer run end (HP1)', () => {
     for (const x of [0, 100]) {
       for (const anchor of [true, { to: 'wall' }]) {
         const run = {
@@ -195,7 +195,7 @@ describe('runFaceLayouts', () => {
     }
   });
 
-  it('49. captured single door, then the room switched to inset', () => {
+  it('captured single door, then the room switched to inset', () => {
     const room = roomWith(RUN);
     const wall = resolveWall(room, room.walls[0]);
     const euro = runFaceLayouts(room, wall, RUN, DEFAULT_SETTINGS).get('a');
@@ -209,7 +209,7 @@ describe('runFaceLayouts', () => {
     expect(inset.faces).toEqual([{ path: 'r', type: 'door', x: 25.5625, z: 5.5, width: 16.5, height: 27.5, hinge: 'right', hingeRule: true }]);
   });
 
-  it('50. stacked cells get seam reveals, European and inset', () => {
+  it('stacked cells get seam reveals, European and inset', () => {
     const room = roomWith(STACKED);
     const wall = resolveWall(room, room.walls[0]);
     const euro = runFaceLayouts(room, wall, STACKED, DEFAULT_SETTINGS);
@@ -228,7 +228,7 @@ describe('runFaceLayouts', () => {
     expect(inset.get('t').faces).toEqual([{ path: 'r', type: 'door', x: 25.5625, z: 34.75, width: 16.5, height: 57.75, hinge: 'right', hingeRule: true }]);
   });
 
-  it('51. a cabinet between panel cells is captured', () => {
+  it('a cabinet between panel cells is captured', () => {
     const panel = (id) => ({ id, kind: 'panel' });
     const cell = (col, row, node) => ({ col, row, colSpan: 1, rowSpan: 1, node });
     const WRAPPED = {
@@ -265,7 +265,7 @@ describe('runFaceLayouts', () => {
     expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.5, hinge: 'left', hingeRule: true }]);
   });
 
-  it('52. top-level side panels capture a cabinet; a back panel does not', () => {
+  it('top-level side panels capture a cabinet; a back panel does not', () => {
     const PANELS = {
       ...RUN, id: 'run-4',
       ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
@@ -302,7 +302,7 @@ describe('runFaceLayouts', () => {
     return runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
   };
 
-  it('53. a covered side panel pulls the door over it and sets the hinge the other way', () => {
+  it('a covered side panel pulls the door over it and sets the hinge the other way', () => {
     const a = layoutOf(COVER);
     expect(a.reveals.values.left).toBe(-0.6875);
     expect(a.reveals.sources.left).toBe('rule:covered-panel');
@@ -314,7 +314,7 @@ describe('runFaceLayouts', () => {
     expect(a.warnings).toEqual([]);
   });
 
-  it('54. warns for a pair door or a hinge on the covered side', () => {
+  it('warns for a pair door or a hinge on the covered side', () => {
     const withFace = (face) => ({ ...COVER, items: [COVER.items[0], { ...COVER.items[1], face }, COVER.items[2]] });
     const pair = layoutOf(withFace({ type: 'pair_door', size: null }));
     expect(pair.reveals.sources.left).toBe('style');
@@ -327,7 +327,7 @@ describe('runFaceLayouts', () => {
   });
 });
 
-describe('IN7.2 a smaller top reveal grows the standard drawer fronts', () => {
+describe('smaller top reveal grows the standard drawer fronts (IN7.2)', () => {
   const drawer = (size = null) => ({ type: 'drawer_front', size });
   const standard = () => ({ ...drawer(), match: 'standard' });
   const heights = (face, top) => {
@@ -368,7 +368,7 @@ describe('IN7.2 a smaller top reveal grows the standard drawer fronts', () => {
   });
 });
 
-describe('IN7.4 standard face sizes', () => {
+describe('standard face sizes (IN7.4)', () => {
   const preset = (key) => FACE_PRESETS.find((entry) => entry.key === key).face;
   const layoutOf = (face, { top = 'stone', style, type = CABINET_TYPE_IDS.BASE, settings = DEFAULT_SETTINGS } = {}) => {
     const run = { ...RUN, cabinetTypeId: type, top,
@@ -389,7 +389,7 @@ describe('IN7.4 standard face sizes', () => {
     expect(layoutOf(preset(key), { top }).faces.map(({ height }) => height)).toEqual(expected);
   });
 
-  it('anchor 4: typed 5 7/8 fronts never grow', () => {
+  it('typed 5 7/8 fronts never grow', () => {
     const face = structuredClone(preset('4df'));
     face.children = face.children.map((child, index) => index < 2 ? { type: 'drawer_front', size: 5.875 } : child);
     expect(layoutOf(face, { top: 'wood' }).faces.map(({ height }) => height))
@@ -412,14 +412,14 @@ describe('IN7.4 standard face sizes', () => {
     }
   });
 
-  it('anchor 5: face frame standard slots are 5, with no wood-top growth', () => {
+  it('face frame standard slots are 5, with no wood-top growth', () => {
     for (const top of ['stone', 'wood']) {
       const layout = layoutOf(preset('4df'), { top, style: { cabinetStyleId: 14 } });
       expect(layout.layoutFace.children.slice(0, 2).map(({ size }) => size)).toEqual([5, 5]);
     }
   });
 
-  it('anchor 9: tall D/4Df stores a base match and standard fronts, resolving a 30 1/8 bank', () => {
+  it('tall D/4Df stores a base match and standard fronts, resolving a 30 1/8 bank', () => {
     const face = preset('d_4df');
     expect(face.children[1]).toMatchObject({ size: null, match: 'base' });
     expect(face.children[1].children.slice(0, 2)).toEqual([

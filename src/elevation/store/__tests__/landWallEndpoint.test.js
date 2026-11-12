@@ -20,14 +20,14 @@ const wallGeometry = (state) => state.rooms[0].walls.map(
   }),
 );
 
-describe('WL2 b: land an existing wall endpoint in the store', () => {
-  it('anchor 1: landing K2 makes the same walls as K without flipping', () => {
+describe('land an existing wall endpoint in the store (WL2)', () => {
+  it('landing K2 makes the same walls as K without flipping', () => {
     const landed = elevationReducer(stateFor(K2), landWallEndpoint(target));
     expect(wallGeometry(landed)).toEqual(wallGeometry(stateFor(K)));
     expect(landed.message).toBeNull();
   });
 
-  it('anchor 2: subsequent host length edit holds the landing in place', () => {
+  it('subsequent host length edit holds the landing in place', () => {
     const landed = elevationReducer(stateFor(K2), landWallEndpoint(target));
     const resized = elevationReducer(landed, setWallLength({
       wallId: 'wall-3', length: 111, growEnd: 'left',
@@ -39,14 +39,14 @@ describe('WL2 b: land an existing wall endpoint in the store', () => {
     expect(resized.message).toBeNull();
   });
 
-  it('anchor 3: an off-face target leaves the room unchanged and reports the miss', () => {
+  it('an off-face target leaves the room unchanged and reports the miss', () => {
     const before = stateFor(K2);
     const after = elevationReducer(before, landWallEndpoint({ ...target, x: 130 }));
     expect(after).toEqual({ ...before, message: 'Wall 2 would miss the end of Wall 3.' });
     expect(after.rooms).toBe(before.rooms);
   });
 
-  it('anchor 4: a connected start is not free and clears the message', () => {
+  it('a connected start is not free and clears the message', () => {
     const before = stateFor(K2);
     const after = elevationReducer(before, landWallEndpoint({ ...target, endpoint: 'start' }));
     expect(after).toEqual({ ...before, message: null });

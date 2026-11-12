@@ -69,7 +69,7 @@ function roomR(overrides = {}) {
 }
 
 describe('moveWallPerpendicular', () => {
-  it('13. moves A outward and lengthens B without changing its angle', () => {
+  it('moves A outward and lengthens B without changing its angle', () => {
     const room = roomR();
     const result = moveWallPerpendicular(room, 'A', -10);
     const wallA = result.walls.find((wall) => wall.id === 'A');
@@ -82,7 +82,7 @@ describe('moveWallPerpendicular', () => {
     expect(room.walls[0]).toMatchObject({ y1: 0, y2: 0 });
   });
 
-  it('14. bends a 135-degree neighbor; a parallel one stays on its line', () => {
+  it('bends a 135-degree neighbor; a parallel one stays on its line', () => {
     const room = roomR({ wallB: { x2: 120 + 67.8823, y2: 67.8823 } });
     const oldB = room.walls[1];
     const result = moveWallPerpendicular(room, 'A', 5);
@@ -108,7 +108,7 @@ describe('moveWallPerpendicular', () => {
     });
   });
 
-  it('15. rejects a move that collapses a connected neighbor', () => {
+  it('rejects a move that collapses a connected neighbor', () => {
     const room = roomR();
     const result = moveWallPerpendicular(room, 'A', 96);
 
@@ -121,7 +121,7 @@ describe('moveWallPerpendicular', () => {
     expect(room.walls[1]).toMatchObject({ y1: 0, y2: 96 });
   });
 
-  it('16. compensates unanchored runs and lets sync resolve anchored runs', () => {
+  it('compensates unanchored runs and lets sync resolve anchored runs', () => {
     const room = roomR({
       wallB: {
         runs: [

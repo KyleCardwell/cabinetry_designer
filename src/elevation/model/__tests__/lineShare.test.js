@@ -36,8 +36,8 @@ function direct(source = stored) {
   return splitRun(currentRun, settings, splitOptionsForRun(synced, currentWall, currentRun, settings));
 }
 
-describe('LL4.1 line-attached auto columns share width', () => {
-  it('anchor 1: Kyle’s two autos share 75 inches beside the minimum filler', () => {
+describe('line-attached auto columns share width (LL4.1)', () => {
+  it('Kyle’s two autos share 75 inches beside the minimum filler', () => {
     expect(direct().pieces).toMatchObject([
       { role: 'end-left', width: 1.5 }, { id: 'A', x: 1.5, width: 37.5 },
       { id: 'B', x: 39, width: 37.5 },
@@ -48,7 +48,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     expect(actual.errors).toEqual([]);
   });
 
-  it('anchor 2: mirrors sharing to an anchored right boundary', () => {
+  it('mirrors sharing to an anchored right boundary', () => {
     w.runs = [run({
       width: 120, autoCount: false, anchors: { left: false, right: true },
       ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
@@ -60,7 +60,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('anchor 3: centre attachments retain their remembered width', () => {
+  it('centre attachments retain their remembered width', () => {
     r.grid.cols[1].attach.at = 'center';
     w.lines[0].value = 57.75;
     r._pinWidths = { B: 39 };
@@ -80,7 +80,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('anchor 5: a typed or locked width stays 30', () => {
+  it('a typed or locked width stays 30', () => {
     for (const sizeMode of ['manual', 'solved']) {
       r.grid.cols[1].size = 30;
       r.grid.cols[1].sizeMode = sizeMode;
@@ -90,7 +90,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     }
   });
 
-  it('anchor 6: three autos each get 25 inches', () => {
+  it('three autos each get 25 inches', () => {
     w.runs = [run({ ...r, items: [auto('A'), auto('B'), { ...auto('C'), attach: attach('L1', 'right') }] })];
     expect(result().pieces).toMatchObject([
       { width: 1.5 }, { id: 'A', width: 25 }, { id: 'B', width: 25 }, { id: 'C', x: 51.5, width: 25 },
@@ -104,7 +104,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('anchor 8: sync is stable and stored widths agree, ignoring old remembered widths', () => {
+  it('sync is stable and stored widths agree, ignoring old remembered widths', () => {
     r._pinWidths = { B: 10 };
     const once = result();
     const twice = result(once.synced);
@@ -114,7 +114,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     expect(twice.pieces).toEqual(once.pieces);
   });
 
-  it('LL4.1 b: with an auto filler the odd half inch goes to the filler even when B is marked absorb', () => {
+  it('with an auto filler the odd half inch goes to the filler even when B is marked absorb (LL4.1)', () => {
     w.lines[0].value = 77;
     r.grid.cols[1].absorb = true;
     expect(result().pieces).toMatchObject([
@@ -122,7 +122,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('LL4.1 b: three autos stay 25 and the filler takes the odd half inch', () => {
+  it('three autos stay 25 and the filler takes the odd half inch (LL4.1)', () => {
     w.lines[0].value = 77;
     w.runs = [run({ ...r, items: [auto('A'), auto('B'), { ...auto('C'), attach: attach('L1', 'right') }] })];
     expect(result().pieces).toMatchObject([
@@ -142,7 +142,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('LL4.1 b: B is an end column, so P shares with A and B up to the end B\'s line sets', () => {
+  it('B is an end column, so P shares with A and B up to the end B\'s line sets (LL4.1)', () => {
     r = run({
       ...r, _pinWidths: { P: 20, B: 22 },
       items: [{ ...auto('P'), attach: attach('L2', 'left') }, auto('A'),
@@ -156,7 +156,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     ]);
   });
 
-  it('LL4.1 b: a left end column stays on its line; between two lines with no filler the widths match, unrounded', () => {
+  it('a left end column stays on its line; between two lines with no filler the widths match, unrounded (LL4.1)', () => {
     w.runs = [run({
       ...r, anchors: { left: false, right: false }, seamGap: 1,
       items: [{ ...auto('B'), attach: attach('L1', 'left') }, auto('C'),
@@ -176,7 +176,7 @@ describe('LL4.1 line-attached auto columns share width', () => {
     expect(lineSharedWidths(r, settings, { pinTargets: { B: 76.5 } })).toEqual({});
   });
 
-  it('LL4.1 b: an end column with a nested grid keeps its rounding; the filler takes the rest', () => {
+  it('an end column with a nested grid keeps its rounding; the filler takes the rest (LL4.1)', () => {
     for (const boundedByColumn of [false]) {
       const nested = { ...run({ id: 'nested', items: ['N1', 'N2', 'N3', 'N4'].map(auto) }).grid, id: 'C' };
       w.runs = [run({

@@ -66,9 +66,9 @@ beforeEach(() => {
   });
 });
 
-describe('WL3 d: properties', () => {
+describe('properties (WL3)', () => {
 
-  it('anchor 5: Extend past fields per joined end; the button applies the typed amount and clears', () => {
+  it('Extend past fields per joined end; the button applies the typed amount and clears', () => {
     load(KC);
     selectedId = 'wall-3';
     expect(extendLabels()).toEqual(['Extend past Wall 2', 'Extend past Wall 4']);
@@ -87,12 +87,12 @@ describe('WL3 d: properties', () => {
 
 });
 
-describe('WL3.1: Corners section', () => {
+describe('Corners section (WL3.1)', () => {
   const section = () => nodes(render()).find(({ props }) => props?.id === 'wall.corners');
   const headings = () => nodes(section()?.props.children)
     .filter(({ type }) => type === 'h3').map(({ props }) => text(props.children));
 
-  it('anchor 2: a blank field extends by 0', () => {
+  it('a blank field extends by 0', () => {
     load(KC);
     selectedId = 'wall-3';
     buttons(render(), 'Extend past')[0].props.onClick();
@@ -101,7 +101,7 @@ describe('WL3.1: Corners section', () => {
     expect(byId(state.rooms[0], 'wall-2').landings.end).toMatchObject({ wallId: 'wall-3', offset: 0 });
   });
 
-  it('anchor 3: a typed amount, then a blanked field, go back to 0', () => {
+  it('a typed amount, then a blanked field, go back to 0', () => {
     load(KC);
     selectedId = 'wall-3';
     input('Extend past Wall 2').onCommit(39);

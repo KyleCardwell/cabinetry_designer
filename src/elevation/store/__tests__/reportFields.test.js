@@ -13,8 +13,8 @@ const initialState = () => createInitialElevationState(null);
 const setField = (state, field, value, extra = {}) => elevationReducer(state,
   setReportPartField({ key: 'c1', field, value, ...extra }));
 
-describe('RP2 step a room report fields', () => {
-  it('trims a cabinet name, removes a blank name, and preserves sibling fields (anchors 1–2)', () => {
+describe('room report fields (RP2)', () => {
+  it('trims a cabinet name, removes a blank name, and preserves sibling fields', () => {
     let state = setField(initialState(), 'name', '  Microwave Cabinet ');
     expect(state.rooms[0].reportParts.c1).toEqual({ name: 'Microwave Cabinet' });
     state = setField(state, 'name', '  ');
@@ -28,7 +28,7 @@ describe('RP2 step a room report fields', () => {
     expect(state.rooms[0].reportParts.c1).toEqual({ note: 'Ship Fri' });
   });
 
-  it('stores shopBuilt only as true and removes cleared fields and empty entries (anchor 3)', () => {
+  it('stores shopBuilt only as true and removes cleared fields and empty entries', () => {
     for (const value of [false, null, '  ']) {
       let state = setField(initialState(), 'shopBuilt', true);
       expect(state.rooms[0].reportParts.c1).toEqual({ shopBuilt: true });
@@ -41,7 +41,7 @@ describe('RP2 step a room report fields', () => {
     expect(state.rooms[0].reportParts.c1).toEqual({ note: 'x' });
   });
 
-  it('caps trimmed name, boxes and note text at 60, 120 and 200 characters (anchor 4)', () => {
+  it('caps trimmed name, boxes and note text at 60, 120 and 200 characters', () => {
     for (const [field, limit] of [['name', 60], ['boxes', 120], ['note', 200]]) {
       const state = setField(initialState(), field, `  ${'x'.repeat(250)}  `);
       expect(state.rooms[0].reportParts.c1).toEqual({ [field]: 'x'.repeat(limit) });
@@ -49,7 +49,7 @@ describe('RP2 step a room report fields', () => {
     }
   });
 
-  it('ignores unknown fields, invalid inputs, keys and rooms and targets the requested room (anchor 5)', () => {
+  it('ignores unknown fields, invalid inputs, keys and rooms and targets the requested room', () => {
     const state = setField(initialState(), 'note', 'Keep');
     for (const [field, value, extra] of [
       ['color', 'red'], ['constructor', 'red'], ['name', 7], ['note', {}],
@@ -62,7 +62,7 @@ describe('RP2 step a room report fields', () => {
     expect(next.rooms[1].reportParts).toEqual({});
   });
 
-  it('rejects malformed report parts and room notes (anchor 6)', () => {
+  it('rejects malformed report parts and room notes', () => {
     const room = savedDocument().rooms[0];
     for (const reportParts of [
       { a: { note: 7 } }, { a: { shopBuilt: false } }, { a: {} }, null, [],
@@ -77,7 +77,7 @@ describe('RP2 step a room report fields', () => {
     }
   });
 
-  it('accepts optional and populated report data and retains it through sync and saving (anchor 7)', () => {
+  it('accepts optional and populated report data and retains it through sync and saving', () => {
     const document = savedDocument();
     const room = document.rooms[0];
     delete room.reportParts;

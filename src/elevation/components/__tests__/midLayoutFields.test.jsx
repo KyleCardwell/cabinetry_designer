@@ -61,8 +61,8 @@ function editor({ sizes, slab = false, style = {}, width = 30, height = 39 } = {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('MR3b panels editor', () => {
-  it('anchor 1: splits the 24 × 33 opening into three 9-inch panels, listed top first', () => {
+describe('panels editor (MR3b)', () => {
+  it('splits the 24 × 33 opening into three 9-inch panels, listed top first', () => {
     const ui = editor();
     expect(text(ui.render())).toContain('Panels24 × 33');
     expect(ui.field('Sections').props.value).toBe(2);
@@ -79,7 +79,7 @@ describe('MR3b panels editor', () => {
     expect(ui.field('Select root.2').props.style.paddingLeft).toBe(12);
   });
 
-  it('anchor 2: moves MR1 to 16, stores 11.5 on child 0 and re-shares the upper panels', () => {
+  it('moves MR1 to 16, stores 11.5 on child 0 and re-shares the upper panels', () => {
     const ui = editor();
     ui.splitRows();
     expect(ui.commit('MR1 At', 16)).toBe(true);
@@ -92,7 +92,7 @@ describe('MR3b panels editor', () => {
 
 });
 
-describe('MR5 copy / paste layout', () => {
+describe('copy / paste layout (MR5)', () => {
   const CASE_3 = { split: 'rows', children: [
     { split: 'cols', children: [{}, { size: 8 }, {}] }, { split: 'cols', children: [{}, {}] }, {},
   ] };
@@ -105,7 +105,7 @@ describe('MR5 copy / paste layout', () => {
   const button = (ui, name) => nodes(ui.render()).find(({ type, props }) => type === 'button'
     && props['aria-label'] === `Door ${name}`);
 
-  it('anchor 2: on a 26 × 39 door the typed 8" holds and the auto panels re-share', () => {
+  it('on a 26 × 39 door the typed 8" holds and the auto panels re-share', () => {
     editor({ sizes: { layout: CASE_3 } }).click('Copy layout');
     const ui = editor({ width: 26 });
     ui.click('Paste layout');

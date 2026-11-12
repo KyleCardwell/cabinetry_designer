@@ -94,7 +94,7 @@ function money(tree, label) {
 }
 const services = [{ id: 7, name: 'Shop', active: true }, { id: 9, name: 'Install', active: false }];
 
-describe('IN12b step b Accessories page and editor', () => {
+describe('Accessories page and editor (IN12b)', () => {
 
   it('validates names, clears whole section for drawer boxes, and saves trimmed text and positive optional dimensions', () => {
     const first = newAccessory([], 'first');
@@ -144,7 +144,7 @@ describe('IN12b step b Accessories page and editor', () => {
 
 });
 
-describe('IN13a step b accessory size and ordered length', () => {
+describe('accessory size and ordered length (IN13a)', () => {
   const orderedLength = 'Ordered length = section width −';
   const lineBoreRow = 'Needs a 3rd row of line bore with shelves (3rd row lb)';
   const cells = (page) => nodes(rows(page.render())[0]).filter(({ type }) => type === 'td');

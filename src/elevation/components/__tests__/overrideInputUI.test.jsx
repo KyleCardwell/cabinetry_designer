@@ -22,9 +22,9 @@ beforeEach(() => {
   });
 });
 
-describe('DB2 a override field and input', () => {
+describe('override field and input (DB2)', () => {
 
-  it('anchor 5: commits fractional text, clears to inherit, and resets to inherit', () => {
+  it('commits fractional text, clears to inherit, and resets to inherit', () => {
     const onChange = vi.fn();
     const tree = render({ value: 0.5, onChange });
     input(tree).props.onChange({ target: { value: '3/8' } });
@@ -39,7 +39,7 @@ describe('DB2 a override field and input', () => {
     expect(onChange).toHaveBeenNthCalledWith(3, null);
   });
 
-  it('anchor 8: reverts a rejected numeric or blank commit to the previous text', () => {
+  it('reverts a rejected numeric or blank commit to the previous text', () => {
     const onChange = vi.fn(() => false);
     const tree = render({ value: 0.5, onChange });
     for (const [text, value] of [['3/8', 0.375], ['', null]]) {

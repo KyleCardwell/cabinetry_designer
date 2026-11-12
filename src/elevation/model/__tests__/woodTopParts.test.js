@@ -25,8 +25,8 @@ const island = room({ walls: [wall({ id: 'island', x2: 96, thickness: 0, runs: [
     items: [{ ...auto('back-panel'), kind: 'panel', depth: 0.75, align: 'back' }] }),
 ] })] });
 
-describe('FX4 step e wood top part numbers and badges', () => {
-  it('anchor 1: numbers Room 9 Wall 4 filler 12 through wood top 16', () => {
+describe('wood top part numbers and badges (FX4)', () => {
+  it('numbers Room 9 Wall 4 filler 12 through wood top 16', () => {
     // The 11 parts before the desk put its filler at 12.
     const result = partNumbers(room9, room9Settings);
     expect(result.parts.filter(({ runId, key }) => runId === DESK || key === DESK_TOP)
@@ -37,7 +37,7 @@ describe('FX4 step e wood top part numbers and badges', () => {
     expect(result.parts.slice(topIndex + 1).every(({ kind }) => kind === 'molding')).toBe(true);
   });
 
-  it('anchor 2: centres one Room 9 WT badge on 18 13/16–79 3/4 in canvas and DXF', () => {
+  it('centres one Room 9 WT badge on 18 13/16–79 3/4 in canvas and DXF', () => {
     const { byKey } = partNumbers(room9, room9Settings);
     const badges = wallMoldingBadges(room9, wallSideView(deskWall), room9Settings, byKey)
       .filter(({ label }) => label === 'WT');
@@ -53,7 +53,7 @@ describe('FX4 step e wood top part numbers and badges', () => {
     ]);
   });
 
-  it('anchor 3: numbers an island once after both runs and badges both faces with that number', () => {
+  it('numbers an island once after both runs and badges both faces with that number', () => {
     const { parts, byKey } = partNumbers(island, settings);
     const top = { key: 'wood_top:front', kind: 'wood_top', runIds: ['front', 'back'],
       wallId: null, side: null, runId: null, pieceId: null };
@@ -76,7 +76,7 @@ describe('FX4 step e wood top part numbers and badges', () => {
         notes: ['Both faces'] });
   });
 
-  it('anchor 4: uses WT 50 and reserves overrides before allocating the other numbers', () => {
+  it('uses WT 50 and reserves overrides before allocating the other numbers', () => {
     const stored = { ...room9, partNumberOverrides: { [DESK_TOP]: 50 } };
     const result = partNumbers(stored, room9Settings);
     expect(result.overrideKeys.has(DESK_TOP)).toBe(true);
@@ -90,7 +90,7 @@ describe('FX4 step e wood top part numbers and badges', () => {
     expect(reserved.parts.slice(0, 3).map(({ number }) => number)).toEqual([2, 3, 1]);
   });
 
-  it('anchor 5: keeps golden G1 stone-top part numbers unchanged', () => {
+  it('keeps golden G1 stone-top part numbers unchanged', () => {
     const document = normalizeElevationDocument(JSON.parse(
       readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8'),
     ));

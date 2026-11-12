@@ -63,7 +63,7 @@ beforeEach(() => {
   useEffect.mockImplementation(() => {});
 });
 
-describe('CV1 step b: center pick state', () => {
+describe('center pick state (CV1)', () => {
   it('start and end set and clear centerPick', () => {
     let state = elevationReducer(undefined, { type: '@@init' });
     expect(state.centerPick).toBeNull();
@@ -74,8 +74,8 @@ describe('CV1 step b: center pick state', () => {
   });
 });
 
-describe('CV1 step b: canvas pick mode', () => {
-  it('anchor 1: is active for the hood on its own face and prompts', () => {
+describe('canvas pick mode (CV1)', () => {
+  it('is active for the hood on its own face and prompts', () => {
     useEffect.mockImplementation((effect) => { effect(); });
     vi.stubGlobal('addEventListener', () => {});
     const pick = useHook();
@@ -85,13 +85,13 @@ describe('CV1 step b: canvas pick mode', () => {
     expect(actions).toContainEqual(setMessage(CENTER_PICK_PROMPT));
   });
 
-  it('anchor 2: hovering the open cell outlines it', () => {
+  it('hovering the open cell outlines it', () => {
     point = { x: 135.5, z: 20 };
     useHook().move();
     expect(ui.hovered.target).toMatchObject({ kind: 'void', rect: { x: 112.5, width: 48 } });
   });
 
-  it('anchor 3: a click centers the hood; with the whole run also under it, the chooser opens', () => {
+  it('a click centers the hood; with the whole run also under it, the chooser opens', () => {
     point = { x: 135.5, z: 20 };
     useHook().click({ evt: { button: 0 } });
     const commits = actions.filter(({ type }) => type === centerRunOnLine.type);
@@ -117,7 +117,7 @@ describe('CV1 step b: canvas pick mode', () => {
     expect(centerPick).toBeNull();
   });
 
-  it('anchor 4: Esc ends the mode with nothing changed', () => {
+  it('Esc ends the mode with nothing changed', () => {
     const effects = [];
     useEffect.mockImplementation((effect) => { effects.push(effect); });
     const listeners = {};
@@ -131,7 +131,7 @@ describe('CV1 step b: canvas pick mode', () => {
     expect(actions.some(({ type }) => type === centerRunOnLine.type)).toBe(false);
   });
 
-  it('anchor 5: a click on blank wall ends the mode with nothing changed', () => {
+  it('a click on blank wall ends the mode with nothing changed', () => {
     point = { x: 135.5, z: 50 };
     useHook().click({ evt: { button: 0 } });
     expect(centerPick).toBeNull();
@@ -154,13 +154,13 @@ describe('CV1 step b: canvas pick mode', () => {
   });
 });
 
-describe('CV1 step b: refusals and messages', () => {
-  it('anchor 6: refuses a run anchored to the wall end', () => {
+describe('refusals and messages (CV1)', () => {
+  it('refuses a run anchored to the wall end', () => {
     expect(centerPickRefusal(room, WALL, wall.runs.find(({ id }) => id === TALL), settings)).toBe(CENTER_ANCHORED);
     expect(centerPickRefusal(room, WALL, wall.runs.find(({ id }) => id === HOOD), settings)).toBeNull();
   });
 
-  it('anchor 7: refuses the only run on a wall', () => {
+  it('refuses the only run on a wall', () => {
     const lone = run({ id: 'up', cabinetTypeId: CABINET_TYPE_IDS.UPPER, items: [auto('u')] });
     expect(centerPickRefusal(roomOf({ walls: [wallOf({ runs: [lone] })] }), 'wall-1', lone, DEFAULT_SETTINGS))
       .toBe(CENTER_NOTHING);
@@ -176,7 +176,7 @@ describe('CV1 step b: refusals and messages', () => {
   });
 });
 
-describe('CV1 step c: preview, right-click and chooser', () => {
+describe('preview, right-click and chooser (CV1)', () => {
   const none = { left: { type: 'none', width: null }, right: { type: 'none', width: null } };
   const small = syncRoom(roomOf({ walls: [wallOf({ runs: [
     run({ id: 'base', x: 0, width: 96, ends: none, autoCount: false,
@@ -188,7 +188,7 @@ describe('CV1 step c: preview, right-click and chooser', () => {
   const smallWall = resolveWall(small, small.walls[0], 'front');
   const useSmallHook = (extra = {}) => useHook({ room: small, wall: smallWall, settings: DEFAULT_SETTINGS, ...extra });
 
-  it('anchor 1: hovering the open cell previews the hood with both side uppers', () => {
+  it('hovering the open cell previews the hood with both side uppers', () => {
     const setStretchPreview = vi.fn();
     point = { x: 135.5, z: 20 };
     useHook({ setStretchPreview }).move();
@@ -198,7 +198,7 @@ describe('CV1 step c: preview, right-click and chooser', () => {
     expect(preview.wall.runs.find(({ id }) => id === HOOD).x).toBe(96.5);
   });
 
-  it('anchor 2: hovering the same far cabinet previews the hood exactly on its line', () => {
+  it('hovering the same far cabinet previews the hood exactly on its line', () => {
     const setStretchPreview = vi.fn();
     point = { x: 50, z: 20 };
     useHook({ setStretchPreview }).move();
@@ -206,7 +206,7 @@ describe('CV1 step c: preview, right-click and chooser', () => {
     expect(ui.hovered.refused).toBeNull();
   });
 
-  it('anchor 3: moving off every target clears the preview', () => {
+  it('moving off every target clears the preview', () => {
     const setStretchPreview = vi.fn();
     point = { x: 135.5, z: 20 };
     useHook({ setStretchPreview }).move();
@@ -216,7 +216,7 @@ describe('CV1 step c: preview, right-click and chooser', () => {
     expect(ui.hovered).toBeNull();
   });
 
-  it('anchor 4: the right-click entry starts the mode, or refuses an anchored run', async () => {
+  it('the right-click entry starts the mode, or refuses an anchored run', async () => {
     const { requestCenterPick } = await import('./useCenterPick.js');
     const sent = [];
     const message = vi.fn();
@@ -230,7 +230,7 @@ describe('CV1 step c: preview, right-click and chooser', () => {
     expect(message).toHaveBeenCalledWith(CENTER_ANCHORED);
   });
 
-  it('anchors 5–6: choosing the whole run attaches it using the current stored room', () => {
+  it('choosing the whole run attaches it using the current stored room', () => {
     centerPick = { wallId: 'wall-1', runId: 'up' };
     point = { x: 48, z: 20 };
     useSmallHook().click({ evt: { button: 0 } });

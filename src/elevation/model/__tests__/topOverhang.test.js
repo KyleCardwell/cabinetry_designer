@@ -22,7 +22,7 @@ const plain = { front: 0.75, back: 0, left: 0.75, right: 0.75 };
 const nosed = { front: 0, back: 0, left: 0, right: 0 };
 
 describe('SPEC-50.9 step 501 top overhang defaults', () => {
-  it('defaults stone and wood without a closed nosing to the shop overhang (anchor 1)', () => {
+  it('defaults stone and wood without a closed nosing to the shop overhang', () => {
     expect(topOverhangs(room, wall, { ...run, top: 'stone' }, settings)).toEqual(plain);
     expect(topOverhangs(room, wall, { ...run, top: undefined }, settings)).toEqual(plain);
     for (const nosingProfileId of [null, 'missing']) {
@@ -36,7 +36,7 @@ describe('SPEC-50.9 step 501 top overhang defaults', () => {
       .toEqual({ front: 0, back: 0, left: 1.25, right: 1.25 });
   });
 
-  it('defaults nosed wood to zero and retains explicit sides through pick changes (anchors 2–3)', () => {
+  it('defaults nosed wood to zero and retains explicit sides through pick changes', () => {
     expect(topOverhangs(room, wall, run, settings)).toEqual(nosed);
     expect(topOverhangs(room, wall, { ...run, topOverhang: { front: 0.5, left: 12 } }, settings))
       .toEqual({ front: 0.5, back: 0, left: 12, right: 0 });

@@ -103,7 +103,7 @@ describe('run defaults', () => {
     expect(defaultsForType(CABINET_TYPE_IDS.TALL, DEFAULT_SETTINGS)).toEqual({ z: 4, height: 86, depth: 24 });
   });
 
-  it('5. anchors a nearby open end and gives it an end panel', () => {
+  it('anchors a nearby open end and gives it an end panel', () => {
     const run = createRun({ x: 2, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
     expect(run).toMatchObject({
@@ -112,7 +112,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('6. adds end panels to both free sides away from corners', () => {
+  it('adds end panels to both free sides away from corners', () => {
     const run = createRun({ x: 6, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
     expect(run).toMatchObject({
@@ -121,7 +121,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('7. anchors an edge within three inches of an inside corner', () => {
+  it('anchors an edge within three inches of an inside corner', () => {
     const run = createRun({ x: 58.5, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
     expect(run).toMatchObject({
@@ -130,7 +130,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('8. uses the default end beside a band-compatible adjacent run', () => {
+  it('uses the default end beside a band-compatible adjacent run', () => {
     const adjacentWall = {
       ...wall,
       runs: [{ cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 0, width: 60 }],
@@ -147,7 +147,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('9. falls back to default ends when automatic end panels are disabled', () => {
+  it('falls back to default ends when automatic end panels are disabled', () => {
     const settings = { ...DEFAULT_SETTINGS, autoEndPanelOnFreeEnd: false };
     const run = createRun(
       { x: 6, width: 60, bottomZ: 2, topZ: 30 },
@@ -160,7 +160,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('10. uses a three-inch corner snap distance', () => {
+  it('uses a three-inch corner snap distance', () => {
     const run = createRun({ x: 55, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
     expect(DEFAULT_PREFS.cornerSnapDistance).toBe(3);
@@ -188,7 +188,7 @@ describe('run defaults', () => {
     });
   });
 
-  it('11. auto-anchors near an outside corner but not beyond the snap distance', () => {
+  it('auto-anchors near an outside corner but not beyond the snap distance', () => {
     const outsideWall = { ...wall, flipped: true };
     const outsideNeighbor = { ...wallB, x2: 120, y2: -96 };
     const outsideRoom = { ...room, walls: [outsideWall, outsideNeighbor] };
@@ -213,7 +213,7 @@ describe('run defaults', () => {
     expect(far.anchors.right).toBe(false);
   });
 
-  it('98. preserves an exact edge without changing unsnapped rounding', () => {
+  it('preserves an exact edge without changing unsnapped rounding', () => {
     const input = { x: 23.7, width: 36.3, bottomZ: 4, topZ: 34.5 };
     const exact = createRun(input, { ...ctx, exactEdges: { left: 23.7 } });
     const rounded = createRun(input, ctx);

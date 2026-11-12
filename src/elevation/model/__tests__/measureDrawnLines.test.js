@@ -17,7 +17,7 @@ function golden(name, settings) {
   return syncRoom(structuredClone(document.rooms.find((candidate) => candidate.name === name)), settings);
 }
 
-describe('FX5 d measure snaps to every line the elevation draws', () => {
+describe('measure snaps to every line the elevation draws (FX5)', () => {
   it('snaps to a frame opening corner while profiled faces shrink inside it', () => {
     const settings = {
       ...document.settings,

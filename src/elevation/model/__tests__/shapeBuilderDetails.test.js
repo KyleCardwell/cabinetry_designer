@@ -27,8 +27,8 @@ const across = (g) => g.loops.filter((l) => !l.closed).map((l) => (
 const closePoint = (actual, expected) => expected.forEach((v, i) => expect(actual[i]).toBeCloseTo(v, 10));
 
 // Each fixture owns its details and profile; no imported constants are mutated.
-describe('SH5.1 step b section details', () => {
-  it('anchor 1: bottom-anchored bead is rigid on a sloping turned base, with connector and arc bounds', () => {
+describe('section details (SH5.1)', () => {
+  it('bottom-anchored bead is rigid on a sloping turned base, with connector and arc bounds', () => {
     const detail = { ...newStackDetail(), at: 4 };
     const shape = leg([{ ...TL, details: [detail] }]);
     const ss = segments(shape.views.front);
@@ -45,7 +45,7 @@ describe('SH5.1 step b section details', () => {
     expect(isShape(shape)).toBe(true);
   });
 
-  it('anchor 2: moving a detail preserves its base recipe and exposes only the replaced base', () => {
+  it('moving a detail preserves its base recipe and exposes only the replaced base', () => {
     const shape = leg([{ ...TL, details: [{ ...newStackDetail(), at: 6 }] }]);
     closePoint(segments(shape.views.front)[1].center, [0.81, 6.25]);
     expect(shape.builder.sections[0].profile).toEqual(TL.profile);
@@ -60,7 +60,7 @@ describe('SH5.1 step b section details', () => {
     expect(stackHiddenBase(shape, 'plan').loops).toEqual([]);
   });
 
-  it('anchor 3: top anchoring puts the connector at the bottom of the detail', () => {
+  it('top anchoring puts the connector at the bottom of the detail', () => {
     const shape = leg([{ ...TL, details: [{ ...newStackDetail(), from: 'top', at: 1 }] }]);
     const ss = segments(shape.views.front);
     closePoint(ss[1].from, [0.985, 23.5]);
@@ -70,7 +70,7 @@ describe('SH5.1 step b section details', () => {
     expect(ss[1].type).toBe('line');
   });
 
-  it('anchor 4: a square bead enlarges plan and box; a cove stays inside the original square', () => {
+  it('a square bead enlarges plan and box; a cove stays inside the original square', () => {
     const bead = leg([{ ...SQUARE, details: [{ ...newStackDetail(), at: 4 }] }]);
     expect(segments(bead.views.front).slice(0, 4).map((s) => s.from))
       .toEqual([[1, 0], [1, 4], [1, 4.5], [1, 10]]);
@@ -86,7 +86,7 @@ describe('SH5.1 step b section details', () => {
     expect(cut.views.plan.points.sq1).toEqual([-1, -1]);
   });
 
-  it('anchor 5: height resolution rebuilds the stretch section while both beads keep their size', () => {
+  it('height resolution rebuilds the stretch section while both beads keep their size', () => {
     const shape = leg([
       { type: 'square', width: 3.5, height: 8, details: [{ ...newStackDetail(), from: 'top' }] },
       { type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 25, taper: 'all',
@@ -112,7 +112,7 @@ describe('SH5.1 step b section details', () => {
     expect(resolveShape(leg([SQUARE]), { h: 20 }).stretched).toBe(false);
   });
 
-  it('anchor 6: outside, overlap, deep cove and displaced profile ends block saving and keep made views', () => {
+  it('outside, overlap, deep cove and displaced profile ends block saving and keep made views', () => {
     const outside = { ...newStackDetail(), at: 9.75 };
     const deep = newStackDetail();
     deep.profile.points.b2 = [0, 2.5];

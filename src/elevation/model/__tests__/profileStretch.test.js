@@ -27,7 +27,7 @@ const ARCY = profile('ARCY', 'door_inside',
     line('d', 'e'), line('e', 'f'), line('f', 'a')], true, []);
 
 describe('SPEC-50.1 profile stretch line', () => {
-  it('grows or shrinks BEAD5 to the target, rejects a thin target, and leaves ROUND unchanged (anchors 1–3)', () => {
+  it('grows or shrinks BEAD5 to the target, rejects a thin target, and leaves ROUND unchanged', () => {
     const before = structuredClone(BEAD5);
     for (const target of [-1, -0.75]) {
       expect(stretchProfileGeometry(BEAD5, target)).toEqual({
@@ -40,7 +40,7 @@ describe('SPEC-50.1 profile stretch line', () => {
     expect(BEAD5).toEqual(before);
   });
 
-  it('rejects arc crossings, touches, and out-of-range lines using arc extremes (anchor 4)', () => {
+  it('rejects arc crossings, touches, and out-of-range lines using arc extremes', () => {
     const stretched = { ...ROUND, stretch: { y: -0.5 } };
     expect([-0.125, -0.5, -0.8125, 0, -0.25, NaN, Infinity, '-0.5']
       .map((y) => isStretchLine(stretched, y)))
@@ -57,7 +57,7 @@ describe('SPEC-50.1 profile stretch line', () => {
     }
   });
 
-  it('edits draft stretch and drops it when changing to a non-door kind (anchor 5)', () => {
+  it('edits draft stretch and drops it when changing to a non-door kind', () => {
     expect(isSectionProfile({ ...BEAD5, kind: 'crown' })).toBe(false);
     const { stretch: removedStretch, ...plain } = BEAD5;
     expect(removedStretch).toEqual({ y: -0.25 });
@@ -126,7 +126,7 @@ describe('SPEC-50.1 profile stretch line', () => {
 });
 
 describe('SPEC-50.1.1 draft stretch and loop closure', () => {
-  it('chooses ARCY’s nearest valid sixteenth, deeper ties, and a rounded fallback (anchor 1)', () => {
+  it('chooses ARCY’s nearest valid sixteenth, deeper ties, and a rounded fallback', () => {
     expect(defaultStretchY(ARCY)).toBe(-0.5625);
     const { stretch: removedStretch, ...plain } = BEAD5;
     expect(removedStretch).toEqual({ y: -0.25 });
@@ -142,7 +142,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
     expect(stretchLineProblem(setProfileStretch(shallow, defaultStretchY(shallow)))).toBe('range');
   });
 
-  it('keeps an arc-crossing line in the draft while rejecting it for saving (anchor 2)', () => {
+  it('keeps an arc-crossing line in the draft while rejecting it for saving', () => {
     const draft = setProfileStretch(ARCY, -0.375);
     expect(draft).toEqual({ ...ARCY, stretch: { y: -0.375 } });
     expect(isSectionProfile(draft)).toBe(false);
@@ -155,7 +155,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
     expect(ARCY).not.toHaveProperty('stretch');
   });
 
-  it('keeps out-of-range finite lines, rejects non-finite input, and honors EPS (anchor 3)', () => {
+  it('keeps out-of-range finite lines, rejects non-finite input, and honors EPS', () => {
     const draft = setProfileStretch(ARCY, 0.25);
     expect(draft.stretch).toEqual({ y: 0.25 });
     expect(isSectionProfileDraft(draft)).toBe(true);
@@ -171,7 +171,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
     expect(stretchLineProblem({ ...ARCY, stretch: { y: -2e-6 } })).toBeNull();
   });
 
-  it('accepts both depth edits and preserves the now out-of-range line (anchor 4)', () => {
+  it('accepts both depth edits and preserves the now out-of-range line', () => {
     const original = setProfileStretch(ARCY, -0.6);
     expect(isSectionProfile(original)).toBe(true);
     const first = moveProfilePoint(original, 'e', [0.25, -0.55]);
@@ -199,7 +199,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
       .toEqual({ center: [0.25, -0.25], radius: 0.25, sweep: 90, ccw: false });
   });
 
-  it('leaves unstretched profiles valid and relaxes only stretch.y validation (anchor 5)', () => {
+  it('leaves unstretched profiles valid and relaxes only stretch.y validation', () => {
     expect(stretchLineProblem(ARCY)).toBeNull();
     expect(isSectionProfileDraft(ARCY)).toBe(true);
     expect(isSectionProfile(ARCY)).toBe(true);
@@ -214,7 +214,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
     }
   });
 
-  it('closes a three-point loop with a line and opens it back to the original (anchor 6)', () => {
+  it('closes a three-point loop with a line and opens it back to the original', () => {
     const open = profile('Open', 'door_inside',
       { a: [0, 0], b: [0.5, 0], c: [0.5, -0.5] }, [line('a', 'b'), line('b', 'c')], false, []);
     const closed = setLoopClosed(open, 'L1', true);
@@ -231,7 +231,7 @@ describe('SPEC-50.1.1 draft stretch and loop closure', () => {
     expect(setLoopClosed(openedDraft, 'L1', true)).toEqual(draft);
   });
 
-  it('refuses a two-point line closure and invalid arguments; opening removes an arc return (anchor 7)', () => {
+  it('refuses a two-point line closure and invalid arguments; opening removes an arc return', () => {
     const open = profile('Two points', 'door_inside',
       { a: [0, 0], b: [0.5, -0.5] }, [line('a', 'b')], false, []);
     expect(setLoopClosed(open, 'L1', true)).toBeNull();

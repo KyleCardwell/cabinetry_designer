@@ -28,8 +28,8 @@ async function open(options = {}, permissions = ALL, syncEnabled = false) {
   return { api, store, sync };
 }
 
-describe('IN4b c shop slides', () => {
-  it('seeds an empty team once, or uses unsaved built-ins without manage permission (anchor 3)', async () => {
+describe('shop slides (IN4b)', () => {
+  it('seeds an empty team once, or uses unsaved built-ins without manage permission', async () => {
     const { api, store } = await open();
     expect(api.calls.filter(([name]) => name === 'saveSlide')).toEqual([
       ['saveSlide', null, 0, 'Blum Tandem 562H'], ['saveSlide', null, 0, 'Accuride 3832'],
@@ -48,7 +48,7 @@ describe('IN4b c shop slides', () => {
     expect(viewer.store.getState().elevation.message).toBeNull();
   });
 
-  it('orders built-ins before team rows, skips invalid rows and excludes archived slides (anchor 4)', async () => {
+  it('orders built-ins before team rows, skips invalid rows and excludes archived slides', async () => {
     const hettich = hettichRow();
     const { api, store } = await open({ slides: [hettich, { ...hettich, slide_id: fakeUuid(), data: {} },
       ...builtIns().reverse(), { ...hettich, slide_id: fakeUuid(), name: 'Archived', archived_at: 't' }] });
@@ -85,7 +85,7 @@ describe('IN4b c shop slides', () => {
     expect(api.calls.some(([name]) => name.startsWith('save'))).toBe(false);
   });
 
-  it('saves an edit after 15 seconds, preserves its estimator link and archives removal (anchor 5)', async () => {
+  it('saves an edit after 15 seconds, preserves its estimator link and archives removal', async () => {
     vi.useFakeTimers();
     const hettich = hettichRow();
     const { api, store, sync } = await open({ slides: [...builtIns(), hettich] }, ALL, true);
@@ -106,7 +106,7 @@ describe('IN4b c shop slides', () => {
     expect(api.calls.some(([name]) => name === 'saveTeamSettings')).toBe(false);
   });
 
-  it('pauses a conflicting slide until reload and labels it by name (anchor 5)', async () => {
+  it('pauses a conflicting slide until reload and labels it by name', async () => {
     const hettich = hettichRow();
     const { api, store, sync } = await open({ slides: [...builtIns(), hettich] }, ALL, true);
     api.db.slides.at(-1).version = 3;

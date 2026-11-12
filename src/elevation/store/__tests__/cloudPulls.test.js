@@ -28,8 +28,8 @@ async function open(options = {}, permissions = ALL, syncEnabled = false) {
   return { api, store, sync };
 }
 
-describe('HP3b c shop pulls', () => {
-  it('seeds an empty team once, or uses unsaved built-ins without manage permission (anchor 3)', async () => {
+describe('shop pulls (HP3b)', () => {
+  it('seeds an empty team once, or uses unsaved built-ins without manage permission', async () => {
     const { api, store } = await open();
     expect(api.calls.filter(([name]) => name === 'savePull')).toEqual([
       ['savePull', null, 0, '4" pull'], ['savePull', null, 0, '1 1/4" knob'],
@@ -47,7 +47,7 @@ describe('HP3b c shop pulls', () => {
     expect(viewer.store.getState().elevation.message).toBeNull();
   });
 
-  it('orders built-ins before team rows, skips invalid rows and excludes archived pulls (anchor 4)', async () => {
+  it('orders built-ins before team rows, skips invalid rows and excludes archived pulls', async () => {
     const bar = barRow();
     const { api, store } = await open({ pulls: [bar, { ...bar, pull_id: fakeUuid(), data: {} },
       ...builtIns().reverse(), { ...bar, pull_id: fakeUuid(), name: 'Archived', archived_at: 't' }] });
@@ -84,7 +84,7 @@ describe('HP3b c shop pulls', () => {
     expect(api.calls.some(([name]) => name.startsWith('save'))).toBe(false);
   });
 
-  it('saves an edit after 15 seconds, preserves its estimator link and archives removal (anchor 5)', async () => {
+  it('saves an edit after 15 seconds, preserves its estimator link and archives removal', async () => {
     vi.useFakeTimers();
     const bar = barRow();
     const { api, store, sync } = await open({ pulls: [...builtIns(), bar] }, ALL, true);
@@ -105,7 +105,7 @@ describe('HP3b c shop pulls', () => {
     expect(api.calls.some(([name]) => name === 'saveTeamSettings')).toBe(false);
   });
 
-  it('pauses a conflicting pull until reload and labels it by name (anchor 5)', async () => {
+  it('pauses a conflicting pull until reload and labels it by name', async () => {
     const bar = barRow();
     const { api, store, sync } = await open({ pulls: [...builtIns(), bar] }, ALL, true);
     api.db.pulls.at(-1).version = 3;

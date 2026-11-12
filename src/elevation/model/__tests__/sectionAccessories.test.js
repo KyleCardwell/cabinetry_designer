@@ -55,8 +55,8 @@ const resolve = (args) => sectionAccessories({ ...args, rollouts: rolloutsModule
 const warning = { code: 'accessory-whole-section', name: 'Lazy susan 28' };
 const unresolvedGeometry = { size: null, orderedLength: null, fromBottom: null, centerZ: null, rect: null };
 
-describe('IN12b step d section accessories', () => {
-  it('anchor 1: accepts only 1–12 unique references with implicit one or quantity 1–20 (SH3 a)', () => {
+describe('section accessories (IN12b)', () => {
+  it('accepts only 1–12 unique references with implicit one or quantity 1–20 (SH3 a)', () => {
     expect(MAX_SECTION_ACCESSORIES).toBe(12);
     expect(MAX_ACCESSORY_QTY).toBe(20);
     expect(isInteriorNode({ accessories: [a] })).toBe(true);
@@ -73,7 +73,7 @@ describe('IN12b step d section accessories', () => {
     expect(isInteriorNode({ ...splitSection({}, 'r', 'vertical', 2), accessories: [a] })).toBe(false);
   });
 
-  it('anchor 2: adds, increments, resets and removes without mutating, with limits and invalid no-ops', () => {
+  it('adds, increments, resets and removes without mutating, with limits and invalid no-ops', () => {
     const once = addSectionAccessory(undefined, 'r', 'a');
     const twice = addSectionAccessory(once, 'r', 'a');
     expect(twice).toEqual({ accessories: [{ accessoryId: 'a', qty: 2 }] });
@@ -107,7 +107,7 @@ describe('IN12b step d section accessories', () => {
     expect(removeSectionAccessory(edited, 'r.1', 0)).toEqual(nested);
   });
 
-  it('anchor 3: changing an id merges into the existing item in its stored position and caps quantity', () => {
+  it('changing an id merges into the existing item in its stored position and caps quantity', () => {
     const tree = { accessories: [a, { accessoryId: 'b', qty: 3 }] };
     expect(setSectionAccessory(tree, 'r', 1, { accessoryId: 'a' }))
       .toEqual({ accessories: [{ accessoryId: 'a', qty: 4 }] });
@@ -117,7 +117,7 @@ describe('IN12b step d section accessories', () => {
     expect(tree.accessories).toEqual([a, { accessoryId: 'b', qty: 3 }]);
   });
 
-  it('anchor 4: only the first split child keeps accessories; merging preserves order and sums quantities', () => {
+  it('only the first split child keeps accessories; merging preserves order and sums quantities', () => {
     const tree = { accessories: [a], hinges: false };
     for (const direction of ['vertical', 'horizontal']) {
       const split = splitSection(tree, 'r', direction, 2);
@@ -141,7 +141,7 @@ describe('IN12b step d section accessories', () => {
     expect(removeDivider(split, 'r', 0)).toBe(split);
   });
 
-  it('anchor 5: checks clear opening width and suppresses auto shelves and line bore even when too small', () => {
+  it('checks clear opening width and suppresses auto shelves and line bore even when too small', () => {
     const args = input({ leaf: { interior: { accessories: [a] } }, settings: effective });
     const before = structuredClone(args);
     const entry = resolve(args).get('r');
@@ -156,7 +156,7 @@ describe('IN12b step d section accessories', () => {
     expect(args).toEqual(before);
   });
 
-  it('anchor 6: fitting whole-section accessories warn alongside roll-outs, manual shelves or other counted items', () => {
+  it('fitting whole-section accessories warn alongside roll-outs, manual shelves or other counted items', () => {
     const fitting = { ...effective, accessories: [{ ...susan, minOpening: { width: 21, depth: 22, height: null } },
       newAccessory([], 'b')] };
     const base = input({ leaf: { interior: { accessories: [a] } }, settings: fitting });
@@ -177,14 +177,14 @@ describe('IN12b step d section accessories', () => {
     expect(sectionShelves({ ...manualFlags, accessories: resolve(manualFlags) }).get('r').lineBore).toBe(true);
   });
 
-  it('IN13b anchor 8: warns when shoe shelves share a section with a whole-section accessory', () => {
+  it('warns when shoe shelves share a section with a whole-section accessory (IN13b)', () => {
     for (const shoe of [0, 1]) {
       const args = input({ leaf: { interior: { accessories: [a], shelves: { shoe } } }, settings: effective });
       expect(resolve(args).get('r').warnings).toEqual(shoe > 0 ? [warning] : []);
     }
   });
 
-  it('anchor 7: missing and drawer-box accessories remain visible with warnings and do not affect shelves', () => {
+  it('missing and drawer-box accessories remain visible with warnings and do not affect shelves', () => {
     const misplaced = { ...newAccessory([], 'box'), attachesTo: 'drawer_box',
       minOpening: { width: 100, depth: 100, height: 100 } };
     const args = input({ leaf: { interior: { accessories: [{ accessoryId: 'gone-id' }, { accessoryId: 'box', qty: 2 }] } },
@@ -216,7 +216,7 @@ describe('IN12b step d section accessories', () => {
     expect(entry.warnings).toEqual([warning]);
   });
 
-  it('anchor 8: absent accessories preserve every existing interior pass and shelf result on both wall faces', () => {
+  it('absent accessories preserve every existing interior pass and shelf result on both wall faces', () => {
     const room = roomWith([{ id: 'c', face: face() }, { id: 'd', face: face(), interior: { rollouts: { count: 1 } } }]);
     const wall = room.walls[0];
     const before = structuredClone(room);
@@ -262,7 +262,7 @@ describe('IN12b step d section accessories', () => {
   });
 });
 
-describe('IN13a step c accessory size, ordered length and position', () => {
+describe('accessory size, ordered length and position (IN13a)', () => {
   const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod',
     size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
     effects: [{ kind: 'line_bore_row' }] };
@@ -283,7 +283,7 @@ describe('IN13a step c accessory size, ordered length and position', () => {
     return { room, data, section, entry: data.accessories.get('c').get('r') };
   }
 
-  it('anchor 1: resolves a section-width rod and ordered length without placing it', () => {
+  it('resolves a section-width rod and ordered length without placing it', () => {
     const { entry } = closet([{ accessoryId: 'FR' }]);
     expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: true, items: [
       { index: 0, accessoryId: 'FR', accessory: rod, qty: 1, warnings: [],
@@ -292,7 +292,7 @@ describe('IN13a step c accessory size, ordered length and position', () => {
     ] });
   });
 
-  it('anchors 2–3: places rods and hooks at wall coordinates without changing shelves or roll-outs', () => {
+  it('places rods and hooks at wall coordinates without changing shelves or roll-outs', () => {
     for (const [id, fromBottom, offsetX, offsetZ, width, height] of [
       ['FR', 40, 0, 39.375, 22.5, 1.25], ['HK', 60, 9.75, 59, 3, 2],
     ]) {
@@ -308,7 +308,7 @@ describe('IN13a step c accessory size, ordered length and position', () => {
     }
   });
 
-  it('anchor 4: retains the rectangle when its top extends outside the section', () => {
+  it('retains the rectangle when its top extends outside the section', () => {
     const { section } = closet([{ accessoryId: 'HK' }]);
     const { entry } = closet([{ accessoryId: 'HK', fromBottom: section.height - 0.5 }]);
     expect(entry.items[0].warnings).toEqual([{ code: 'accessory-outside', sectionHeight: section.height }]);
@@ -316,21 +316,21 @@ describe('IN13a step c accessory size, ordered length and position', () => {
       z: section.z + section.height - 1.5, width: 3, height: 2 });
   });
 
-  it('anchor 5: resolves a placed unsized tray centre without a rectangle', () => {
+  it('resolves a placed unsized tray centre without a rectangle', () => {
     const { section, entry } = closet([{ accessoryId: 'TR', fromBottom: 30 }]);
     expect(entry.items[0]).toMatchObject({ size: { width: null, height: null, depth: null },
       orderedLength: null, fromBottom: 30, centerZ: section.z + 30, rect: null, warnings: [] });
     expect(entry.lineBoreRow).toBe(false);
   });
 
-  it('anchor 6: warns and clears a nonpositive ordered length', () => {
+  it('warns and clears a nonpositive ordered length', () => {
     const { entry } = closet([{ accessoryId: 'BIG' }]);
     expect(entry.items[0]).toMatchObject({ orderedLength: null,
       warnings: [{ code: 'accessory-length', deduction: 30, has: 22.5 }] });
     expect(entry.lineBoreRow).toBe(true);
   });
 
-  it('anchor 7: missing and wrong-place picks have null geometry even when placed or sized', () => {
+  it('missing and wrong-place picks have null geometry even when placed or sized', () => {
     const { entry } = closet([{ accessoryId: 'gone', fromBottom: 30 }, { accessoryId: 'CU', fromBottom: 100 }]);
     expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: false, items: [
       { index: 0, accessoryId: 'gone', accessory: null, qty: 1, ...unresolvedGeometry,
@@ -340,7 +340,7 @@ describe('IN13a step c accessory size, ordered length and position', () => {
     ] });
   });
 
-  it('anchor 8: unsized, unplaced picks preserve shelf results and add only null geometry and a false flag', () => {
+  it('unsized, unplaced picks preserve shelf results and add only null geometry and a false flag', () => {
     const { room, data, entry } = closet([{ accessoryId: 'TR' }]);
     expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: false, items: [
       { index: 0, accessoryId: 'TR', accessory: tray, qty: 1, warnings: [],

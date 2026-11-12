@@ -19,7 +19,7 @@ const base = () => {
 const sections = (state) => gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0].interior.children;
 const at = { roomId: 'room-1', accessoryId: 'gone', reassignTo: S };
 
-it('IN12b f anchor 1: counts stored places, sorts missing ids, and names archived accessories', () => {
+it('counts stored places, sorts missing ids, and names archived accessories (IN12b)', () => {
   const state = base();
   expect(missingAccessories(state.rooms[0], state.settings)).toEqual([{ accessoryId: 'gone', place: 'section', roomUses: 2 }]);
   expect([...roomAccessoryUses(state.rooms[0])]).toEqual(sections(state).flatMap((node) =>
@@ -34,7 +34,7 @@ it('IN12b f anchor 1: counts stored places, sorts missing ids, and names archive
   expect(missingAccessories(state.rooms[0], state.settings)).toEqual([{ accessoryId: 'gone', place: 'section', roomUses: 2 }]);
 });
 
-it('IN12b f anchor 2: moves every use, merges quantities in place, and caps them at 20 in nested grids', () => {
+it('moves every use, merges quantities in place, and caps them at 20 in nested grids (IN12b)', () => {
   const state = base();
   const moved = elevationReducer(state, moveMissingAccessory(at));
   expect(sections(moved).map(({ accessories }) => accessories)).toEqual([
@@ -68,7 +68,7 @@ it('IN12b f anchor 2: moves every use, merges quantities in place, and caps them
   }
 });
 
-it('IN12b f anchor 3: removes all missing items, prunes an empty accessories key and keeps other section fields', () => {
+it('removes all missing items, prunes an empty accessories key and keeps other section fields (IN12b)', () => {
   const state = base();
   sections(state)[1].shelves = { count: 2 };
   const removed = elevationReducer(state, moveMissingAccessory({ ...at, reassignTo: null }));
@@ -98,7 +98,7 @@ const boxFaces = (state) => {
 };
 const boxAt = { ...at, place: 'drawer_box', reassignTo: 'drawer' };
 
-it('IN12c c anchor 4: counts missing ids separately by place through nested grids and faces', () => {
+it('counts missing ids separately by place through nested grids and faces (IN12c)', () => {
   const state = boxState();
   expect(missingAccessories(state.rooms[0], state.settings)).toEqual([
     { accessoryId: 'gone', place: 'section', roomUses: 1 },
@@ -110,7 +110,7 @@ it('IN12c c anchor 4: counts missing ids separately by place through nested grid
   ]);
 });
 
-it('IN12c c anchor 5: moves only box uses, merges quantities, and ignores replacements of another place', () => {
+it('moves only box uses, merges quantities, and ignores replacements of another place (IN12c)', () => {
   const state = boxState();
   const moved = elevationReducer(state, moveMissingAccessory(boxAt));
   expect(boxFaces(moved).map(({ drawerBox }) => drawerBox.accessories)).toEqual([
@@ -131,7 +131,7 @@ it('IN12c c anchor 5: moves only box uses, merges quantities, and ignores replac
     .toEqual([{ accessoryId: 'drawer', qty: 20 }]);
 });
 
-it('IN12c c anchor 6: removes box items and empty boxes while preserving other picks and sections', () => {
+it('removes box items and empty boxes while preserving other picks and sections (IN12c)', () => {
   const state = boxState();
   boxFaces(state)[0].drawerBox.depth = 20;
   const removed = elevationReducer(state, moveMissingAccessory({ ...boxAt, reassignTo: null }));

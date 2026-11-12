@@ -41,8 +41,8 @@ function overlaps(a, b) {
   });
 }
 
-describe('PD2 step a shared depth positions', () => {
-  it('anchor 1: separates the G6 stacked uppers and base by at least one lane', () => {
+describe('shared depth positions (PD2)', () => {
+  it('separates the G6 stacked uppers and base by at least one lane', () => {
     const room = golden('G6');
     const positions = planDepthPositions(room, settings, options);
     const xs = ['ea4373', 'b1ec1b', '677ec7'].map((prefix) => (
@@ -54,7 +54,7 @@ describe('PD2 step a shared depth positions', () => {
     }
   });
 
-  it('anchor 2: keeps every G6 DXF depth text box clear of every other', () => {
+  it('keeps every G6 DXF depth text box clear of every other', () => {
     const boxes = depths(golden('G6')).map(textBox);
     for (let i = 0; i < boxes.length; i += 1) {
       for (const box of boxes.slice(i + 1)) expect(overlaps(boxes[i], box)).toBe(false);
@@ -62,7 +62,7 @@ describe('PD2 step a shared depth positions', () => {
   });
 
   it.each([['G2', '4b49c0', '2c8ab1'], ['G1', '19d681', 'ea6e45']])(
-    'anchors 3–4: %s pairs its island bases at the overlap middle into one two-segment chain',
+    '%s pairs its island bases at the overlap middle into one two-segment chain',
     (name, frontPrefix, backPrefix) => {
       const room = golden(name);
       const wall = room.walls.find(({ runs }) => runs.some(({ id }) => id.startsWith(frontPrefix)));
@@ -94,7 +94,7 @@ describe('PD2 step a shared depth positions', () => {
     },
   );
 
-  it('anchor 5: preserves the captured pre-PD2 depth records in G3, G4 and G5', () => {
+  it('preserves the captured pre-PD2 depth records in G3, G4 and G5', () => {
     // Captured with npm test's 5276-test baseline, before changing planDimensions.
     expect(['G3', 'G4', 'G5'].map((name) => depths(golden(name)))).toEqual([
       [
@@ -110,7 +110,7 @@ describe('PD2 step a shared depth positions', () => {
     ]);
   });
 
-  it('anchor 6: chains 12, 4.5 and 24 inches in order from the back on a thick wall', () => {
+  it('chains 12, 4.5 and 24 inches in order from the back on a thick wall', () => {
     const room = buildRoom({ walls: [buildWall({ x1: 0, y1: 0, x2: 60, y2: 0, thickness: 4.5, runs: [
       buildRun({ id: 'front', x: 0, width: 60, depth: 24, items: [{ ...auto('f'), kind: 'panel' }] }),
       buildRun({ id: 'back', x: 10, width: 40, depth: 12, wallSide: 'back', items: [{ ...auto('b'), kind: 'panel' }] }),
@@ -127,7 +127,7 @@ describe('PD2 step a shared depth positions', () => {
     expect(records[1]).toHaveProperty('textAt');
   });
 
-  it('anchor 7: reserves a narrow upper\'s clamped preferred point before moving the wide base', () => {
+  it('reserves a narrow upper\'s clamped preferred point before moving the wide base', () => {
     const room = buildRoom({ walls: [buildWall({ runs: [
       buildRun({ id: 'base', x: 0, width: 100 }),
       buildRun({ id: 'upper', x: 40, width: 12, cabinetTypeId: CABINET_TYPE_IDS.UPPER }),

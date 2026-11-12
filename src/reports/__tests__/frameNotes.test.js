@@ -14,7 +14,7 @@ const OPENINGS_D = [
   { path: 'r.1.1', x: 15.75, z: 1.5, width: 12.75, height: 19.5 },
 ];
 
-describe('RP2.4 step a frame member roles', () => {
+describe('frame member roles (RP2.4)', () => {
   it('labels the drawer and paired-door frame in member order (A1)', () => {
     const members = frameMembers(REGION_D, OPENINGS_D);
     const before = structuredClone(members);
@@ -81,7 +81,7 @@ describe('RP2.4 step a frame member roles', () => {
   });
 });
 
-describe('RP2.4 step a shop frame standards', () => {
+describe('shop frame standards (RP2.4)', () => {
   it('uses 1.5 inches for every flat default member (S1)', () => {
     expect(frameStandards({}, 0)).toEqual({
       'left-stile': 1.5, 'right-stile': 1.5, 'top-rail': 1.5, 'bottom-rail': 1.5,
@@ -137,7 +137,7 @@ const changeWidths = (members, select, width) => members.map((member) => (
 ));
 const changeRole = (members, role, width) => changeWidths(members, (member) => member.role === role, width);
 
-describe('ST5 step b overlap rail reasons', () => {
+describe('overlap rail reasons (ST5)', () => {
   it.each([
     ['plain inset', 14, 0, '2 1/2" top rail @ #2 (stone overlap)', 'RV\'s (2 1/2" T)'],
     ['beaded inset', 15, 0.25, '2 3/4" top rail @ #2 (stone overlap)', 'RV\'s (2 3/4" T)'],
@@ -197,7 +197,7 @@ describe('ST5 step b overlap rail reasons', () => {
   });
 });
 
-describe('RP2.4 step b frame note text anchors', () => {
+describe('frame note text anchors (RP2.4)', () => {
   const allTwo = changeWidths(noteFrame(), () => true, 2);
   const stilesTwo = changeWidths(noteFrame(), (member) => isStile(member.role), 2);
   const threeEighths = frameStandards({}, 0.375);
@@ -236,7 +236,7 @@ describe('RP2.4 step b frame note text anchors', () => {
   });
 });
 
-describe('RP2.4 step b frame note edge cases', () => {
+describe('frame note edge cases (RP2.4)', () => {
   it('uses the strict difference threshold and rounds displayed widths to 1/32', () => {
     expect(frameNotes(changeRole(noteFrame(), 'left-stile', 1.5001), FLAT, { numberOf })).toEqual([]);
     expect(frameNotes(changeRole(noteFrame(), 'left-stile', 1.500101), FLAT, { numberOf }))
@@ -310,7 +310,7 @@ describe('RP2.4 step b frame note edge cases', () => {
   });
 });
 
-describe('ST2 step d notch rail roles and notes', () => {
+describe('notch rail roles and notes (ST2)', () => {
   it.each([
     ['anchor 1: B top 2', 'top', 2, 0, 'top-rail', 31, ['2" notch @ #2']],
     ['anchor 2: beaded B top 2', 'top', 2, 0.25, 'top-rail', 30.75,

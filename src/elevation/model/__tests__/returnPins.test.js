@@ -33,7 +33,7 @@ beforeEach(() => {
   column = stored.walls[0].runs[0].grid.cols[1];
 });
 
-describe('DR3b return pins', () => {
+describe('return pins (DR3b)', () => {
   it.each([
     ['anchor 1: flush on both edges', 'both', 0, 0, 35.125, 24.875, 60],
     ['anchor 2: both edges 1.5 inches out', 'both', 1.5, 1.5, 33.625, 27.875, 61.5],
@@ -60,7 +60,7 @@ describe('DR3b return pins', () => {
     expect(syncRoom(synced, settings)).toEqual(synced);
   });
 
-  it('anchor 5: follows a landing moved from 60 to 70', () => {
+  it('follows a landing moved from 60 to 70', () => {
     const synced = syncRoom(stored, settings);
     synced.walls[1].landings.start.offset = 70;
     const moved = syncRoom(synced, settings);
@@ -68,7 +68,7 @@ describe('DR3b return pins', () => {
       .toMatchObject({ id: 'B', x: 45.125, width: 24.875 });
   });
 
-  it('anchor 6: keeps the pin and warns when its wall, run, landing, anchor or face disappears', () => {
+  it('keeps the pin and warns when its wall, run, landing, anchor or face disappears', () => {
     const synced = syncRoom(stored, settings);
     for (const missing of ['wall', 'run', 'landing', 'anchor', 'face']) {
       const changed = structuredClone(synced);
@@ -88,7 +88,7 @@ describe('DR3b return pins', () => {
     }
   });
 
-  it('anchor 7: ignores stored return targets and recomputes them before solving', () => {
+  it('ignores stored return targets and recomputes them before solving', () => {
     stored.walls[0].runs[0]._returnPins = { B: { target: 999, width: 999 }, garbage: null };
     const synced = syncRoom(stored, settings);
     const currentRun = synced.walls[0].runs[0];
