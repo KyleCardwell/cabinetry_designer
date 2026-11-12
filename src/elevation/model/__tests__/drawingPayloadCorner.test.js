@@ -150,7 +150,12 @@ describe('CC5 step c owner corner elevation payload', () => {
     expect(drawing.swingMarks).toEqual(runSwingMarks(sourceScene.faceLayouts)
       .map(({ partId, lines }) => ({ partId, lines })));
     owner.ends.left.corner.returnPiece = 'none';
-    expect(draw().parts).toEqual(drawing.parts.filter(({ id }) => id !== 'corner-panel:cc'));
+    // CC7 step c: removing the return panel also changes the leg bands' free-end depths.
+    const expected = drawing.parts.filter(({ id }) => id !== 'corner-panel:cc').map((part) => (
+      part.id === 'left:corner:run-1:toe_kick' ? { ...part, front: 35.75 }
+        : part.id === 'left:corner:run-1:countertop' ? { ...part, front: 36.75 } : part
+    ));
+    expect(draw().parts).toEqual(expected);
   });
 
   it.each(['none', 'filler'])('anchor 5: omits a return panel for returnPiece %s', (returnPiece) => {

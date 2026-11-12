@@ -90,16 +90,16 @@ describe('CC7 step a corner band turns', () => {
     }
   });
 
-  it('anchor 7: extracts E90 fronts and preserves the complete original bandParts output', () => {
+  it('anchor 7: extracts E90 fronts and copes owner bands at the return leg (CC7 step c)', () => {
     const { subject, view, owner } = anchor();
     expect(bandFronts(subject, view, owner, S)).toEqual({
       toeKick: 21, furnitureBase: null, countertop: 25.625, topMold: null, crown: null,
     });
     expect(bandParts(subject, view, 'front', S)).toEqual([
-      { id: 'run-1:toe_kick', kind: 'toe_kick', runId: 'run-1', x: 0, z: 0,
-        width: 119.75, height: 4, back: 0, front: 21, coversBoxEdges: false },
-      { id: 'run-1:countertop', kind: 'countertop', runId: 'run-1', x: 0, z: 34.5,
-        width: 120.75, height: 1.5, back: 0, front: 25.625, coversBoxEdges: false },
+      { id: 'run-1:toe_kick', kind: 'toe_kick', runId: 'run-1', x: 21, z: 0,
+        width: 98.75, height: 4, back: 0, front: 21, coversBoxEdges: false },
+      { id: 'run-1:countertop', kind: 'countertop', runId: 'run-1', x: 25.625, z: 34.5,
+        width: 95.125, height: 1.5, back: 0, front: 25.625, coversBoxEdges: false },
     ]);
   });
 

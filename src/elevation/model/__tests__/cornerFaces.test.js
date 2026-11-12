@@ -225,7 +225,8 @@ describe('CC3 corner face boxes and scene', () => {
     const filler = partNumbers(subject, DEFAULT_SETTINGS);
     expect(filler.byKey.has('cc')).toBe(true);
     expect(runScene(subject, ownerWall, owner, DEFAULT_SETTINGS).cornerPanels).toEqual([]);
-    expect(corner.byKey.get('cc')).toBe(filler.byKey.get('cc'));
+    expect(corner.byKey.get('cc')).toBe(1);
+    expect(filler.byKey.get('cc')).toBe(filler.byKey.get('run-1:left') + 1);
   });
 
   it('step c anchor 5: picks the projected face with its true width in the label', () => {
