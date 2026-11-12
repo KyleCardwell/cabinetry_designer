@@ -4,6 +4,7 @@ import { cellPieces } from './cells.js';
 import { cornerLap } from './cornerLaps.js';
 import { cornerAt, cornerReserveParts } from './corners.js';
 import { cornerEnd } from './cornerEnd.js';
+import { cornerReturnLegs } from './cornerLegs.js';
 import { runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
 import { wallFrame, wallLength } from './geometry.js';
@@ -399,6 +400,51 @@ function withCornerSpans(inner, room, wall, runs, returns, settings) {
   return row;
 }
 
+/**
+ * A corner cabinet's leg on the return face reads as its own span right after the owner's depth (CC8):
+ * out to the return frame part's far edge on a framed corner, else leg B. It is taken out of the gap it
+ * sits in, and a segment reaching past its near edge is clipped to it.
+ */
+function withCornerLegs(row, room, wall, band, settings) {
+  let result = row;
+  for (const leg of cornerReturnLegs(room, wall, settings)) {
+    const owner = room.walls.find(({ id }) => id === leg.ownerWallId)?.runs?.find(({ id }) => id === leg.runId);
+    const inBand = band === 'lower'
+      ? owner?.cabinetTypeId === CABINET_TYPE_IDS.BASE || owner?.cabinetTypeId === CABINET_TYPE_IDS.TALL
+      : owner?.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
+    if (!inBand) continue;
+    const neighbor = result.find((segment) => segment.kind === 'neighbor' && segment.neighborRunId === leg.runId);
+    if (!neighbor) continue;
+    const { rect, frame } = leg;
+    const dir = Math.abs(rect.x - neighbor.end) <= Math.abs(rect.x + rect.width - neighbor.start) ? 1 : -1;
+    const near = frame
+      ? (dir === 1 ? frame.x + frame.width : frame.x)
+      : (dir === 1 ? rect.x + rect.width : rect.x);
+    const span = dir === 1 ? { start: neighbor.end, end: near } : { start: near, end: neighbor.start };
+    if (span.end - span.start <= SEGMENT_EPSILON) continue;
+    const gaps = new Set(['open', 'corner-gap']);
+    const rest = result.filter((segment) => segment !== neighbor).flatMap((segment) => {
+      if (segment.end <= span.start + SEGMENT_EPSILON || segment.start >= span.end - SEGMENT_EPSILON) return [segment];
+      if (gaps.has(segment.kind)) {
+        return [
+          { ...segment, end: span.start },
+          { ...segment, start: span.end },
+        ].filter(({ start, end }) => end - start > SEGMENT_EPSILON && start >= segment.start - SEGMENT_EPSILON
+          && end <= segment.end + SEGMENT_EPSILON);
+      }
+      if (dir === 1 && segment.start < span.end - SEGMENT_EPSILON) return [{ ...segment, start: span.end }];
+      if (dir === -1 && segment.end > span.start + SEGMENT_EPSILON) return [{ ...segment, end: span.start }];
+      return [segment];
+    });
+    result = [...rest, neighbor, {
+      ...span,
+      kind: 'corner-leg',
+      cornerOf: { wallId: leg.ownerWallId, runId: leg.runId, side: leg.side },
+    }].sort((a, b) => a.start - b.start);
+  }
+  return result;
+}
+
 /** The face's wall row ends, built end panels included (SPEC-36.2). */
 function wallSpan(room, wall) {
   const frame = wallFrame(room, wall);
@@ -455,7 +501,10 @@ function bandChains(room, wall, band, settings) {
     const overall = !faceHasRuns(wall) && wallEnd - wallStart > SEGMENT_EPSILON
       ? [{ start: wallStart, end: wallEnd, kind: 'wall' }] : [];
     return {
-      inner: withCornerReturns([left, right].filter(Boolean), cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd),
+      inner: withCornerLegs(
+        withCornerReturns([left, right].filter(Boolean), cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd),
+        room, wall, band, settings,
+      ),
       outer: [left, ...overall, right].filter(Boolean),
     };
   }
@@ -572,5 +621,5 @@ function bandChains(room, wall, band, settings) {
 
   const returns = cornerReturnSegments(room, wall, band, settings);
   const spanned = withCornerSpans(inner, room, wall, runs, returns, settings);
-  return { inner: withCornerReturns(spanned, returns, wallStart, wallEnd), outer };
+  return { inner: withCornerLegs(withCornerReturns(spanned, returns, wallStart, wallEnd), room, wall, band, settings), outer };
 }

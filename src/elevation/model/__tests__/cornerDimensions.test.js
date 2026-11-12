@@ -15,12 +15,12 @@ const mitered90 = (source) => {
 };
 const emptyReturn = (source) => { source.walls.find(({ name }) => name === 'Wall 4').runs = []; };
 
-function innerRow(edit, band) {
+function innerRow(edit, band, wallName = 'Wall 3') {
   const source = JSON.parse(readFileSync(new URL('./fixtures/room8cc.json', import.meta.url), 'utf8'));
   edit(source);
   const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS } }, source);
   const room = syncRoom(source, settings);
-  const wall = room.walls.find(({ name }) => name === 'Wall 3');
+  const wall = room.walls.find(({ name }) => name === wallName);
   return horizontalChains(room, wall, band, settings).inner;
 }
 
@@ -55,6 +55,38 @@ describe('corner owner face dimensions', () => {
     });
     expected.forEach(([, , , id], index) => {
       if (id) expect(got[index].pieceId ?? got[index].neighborRunId).toMatch(new RegExp(`^${id}`));
+    });
+  });
+});
+
+describe('corner return face dimensions', () => {
+  it.each([
+    ['euro upper', () => {}, 'Wall 2', 'upper', [
+      ['piece', 59.625, 78.5], ['corner-leg', 78.5, 89.625], ['neighbor', 89.625, 102.5],
+    ]],
+    ['euro base', () => {}, 'Wall 4', 'lower', [
+      ['neighbor', 0, 24.875], ['corner-leg', 24.875, 36], ['piece', 36, 48],
+    ]],
+    ['face frame 45', framed, 'Wall 4', 'lower', [
+      ['neighbor', 0, 24.8125], ['corner-leg', 24.8125, 36.3365], ['frame', 36.3365, 37.8365],
+    ]],
+    ['face frame 90', mitered90, 'Wall 4', 'lower', [
+      ['neighbor', 0, 24.8125], ['corner-leg', 24.8125, 35.25], ['frame', 35.25, 36.75],
+    ]],
+    ['empty return', emptyReturn, 'Wall 4', 'lower', [
+      ['neighbor', 0, 24.875], ['corner-leg', 24.875, 36], ['open', 36, 60.5],
+    ]],
+  ])('reads the corner leg span on the return face: %s (CC8)', (_, edit, wallName, band, expected) => {
+    const row = innerRow(edit, band, wallName);
+    const first = row.findIndex((segment) => (
+      segment.kind === expected[0][0] && Math.abs(segment.start - expected[0][1]) < 1e-3
+    ));
+    expect(first).toBeGreaterThanOrEqual(0);
+    const got = row.slice(first, first + expected.length);
+    expect(got.map(({ kind }) => kind)).toEqual(expected.map(([kind]) => kind));
+    expected.forEach(([, start, end], index) => {
+      expect(got[index].start).toBeCloseTo(start, 3);
+      expect(got[index].end).toBeCloseTo(end, 3);
     });
   });
 });

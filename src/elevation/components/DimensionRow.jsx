@@ -13,6 +13,8 @@ import { wallToScreen } from '../canvas/transform.js';
 const KIND_COLORS = {
   piece: '#cbd5e1',
   'corner-gap': '#f59e0b',
+  'corner-leg': '#cbd5e1',
+  'corner-return': '#94a3b8',
   open: '#64748b',
   'tall-span': '#64748b',
   gap: '#64748b',
