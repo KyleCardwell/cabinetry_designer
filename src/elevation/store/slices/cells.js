@@ -209,7 +209,7 @@ export const cellReducers = {
       const items = runItems(location.run);
       const others = items.filter((item) => item.id !== cellId);
       if (others.every((item) => item.kind === 'cabinet' && item.width === null
-        && Object.keys(item).every((key) => ['id', 'kind', 'width'].includes(key)))) {
+        && Object.keys(item).every((key) => ['id', 'kind', 'width', 'autoAdded'].includes(key)))) {
         grid = replaceRootItems(grid, runItems({ grid }).filter((item) => item.id === cellId));
       }
     }

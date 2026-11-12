@@ -227,6 +227,8 @@ function isItem(item) {
     && (item.pin === undefined || item.pin === null
       || (PINNABLE_KINDS.has(item.kind) && isItemPin(item.pin)))
     && isColumnAttach(item)
+    && (item.autoAdded === undefined
+      || (item.kind === 'cabinet' && typeof item.autoAdded === 'boolean'))
     && (item.absorb === undefined
       || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
     && (item.face === undefined || item.face === null

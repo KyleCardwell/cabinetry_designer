@@ -30,7 +30,7 @@ import { wallLength } from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
 import { runEndThickness, wallPanelThickness } from './panelThickness.js';
 import { resolveProfile, resolveVertical } from './profile.js';
-import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
+import { runWidthRange, seedAutoItems, splitRun, syncAutoItems } from './splitRun.js';
 import { pruneStacks, resolveStacks } from './stacks.js';
 import { runFrame, runSeamGap } from './styles.js';
 import { profileUnderSoffit, soffitConflicts } from './soffits.js';
@@ -47,7 +47,7 @@ import {
 import { isPanelOnlyRun, panelRunMiters, wallEndPanels, wallEndpointSide } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { blindCoversForRun, endMinWidthsForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
-import { placeRoom, splitOptionsForRun } from './placement.js';
+import { PLACEMENT_STAGES, splitOptionsForRun } from './placement.js';
 import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
 import { wallEndLegList } from './wallEndLegs.js';
@@ -339,7 +339,21 @@ export function syncRoom(room, settings) {
   nextRoom = placeAttachedOpenings(nextRoom, settings);
   // Door and window labels follow wall order, then left to right (typed labels stay).
   nextRoom = labelOpenings(nextRoom, settings);
-  nextRoom = placeRoom(nextRoom, settings);
+  nextRoom = PLACEMENT_STAGES.reduce((placed, stage) => {
+    // Seed empty pin segments before placement can pull a free edge up to the typed cabinets.
+    // Return targets and run edges have resolved by this point; the final count below uses miters too.
+    if (stage.name === 'pin-growth') {
+      placed = { ...placed, walls: placed.walls.map((wall) => ({
+        ...wall,
+        runs: wall.runs.map((run) => {
+          if (!run.autoCount) return run;
+          const opts = splitOptionsForRun(placed, wall, run, settings);
+          return Object.keys(opts.pinTargets).length ? seedAutoItems(run, settings, opts) : run;
+        }),
+      })) };
+    }
+    return stage.run(placed, settings);
+  }, nextRoom);
 
   nextRoom = {
     ...nextRoom,
@@ -411,10 +425,9 @@ export function syncRoom(room, settings) {
     ...nextRoom,
     walls: nextRoom.walls.map((wall) => ({
       ...wall,
-      runs: wall.runs.map((run) => syncAutoItems(run, settings, {
-        endMinWidths: endMinWidthsForRun(nextRoom, wall, run, settings),
-        blindCovers: blindCoversForRun(nextRoom, wall, run, settings),
-      })),
+      runs: wall.runs.map((run) => syncAutoItems(
+        run, settings, splitOptionsForRun(nextRoom, wall, run, settings),
+      )),
     })),
   };
 

@@ -964,45 +964,97 @@ export function runFlexNeeds(run, settings, opts) {
   ];
 }
 
-/**
- * Synchronize the number of auto-sized cabinet items with the run's capacity.
- *
- * @param {object} run
- * @param {object} settings
- * @param {{endMinWidths?: {left?: number, right?: number}}} [opts]
- * @returns {object}
- */
-export function syncAutoItems(run, settings, opts) {
-  if (!run.autoCount) return run;
+/** Deep-copy cabinet settings, assigning fresh identities to nested face/interior nodes. */
+function copyAutoDetails(value) {
+  if (Array.isArray(value)) return value.map(copyAutoDetails);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+    key, key === 'id' ? uuid() : copyAutoDetails(entry),
+  ]));
+}
 
-  const {
-    available,
-    flex,
-    minimumTotal,
-    nAutoCabinets,
-  } = layoutInputs(run, settings, opts);
-  const autoSpace = flex > 0
-    ? available - minimumTotal
-    : available;
-  const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
-  const target = autoSpace > 0 ? Math.max(1, Math.ceil(autoSpace / maxWidth)) : 0;
+function newAutoCabinet(neighbour) {
+  const excluded = new Set(['id', 'width', 'pin', 'attach', 'absorb', 'blind', 'insideEnds',
+    'stepEnds', 'tFiller', 'grid']);
+  const details = neighbour && !neighbour.grid
+    ? Object.fromEntries(Object.entries(neighbour).filter(([key]) => !excluded.has(key)))
+    : {};
+  return { ...copyAutoDetails(details), id: uuid(), kind: 'cabinet', width: null, autoAdded: true };
+}
 
-  if (target === nAutoCabinets) return run;
+/** Count within one stretch, inserting beside its last auto cabinet or at its inside end. */
+function syncAutoSegment(segment, items, settings, opts, seedOnly, insertAtStart = false) {
+  const { available, flex, minimumTotal, nAuto, nAutoCabinets } = layoutInputs(segment, settings, opts);
+  const space = available - (flex > 0 ? minimumTotal : 0);
+  const maxWidth = segment.maxCabinetWidth ?? settings.maxCabinetWidth;
+  if (seedOnly && nAuto > 0) return items;
+  const target = space > 0 && (nAuto > 0 || space >= settings.minCabinetWidth)
+    ? seedOnly ? 1 : Math.ceil(space / maxWidth) : 0;
+  if (target === nAutoCabinets) return items;
 
-  const items = [...runItems(run)];
   if (target > nAutoCabinets) {
-    for (let index = nAutoCabinets; index < target; index += 1) {
-      items.push({ id: uuid(), kind: 'cabinet', width: null });
-    }
-  } else {
-    let toRemove = nAutoCabinets - target;
-    for (let index = items.length - 1; index >= 0 && toRemove > 0; index -= 1) {
-      if (items[index].kind === 'cabinet' && items[index].width === null && !items[index].grid) {
-        items.splice(index, 1);
-        toRemove -= 1;
-      }
-    }
+    const lastAuto = items.findLastIndex((item) => item.kind === 'cabinet' && isAutoItem(item));
+    const at = lastAuto >= 0 ? lastAuto + 1 : insertAtStart ? 0 : items.length;
+    const added = Array.from({ length: target - nAutoCabinets }, () => newAutoCabinet(items[lastAuto]));
+    return [...items.slice(0, at), ...added, ...items.slice(at)];
   }
 
+  const next = [...items];
+  let toRemove = nAutoCabinets - target;
+  for (let index = next.length - 1; index >= 0 && toRemove > 0; index -= 1) {
+    if (next[index].kind === 'cabinet' && isAutoItem(next[index])
+      && next[index].autoAdded === true && !next[index].grid) {
+      next.splice(index, 1);
+      toRemove -= 1;
+    }
+  }
+  return next.length === items.length ? items : next;
+}
+
+function syncAutoSegments(run, settings, opts, seedOnly) {
+  if (!run.autoCount) return run;
+
+  const layoutRun = withLineEndFillers(run, settings, opts);
+  const plan = pinPlan(layoutRun, settings, opts);
+  const original = runItems(run);
+  let items;
+  if (!plan) {
+    items = syncAutoSegment(layoutRun, original, settings, opts, seedOnly);
+  } else {
+    const first = plan.actualPins[0];
+    items = syncAutoSegment(leftSegmentRun(layoutRun, plan),
+      original.slice(0, first.itemIndex), settings, opts, seedOnly);
+    plan.actualPins.forEach((pin, index) => {
+      items.push(original[pin.itemIndex]);
+      const next = plan.actualPins[index + 1];
+      if (!next) return;
+      const start = pin.left + pin.width + pin.item.gapAfter;
+      const segment = {
+        ...layoutRun,
+        x: start,
+        width: next.left - start,
+        items: plan.items.slice(pin.itemIndex + 1, next.itemIndex),
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        _pinSplit: { left: true, right: true },
+      };
+      items.push(...syncAutoSegment(segment, original.slice(pin.itemIndex + 1, next.itemIndex),
+        settings, opts, seedOnly));
+    });
+    const last = plan.actualPins[plan.actualPins.length - 1];
+    items.push(...syncAutoSegment(rightSegmentRun(layoutRun, plan),
+      original.slice(last.itemIndex + 1), settings, opts, seedOnly, true));
+  }
+
+  if (items.length === original.length && items.every((item, index) => item === original[index])) return run;
   return run.items ? { ...run, items } : { ...run, grid: replaceRootItems(run.grid, items) };
+}
+
+/** Give empty placed-column stretches one cabinet before placement can close their free ends. */
+export function seedAutoItems(run, settings, opts) {
+  return syncAutoSegments(run, settings, opts, true);
+}
+
+/** Synchronize auto cabinet counts independently on the stretches between placed columns. */
+export function syncAutoItems(run, settings, opts) {
+  return syncAutoSegments(run, settings, opts, false);
 }

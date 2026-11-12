@@ -1,25 +1,22 @@
 import { describe, expect, it } from 'vitest';
+import { auto, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
-import { gridFromItems, runBlind, runItems } from '../grid.js';
+import { gridFromItems, runBlind, runItems, updateRootItem } from '../grid.js';
 import { flipRunsForWall } from '../room.js';
 import { syncAutoItems } from '../splitRun.js';
 
-const auto = (id) => ({ id, kind: 'cabinet', width: null });
 const NONE = { type: 'none', width: null };
 
-function gridRun(width, items, blind) {
-  return {
-    id: 'r', x: 10, width, ends: { left: NONE, right: NONE },
-    anchors: { left: false, right: false },
-    autoCount: true, maxCabinetWidth: null,
-    grid: gridFromItems('r', items, blind),
-  };
-}
-
 describe('grid runs', () => {
-  it("syncAutoItems grows a grid run's columns and keeps its blind", () => {
+  it('copies cabinet details with fresh identities when growing a grid run (AC1)', () => {
+    const face = { id: 'face', direction: 'vertical', size: null, children: [
+      { id: 'top', type: 'drawer_front', size: null },
+      { id: 'bottom', type: 'drawer_front', size: null },
+    ] };
     const result = syncAutoItems(
-      gridRun(96, [auto('a')], { left: 36, right: null }),
+      buildRun({ id: 'r', x: 10, width: 96, ends: { left: NONE, right: NONE },
+        items: [{ ...auto('a'), face, absorb: true, attach: { lineId: 'missing', at: 'center', offset: 0 } }],
+        blind: { left: 36, right: null } }),
       DEFAULT_SETTINGS,
     );
 
@@ -30,11 +27,25 @@ describe('grid runs', () => {
     expect(runBlind(result)).toEqual({ left: 36, right: null });
     expect(result.grid.id).toBe('r:grid');
     expect(result.grid.rows[0].id).toBe('r:row');
+    const copies = runItems(result).slice(1);
+    for (const copy of copies) {
+      expect(copy.autoAdded).toBe(true);
+      expect(copy).not.toHaveProperty('absorb');
+      expect(copy).not.toHaveProperty('attach');
+      expect(copy.face).not.toBe(face);
+      expect(copy.face.children.map(({ type, size }) => ({ type, size })))
+        .toEqual(face.children.map(({ type, size }) => ({ type, size })));
+    }
+    const ids = [face, ...face.children, ...copies.flatMap(({ face }) => [face, ...face.children])]
+      .map(({ id }) => id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('syncAutoItems shrinks a grid run and re-homes its right blind', () => {
+  it('removes auto-added grid columns and re-homes the right blind (AC1)', () => {
     const result = syncAutoItems(
-      gridRun(30, [auto('a'), auto('b'), auto('c')], { left: null, right: 24 }),
+      buildRun({ id: 'r', x: 10, width: 30, ends: { left: NONE, right: NONE },
+        items: [auto('a'), { ...auto('b'), autoAdded: true }, { ...auto('c'), autoAdded: true }],
+        blind: { left: null, right: 24 } }),
       DEFAULT_SETTINGS,
     );
 
@@ -42,22 +53,30 @@ describe('grid runs', () => {
     expect(runBlind(result)).toEqual({ left: null, right: 24 });
   });
 
-  it('syncAutoItems keeps an items run as items', () => {
+  it('adds plain item cabinets beside a nested column and clears ownership on typed width (AC1)', () => {
     const result = syncAutoItems(
-      { ...gridRun(96, []), grid: undefined, items: [auto('a')] },
+      { ...buildRun({ id: 'r', x: 10, width: 96, ends: { left: NONE, right: NONE } }),
+        grid: undefined, items: [{ ...auto('a'), grid: gridFromItems('nested', [auto('child1'), auto('child2')]) }] },
       DEFAULT_SETTINGS,
     );
 
     expect(result.items).toHaveLength(3);
     expect(result.grid).toBeUndefined();
+    expect(result.items.slice(1)).toEqual([
+      { id: result.items[1].id, kind: 'cabinet', width: null, autoAdded: true },
+      { id: result.items[2].id, kind: 'cabinet', width: null, autoAdded: true },
+    ]);
+    const typed = updateRootItem(buildRun({ items: [result.items[1]] }).grid, result.items[1].id, { width: 24 });
+    expect(runItems({ grid: typed })[0]).toEqual({ id: result.items[1].id, kind: 'cabinet', width: 24 });
   });
 
   it('flipRunsForWall mirrors a grid run', () => {
-    const result = flipRunsForWall({
+    const result = flipRunsForWall(buildWall({
       id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, flipped: false,
       joints: [], openings: [],
-      runs: [gridRun(60, [auto('a'), auto('b')], { left: 36, right: null })],
-    });
+      runs: [buildRun({ id: 'r', x: 10, width: 60, ends: { left: NONE, right: NONE },
+        items: [auto('a'), auto('b')], blind: { left: 36, right: null } })],
+    }));
     const [run] = result.runs;
 
     expect(run.x).toBe(50);

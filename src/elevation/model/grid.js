@@ -6,13 +6,14 @@ const SIZE_MODES = ['auto', 'manual', 'solved'];
 function itemParts(item) {
   const leaf = {};
   for (const [key, value] of Object.entries(item)) {
-    if (!['width', 'pin', 'attach', 'absorb', 'blind', 'grid', 'gap', 'top', 'bottom'].includes(key)) leaf[key] = value;
+    if (!['width', 'pin', 'attach', 'absorb', 'autoAdded', 'blind', 'grid', 'gap', 'top', 'bottom'].includes(key)) leaf[key] = value;
   }
   const col = { id: `${item.id}:col`, size: item.width,
     sizeMode: item.width === null ? 'auto' : 'manual' };
   if (item.pin !== undefined) col.pin = item.pin;
   if (item.attach !== undefined) col.attach = item.attach;
   if (item.absorb !== undefined) col.absorb = item.absorb;
+  if (item.autoAdded !== undefined) col.autoAdded = item.autoAdded;
   if (item.gap !== undefined) col.gap = item.gap;
   if (item.top !== undefined) col.top = item.top;
   if (item.bottom !== undefined) col.bottom = item.bottom;
@@ -161,6 +162,7 @@ export function rootItems(grid) {
     if (col.pin !== undefined) item.pin = col.pin;
     if (col.attach !== undefined) item.attach = col.attach;
     if (col.absorb !== undefined) item.absorb = col.absorb;
+    if (col.autoAdded !== undefined) item.autoAdded = col.autoAdded;
     if (col.gap !== undefined) item.gap = col.gap;
     if (col.top !== undefined) item.top = col.top;
     if (col.bottom !== undefined) item.bottom = col.bottom;
@@ -343,8 +345,9 @@ export function updateRootItem(grid, leafId, patch) {
       } else {
         col = setKey(col, 'size', value);
         col = setKey(col, 'sizeMode', value === null ? 'auto' : 'manual');
+        if (value !== null) col = setKey(col, 'autoAdded', undefined);
       }
-    } else if (['pin', 'attach', 'absorb', 'gap', 'top', 'bottom'].includes(key)) {
+    } else if (['pin', 'attach', 'absorb', 'autoAdded', 'gap', 'top', 'bottom'].includes(key)) {
       col = setKey(col, key, value);
     } else {
       leaf = setKey(leaf, key, value);

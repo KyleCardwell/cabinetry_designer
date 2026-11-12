@@ -403,12 +403,12 @@ describe('syncAutoItems', () => {
     expect(syncAutoItems(run, DEFAULT_SETTINGS)).toBe(run);
   });
 
-  it('removes only auto cabinets from the end while preserving fixed items and fillers', () => {
+  it('removes auto-added cabinets from the end before fixed items and fillers (AC1)', () => {
     const interiorFiller = { id: 'filler', kind: 'filler', width: 3 };
     const run = buildRun({
       width: 30,
       autoCount: true,
-      items: [auto('a'), fixed('fixed', 12), interiorFiller, auto('b')],
+      items: [auto('a'), fixed('fixed', 12), interiorFiller, { ...auto('b'), autoAdded: true }],
     });
     const synced = syncAutoItems(run, DEFAULT_SETTINGS);
 
@@ -447,7 +447,7 @@ describe('SPEC-34.1 auto cell kinds', () => {
   it('auto count never removes a panel', () => {
     const synced = syncAutoItems(buildRun({ width: 30, ends: { left: NONE, right: NONE }, items: [
       { id: 'a', kind: 'cabinet', width: null },
-      { id: 'b', kind: 'cabinet', width: null },
+      { id: 'b', kind: 'cabinet', width: null, autoAdded: true },
       { id: 'p', kind: 'panel', width: null },
     ], autoCount: true }), DEFAULT_SETTINGS);
     expect(runItems(synced).map(({ id }) => id)).toEqual(['a', 'p']);

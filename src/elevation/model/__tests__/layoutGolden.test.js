@@ -249,6 +249,9 @@ function room8OnLine(value = 99) {
   const base = wall.runs.find(({ id }) => id === BASE8);
   base.autoCount = false;
   base.grid.cols.find(({ id }) => id === `${OPEN8}:col`).attach = attach('L1');
+  // These plain upper columns belong to Auto count and may be removed when the hood squeezes them.
+  const rightUpper = wall.runs.find(({ id }) => id === RIGHT_UPPER8);
+  rightUpper.grid.cols.filter(({ size }) => size === null).forEach((col) => { col.autoAdded = true; });
   return stored;
 }
 

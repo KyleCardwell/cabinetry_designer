@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { auto, run as buildRun } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { blindCellWidths, cellPieces, resolveTracks, stackedSides } from '../cells.js';
 import { gridFromItems, runItems } from '../grid.js';
@@ -110,13 +111,12 @@ describe('cells', () => {
 
   it('keeps a split column when syncing auto items', () => {
     const NONE = { type: 'none', width: null };
-    const result = syncAutoItems({ id: 'r', x: 0, width: 30,
-      ends: { left: NONE, right: NONE }, anchors: { left: false, right: false },
-      autoCount: true, maxCabinetWidth: null,
-      grid: gridFromItems('r', [
-        { id: 'a', kind: 'cabinet', width: null },
-        { id: 'g1', kind: 'cabinet', width: null, grid: STACK },
-      ]) }, DEFAULT_SETTINGS);
+    const result = syncAutoItems(buildRun({ id: 'r', width: 30,
+      ends: { left: NONE, right: NONE },
+      items: [
+        { ...auto('a'), autoAdded: true },
+        { ...auto('g1'), grid: STACK },
+      ] }), DEFAULT_SETTINGS);
     expect(runItems(result).map((item) => item.id)).toEqual(['g1']);
     expect(result.grid.cells[0].node).toEqual(STACK);
   });
