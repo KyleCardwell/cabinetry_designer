@@ -183,7 +183,6 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
 
 });
 
-
 describe('IN7 automatic divider canvas edits', () => {
   it('anchors 1–2: dragging an automatic shelf stores its effective tree; typing auto returns it to 42', () => {
     state = structuredClone(state);

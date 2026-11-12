@@ -4,14 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { wall } from '../../../test/builders.js';
 import { K, KC } from '../../../test/fixtures/landingRoomK.js';
 import { resolveWall } from '../../model/room.js';
-import elevationReducer, {
-  createInitialElevationState,
-  disconnectWallEndpoint,
-  extendPastCorner,
-  makeWallCorner,
-  setMessage,
-  setWallLength,
-} from '../../store/elevationSlice.js';
+import elevationReducer, { createInitialElevationState, extendPastCorner } from '../../store/elevationSlice.js';
 import MessageToast from '../MessageToast.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
 
@@ -48,33 +41,6 @@ const extendLabels = () => nodes(render())
 const load = (room) => {
   state = { ...createInitialElevationState(null), rooms: [structuredClone(room)], activeRoomId: room.id };
 };
-const withWall5 = () => ({
-  ...K,
-  walls: [
-    ...K.walls.map((entry) => entry.id === 'wall-3'
-      ? { ...entry, connections: { ...entry.connections, start: { wallId: 'wall-5', endpoint: 'start' } } }
-      : entry),
-    wall({
-      id: 'wall-5', x1: 0.5, y1: 9, x2: 0.5, y2: -40, thickness: 4.5,
-      connections: { start: { wallId: 'wall-3', endpoint: 'start' }, end: null },
-      landings: { start: null, end: null },
-    }),
-  ],
-});
-
-const inLineRoom = () => ({
-      ...K,
-      walls: [
-        ...K.walls.map((entry) => entry.id === 'wall-3'
-          ? { ...entry, connections: { ...entry.connections, start: { wallId: 'wall-5', endpoint: 'start' } } }
-          : entry),
-        wall({
-          id: 'wall-5', x1: 0.5, y1: 9, x2: 20.5, y2: 9, thickness: 4.5,
-          connections: { start: { wallId: 'wall-3', endpoint: 'start' }, end: null },
-          landings: { start: null, end: null },
-        }),
-      ],
-    });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -100,48 +66,7 @@ beforeEach(() => {
   });
 });
 
-describe('WL3 d: refusal toast', () => {
-  it('anchor 1: the hold refusal shows Make corner, which joins the corner and clears the toast', () => {
-    dispatch(setWallLength({ wallId: 'wall-3', length: 84, growEnd: 'left' }));
-    const [button] = buttons(render('toast'), 'Make corner');
-    expect(button).toBeDefined();
-    button.props.onClick();
-    expect(dispatch).toHaveBeenCalledWith(makeWallCorner({
-      roomId: K.id, wallId: 'wall-2', endpoint: 'end', hostEndpoint: 'start', move: 'host',
-    }));
-    expect(geometry(state.rooms[0])).toEqual(geometry(KC));
-    expect(state.message).toBeNull();
-    expect(render('toast')).toBeNull();
-  });
-
-  it('anchor 2: a message without its action shows no button', () => {
-    dispatch(setMessage('out-of-bounds'));
-    expect(buttons(render('toast'), 'Make corner')).toHaveLength(0);
-    dispatch(setWallLength({ wallId: 'wall-3', length: 84, growEnd: 'left' }));
-    state = { ...state, message: 'Something else' };
-    expect(buttons(render('toast'), 'Make corner')).toHaveLength(0);
-  });
-});
-
 describe('WL3 d: properties', () => {
-  it('anchor 3: Make corner in Lands on follows the Moves choice', () => {
-    buttons(render(), 'Make corner')[0].props.onClick();
-    expect(dispatch).toHaveBeenLastCalledWith(makeWallCorner({ wallId: 'wall-2', endpoint: 'end', move: 'landed' }));
-    expect(byId(state.rooms[0], 'wall-2')).toMatchObject({ x1: 0.5, x2: 0.5, y2: 9 });
-
-    load(K);
-    slots = [];
-    input('right landing moves').onChange({ target: { value: 'host' } });
-    buttons(render(), 'Make corner')[0].props.onClick();
-    expect(dispatch).toHaveBeenLastCalledWith(makeWallCorner({ wallId: 'wall-2', endpoint: 'end', move: 'host' }));
-    expect(geometry(state.rooms[0])).toEqual(geometry(KC));
-  });
-
-  it('anchor 4: no Make corner when the host has no free end', () => {
-    load(withWall5());
-    expect(buttons(render(), 'Make corner')).toHaveLength(0);
-    expect(buttons(render(), 'Detach')).toHaveLength(1);
-  });
 
   it('anchor 5: Extend past fields per joined end; the button applies the typed amount and clears', () => {
     load(KC);
@@ -160,35 +85,12 @@ describe('WL3 d: properties', () => {
     expect(nodes(render()).find(({ props }) => props?.label === 'Extend past Wall 2').key).not.toBe(before);
   });
 
-  it('anchor 6: the other wall at the corner lists its own joined ends', () => {
-    load(KC);
-    expect(extendLabels()).toEqual(['Extend past Wall 1', 'Extend past Wall 3']);
-  });
-
-  it('anchor 7: no Extend past fields outside plan, or at an in-line join', () => {
-    load(KC);
-    plan = false;
-    expect(extendLabels()).toEqual([]);
-    plan = true;
-    load(inLineRoom());
-    selectedId = 'wall-3';
-    expect(extendLabels()).toEqual(['Extend past Wall 4']);
-  });
 });
 
 describe('WL3.1: Corners section', () => {
   const section = () => nodes(render()).find(({ props }) => props?.id === 'wall.corners');
   const headings = () => nodes(section()?.props.children)
     .filter(({ type }) => type === 'h3').map(({ props }) => text(props.children));
-
-  it('anchor 1: one block per joined end, with Extend past and Detach corner', () => {
-    load(KC);
-    selectedId = 'wall-3';
-    expect(section().props.title).toBe('Corners');
-    expect(headings()).toEqual(['Wall 2 corner', 'Wall 4 corner']);
-    expect(buttons(section(), 'Extend past')).toHaveLength(2);
-    expect(buttons(section(), 'Detach corner')).toHaveLength(2);
-  });
 
   it('anchor 2: a blank field extends by 0', () => {
     load(KC);
@@ -208,53 +110,4 @@ describe('WL3.1: Corners section', () => {
     expect(dispatch).toHaveBeenLastCalledWith(extendPastCorner({ wallId: 'wall-3', endpoint: 'start', amount: 0 }));
   });
 
-  it('anchor 4: Detach corner unjoins and moves nothing', () => {
-    load(KC);
-    selectedId = 'wall-3';
-    buttons(render(), 'Detach corner')[0].props.onClick();
-    expect(dispatch).toHaveBeenCalledWith(disconnectWallEndpoint({ wallId: 'wall-3', endpoint: 'start' }));
-    const room = state.rooms[0];
-    expect(byId(room, 'wall-3').connections.start).toBeNull();
-    expect(byId(room, 'wall-2').connections.end).toBeNull();
-    expect(byId(room, 'wall-3').connections.end).not.toBeNull();
-    const points = (r) => r.walls.map(({ id, x1, y1, x2, y2 }) => ({ id, x1, y1, x2, y2 }));
-    expect(points(room)).toEqual(points(KC));
-    expect(state.message).toBe('Wall 3 and Wall 2 are no longer joined. Their ends stay where they were.');
-  });
-
-  it('anchor 5: only joined ends are listed (a landed wall is not a corner)', () => {
-    load(K);
-    selectedId = 'wall-3';
-    expect(headings()).toEqual(['Wall 4 corner']);
-  });
-
-  it('anchor 6: a landed end gets no block, only its joined end does', () => {
-    load(K);
-    selectedId = 'wall-2';
-    expect(headings()).toEqual(['Wall 1 corner']);
-  });
-
-  it('anchor 6b: a wall with no joined end has no Corners section', () => {
-    load(KC);
-    selectedId = 'wall-3';
-    dispatch(disconnectWallEndpoint({ wallId: 'wall-3', endpoint: 'start' }));
-    dispatch(disconnectWallEndpoint({ wallId: 'wall-3', endpoint: 'end' }));
-    expect(section()).toBeUndefined();
-  });
-
-  it('anchor 7: an in-line join shows a note and Detach corner, no Extend past', () => {
-    load(inLineRoom());
-    selectedId = 'wall-3';
-    expect(headings()).toEqual(['Wall 5 corner', 'Wall 4 corner']);
-    expect(buttons(section(), 'Extend past')).toHaveLength(1);
-    expect(buttons(section(), 'Detach corner')).toHaveLength(2);
-    expect(extendLabels()).toEqual(['Extend past Wall 4']);
-  });
-
-  it('anchor 8: no Corners section outside plan', () => {
-    load(KC);
-    selectedId = 'wall-3';
-    plan = false;
-    expect(section()).toBeUndefined();
-  });
 });

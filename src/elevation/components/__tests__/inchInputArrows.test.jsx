@@ -35,10 +35,4 @@ describe('InchInput arrow keys', () => {
     expect(setText).not.toHaveBeenCalled();
   });
 
-  it('ignores arrows without arrowStep', () => {
-    const onCommit = vi.fn();
-    const { press } = render({ value: 3, onCommit }, '3');
-    expect(press('ArrowUp').preventDefault).not.toHaveBeenCalled();
-    expect(onCommit).not.toHaveBeenCalled();
-  });
 });

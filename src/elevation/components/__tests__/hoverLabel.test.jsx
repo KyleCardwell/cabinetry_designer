@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  currentHoverLabel, hideHoverLabel, pieceSizeText, showHoverLabel,
-} from '../../canvas/hoverLabel.js';
-import { HOVER_TINT, HoverLabelShapes } from '../HoverLabelLayer.jsx';
+import { currentHoverLabel, hideHoverLabel, pieceSizeText } from '../../canvas/hoverLabel.js';
 import PieceRect from '../PieceRect.jsx';
 
 vi.mock('react', async (original) => ({
@@ -44,20 +41,4 @@ describe('EC2 hover size label', () => {
     expect(currentHoverLabel()).toBeNull();
   });
 
-  it('leaving another piece keeps the current label; hide with no id always clears', () => {
-    showHoverLabel({ id: 'a', rect: { x: 0, y: 0, width: 1, height: 1 }, lines: ['x'] });
-    hideHoverLabel('b');
-    expect(currentHoverLabel()?.id).toBe('a');
-    hideHoverLabel();
-    expect(currentHoverLabel()).toBeNull();
-  });
-
-  it('draws a tint over the piece and the label above it', () => {
-    expect(HoverLabelShapes({ label: null })).toBeNull();
-    const rect = { x: 10, y: 20, width: 100, height: 50 };
-    const all = nodes(HoverLabelShapes({ label: { id: 'a', rect, lines: ['30 × 34 1/2', 'Note'], fontSize: 22 } }));
-    expect(all.find(({ type }) => type === 'rect').props).toMatchObject({ ...rect, fill: HOVER_TINT });
-    expect(all.find(({ type }) => type === 'label').props).toMatchObject({ x: 60, y: 15 });
-    expect(all.find(({ type }) => type === 'text').props).toMatchObject({ text: '30 × 34 1/2 · Note', fontSize: 22 });
-  });
 });

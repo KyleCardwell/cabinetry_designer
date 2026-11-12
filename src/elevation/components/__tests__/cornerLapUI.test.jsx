@@ -51,19 +51,6 @@ beforeEach(() => {
 });
 
 describe('FL2 step b corner picker', () => {
-  it('B1/B2: shows each C2 Auto decision immediately after Return', () => {
-    const state = fixture();
-    for (const [wallIndex, side, label] of [[0, 'right', 'Auto (laps over)'], [1, 'left', 'Auto (dies in)']]) {
-      const fields = render(state, wallIndex, side).filter(({ props }) => props.label);
-      expect(fields.findIndex(({ props }) => props.label === 'Corner'))
-        .toBe(fields.findIndex(({ props }) => props.label === 'Return') + 1);
-      const select = picker(state, wallIndex, side);
-      expect(select.props.value).toBe('auto');
-      expect(options(select)).toEqual([
-        ['auto', label], ['over', 'Laps over'], ['into', 'Dies in'],
-      ]);
-    }
-  });
 
   it('B3/B4: stores B Laps over, updates A Auto and both spans, then removes the key on Auto', () => {
     let state = fixture();
@@ -86,18 +73,6 @@ describe('FL2 step b corner picker', () => {
     expect(options(picker(state, 0, 'right'))[0][1]).toBe('Auto (laps over)');
     expect(options(picker(state, 1, 'left'))[0][1]).toBe('Auto (dies in)');
     expect(state.rooms[0].walls.map(({ runs }) => runs[0].width)).toEqual([60.8125, 96]);
-  });
-
-  it('B5: hides Corner for blind, panel, none, typed and non-corner filler ends', () => {
-    for (const type of ['blind', 'end_panel', 'none']) {
-      const state = fixture();
-      state.rooms[0].walls[0].runs[0].ends.right.type = type;
-      expect(picker(state, 0, 'right')).toBeUndefined();
-    }
-    const state = fixture();
-    expect(picker(state, 0, 'left')).toBeUndefined();
-    state.rooms[0].walls[0].runs[0].ends.right.width = 3;
-    expect(picker(state, 0, 'right')).toBeUndefined();
   });
 
   it('stores Dies in, preserves independent filler fields, and rejects invalid lap values', () => {

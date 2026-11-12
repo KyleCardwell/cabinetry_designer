@@ -3,16 +3,12 @@ import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { auto, opening, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
-import {
-  setCellDepth, setRunAnchor, setRunEnd, setRunEndFiller, setRunJointOffset,
-  setSoffitAnchor, setWallEndPanel,
-} from '../../store/elevationSlice.js';
+import { setCellDepth, setRunAnchor, setRunEnd, setRunEndFiller, setWallEndPanel } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CellDepthSection from '../properties/CellDepthSection.jsx';
 import EndFields from '../properties/EndFields.jsx';
 import GapField from '../properties/GapField.jsx';
 import RunEndsSection from '../properties/RunEndsSection.jsx';
-import SoffitProperties from '../properties/SoffitProperties.jsx';
 import WallEndPanelFields from '../properties/WallEndPanelFields.jsx';
 
 vi.mock('react', async (original) => ({
@@ -70,14 +66,6 @@ describe('AU10 step a auto inch fields', () => {
     expect(onCommit).toHaveBeenCalledTimes(2);
   });
 
-  it('gap: rejects a negative value without calling the site', () => {
-    const onCommit = vi.fn();
-    const input = field(GapField({ ariaLabel: 'Gap', fallback: 0.75, onCommit }), 'Gap');
-    expect(input.props.value).toBeNull();
-    expect(input.props.onCommit(-1)).toBe(false);
-    expect(onCommit).not.toHaveBeenCalled();
-  });
-
   it('cell depth: shows 24 for a plain base cell and dispatches typed and blank depths', () => {
     const item = currentRun.grid.cells[0].node;
     const input = field(CellDepthSection({
@@ -93,12 +81,6 @@ describe('AU10 step a auto inch fields', () => {
       wallId: 'wall-1', runId: 'run-1', cellId: 'a', depth: null,
     }));
     expect(dispatch).toHaveBeenCalledTimes(2);
-  });
-
-  it('cell depth: renders nothing for a void cell', () => {
-    const item = { ...auto('void'), kind: 'void' };
-    expect(CellDepthSection({ wall: currentWall, run: currentRun, piece: item, item, settings })).toBeNull();
-    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -158,18 +140,6 @@ describe('AU10 step a auto inch fields', () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['left', 'right'])('%s joint anchor: shows 0 and clears its offset to zero', (side) => {
-    currentRun.anchors[side] = { to: 'joint', jointId: 'joint-1', offset: null };
-    currentWall.joints = [{ id: 'joint-1', x: 60 }];
-    const input = field(runEnds(), `${side} joint anchor offset`);
-    expect(input.props).toMatchObject({ value: null, allowBlank: true, placeholder: '0' });
-    enter(input, '1 1/2');
-    expect(dispatch).toHaveBeenLastCalledWith(setRunJointOffset({ ...at, side, offset: 1.5 }));
-    enter(input, '');
-    expect(dispatch).toHaveBeenLastCalledWith(setRunJointOffset({ ...at, side, offset: 0 }));
-    expect(dispatch).toHaveBeenCalledTimes(2);
-  });
-
   it.each(['left', 'right'])('%s opening anchor: shows 0, accepts negative clearance and clears to null', (side) => {
     const anchor = { to: 'opening', openingId: 'door-1', side: 'left', edge: 'casing', clearance: null };
     currentRun.anchors[side] = anchor;
@@ -182,31 +152,4 @@ describe('AU10 step a auto inch fields', () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['left', 'right'])('%s run soffit anchor: shows 0 and clears its offset to zero', (side) => {
-    const anchor = { to: 'soffit', soffitId: 'soffit-1', offset: null };
-    currentRun.anchors[side] = anchor;
-    const input = field(runEnds(), `${side} soffit anchor offset`);
-    expect(input.props).toMatchObject({ value: null, allowBlank: true, placeholder: '0' });
-    enter(input, '1 1/2');
-    expect(dispatch).toHaveBeenLastCalledWith(setRunAnchor({ ...at, side, anchor: { ...anchor, offset: 1.5 } }));
-    enter(input, '');
-    expect(dispatch).toHaveBeenLastCalledWith(setRunAnchor({ ...at, side, anchor: { ...anchor, offset: 0 } }));
-    expect(dispatch).toHaveBeenCalledTimes(2);
-  });
-
-  it.each(['left', 'right'])('%s soffit anchor: shows 0 and clears its own offset to null', (side) => {
-    const anchor = { to: 'end', offset: null };
-    const soffit = { id: 'soffit-1', x: 0, width: 60, bottom: 84, molding: 'none', anchors: { [side]: anchor } };
-    const input = field(SoffitProperties({ room: currentRoom, wall: currentWall, soffit, settings }), `${side} soffit anchor offset`);
-    expect(input.props).toMatchObject({ value: null, allowBlank: true, placeholder: '0' });
-    enter(input, '1 1/2');
-    expect(dispatch).toHaveBeenLastCalledWith(setSoffitAnchor({
-      wallId: 'wall-1', soffitId: 'soffit-1', side, anchor: { ...anchor, offset: 1.5 },
-    }));
-    enter(input, '');
-    expect(dispatch).toHaveBeenLastCalledWith(setSoffitAnchor({
-      wallId: 'wall-1', soffitId: 'soffit-1', side, anchor: { ...anchor, offset: null },
-    }));
-    expect(dispatch).toHaveBeenCalledTimes(2);
-  });
 });

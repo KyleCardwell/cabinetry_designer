@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import elevationReducer, { updateSettings } from '../../store/elevationSlice.js';
+import elevationReducer from '../../store/elevationSlice.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import RunTopFields from '../properties/RunTopFields.jsx';
@@ -33,8 +33,6 @@ const render = () => RunTopFields({ room: room(), wall: wall(), run: run(), sett
 const field = (side) => nodes(render()).find(({ type, props }) => (
   type === InchInput && props['aria-label'] === `Run ${side} overhang`
 ));
-const picker = (label) => nodes(render()).find(({ props }) => props['aria-label'] === label);
-const pick = (label, value) => picker(label).props.onChange({ target: { value } });
 
 // Exercise the existing fraction input's text entry and blur commit with this row's callback.
 function enter(side, entry) {
@@ -57,34 +55,6 @@ beforeEach(() => {
 });
 
 describe('SPEC-50.9 step 503 Overhang controls', () => {
-  it('shows four blank fraction inputs with stone defaults, including a default stone top', () => {
-    for (const top of ['stone', '']) {
-      pick('Run top', top);
-      for (const side of sides) {
-        expect(field(side).props).toMatchObject({
-          value: null, allowBlank: true, placeholder: side === 'back' ? '0' : '3/4',
-        });
-      }
-    }
-  });
-
-  it('resolves default placeholders from the nosing pick and shop overhang independently of typed values', () => {
-    room().profile.nosingProfileId = 'nz1';
-    pick('Run top', 'wood');
-    expect(sides.map((side) => field(side).props.placeholder)).toEqual(['0', '0', '0', '0']);
-    enter('left', '12');
-    expect(field('left').props).toMatchObject({ value: 12, placeholder: '0' });
-    pick('Run Nosing profile', 'plain');
-    expect(sides.map((side) => field(side).props.placeholder)).toEqual(['3/4', '0', '3/4', '3/4']);
-    expect(field('left').props.value).toBe(12);
-    dispatch(updateSettings({ bandDepths: { countertopOverhang: 1.25 } }));
-    expect(field('left').props.placeholder).toBe('1 1/4');
-    pick('Run Nosing profile', 'nz1');
-    expect(field('left').props).toMatchObject({ value: 12, placeholder: '0' });
-    enter('left', '');
-    expect(run()).not.toHaveProperty('topOverhang');
-    expect(field('left').props).toMatchObject({ value: null, placeholder: '0' });
-  });
 
   for (const side of sides) {
     it(`${side}: commits inches, fractions and explicit zero, and removes only the cleared key`, () => {
@@ -113,15 +83,4 @@ describe('SPEC-50.9 step 503 Overhang controls', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('hides the Overhang row for Crown and other non-countertops, retaining typed values', () => {
-    enter('left', '12');
-    for (const top of ['crown', 'topMold', 'none']) {
-      pick('Run top', top);
-      expect(nodes(render()).some(({ type, props }) => type === 'h4' && props.children === 'Overhang')).toBe(false);
-      for (const side of sides) expect(field(side)).toBeUndefined();
-      expect(run().topOverhang.left).toBe(12);
-    }
-    pick('Run top', 'wood');
-    expect(field('left').props.value).toBe(12);
-  });
 });

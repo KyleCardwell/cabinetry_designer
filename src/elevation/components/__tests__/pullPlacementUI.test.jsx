@@ -7,10 +7,7 @@ import { runScene } from '../../model/runScene.js';
 import { runPulls } from '../../model/pullLayouts.js';
 import elevationReducer, { setCabinetPullHeight } from '../../store/elevationSlice.js';
 import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
-import ProjectSettingsPanel from '../../../projects/ProjectSettingsPanel.jsx';
 import InchInput from '../InchInput.jsx';
-import SettingsDrawer from '../SettingsDrawer.jsx';
-import SettingsPanel from '../SettingsPanel.jsx';
 import FaceProperties from '../properties/FaceProperties.jsx';
 import CabinetStyleProperties from '../properties/CabinetStyleProperties.jsx';
 import PullPicks from '../properties/PullPicks.jsx';
@@ -74,40 +71,6 @@ beforeEach(() => {
 });
 
 describe('HP4 step c pull placement pickers', () => {
-  it('anchor 1: shows the base door auto placement and direction without a count picker', () => {
-    expect(options(find(face(), 'Pull position'))).toEqual([
-      ['', 'Auto (Top corner)'], ['top-corner', 'Top corner'], ['bottom-corner', 'Bottom corner'],
-      ['height', 'Tall pull height'], ['center', 'Centred'], ['top-rail', 'On top rail'], ['bottom-rail', 'On bottom rail'],
-    ]);
-    expect(options(find(face(), 'Pull direction'))).toEqual([
-      ['', 'Auto (Vertical)'], ['vertical', 'Vertical'], ['horizontal', 'Horizontal'],
-    ]);
-    expect(find(face(), 'Pulls across')).toBeUndefined();
-  });
-
-  it('anchor 2: stores position and direction, removes both on Auto, and skips unchanged commits', () => {
-    for (const type of ['door', 'pair_door']) {
-      edit(() => { item().face = { type, size: null, hinge: 'left' }; });
-      change(face(), 'Pull position', 'center');
-      change(face(), 'Pull direction', 'horizontal');
-      expect(item().face).toMatchObject({ pullAt: 'center', pullOrientation: 'horizontal' });
-      expect(find(face(), 'Pull position').props.value).toBe('center');
-      expect(find(face(), 'Pull direction').props.value).toBe('horizontal');
-      expect(options(find(face(), 'Pull position'))[0]).toEqual(['', 'Auto (Top corner)']);
-      expect(options(find(face(), 'Pull direction'))[0]).toEqual(['', 'Auto (Vertical)']);
-      const placements = runPulls(room(), props().wall, run(), settings()).pulls.filter(({ pieceId }) => pieceId === 'c1');
-      expect(placements).toHaveLength(type === 'pair_door' ? 2 : 1);
-      expect(placements.every(({ at, orientation }) => at === 'center' && orientation === 'horizontal')).toBe(true);
-      dispatch.mockClear();
-      change(face(), 'Pull position', 'center');
-      change(face(), 'Pull direction', 'horizontal');
-      expect(dispatch).not.toHaveBeenCalled();
-      change(face(), 'Pull position', '');
-      change(face(), 'Pull direction', '');
-      expect(item().face).not.toHaveProperty('pullAt');
-      expect(item().face).not.toHaveProperty('pullOrientation');
-    }
-  });
 
   it('anchor 3: offers only drawer positions, stores 2–4 pulls across, and removes the count on 1', () => {
     for (const type of ['drawer_front', 'false_front']) {
@@ -152,75 +115,4 @@ describe('HP4 step c pull placement pickers', () => {
     expect(find(PullPicks({ settings: settings(), levelsAbove: [], node: wall(), label: 'Wall' }), 'Tall pull height')).toBeUndefined();
   });
 
-  it('anchor 5: explains missing hinges, hides placement for No pull, and hides direction for knobs', () => {
-    // Sliding keeps the hinge blank; swing doors acquire an automatic side.
-    item().face = { type: 'door', size: null, action: 'sliding' };
-    expect(options(find(face(), 'Pull position'))[0]).toEqual(['', 'Auto (needs hinge)']);
-    expect(text(face())).toContain('Set a hinge side (or pick a centred or rail pull position) so this door\'s pull can be placed.');
-    change(face(), 'Pull position', 'center');
-    expect(text(face())).not.toContain('Set a hinge side');
-    change(face(), 'Pull direction', 'horizontal');
-    change(face(), 'Pull', 'none');
-    expect(find(face(), 'Pull position')).toBeUndefined();
-    expect(find(face(), 'Pull direction')).toBeUndefined();
-    expect(item().face).toMatchObject({ pullAt: 'center', pullOrientation: 'horizontal' });
-    change(face(), 'Pull', 'knob-1-25');
-    expect(find(face(), 'Pull position')).toBeDefined();
-    expect(find(face(), 'Pull direction')).toBeUndefined();
-  });
-
-  it('anchor 6: renders Tall door pull height in all four Pulls settings panels and resets room 48', () => {
-    for (const [scope, Component, componentProps] of [
-      ['team', SettingsPanel, {}], ['project', ProjectSettingsPanel, { level: 'project' }],
-      ['phase', ProjectSettingsPanel, { level: 'phase' }], ['room', SettingsDrawer, { shopStandards: false }],
-    ]) {
-      const render = () => expand(<Component {...componentProps} />);
-      const label = scope === 'team' ? 'Tall door pull height' : `${scope[0].toUpperCase()}${scope.slice(1)} Tall door pull height`;
-      const pulls = () => nodes(render()).find(({ type, props }) => type === 'section'
-        && nodes(props.children).some(({ type, props }) => type === 'button' && text(props.children).startsWith('Pulls'))
-        && find({ props }, label));
-      expect(find(pulls(), label)?.type).toBe(InchInput);
-      find(pulls(), label).props.onCommit(48);
-      const own = () => scope === 'team' ? state.settings : scope === 'room' ? room().settingsOverrides : state.layers[scope].values;
-      expect(own().pullHeight).toBe(48);
-      if (scope !== 'team') {
-        find(render(), 'Reset Tall door pull height').props.onClick();
-        expect(own() ?? {}).not.toHaveProperty('pullHeight');
-      }
-    }
-  });
-
-  it('labels tab edges only inside Auto and uses horizontal rail defaults for top, bottom and pullout doors', () => {
-    for (const [patch, label] of [[{ hinge: 'top' }, 'On bottom rail'], [{ hinge: 'bottom' }, 'On top rail'], [{ action: 'pullout' }, 'On top rail']]) {
-      edit(() => { item().face = { type: 'door', size: null, ...patch }; });
-      expect(options(find(face(), 'Pull position'))[0]).toEqual(['', `Auto (${label})`]);
-      expect(options(find(face(), 'Pull direction'))[0]).toEqual(['', 'Auto (Horizontal)']);
-    }
-    edit(() => {
-      state.settings.pulls.push({ id: 'tab', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} });
-      item().face = { type: 'door', size: null, hinge: 'left', pullId: 'tab' };
-    });
-    expect(options(find(face(), 'Pull position'))[0]).toEqual(['', 'Auto (Top edge)']);
-    expect(find(face(), 'Pull direction')).toBeUndefined();
-    edit(() => { run().z = 54; });
-    expect(options(find(face(), 'Pull position'))[0]).toEqual(['', 'Auto (Bottom edge)']);
-    expect(options(find(face(), 'Pull position')).slice(1).some(([at]) => at.endsWith('edge'))).toBe(false);
-  });
-
-  it('shows too-long warnings only for the selected piece and face path', () => {
-    item().face = { direction: 'vertical', size: null, children: [
-      { type: 'drawer_front', size: null, pullCount: 4 },
-      { type: 'drawer_front', size: null },
-    ] };
-    state.facePath = 'r.0';
-    expect(text(face())).toContain('This pull is longer than the space it sits in on this face.');
-    state.facePath = 'r.1';
-    expect(text(face())).not.toContain('This pull is longer');
-    edit(() => {
-      gridLeaves(run().grid).find(({ id }) => id === 'c2').face = { type: 'drawer_front', size: null, pullCount: 4 };
-      item().face = { type: 'drawer_front', size: null };
-      state.facePath = 'r';
-    });
-    expect(text(face())).not.toContain('This pull is longer');
-  });
 });

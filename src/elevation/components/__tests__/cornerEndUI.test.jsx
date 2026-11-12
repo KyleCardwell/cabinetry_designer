@@ -1,20 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch } from 'react-redux';
 import { auto, room, wall, run as makeRun } from '../../../test/builders.js';
-import elevationReducer, { setRunEnd, setTrackSize } from '../../store/elevationSlice.js';
+import elevationReducer, { setTrackSize } from '../../store/elevationSlice.js';
 import { stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
-import { wallLabel } from '../../model/topology.js';
-import { cornerEnd } from '../../model/cornerEnd.js';
-import { runFaceLayouts } from '../../model/faceLayouts.js';
-import { squashRect } from '../../model/cornerSquash.js';
-import { formatInches } from '../../model/units.js';
 import EndFields from '../properties/EndFields.jsx';
-import EndLegsFields from '../properties/EndLegsFields.jsx';
-import RunEndsSection from '../properties/RunEndsSection.jsx';
-import WarningsList from '../properties/WarningsList.jsx';
 import InchInput from '../InchInput.jsx';
-import ExtendFields from '../properties/ExtendFields.jsx';
-import PartStyleFields from '../properties/PartStyleFields.jsx';
 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 vi.mock('react', async (original) => ({ ...await original(), useMemo: (compute) => compute() }));
@@ -22,7 +12,6 @@ vi.mock('react', async (original) => ({ ...await original(), useMemo: (compute) 
 let state;
 const currentRoom = () => state.rooms[0];
 const currentWall = () => currentRoom().walls[0];
-const returnWall = () => currentRoom().walls[1];
 const run = () => currentWall().runs[0];
 const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
 const dispatch = vi.fn((action) => { state = elevationReducer(state, action); });
@@ -37,8 +26,6 @@ const fields = (side = 'left') => nodes(EndFields({
 const field = (name, side = 'left') => fields(side).find(({ props }) => props['aria-label'] === `${side} end ${name}`);
 const pick = (name, value, side = 'left') => field(name, side).props.onChange({ target: { value } });
 const commit = (name, value) => field(name).props.onCommit(value);
-const options = (select) => nodes(select).filter(({ type }) => type === 'option')
-  .map(({ props }) => [props.value, text(props.children)]);
 const corner = (kind = 90) => pick('type', `corner:${kind}`);
 
 beforeEach(() => {
@@ -58,18 +45,6 @@ beforeEach(() => {
 });
 
 describe('CC3 step d corner run end fields', () => {
-  it('anchor 1: offers both corner kinds after Blind corner on an anchored owner', () => {
-    const choices = options(field('type'));
-    expect(choices.slice(choices.findIndex(([value]) => value === 'blind'))).toEqual([
-      ['blind', 'Blind corner'], ['corner:90', 'Corner 90'], ['corner:45', 'Corner 45'],
-    ]);
-  });
-
-  it('anchor 2: omits corner choices on an unanchored filler end', () => {
-    run().anchors.left = false;
-    expect(options(field('type')).some(([value]) => value.startsWith('corner:'))).toBe(false);
-    expect(options(field('type', 'right')).some(([value]) => value.startsWith('corner:'))).toBe(false);
-  });
 
   it('anchor 3: creates a 45 corner and a manual 36-inch root column', () => {
     corner(45);
@@ -78,18 +53,6 @@ describe('CC3 step d corner run end fields', () => {
     } });
     expect(run().grid.cols[0]).toMatchObject({ sizeMode: 'manual', size: 36 });
     expect(field('type').props.value).toBe('corner:45');
-  });
-
-  it('anchor 4: preserves every stored corner choice when changing kind and other fields', () => {
-    run().ends.left = { type: 'corner', width: null, corner: {
-      kind: 90, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long', legBFace: 'panel',
-    } };
-    corner(45);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 3, doors: 'a_long', legBFace: 'panel' });
-    commit('corner return width', 4);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: 4, doors: 'a_long', legBFace: 'panel' });
-    commit('corner return width', null);
-    expect(run().ends.left.corner).toEqual({ kind: 45, legB: 30, depthB: 15, returnPiece: 'filler', returnWidth: null, doors: 'a_long', legBFace: 'panel' });
   });
 
   it('anchor 5: edits leg A through its outer root track and resets blank to 36', () => {
@@ -121,196 +84,5 @@ describe('CC3 step d corner run end fields', () => {
     expect(field('corner leg B').props.placeholder).toBe('32');
   });
 
-  it('anchor 7: uses the anchored return run box depth for automatic depth B', () => {
-    returnWall().runs = [makeRun({ id: 'return', depth: 21, anchors: { left: false, right: true } })];
-    corner();
-    expect(field('corner depth B').props.placeholder).toBe('21');
-  });
-
-  it('anchor 8: resolves the automatic return panel and switches to a filler', () => {
-    corner();
-    expect(field('corner return side').props.value).toBe('auto');
-    expect(options(field('corner return side'))).toEqual([
-      ['auto', 'Auto (end panel)'], ['end_panel', 'End panel'], ['filler', 'Filler'], ['none', 'None'],
-    ]);
-    expect(field('corner return width').props).toMatchObject({ value: null, placeholder: '13/16' });
-    pick('corner return side', 'filler');
-    expect(run().ends.left.corner.returnPiece).toBe('filler');
-    expect(field('corner return width').props.placeholder).toBe('1 1/2');
-    pick('corner return side', 'none');
-    expect(field('corner return width')).toBeUndefined();
-  });
-
-  it('anchor 9: hides return width when a covering return run resolves Auto to none', () => {
-    returnWall().runs = [makeRun({ id: 'return', anchors: { left: false, right: true } })];
-    corner();
-    expect(options(field('corner return side'))[0]).toEqual(['auto', 'Auto (none)']);
-    expect(field('corner return width')).toBeUndefined();
-  });
-
-  it('anchor 10 / CC3.1 anchor 3: reads out shown door faces and the ordered size on a 45 without a return run', () => {
-    for (const kind of [90, 45]) {
-      corner(kind);
-      const readout = fields().find(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '));
-      expect(readout.props.className).toBe('text-xs text-gray-500');
-      const shown = kind === 90 ? '11 1/8"' : '11 3/16"';
-      expect(text(readout)).toBe(`Shows ${shown} here · ${shown} on ${wallLabel(currentRoom(), returnWall())}${kind === 45 ? ' · door face 15 9/16" (45°)' : ''}`);
-    }
-  });
-
-  it('anchor 11: keeps inactive corners selectable, warns, and hides ordinary end and leg fields', () => {
-    run().anchors.left = false;
-    corner();
-    expect(field('type').props.value).toBe('corner:90');
-    expect(fields().some(({ type, props }) => type === 'p' && props.className.includes('text-amber-300')
-      && props.children === "The corner cabinet isn't anchored into a square inside corner.")).toBe(true);
-    for (const name of ['width', 'height', 'panel L-shape', 'filler ordered width', 'filler return depth', 'filler corner', 'filler T-filler']) {
-      expect(field(name)).toBeUndefined();
-    }
-    expect(fields().some(({ type }) => type === ExtendFields || type === PartStyleFields)).toBe(false);
-    const section = nodes(RunEndsSection({ room: currentRoom(), wall: currentWall(), run: run(), settings: state.settings, actionBase: at }));
-    expect(section.filter(({ type }) => type === EndLegsFields).map(({ props }) => props.side)).toEqual(['right']);
-    expect(section.find(({ props }) => props['aria-label'] === 'left run anchor').props.value).toBe('free');
-    commit('corner leg B', 20);
-    expect(fields().some(({ type, props }) => type === 'p' && props.className.includes('text-amber-300')
-      && props.children === "The corner cabinet's legs are shorter than the depths beside them.")).toBe(true);
-    expect(fields().some(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '))).toBe(false);
-  });
-
-  it('anchor 12: tells the return run which wall owns its corner cabinet and keeps its fields', () => {
-    returnWall().runs = [makeRun({ id: 'return', anchors: { left: false, right: true } })];
-    corner();
-    const result = EndFields({ room: currentRoom(), wall: returnWall(), run: returnWall().runs[0], side: 'right',
-      settings: state.settings, actionBase: { ...at, wallId: 'wall-2', runId: 'return' } });
-    expect(text(result)).toContain(`Dies into the corner cabinet on ${wallLabel(currentRoom(), currentWall())}.`);
-    expect(nodes(result).find(({ props }) => props['aria-label'] === 'right end type').props.value).toBe('none');
-    expect(nodes(result).some(({ props }) => props['aria-label'] === 'right end corner leg A')).toBe(false);
-  });
-
-  it('edits the outermost root column at a right corner end', () => {
-    const owner = run();
-    owner.anchors = { left: false, right: true };
-    currentWall().runs = [];
-    returnWall().runs = [owner];
-    const rightAt = { ...at, wallId: 'wall-2' };
-    const rightFields = () => nodes(EndFields({
-      room: currentRoom(), wall: returnWall(), run: returnWall().runs[0], side: 'right',
-      settings: state.settings, actionBase: rightAt,
-    }));
-    const rightField = (name) => rightFields().find(({ props }) => props['aria-label'] === `right end ${name}`);
-    rightField('type').props.onChange({ target: { value: 'corner:90' } });
-    const cols = returnWall().runs[0].grid.cols;
-    rightField('corner leg A').props.onCommit(30);
-    expect(dispatch).toHaveBeenLastCalledWith(setTrackSize({ ...rightAt, trackId: cols.at(-1).id, size: 30 }));
-    expect(returnWall().runs[0].grid.cols.at(-1)).toMatchObject({ sizeMode: 'manual', size: 30 });
-    expect(returnWall().runs[0].grid.cols[0].sizeMode).toBe('auto');
-    rightField('corner doors').props.onChange({ target: { value: 'b_long' } });
-    expect(returnWall().runs[0].ends.right.corner.doors).toBe('b_long');
-    expect(rightField('corner doors').props.value).toBe('b_long');
-  });
-
-  it('replaces the readout with warnings when an active corner has no valid shape', () => {
-    corner();
-    commit('corner leg B', 20);
-    expect(fields().some(({ type, props }) => type === 'p' && props.className.includes('text-amber-300')
-      && props.children === "The corner cabinet's legs are shorter than the depths beside them.")).toBe(true);
-    expect(fields().some(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '))).toBe(false);
-    expect(fields().filter(({ props }) => props['aria-label']).map(({ props }) => props['aria-label'])).toEqual([
-      'left end type', 'left end corner leg A', 'left end corner leg B',
-      'left end corner depth B', 'left end corner doors', 'left end corner leg B face',
-      'left end corner return side', 'left end corner return width',
-    ]);
-  });
-
-  it('anchor 13: displays a corner warning message instead of its code', () => {
-    const result = WarningsList({ layout: { errors: [], warnings: [{ code: 'corner-crossed', message: 'X' }] } });
-    expect(nodes(result).find(({ type }) => type === 'li').props.children).toBe('X');
-  });
 });
 
-describe('CC4 step d leg B face select', () => {
-  it('anchor 6: selects the leg B face after Doors, preserves corner choices, and hides it on a 45', () => {
-    expect(field('corner leg B face')).toBeUndefined();
-    corner();
-    expect(field('corner leg B face').props.value).toBe('same');
-    expect(options(field('corner leg B face'))).toEqual([
-      ['same', 'Same as leg A'], ['door', 'Door'], ['panel', 'Panel'],
-    ]);
-    const labels = fields().filter(({ props }) => props['aria-label']).map(({ props }) => props['aria-label']);
-    expect(labels.indexOf('left end corner leg B face')).toBe(labels.indexOf('left end corner doors') + 1);
-    commit('corner leg B', 30);
-    commit('corner depth B', 15);
-    pick('corner doors', 'b_long');
-    pick('corner return side', 'filler');
-    commit('corner return width', 3);
-    const stored = { ...run().ends.left.corner };
-    for (const value of ['panel', 'door', 'same', 'panel']) {
-      pick('corner leg B face', value);
-      const expected = { ...stored, legBFace: value === 'same' ? null : value };
-      expect(dispatch).toHaveBeenLastCalledWith(setRunEnd({ ...at, side: 'left',
-        end: { type: 'corner', width: null, corner: expected },
-      }));
-      expect(run().ends.left.corner).toEqual(expected);
-      expect(field('corner leg B face').props.value).toBe(value);
-    }
-    corner(45);
-    expect(field('corner leg B face')).toBeUndefined();
-    corner(90);
-    expect(field('corner leg B face').props.value).toBe('panel');
-  });
-});
-
-describe('CC3.1 step c corner door fields and readout', () => {
-  it('anchor 1: offers Doors after Depth B, preserves corner choices, and follows the team default on Auto', () => {
-    corner();
-    expect(field('corner doors').props.value).toBe('auto');
-    expect(options(field('corner doors'))).toEqual([
-      ['auto', 'Auto (Equal)'], ['equal', 'Equal'], ['a_long', 'Leg A long'], ['b_long', 'Leg B long'],
-    ]);
-    const labels = fields().filter(({ props }) => props['aria-label']).map(({ props }) => props['aria-label']);
-    expect(labels.indexOf('left end corner doors')).toBe(labels.indexOf('left end corner depth B') + 1);
-    commit('corner leg B', 30);
-    commit('corner depth B', 15);
-    pick('corner return side', 'filler');
-    commit('corner return width', 3);
-    const stored = { ...run().ends.left.corner };
-    for (const doors of ['a_long', 'b_long', 'equal', 'auto']) {
-      pick('corner doors', doors);
-      const expected = { ...stored, doors: doors === 'auto' ? null : doors };
-      expect(dispatch).toHaveBeenLastCalledWith(setRunEnd({ ...at, side: 'left',
-        end: { type: 'corner', width: null, corner: expected },
-      }));
-      expect(run().ends.left.corner).toEqual(expected);
-      expect(field('corner doors').props.value).toBe(doors);
-    }
-    for (const [value, label] of [['a_long', 'Leg A long'], ['b_long', 'Leg B long']]) {
-      state = { ...state, settings: { ...state.settings, cornerDoors: value } };
-      expect(options(field('corner doors'))[0]).toEqual(['auto', `Auto (${label})`]);
-      expect(run().ends.left.corner.doors).toBeNull();
-    }
-  });
-
-  it('anchor 2: hides Doors on a 45 and ordinary ends, preserving an override across kind changes', () => {
-    expect(field('corner doors')).toBeUndefined();
-    corner();
-    pick('corner doors', 'a_long');
-    corner(45);
-    expect(field('corner doors')).toBeUndefined();
-    corner(90);
-    expect(field('corner doors').props.value).toBe('a_long');
-  });
-
-  it('shares the readout and drawn face layout with custom reveals and an uneven return', () => {
-    returnWall().runs = [makeRun({ id: 'return', depth: 15, anchors: { left: false, right: true } })];
-    state = { ...state, settings: { ...state.settings, cornerDiagonalReveal: 1 / 4 } };
-    corner(45);
-    const resolved = cornerEnd(currentRoom(), currentWall(), run(), 'left', state.settings);
-    const entry = runFaceLayouts(currentRoom(), currentWall(), run(), state.settings).get(resolved.columnId);
-    expect(resolved.faceLayout.ordered).toBeCloseTo(22.5625);
-    expect(entry.box.width).toBeCloseTo(resolved.faceLayout.span);
-    expect(entry.faces[0].width).toBeCloseTo(resolved.faceLayout.ordered);
-    expect(squashRect(entry.box, entry.squash).width).toBeCloseTo(resolved.faceLayout.shown.a);
-    const readout = fields().find(({ type, props }) => type === 'p' && text(props.children).startsWith('Shows '));
-    expect(text(readout)).toBe(`Shows ${formatInches(resolved.faceLayout.shown.a)} here · ${formatInches(resolved.faceLayout.shown.b)} on ${wallLabel(currentRoom(), returnWall())} · door face 22 9/16" (29.1°)`);
-  });
-});

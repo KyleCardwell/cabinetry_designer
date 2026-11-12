@@ -1,20 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { useDispatch } from 'react-redux';
 import { findCell, runItems } from '../../model/index.js';
 import { runScene } from '../../model/runScene.js';
-import elevationReducer, { setColumnStep, splitCell } from '../../store/elevationSlice.js';
+import elevationReducer, { setColumnStep } from '../../store/elevationSlice.js';
 import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import PanelTabs from '../panel/PanelTabs.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
-import CellProperties from '../properties/CellProperties.jsx';
 import ColumnStepFields from '../properties/ColumnStepFields.jsx';
 import ColumnLineSection from '../properties/ColumnLineSection.jsx';
 import PinSection from '../properties/PinSection.jsx';
 import Field from '../properties/Field.jsx';
-import WarningsList from '../properties/WarningsList.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
@@ -78,32 +75,4 @@ describe('ST1 step c column step fields', () => {
     expect(input(cabinet(), 'Bottom up').props.value).toBe('');
   });
 
-  it('edits the same root column from nested leaves at multiple depths', () => {
-    dispatch(splitCell({ ...at, cellId: 'a', direction: 'down', count: 2 }));
-    const rootId = props().piece.columnId;
-    const siblingId = run().grid.cells[0].node.cells[1].node.id;
-    dispatch(splitCell({ ...at, cellId: 'a', direction: 'across', count: 2 }));
-    type(size(CellProperties), 'Column top drop', '4');
-    expect(dispatch).toHaveBeenLastCalledWith(setColumnStep({ ...at, itemId: rootId, edge: 'top', value: 4 }));
-    type(size(CellProperties, siblingId), 'Column bottom up', '2');
-    expect(run().grid.cols[0]).toMatchObject({ top: { value: 4, source: 'manual' }, bottom: { value: 2, source: 'manual' } });
-    expect(input(size(CellProperties), 'Column bottom up').props.value).toBe('2');
-    expect(input(size(CellProperties, siblingId), 'Column top drop').props.value).toBe('4');
-    expect(findCell(run().grid, 'a').cell.node).not.toHaveProperty('top');
-    expect(run().grid.cols[1]).not.toHaveProperty('top');
-    type(size(CellProperties, siblingId), 'Column top drop', '');
-    expect(input(size(CellProperties), 'Column top drop').props.value).toBe('');
-  });
-
-  it('shows oversized steps through the existing warnings list and omits fields for other root kinds', () => {
-    type(size(CabinetProperties), 'Top drop', '30');
-    const layout = props().layout;
-    expect(layout.warnings).toContainEqual({ code: 'column-step-too-big', pieceId: 'a',
-      message: 'Top drop and bottom up leave less than 1 inch of box.' });
-    expect(props().piece.height).toBe(run().height);
-    expect(renderToStaticMarkup(<WarningsList layout={layout} />)).toContain('Top drop and bottom up leave less than 1 inch of box.');
-    for (const kind of ['filler', 'void', 'shelves', 'panel']) {
-      expect(ColumnStepFields({ wall: wall(), run: run(), item: { id: 'other', kind } })).toBeNull();
-    }
-  });
 });

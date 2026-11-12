@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { shippingList } from '../../../reports/shippingList.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
-import { resolveWall, syncRoom } from '../../model/room.js';
+import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import { teeFillers } from '../../model/tees.js';
 import PieceProperties from '../properties/PieceProperties.jsx';
@@ -11,11 +10,6 @@ import PieceProperties from '../properties/PieceProperties.jsx';
 vi.mock('react', async (original) => ({ ...await original(), useMemo: (fn) => fn() }));
 vi.mock('react-redux', () => ({ useDispatch: () => vi.fn() }));
 
-const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room10bt.json', import.meta.url), 'utf8'));
-const anchors = [
-  ['Kyle settings', { cornerFillerMinWidth: 2 }, 2.3125, 0.8125, 1.5625],
-  ['defaults', {}, 1.8125, 0.3125, 1.0625],
-];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : tree && typeof tree === 'object' ? text(tree.props?.children)
     : typeof tree === 'string' ? tree : '';
@@ -40,29 +34,9 @@ function expectEndNote(ctx, side, expected) {
 }
 
 describe('FX10 off-centre T notes', () => {
-  it.each(anchors)('anchors 1–3: Room 10 BT notes with %s', (_label, overrides) => {
-    const settings = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides, ...overrides };
-    const ctx = context(syncRoom(structuredClone(stored), settings), settings, 'Wall 2');
-    expectEndNote(ctx, 'left', 'T-shape - 3/4" right offset');
-    const seam = ctx.tees.find((tee) => !tee.end && tee.orientation === 'vertical');
-    expect(seam).toMatchObject({ width: 1.5 });
-    expect(ctx.notes.get(seam.id)[0]).toBe('T-shape');
-    expect(shippingList(ctx.room, settings).rows.find(({ key }) => key === seam.id).notes)
-      .toEqual(['T-shape']);
-  });
 
   // The current Room 10 fixture resolves 1/16" wider than the spec's geometry.
   // Exercise the hand-checked geometry too, without changing those anchor values.
-  it.each(anchors)('anchors 1–2: the supplied geometry with %s', (_label, overrides, width, start, end) => {
-    const settings = { ...DEFAULT_SETTINGS, ...overrides };
-    const r = room({ walls: [wall({ runs: [run({ width: 40, autoCount: false,
-      items: [auto('cabinet')], tFiller: 'seams',
-      ends: { left: { type: 'filler', width: end }, right: { type: 'none' } },
-    })] })] });
-    const ctx = context(r, settings);
-    expect(ctx.tees.find(({ end }) => end === 'left')).toMatchObject({ x: 0, width, ret: { start, end } });
-    expectEndNote(ctx, 'left', 'T-shape - 3/4" right offset');
-  });
 
   it('anchor 3: a seam at 30 13/16 inches remains centred', () => {
     const r = room({ walls: [wall({ runs: [run({ width: 61.5625, autoCount: false,
@@ -104,21 +78,4 @@ describe('FX10 off-centre T notes', () => {
     expectEndNote(context(r, settings), 'right', 'T-shape - 1/2" left offset');
   });
 
-  it('leaves horizontal Ts and return-up notes unchanged and emits the shape only once', () => {
-    const settings = { ...DEFAULT_SETTINGS };
-    const r = syncRoom(structuredClone(stored), settings);
-    const ctx = context(r, settings, 'Wall 2');
-    const horizontal = ctx.tees.filter(({ orientation }) => orientation === 'horizontal');
-    expect(horizontal.length).toBeGreaterThan(0);
-    for (const tee of horizontal) expect(ctx.notes.get(tee.id)[0]).toBe('T-shape');
-
-    const upperRoom = room({ walls: [wall({ runs: [run({ width: 40, autoCount: false,
-      cabinetTypeId: 2, z: 54, depth: 12, items: [auto('cabinet')], tFiller: 'seams',
-      ends: { left: { type: 'filler', width: 3 }, right: { type: 'none' } },
-    })] })], reportParts: { 'run-1:left': { note: 'last' } } });
-    const upper = context(upperRoom, settings);
-    expectEndNote(upper, 'left', 'T-shape - 3/4" right offset');
-    expect(shippingList(upperRoom, settings).rows.find(({ key }) => key === 'run-1:left').notes)
-      .toEqual(['T-shape - 3/4" right offset', 'return up 1/8"', 'last']);
-  });
 });

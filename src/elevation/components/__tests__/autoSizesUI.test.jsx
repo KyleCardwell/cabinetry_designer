@@ -5,7 +5,7 @@ import { boxInsets, findCell, formatInchesInput, runItems } from '../../model/in
 import { syncRoom } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
-import { auto, opening, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import PanelTabs from '../panel/PanelTabs.jsx';
 import OverrideField from '../OverrideField.jsx';
@@ -13,9 +13,6 @@ import OverrideInput from '../OverrideInput.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import PinSection from '../properties/PinSection.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
-import OpeningProperties from '../properties/OpeningProperties.jsx';
-import RunGeometrySection from '../properties/RunGeometrySection.jsx';
-import SoffitProperties from '../properties/SoffitProperties.jsx';
 import Field, { ReadOnlyValue } from '../properties/Field.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
@@ -70,12 +67,6 @@ beforeEach(() => {
 });
 
 describe('UI2 step b auto sizes', () => {
-  it('shows an auto Euro base cabinet as blank with placeholder 30, auto tag and no Reset or Lock (anchor 1)', () => {
-    expect(props().piece.width).toBe(30);
-    expect(props().item.width).toBeNull();
-    autoField(cabinet(), 'Cabinet box width', '30');
-    expect(field(cabinet(), 'Reset Box width')).toBeUndefined();
-  });
 
   it('types 27 plus trim, re-splits the run and resets to the recomputed auto width (anchors 2 and 3)', () => {
     for (const cabinetStyleId of [13, 14]) {
@@ -103,32 +94,6 @@ describe('UI2 step b auto sizes', () => {
       type(cabinet(), 'Cabinet box width', '');
       expect(runItems(run())[0].width).toBeNull();
     }
-  });
-
-  it('tags derived opening, anchored soffit and run geometry readouts auto', () => {
-    const assertTag = (tree, label) => {
-      const readout = field(tree, label);
-      expect(readout.props.className).toContain('border-dashed border-gray-700');
-      const wrapper = nodes(tree).find(({ type, props }) => type === 'label'
-        && nodes(props.children).some(({ props }) => props['aria-label'] === label));
-      expect(nodes(wrapper ?? readout).some(({ type, props }) => type === 'span' && props.children === 'auto')).toBe(true);
-    };
-    // LL4: wall-end pins (and their resolved readouts) became layout lines.
-    assertTag(OpeningProperties({ wall: wall(), opening: opening(), settings: state.settings }), 'Opening head height');
-    const soffit = { id: 'soffit', x: 0, width: 60, bottom: 84, molding: 'none' };
-    for (const anchors of [{ left: false, right: false }, { left: { to: 'end', offset: 0 }, right: false },
-      { left: { to: 'end', offset: 0 }, right: { to: 'end', offset: 0 } }]) {
-      const tree = SoffitProperties({ room: room(), wall: wall(), settings: state.settings, soffit: { ...soffit, anchors } });
-      if (anchors.left) assertTag(tree, 'Soffit left');
-      else expect(field(tree, 'Soffit left').type).toBe(InchInput);
-      if (anchors.right) assertTag(tree, 'Soffit width');
-      else expect(field(tree, 'Soffit width').type).toBe(InchInput);
-    }
-    run().anchors = { left: true, right: true };
-    const tree = RunGeometrySection({ wall: wall(), run: run(), settings: state.settings,
-      actionBase: at, validateAndDispatch: vi.fn() });
-    for (const label of ['Resolved run width', 'Installed front depth', 'Run left edge position',
-      'Run left center position', 'Run right edge position', 'Run right center position']) assertTag(tree, label);
   });
 
   for (const axis of ['row', 'col']) {

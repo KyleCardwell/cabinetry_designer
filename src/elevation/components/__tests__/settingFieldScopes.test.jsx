@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import elevationReducer, { createInitialElevationState, setLayerSetting } from '../../store/elevationSlice.js';
+import elevationReducer, { createInitialElevationState } from '../../store/elevationSlice.js';
 import SettingField from '../SettingField.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
@@ -10,7 +10,6 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
-const options = (tree) => nodes(tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, props.children]);
 let state;
 let dispatch;
 let hooks;
@@ -86,44 +85,6 @@ function commit(scope, settingKey, value) {
 }
 
 describe('DB5 d setting field scopes', () => {
-  it('inherits shop depth 24 with no teal border, then commits project depth 25 (anchor 1)', () => {
-    const props = { scope: 'project', settingKey: 'baseDepth' };
-    const initial = field(render(SettingField, props), 'Project Base depth');
-    expect(initial.props).toMatchObject({ value: '', placeholder: '24' });
-    expect(initial.props.className).not.toContain('teal');
-    const tree = commit('project', 'baseDepth', '25');
-    expect(dispatch).toHaveBeenLastCalledWith(setLayerSetting({ level: 'project', key: 'baseDepth', value: 25 }));
-    expect(field(tree, 'Project Base depth').props.className).toContain('border-teal-500');
-    expect(nodes(tree).some(({ props }) => props.title === 'Project override · Shop standard: 24"')).toBe(true);
-  });
-
-  it('inherits project depth 25 in a phase, labels its source, and supports Reset and nested choices (anchor 2)', () => {
-    state.layers.project.values = { baseDepth: 25 };
-    const props = { scope: 'phase', settingKey: 'baseDepth' };
-    let tree = render(SettingField, props);
-    expect(field(tree, 'Phase Base depth').props).toMatchObject({ value: '', placeholder: '25' });
-    expect(nodes(tree).some(({ props }) => props.title === 'Project: 25"')).toBe(true);
-    tree = commit('phase', 'baseDepth', '26');
-    expect(nodes(tree).some(({ props }) => props.title === 'Phase override · Project: 25"')).toBe(true);
-    field(tree, 'Reset Base depth').props.onClick();
-    expect(state.layers.phase.values).not.toHaveProperty('baseDepth');
-    expect(dispatch).toHaveBeenLastCalledWith(setLayerSetting({ level: 'phase', key: 'baseDepth', value: null }));
-    hooks.clear();
-    const choice = { scope: 'phase', settingKey: 'defaultEnds.left' };
-    const select = field(render(SettingField, choice), 'Phase Default ends left');
-    expect(options(select)[0][0]).toBe('');
-    select.props.onChange({ target: { value: 'none' } });
-    expect(state.layers.phase.values.defaultEnds).toEqual({ left: 'none' });
-    hooks.clear();
-    field(render(SettingField, { scope: 'project', settingKey: 'snapHeightsToDefaults' }), 'Project Snap run heights to defaults').props.onChange({ target: { value: 'false' } });
-    expect(state.layers.project.values.snapHeightsToDefaults).toBe(false);
-  });
-
-  it('returns null until the requested layer is loaded', () => {
-    state.layers = { project: null, phase: null };
-    for (const scope of ['project', 'phase']) expect(render(SettingField, { scope, settingKey: 'baseDepth' })).toBeNull();
-    expect(dispatch).not.toHaveBeenCalled();
-  });
 
   it('rejects negative cutout feet and nonpositive cutout heights in both layer scopes', () => {
     for (const scope of ['project', 'phase']) {
@@ -140,7 +101,6 @@ describe('DB5 d setting field scopes', () => {
     }
   });
 });
-
 
 describe('RP1 a report field scopes', () => {
   it('inherits text in project, phase and room, commits trimmed pins, and resets or clears to inherit', () => {

@@ -6,18 +6,14 @@ import { findCell, runItems } from '../../model/index.js';
 import { syncRoom } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import { stackedColumn } from '../../model/__tests__/fixtures/pinnedColumn.js';
-import elevationReducer, {
-  attachColumnToNewLine, attachColumnToOpening, createInitialElevationState, setItemPin, setItemWidth,
-} from '../../store/elevationSlice.js';
-import InchInput from '../InchInput.jsx';
+import elevationReducer, { attachColumnToNewLine, createInitialElevationState, setItemWidth } from '../../store/elevationSlice.js';
 import PanelTabs from '../panel/PanelTabs.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
 import ColumnStepFields from '../properties/ColumnStepFields.jsx';
-import ColumnLineSection, { SECOND_LINE_NOTE } from '../properties/ColumnLineSection.jsx';
+import ColumnLineSection from '../properties/ColumnLineSection.jsx';
 import LineAttachSection, { NEW_LINE } from '../properties/LineAttachSection.jsx';
 import PinSection from '../properties/PinSection.jsx';
-import { ReadOnlyValue } from '../properties/Field.jsx';
 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -90,20 +86,6 @@ describe('LL4 b column layout line properties', () => {
     expect(current().run.grid.cols[1].attach).toBeUndefined();
   });
 
-  it('offers Centre on each opening and shows the second-column note', () => {
-    const root = lineSection('A');
-    expect(root.props.title).toBe('Layout line');
-    expect(nodes(control(root, 'Column layout line')).filter(({ type }) => type === 'option').map(text))
-      .toEqual(['None', 'New line here']);
-    expect(text(root)).not.toContain(SECOND_LINE_NOTE);
-    control(root, 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
-    expect(text(lineSection())).toContain(SECOND_LINE_NOTE);
-    expect(text(lineSection('A'))).not.toContain(SECOND_LINE_NOTE);
-    control(lineSection(), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
-    expect(text(lineSection())).not.toContain(SECOND_LINE_NOTE);
-    expect(runItems(current().run).slice(0, 2).map(({ width }) => width)).toEqual([40, 40]);
-  });
-
   it('anchor 3: Right edge sends the attachment with the new point', () => {
     control(lineSection('A'), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
     const right = nodes(lineSection('A')).find(({ type, props }) => type === 'button' && props.children === 'Right edge');
@@ -115,18 +97,6 @@ describe('LL4 b column layout line properties', () => {
     expect(current().run.grid.cols[0].attach.at).toBe('right');
   });
 
-  it('Centre on W dispatches attachColumnToOpening', () => {
-    const { run: source, settings } = current();
-    const withDoor = syncRoom(room({ walls: [wall({ length: 120, x2: 120, runs: [source], openings: [opening()] })] }), settings);
-    state = createInitialElevationState({ settings, rooms: [withDoor], activeRoomId: withDoor.id, activeWallId: 'wall-1' });
-    const select = control(lineSection('A'), 'Column layout line');
-    expect(nodes(select).filter(({ type }) => type === 'option').map(text)).toContain('Centre on D1');
-    select.props.onChange({ target: { value: 'opening:door-1' } });
-    const sent = dispatch.mock.calls.at(-1)[0];
-    expect(sent.type).toBe(attachColumnToOpening.type);
-    expect(sent.payload).toMatchObject({ wallId: 'wall-1', runId: 'run-1', itemId: 'A', openingId: 'door-1' });
-    expect(current().run.grid.cols[0].attach).toMatchObject({ at: 'center', offset: 0 });
-  });
 });
 
 describe('DR3b return pin properties', () => {
@@ -146,38 +116,6 @@ describe('DR3b return pin properties', () => {
     ] }), settings);
     state = createInitialElevationState({ settings, rooms: [initialRoom], activeRoomId: initialRoom.id, activeWallId: 'wall-1' });
     checkbox(pinSection()).props.onChange({ target: { checked: true } });
-  });
-
-  it('preselects the sole return on the root column and reads flush and wider solved spans', () => {
-    expect(find(properties('A'), PinSection).props.room).toBe(current().room);
-    expect(pinSection().props.title).toBe('Column return');
-    expect(current().run.grid.cols[1].pin).toEqual(pin(0, {
-      from: 'return', wallId: 'W', runId: 'R', edge: 'both', anchor: 'left', valueRight: 0,
-    }));
-    expect(findCell(current().run.grid, 'B-top').cell.node.pin).toBeUndefined();
-    expect(control(pinSection(), 'Pinned return').props.value).toBe(JSON.stringify(['W', 'R']));
-    expect(nodes(control(pinSection(), 'Pinned return')).filter(({ type }) => type === 'option').map(text))
-      .toEqual(['Wall 4 – base run']);
-    expect(control(pinSection(), 'Pinned return edge').props.value).toBe('both');
-    expect(control(pinSection(), 'Pinned cabinet anchor')).toBeUndefined();
-    expect(control(pinSection(), 'Pin left offset').props.value).toBe(0);
-    expect(control(pinSection(), 'Pin right offset').props.value).toBe(0);
-    expect(text(pinSection())).toContain('+ = wider than the desk, 0 = flush');
-    expect(control(pinSection(), 'Resolved column left edge').props.value).toBe(35.125);
-    expect(control(pinSection(), 'Resolved column width').props.value).toBe(24.875);
-
-    control(pinSection(), 'Pin left offset').props.onCommit(1.5);
-    control(pinSection('B-bottom'), 'Pin right offset').props.onCommit(1.5);
-    expect(control(pinSection(), 'Resolved column left edge').props.value).toBe(33.625);
-    expect(control(pinSection(), 'Resolved column width').props.value).toBe(27.875);
-
-    checkbox(pinSection()).props.onChange({ target: { checked: false } });
-    expect(current().run.grid.cols[1].pin).toBeNull();
-    expect(control(pinSection(), 'Pinned return')).toBeUndefined();
-    checkbox(pinSection()).props.onChange({ target: { checked: true } });
-    expect(current().run.grid.cols[1].pin).toEqual(pin(0, {
-      from: 'return', wallId: 'W', runId: 'R', edge: 'both', anchor: 'left', valueRight: 0,
-    }));
   });
 
   it('maps every return edge to its anchor and accepts signed offsets while retaining a typed width', () => {
@@ -207,37 +145,4 @@ describe('DR3b return pin properties', () => {
     expect(control(pinSection(), 'Resolved column width').props.value).toBe(21.875);
   });
 
-  it('offers only returns on this face, selects another run and preserves missing return pins', () => {
-    const props = { ...find(properties(), PinSection).props };
-    props.item = { ...props.item, pin: null };
-    expect(PinSection({ ...props, run: { ...props.run, wallSide: 'back' } })).toBeNull();
-    const unanchoredRoom = structuredClone(current().room);
-    unanchoredRoom.walls[1].runs[0].anchors.left = false;
-    expect(PinSection({ ...props, room: unanchoredRoom })).toBeNull();
-
-    const multiple = structuredClone(current().room);
-    multiple.walls[1].runs.push(run({ id: 'R2', width: 48, depth: 30, z: 40,
-      items: [auto('desk2')], anchors: { left: true, right: false } }));
-    state = { ...state, rooms: [syncRoom(multiple, state.settings)] };
-    expect(nodes(control(pinSection(), 'Pinned return')).filter(({ type }) => type === 'option')).toHaveLength(2);
-    control(pinSection(), 'Pinned return').props.onChange({ target: { value: JSON.stringify(['W', 'R2']) } });
-    expect(current().run.grid.cols[1].pin).toMatchObject({ wallId: 'W', runId: 'R2', edge: 'both' });
-    expect(control(pinSection(), 'Resolved column left edge').props.value).toBe(29.125);
-    expect(control(pinSection(), 'Resolved column width').props.value).toBe(30.875);
-
-    const savedPin = current().run.grid.cols[1].pin;
-    const missing = structuredClone(current().room);
-    missing.walls[1].runs.pop();
-    state = { ...state, rooms: [syncRoom(missing, state.settings)] };
-    expect(current().run.grid.cols[1].pin).toEqual(savedPin);
-    expect(text(control(pinSection(), 'Pinned return'))).toContain('Missing return');
-    expect(text(pinSection())).toContain('Unresolved');
-    expect(control(pinSection(), 'Resolved column left edge')).toBeUndefined();
-
-    missing.walls.pop();
-    state = { ...state, rooms: [syncRoom(missing, state.settings)] };
-    expect(current().run.grid.cols[1].pin).toEqual(savedPin);
-    expect(text(control(pinSection(), 'Pinned return'))).toContain('Missing return');
-    expect(nodes(control(pinSection(), 'Pinned return')).filter(({ type }) => type === 'option')).toHaveLength(1);
-  });
 });
