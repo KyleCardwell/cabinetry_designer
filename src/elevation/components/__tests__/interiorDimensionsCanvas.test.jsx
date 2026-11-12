@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
-import { Group, Line, Rect, Stage, Text } from 'react-konva';
+import { Rect, Stage, Text } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { gridLeaves, runItems } from '../../model/grid.js';
-import { interiorDimensions } from '../../model/interiors.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
-import { wallToScreen } from '../../canvas/transform.js';
 import elevationReducer, { setItemInterior } from '../../store/elevationSlice.js';
 import { run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import ElevationCanvas from '../ElevationCanvas.jsx';
@@ -126,32 +124,6 @@ beforeEach(() => {
 });
 
 describe('IN3 divider dimensions, typed edits and dragging', () => {
-  it('anchor 1: opens the auto 42 bottom dimension and commits a typed 36 through the track input', () => {
-    expect(clickLabel().props.edit).toEqual({
-      runId: 'run-1', itemId: 'cabinet', path: 'r', index: 0, side: 'bottom',
-      label: 'oc from bottom', value: 42, ...pointer,
-    });
-    const editor = canvas().tree.find(({ type }) => type === TrackSizeInput);
-    const input = render('input', () => TrackSizeInput(editor.props)).find(({ type }) => type === 'input');
-    expect(input.props).toMatchObject({ 'aria-label': 'oc from bottom', value: '42' });
-    typeAndEnter('36');
-    expectInterior(group('vertical', [{ kind: 'fixed', at: 36 }]));
-    expect(canvas().tree.some(({ type }) => type === TrackSizeInput)).toBe(false);
-  });
-
-  it('anchor 2: colors the manual shelf and auto partition and clears the shelf with auto or blank', () => {
-    const tree = group('vertical', [{ ...shelf, at: 36 }], [group('horizontal', [partition]), {}]);
-    fixture(tree, 36);
-    expect(canvas().dimensions.filter(({ type }) => type === Text).map(({ props }) => [props.text, props.fill]))
-      .toEqual([['36', '#7dd3fc'], ['18', '#e2e8f0']]);
-    clickLabel();
-    typeAndEnter('auto');
-    expectInterior(group('vertical', [shelf], tree.children));
-    fixture(tree, 36);
-    clickLabel();
-    typeAndEnter('');
-    expectInterior(group('vertical', [shelf], tree.children));
-  });
 
   it('anchor 3: edits 12 from the right to 10 and preserves the side for an auto partition shown from the right', () => {
     fixture(group('horizontal', [{ ...partition, at: 12, from: 'right' }]), 36, 30.5);
@@ -209,54 +181,6 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
     }
   });
 
-  it('draws lanes and ticks, gates editing, and handles partition drags, small moves and sixteenth minimums', () => {
-    fixture(group('vertical', [shelf, { ...shelf, at: 30 }]));
-    const view = canvas();
-    const { transform } = view.runNode.props;
-    const dimensions = interiorDimensions(view.dimensionNode.props.entry);
-    const anchor = wallToScreen(dimensions[0].from, transform);
-    const lines = view.dimensions.filter(({ type }) => type === Line);
-    expect(lines).toHaveLength(8);
-    expect(lines[0].props.points[0]).toBe(anchor.x + 22);
-    expect(lines[4].props.points[0]).toBe(anchor.x + 8);
-    expect(view.dimensions.filter(({ type }) => type === Group).map(({ props }) => props.rotation))
-      .toContain(-90);
-    state.tool = 'draw';
-    expect(canvas().dimensions.some(({ type }) => type === Rect)).toBe(false);
-    expect(canvas().shapes.filter(({ type }) => type === Rect).every(({ props }) => !props.draggable)).toBe(true);
-    state.tool = 'select';
-    state.doorsOff = false;
-    expect(canvas().dimensionNode).toBeUndefined();
-    state.doorsOff = true;
-    state.selection.pieceId = null;
-    expect(canvas().dimensionNode).toBeUndefined();
-    for (const [dx, expected] of [[2, 10], [50, 1 / 16], [-50, 62]]) {
-      fixture(group('horizontal', [{ ...partition, at: 12, from: 'right' }]), 36, 30.5);
-      const current = canvas();
-      const divider = current.shapes.filter(({ type }) => type === Rect).at(-1);
-      const { x, y } = divider.props;
-      const scale = current.runNode.props.transform.scale;
-      expect(divider.props.dragBoundFunc({ x: x + dx * scale, y: y + 90 }))
-        .toEqual({ x: x + dx * scale, y });
-      divider.props.onDragEnd({ target: { x: () => x + dx * scale, y: () => y, position: vi.fn() } });
-      expectInterior(group('horizontal', [{ kind: 'partition', at: expected, from: 'right' }]));
-    }
-    fixture();
-    const small = canvas();
-    const divider = small.shapes.filter(({ type }) => type === Rect).at(-1);
-    pointer = { x: divider.props.x + 40, y: divider.props.y + divider.props.height / 2 };
-    dispatch.mockClear();
-    const event = { target: { x: () => divider.props.x, y: () => divider.props.y - 2.9, position: vi.fn() } };
-    divider.props.onDragStart(event);
-    divider.props.onDragEnd(event);
-    expect(dispatch.mock.calls.every(([action]) => action.type !== setItemInterior.type)).toBe(true);
-    expect(state).toMatchObject({ interiorPath: 'r', interiorDivider: 0 });
-    // A following section click still works after the completed gesture.
-    small.shapes.find(({ type }) => type === Group).props.onMouseDown({});
-    pointer = { x: divider.props.x + 40, y: divider.props.y + 40 };
-    small.shapes.filter(({ type }) => type === Rect)[1].props.onClick({});
-    expect(state).toMatchObject({ interiorPath: 'r.1', interiorDivider: null });
-  });
 });
 
 

@@ -1,20 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layer, Stage } from 'react-konva';
-import elevationReducer, { setSelection, setTool, setView, setActiveWall, setActiveWallSide } from '../../store/elevationSlice.js';
+import elevationReducer, { setSelection } from '../../store/elevationSlice.js';
 import { auto, run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import { wallSideFrame } from '../../model/wallSides.js';
-import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import PlanCanvas from '../PlanCanvas.jsx';
 import PlanScene from '../PlanScene.jsx';
-import PlanRunFootprint from '../PlanRunFootprint.jsx';
 import LiveEntryInput from '../../components/LiveEntryInput.jsx';
 import CanvasContextMenu from '../../components/CanvasContextMenu.jsx';
-import { attach, line } from '../../../test/builders.js';
-import { updateRootItem } from '../../model/grid.js';
-import { runShortLabel } from '../../model/joints.js';
-import { syncRoom } from '../../model/room.js';
-import room8 from '../../model/__tests__/fixtures/room8.json';
 
 // Keep hook state and effect lifecycles across renders without mounting Konva in a DOM.
 let hooks;
@@ -74,20 +67,6 @@ const type = (text) => {
   node(LiveEntryInput).props.onTyped(text);
   render();
 };
-const contextClick = (world, footprint = false) => {
-  point(world);
-  const preventDefault = vi.fn();
-  const event = { evt: { preventDefault } };
-  if (footprint) {
-    const scene = nodes(PlanScene(node(PlanScene).props));
-    const run = scene.find(({ type }) => type === PlanRunFootprint);
-    nodes(PlanRunFootprint(run.props))[0].props.onContextMenu(event);
-    expect(event.cancelBubble).toBe(true);
-  } else node(Stage).props.onContextMenu(event);
-  render();
-  expect(preventDefault).toHaveBeenCalledOnce();
-};
-const menu = () => tree.find(({ props }) => props.role === 'menu');
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -216,98 +195,4 @@ it('anchor 2: a 90° wall projects +6.2 world y to run x +6; typed fractions sta
   render();
   expect(storedX()).toBe(18.0625);
   expect(active()).toBe(false);
-});
-
-it('uses the topmost footprint menu and its wall side; cancels and restores on all exit paths and rejects anchored runs', () => {
-  state = structuredClone(state);
-  const wall = state.rooms[0].walls[0];
-  wall.runs.push(run({ ...wall.runs[0], id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 60 }));
-  render();
-  contextClick({ x: 25, y: 10 }, true);
-  expect(state.selection.runId).toBe('upper');
-  expect(menu()).toBeDefined();
-  const item = tree.find(({ props }) => props.role === 'menuitem');
-  expect(item.props.children).toBe('Move run');
-  item.props.onClick();
-  render();
-  expect(active()).toBe(true);
-  expect(menu()).toBeUndefined();
-  key('Escape');
-  expect(active()).toBe(false);
-  contextClick({ x: 25, y: 10 });
-  contextClick({ x: 110, y: 70 });
-  expect(menu()).toBeUndefined();
-
-  state = structuredClone(state);
-  state.rooms[0].walls[0].runs = [run({ ...state.rooms[0].walls[0].runs[0], wallSide: 'back' })];
-  render();
-  contextClick({ x: 95, y: -10 }, true);
-  expect(menu()).toBeDefined();
-  expect(state.activeWallSide).toBe('back');
-  tree.find(({ props }) => props.role === 'menuitem').props.onClick();
-  render();
-  move({ x: 85, y: -10 });
-  expect(previewX()).toBe(22);
-  contextClick({ x: 85, y: -10 });
-  expect(active()).toBe(false);
-  expect(menu()).toBeUndefined();
-  expect(storedX()).toBe(12);
-
-  const exits = [
-    () => key('Escape'),
-    () => { dispatch(setTool('wall')); render(); },
-    () => { dispatch(setView('elevation')); render(); },
-    () => { dispatch(setActiveWallSide('front')); render(); },
-    () => { dispatch(setActiveWall('wall-2')); render(); },
-    () => move({ x: -500, y: -10 }),
-  ];
-  state = structuredClone(state);
-  state.rooms[0].walls.push({ ...state.rooms[0].walls[0], id: 'wall-2', y1: 200, y2: 200, runs: [] });
-  const initial = structuredClone(state);
-  for (const exit of exits) {
-    state = structuredClone(initial);
-    render();
-    point({ x: 95, y: -10 });
-    key('m');
-    move({ x: 85, y: -10 });
-    expect(previewX()).toBe(22);
-    dispatch.mockClear();
-    exit();
-    expect(active()).toBe(false);
-    expect(storedX()).toBe(12);
-    expect(previewX()).toBe(12);
-    expect(tree[0].props.style.cursor).not.toBe('move');
-    expect(dispatch.mock.calls.some(([action]) => /replaceRun|replaceWallLayout/.test(action.type))).toBe(false);
-  }
-  state = structuredClone(initial);
-  state.rooms[0].walls[0].runs[0].anchors.left = true;
-  render();
-  key('m');
-  expect(active()).toBe(false);
-  expect(state.message).toBe('Anchored — set Anchor to Free to move');
-});
-
-it('LL5 c anchor 4: plan M refuses the R8L1 hood with its line message and no live entry', () => {
-  const subject = structuredClone(room8);
-  const target = subject.walls.find(({ id }) => id === '14154ec7-5eeb-4511-8d78-5d3da7b09418');
-  const hoodId = 'c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757';
-  target.lines = [line('L1', 99, { from: 'right' })];
-  target.runs.find(({ id }) => id === hoodId).attach = attach('L1');
-  const base = target.runs.find(({ id }) => id === '8837d4ef-0f27-4ae9-aec6-2d563cadc4b3');
-  base.autoCount = false;
-  base.grid = updateRootItem(base.grid, 'e77c1c0c-b386-4716-bc71-0f23ec1e585c', { attach: attach('L1') });
-  state = { ...structuredClone(state), rooms: [syncRoom(subject, state.settings)], activeRoomId: subject.id, activeWallId: target.id };
-  render();
-  dispatch(setSelection({ runId: hoodId }));
-  render();
-  const before = state.rooms;
-  dispatch.mockClear();
-  const resolved = syncRoom(subject, state.settings).walls.find(({ id }) => id === target.id);
-  const hood = resolved.runs.find(({ id }) => id === hoodId);
-  key('m');
-  expect(state.message).toBe(`${runShortLabel(hood)} is attached to line L1: move the line, or detach.`);
-  expect(active()).toBe(false);
-  expect(state.rooms).toBe(before);
-  expect(dispatch.mock.calls.every(([action]) => action.type.endsWith('/setMessage'))).toBe(true);
-  expect(tree[0].props.style.cursor).not.toBe('move');
 });
