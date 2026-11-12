@@ -14,8 +14,8 @@ export function cornerFrameNotes(corner, returnSide) {
     const stile = ({ width, cut, backWidth }) =>
       `${formatInch(width)} mitered ${degrees(cut)} (${formatInch(backWidth)} at back)`;
     const equal = ['width', 'cut', 'backWidth'].every((key) => Math.abs(left[key] - right[key]) < EPSILON);
-    return equal ? `${formatInch(left.width)} stiles mitered ${degrees(left.cut)} (${formatInch(left.backWidth)} at back)`
-      : `left stile ${stile(left)}, right stile ${stile(right)}`;
+    return [equal ? `${formatInch(left.width)} stiles mitered ${degrees(left.cut)} (${formatInch(left.backWidth)} at back)`
+      : `left stile ${stile(left)}, right stile ${stile(right)}`];
   }
   const legs = facingOrder(side, 'A', 'B').map((id, index) => {
     const rails = members.filter((member) => member.kind === 'rail' && member.side === id)
@@ -35,7 +35,7 @@ export function cornerFrameNotes(corner, returnSide) {
     }
     return `${index === 0 ? 'left' : 'right'} leg ${notes.join(', ')}`;
   });
-  return `rails only, L-shape: ${legs.join(', ')}`;
+  return ['rails only, L-shape', ...legs];
 }
 
 /** Corner dimensions and exterior faces, ordered as you face the cabinet. */

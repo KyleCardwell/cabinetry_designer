@@ -508,7 +508,7 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   if (context.cornerFrame) {
     const { wall, run, scene, cornerFrame } = context;
     const { returnSide } = cornerEnd(room, wall, run, cornerFrame.side, settings, scene.result);
-    return { 10: [cornerFrameNotes(cornerFrame, returnSide)] };
+    return { 10: cornerFrameNotes(cornerFrame, returnSide) };
   }
   const { run, scene, piece, shapeNotes, style, wall, end, endpoint } = context;
   const groups = {};
