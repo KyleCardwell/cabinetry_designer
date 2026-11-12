@@ -37,7 +37,7 @@ import { wallEndFit } from '../elevation/model/wallEndFit.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
-import { cornerReportNotes } from './cornerNotes.js';
+import { cornerFrameNotes, cornerReportNotes } from './cornerNotes.js';
 import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
@@ -209,6 +209,10 @@ function shippingContext(room, settings) {
     }
     if (!scenes.has(run)) scenes.set(run, runScene(room, view, run, settings));
     const scene = scenes.get(run);
+    if (part.kind === 'frame' && part.columnId) {
+      return { wall: view, run, scene,
+        cornerFrame: scene.cornerFrames.find(({ columnId }) => columnId === part.columnId) };
+    }
     if (!teeData.has(run)) teeData.set(run, teeFillers(room, run, scene.cells, settings));
     const piece = scene.cells.pieces.find(({ id }) => id === part.key)
       ?? scene.shelves.find(({ id }) => id === part.key);
@@ -294,7 +298,7 @@ function describePart(room, settings, part, context) {
     case 'leg_panel': description = `${type} End Panel`; break;
     case 'leg_filler': description = `${type} Filler`; break;
     case 'wall_end_panel': description = 'Wall End Panel'; break;
-    case 'frame': description = 'Face Frame'; break;
+    case 'frame': description = context.cornerFrame ? `Corner ${context.cornerFrame.kind} Face Frame` : 'Face Frame'; break;
     case 'furniture_base': description = 'Furniture Base'; break;
     case 'wood_top': description = 'Wood Top'; break;
     case 'rot': description = 'ROT Drawer Box'; break;
@@ -313,6 +317,10 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
+  if (context.cornerFrame) {
+    const { diagonal, frame } = context.cornerFrame;
+    return diagonal ? formatSize(diagonal.frontWidth, frame.height, frame.thickness) : '';
+  }
   if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
     const { depth, bounds, thickness, orderedDepth, returns, returnDepth } = context.fill;
     return part.kind === 'leg_filler' ? formatSize(bounds.width, bounds.height, orderedDepth)
@@ -380,7 +388,8 @@ function cabinetNotes(room, settings, part, context) {
   const fullTop = box.top === 'between' || box.top === 'overlay';
   const base = listedTypeId(run, piece) === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
-  const corner = layout?.corner ? cornerReportNotes(room, wall, run, layout, settings) : null;
+  const corner = layout?.corner ? cornerReportNotes(room, wall, run, layout, settings,
+    scene.cornerFrames.find(({ columnId }) => columnId === part.key)) : null;
   const deckRise = deckZ(layout, settings);
   const faces = layout?.faces ?? [];
   const roomSlideId = resolveSlide(settings).id;
@@ -481,6 +490,11 @@ function cabinetNotes(room, settings, part, context) {
 
 /** Part notes share vendor annotations and the properties panel's return/chip rules. */
 function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
+  if (context.cornerFrame) {
+    const { wall, run, scene, cornerFrame } = context;
+    const { returnSide } = cornerEnd(room, wall, run, cornerFrame.side, settings, scene.result);
+    return { 10: [cornerFrameNotes(cornerFrame, returnSide)] };
+  }
   const { run, scene, piece, shapeNotes, style, wall, end, endpoint } = context;
   const groups = {};
   if (part.kind === 'rot') {
@@ -593,8 +607,7 @@ export function shippingList(room, settings, shop = settings) {
   const getContext = shippingContext(room, settings);
   const doorItems = new Map(doorOrderItems(room, settings).items
     .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
-  // CC9 adds corner-frame shipping rows; these parts have no ordinary frame region.
-  const rows = parts.filter((part) => part.kind !== 'frame' || !part.columnId)
+  const rows = parts
     .sort((a, b) => a.number - b.number).map((part) => {
       const context = getContext(part);
       return {

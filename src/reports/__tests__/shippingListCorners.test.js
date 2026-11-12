@@ -12,6 +12,55 @@ import { shippingList } from '../shippingList.js';
 const BASE = 'b0505231-35e6-4630-8a1e-e9b2181d443c';
 const UPPER = 'a72f41f6-a4ab-4c0e-a91f-8b9d98590429';
 
+describe('corner face frame shipping rows', () => {
+  it.each([
+    { name: 'equal bevelled sides', key: BASE, kind: 45,
+      note: '25 5/16" L & R sides, fronts bevelled 45° for face frame (long point)' },
+    { name: 'uneven bevelled sides', key: BASE, kind: 45, depthB: 15,
+      note: '24 7/8" left side, 16 3/4" right side, fronts bevelled 29.7° / 60.3° for face frame (long points)' },
+    { name: 'a true-size diagonal frame', key: `${BASE}:frame`, kind: 45,
+      description: 'Corner 45 Face Frame', size: '16 5/16 x 30 1/2 x 13/16',
+      note: '1 1/2" stiles mitered 22.5° (1 27/32" at back)' },
+    { name: 'both L-shaped frame legs', key: `${BASE}:frame`, kind: 90,
+      description: 'Corner 90 Face Frame', size: '',
+      note: 'rails only, L-shape: left leg T & B rails 1 1/2 x 11 1/4, right leg T & B rails 1 1/2 x 10 7/16' },
+    { name: 'an end stile on the right leg', key: `${BASE}:frame`, kind: 90, emptyReturn: true,
+      description: 'Corner 90 Face Frame', size: '' },
+  ])('prints $name (CC9)', (anchor) => {
+    const source = JSON.parse(readFileSync(new URL('../../elevation/model/__tests__/fixtures/room8cc.json', import.meta.url), 'utf8'));
+    source.style = { cabinetStyleId: 14 };
+    const storedWall = source.walls.find(({ name }) => name === 'Wall 3');
+    for (const run of storedWall.runs) {
+      for (const end of Object.values(run.ends ?? {})) {
+        if (end?.type === 'corner') end.corner.kind = anchor.kind;
+      }
+    }
+    const storedRun = storedWall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === BASE));
+    if (anchor.depthB) storedRun.ends.right.corner.depthB = anchor.depthB;
+    if (anchor.emptyReturn) source.walls.find(({ name }) => name === 'Wall 4').runs = [];
+    const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS } }, source);
+    const room = syncRoom(source, settings);
+    const row = shippingList(room, settings).rows.find(({ key }) => key === anchor.key);
+    if (anchor.description) expect(row.description).toBe(anchor.description);
+    if (anchor.size !== undefined) expect(row.size).toBe(anchor.size);
+    if (anchor.note) expect(row.notes).toContain(anchor.note);
+    if (anchor.emptyReturn) {
+      const wall = room.walls.find(({ name }) => name === 'Wall 3');
+      const run = wall.runs.find(({ id }) => id === storedRun.id);
+      const frame = runScene(room, wall, run, settings).cornerFrames.find(({ columnId }) => columnId === BASE);
+      expect(frame.legs[1].stileAtEnd).toBeTruthy();
+      const railSizes = ['A', 'B'].map((side) => {
+        const rails = frame.members.filter((member) => member.kind === 'rail' && member.side === side);
+        expect(rails).toHaveLength(2);
+        expect(rails[0].length).toBe(rails[1].length);
+        expect(rails[0].height).toBe(rails[1].height);
+        return formatSize(rails[0].height, rails[0].length);
+      });
+      expect(row.notes).toContain(`rails only, L-shape: left leg T & B rails ${railSizes[0]}, right leg T & B rails ${railSizes[1]}, stile 1 9/16 x 30 1/2 (mitered to 13/16" end panel)`);
+    }
+  });
+});
+
 describe('corner cabinet shipping rows', () => {
   it.each([
     { name: 'base diagonal', key: BASE, kind: 45, description: 'Base Corner 45', size: '36 x 30 1/2 x 36',

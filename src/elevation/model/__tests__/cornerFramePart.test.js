@@ -100,11 +100,12 @@ describe('corner frame parts (CC6)', () => {
       .toEqual([['cc', 1], ['a', 2], ['cc2', 3], ['frame:a', 4], ['cc:frame', 5], ['cc2:frame', 6]]);
   });
 
-  it('builds shipping lists for both corners, with region frames and no corner-frame row', () => {
-    for (const source of [ROOM_B, ROOM_C]) {
+  it('lists both corner frame kinds alongside region frames (CC9)', () => {
+    for (const [source, kind] of [[ROOM_B, 90], [ROOM_C, 45]]) {
       const { subject } = resolved(source);
       const result = shippingList(subject, S);
-      expect(result.rows.some(({ key }) => key === 'cc:frame')).toBe(false);
+      expect(result.rows.find(({ key }) => key === 'cc:frame'))
+        .toMatchObject({ kind: 'frame', number: 4, description: `Corner ${kind} Face Frame` });
       expect(result.rows.find(({ key }) => key === 'frame:a')).toMatchObject({ kind: 'frame', number: 3 });
       expect(result.rows.find(({ key }) => key === 'cc')).toMatchObject({ kind: 'cabinet', number: 1 });
     }
