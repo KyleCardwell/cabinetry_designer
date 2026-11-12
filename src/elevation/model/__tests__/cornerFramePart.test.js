@@ -30,7 +30,7 @@ function resolved(subject) {
 }
 
 describe('corner frame parts (CC6)', () => {
-  it('exposes Room B’s separate frame and lists it after pieces, before region frames', () => {
+  it('lists the corner frame after its cabinet and return-side piece (CC9.1)', () => {
     const { subject, scene } = resolved(ROOM_B);
     expect(scene.cornerFrames).toHaveLength(1);
     expect(scene.frames.cornerFrames).toBe(scene.cornerFrames);
@@ -41,7 +41,7 @@ describe('corner frame parts (CC6)', () => {
       x: 24, width: 11.25, z: 4, height: 30.5,
     });
     expect(parts.filter(({ runId }) => runId === 'run-1').map(({ key }) => key))
-      .toEqual(['cc', 'cc:return', 'a', 'cc:frame', 'frame:a']);
+      .toEqual(['cc', 'cc:return', 'cc:frame', 'a', 'frame:a']);
   });
 
   it('uses Room C’s front-line elevation extent for the frame part', () => {
@@ -51,10 +51,10 @@ describe('corner frame parts (CC6)', () => {
     expect(frame.width).toBeCloseTo(11.5240, 3);
   });
 
-  it('numbers the corner frame after the corner, neighbour and its region frame', () => {
+  it('numbers the corner frame after the corner and return-side piece (CC9.1)', () => {
     const { subject } = resolved(ROOM_B);
     expect(partNumbers(subject, S).parts.map(({ key, number }) => [key, number]))
-      .toEqual([['cc', 1], ['cc:return', 2], ['a', 3], ['frame:a', 4], ['cc:frame', 5], ['molding:toeKick', 6]]);
+      .toEqual([['cc', 1], ['cc:return', 2], ['cc:frame', 3], ['a', 4], ['frame:a', 5], ['molding:toeKick', 6]]);
     const overridden = { ...subject, partNumberOverrides: { 'cc:frame': 17 } };
     expect(partNumbers(overridden, S).byKey).toEqual(new Map([
       ['cc:frame', 17], ['cc', 1], ['cc:return', 2], ['a', 3], ['frame:a', 4], ['molding:toeKick', 5],
@@ -82,7 +82,7 @@ describe('corner frame parts (CC6)', () => {
     }
   });
 
-  it('keeps two corner frames in run order after the neighbouring region frames', () => {
+  it('numbers each corner frame beside its own cabinet group (CC9.1)', () => {
     const source = structuredClone(ROOM_B);
     const owner = source.walls[0].runs[0];
     owner.grid = run({ items: [fixed('cc', 36), auto('a'), fixed('cc2', 36)] }).grid;
@@ -94,11 +94,11 @@ describe('corner frame parts (CC6)', () => {
     const { subject, scene } = resolved(source);
     expect(scene.cornerFrames.map(({ columnId }) => columnId)).toEqual(['cc', 'cc2']);
     expect(roomParts(subject, S).filter(({ runId }) => runId === 'run-1').map(({ key }) => key))
-      .toEqual(['cc', 'cc:return', 'a', 'cc2', 'cc2:return', 'cc:frame', 'cc2:frame', 'frame:a']);
+      .toEqual(['cc', 'cc:return', 'cc:frame', 'a', 'frame:a', 'cc2', 'cc2:return', 'cc2:frame']);
     expect(partNumbers(subject, S).parts.filter(({ runId }) => runId === 'run-1')
       .map(({ key, number }) => [key, number]))
-      .toEqual([['cc', 1], ['cc:return', 2], ['a', 3], ['cc2', 4], ['cc2:return', 5],
-        ['frame:a', 6], ['cc:frame', 7], ['cc2:frame', 8]]);
+      .toEqual([['cc', 1], ['cc:return', 2], ['cc:frame', 3], ['a', 4], ['frame:a', 5],
+        ['cc2', 6], ['cc2:return', 7], ['cc2:frame', 8]]);
   });
 
   it('lists both corner frame kinds alongside region frames (CC9)', () => {
@@ -106,8 +106,8 @@ describe('corner frame parts (CC6)', () => {
       const { subject } = resolved(source);
       const result = shippingList(subject, S);
       expect(result.rows.find(({ key }) => key === 'cc:frame'))
-        .toMatchObject({ kind: 'frame', number: 5, description: `Corner ${kind} Face Frame` });
-      expect(result.rows.find(({ key }) => key === 'frame:a')).toMatchObject({ kind: 'frame', number: 4 });
+        .toMatchObject({ kind: 'frame', number: 3, description: `Corner ${kind} Face Frame` });
+      expect(result.rows.find(({ key }) => key === 'frame:a')).toMatchObject({ kind: 'frame', number: 5 });
       expect(result.rows.find(({ key }) => key === 'cc')).toMatchObject({ kind: 'cabinet', number: 1 });
     }
   });
@@ -124,7 +124,7 @@ describe('corner frame parts (CC6)', () => {
         expect(anchor.x).toBeCloseTo(expectedX[index], 9);
         expect(anchor.z).toBe(19.25);
         expect(elevationPartNumbers(subject, view, 'front', S).find(({ key }) => key === 'cc:frame'))
-          .toMatchObject({ text: '5', x: anchor.x, leader: expect.objectContaining({ x2: anchor.x, z2: anchor.z }) });
+          .toMatchObject({ text: '3', x: anchor.x, leader: expect.objectContaining({ x2: anchor.x, z2: anchor.z }) });
       }
     }
   });

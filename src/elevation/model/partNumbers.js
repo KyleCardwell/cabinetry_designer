@@ -29,17 +29,6 @@ export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 export function partNumbers(room, settings) {
   const ordered = roomParts(room, settings);
-  // Corner frames follow their neighbouring regions for numbering, while the parts list
-  // keeps them immediately after the run's pieces (CC6).
-  for (const corner of ordered.filter((part) => part.kind === 'frame' && part.columnId).reverse()) {
-    const index = ordered.indexOf(corner);
-    const lastRegion = ordered.findLastIndex((part) => part.kind === 'frame' && !part.columnId
-      && part.runId === corner.runId && part.wallId === corner.wallId && part.side === corner.side);
-    if (lastRegion > index) {
-      ordered.splice(index, 1);
-      ordered.splice(lastRegion, 0, corner);
-    }
-  }
   const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
     ? room.partNumberStart
     : 1;

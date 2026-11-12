@@ -168,21 +168,12 @@ function runParts(room, wall, side, settings) {
         x: strip.x, width: strip.width, z: run.z, height: run.height,
       });
     }
-    return [
-      ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
-        part,
-        ...[cornerReturns.get(part.key)].filter(Boolean),
-        ...pieceParts.filter((panel) => insideOwners.get(panel.key) === part.key),
-        ...rotParts(part, run),
-        ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
-      ]),
-      ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
+    const frameParts = [
       ...cornerFrames.map(({ columnId, owner: { x, width, z, height } }) => ({
         key: `${columnId}:frame`, kind: 'frame', source: 'frame', columnId,
         wallId: wall.id, side, runId: run.id, pieceId: null, molding: null,
         x, width, z, height,
       })),
-      // One part per face frame, after its run's pieces (SPEC-36.2).
       ...frames.regions.map((region) => ({
         key: region.id,
         kind: 'frame',
@@ -197,6 +188,24 @@ function runParts(room, wall, side, settings) {
         height: region.height,
         source: 'frame',
       })),
+    ];
+    const frameAnchors = new Map(cornerFrames.map(({ columnId }) => [`${columnId}:frame`, columnId]));
+    for (const region of frames.regions) {
+      const cabinets = new Set(region.cabinetIds);
+      const last = pieceParts.findLast((part) => part.kind === 'cabinet' && cabinets.has(part.key));
+      if (last) frameAnchors.set(region.id, last.key);
+    }
+    return [
+      ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
+        part,
+        ...[cornerReturns.get(part.key)].filter(Boolean),
+        ...pieceParts.filter((panel) => insideOwners.get(panel.key) === part.key),
+        ...rotParts(part, run),
+        ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
+        ...frameParts.filter((frame) => frameAnchors.get(frame.key) === part.key),
+      ]),
+      ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
+      ...frameParts.filter((part) => !frameAnchors.has(part.key)),
       ...runLegs(room, view, run, settings)
         .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
         .flatMap(({ leg, bounds }) => [{
@@ -244,9 +253,10 @@ function wallPanelPart(wall, panel) {
 /**
  * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
  * panels, then each face's runs in walk order, then right end panels), with each furniture base group
- * immediately before its earliest run's first part and each wood top after its runs' last part,
- * then one per molding kind in the room. The single
- * list part numbers, reports, the estimator and the AI layer read.
+ * immediately before its earliest run's first part and each wood top after its runs' last part.
+ * Each face frame follows its last cabinet and that cabinet's followers, before the run's end panels
+ * and legs. One part per molding kind finishes the room. The single list part numbers, reports,
+ * the estimator and the AI layer read.
  */
 export function roomParts(room, settings) {
   const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
