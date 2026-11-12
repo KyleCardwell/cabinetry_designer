@@ -2,11 +2,12 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerBifold, cornerLegBFaceTree } from './cornerBifold.js';
 import { cornerEnd } from './cornerEnd.js';
 import { cornerReturnPoint } from './corners.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
-import { applyHinges, cabinetFaces, defaultFace, faceArea, flipHinges } from './faces.js';
+import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
 import { faceOutline, getFaceNode } from './faceTree.js';
 import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
@@ -52,7 +53,9 @@ function layoutCabinetFace({
     )).map(({ path }) => path));
     resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
   }
-  const hinged = applyHinges(resolved.faces, stops, covered, hingeContext);
+  // A bi-fold without a stored hinge stays unresolved on both legs.
+  const hinged = hingeContext === null ? { faces: resolved.faces, warnings: [] }
+    : applyHinges(resolved.faces, stops, covered, hingeContext);
   const faces = hinged.faces.map((f) => {
     const partType = facePartType(f.type);
     if (partType === null) return f;
@@ -154,6 +157,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
     const faceWidth = framedCorner ? box.width - (corner.kind === 45
       ? 2 * cornerLayout.reveal : cornerLayout.a.cornerReveal + overhang) : box.width;
     const storedFace = item?.face ?? defaultFace(faceWidth, settings);
+    const bifold = corner ? cornerBifold(run, corner.side, storedFace) : null;
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const runEdges = {
@@ -199,7 +203,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
     const entry = layoutCabinetFace({
       room, wall, run, settings, item, box, style, reveals, storedFace, runEdges,
       stops: hingeStops(cells.pieces, piece.id), covered,
-      hingeContext: {
+      hingeContext: bifold?.hinge === null ? null : {
         wallSides,
         // Prefer the edge away from the corner over the nearer run end.
         runCenter: corner ? box.x + (corner.side === 'right' ? box.width : 0) : run.x + run.width / 2,
@@ -237,13 +241,12 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
           revealsB.values[cornerB] = cornerLayout.b.cornerReveal ?? reveals.values[farA];
           revealsB.sources[cornerB] = cornerLayout.b.cornerReveal === null
             ? reveals.sources[farA] : 'rule:corner';
-          const faceB = run.ends[corner.side].corner?.legBFace;
-          const tree = faceB ? { type: faceB } : flipHinges(entry.layoutFace);
+          const tree = cornerLegBFaceTree(run, corner.side, entry.layoutFace);
           legB = layoutCabinetFace({
             room, wall, run, settings, item, box: boxB, style, reveals: revealsB,
             storedFace: tree, layoutFace: tree, runEdges,
             stops: { left: false, right: false }, covered: { left: 0, right: 0 },
-            hingeContext: { wallSides: { left: false, right: false },
+            hingeContext: bifold?.hinge === null ? null : { wallSides: { left: false, right: false },
               runCenter: boxB.x + (point.dir === -1 ? boxB.width : 0) },
           });
         } else {

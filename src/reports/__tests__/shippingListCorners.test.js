@@ -143,7 +143,7 @@ describe('corner cabinet shipping rows', () => {
     { name: 'upper diagonal', key: UPPER, kind: 45, description: 'Upper Corner 45', size: '24 x 48 x 24',
       include: ['12" L & R sides', 'door x 15 9/16" wide'], exclude: ['full top'] },
     { name: 'equal bi-fold doors', key: BASE, kind: 90, description: 'Base Corner 90', size: '36 x 30 1/2 x 36',
-      include: ['24" L & R sides', '2 doors x 10 15/16" wide', 'bi-fold doors'],
+      include: ['24" L & R sides', '2 doors x 10 15/16" wide', 'bi-fold doors hinge?'],
       exclude: ['hl', 'hr'], noReveals: true },
     { name: 'uneven diagonal sides', key: BASE, kind: 45, depthB: 15,
       description: 'Base Corner 45', size: '36 x 30 1/2 x 36',

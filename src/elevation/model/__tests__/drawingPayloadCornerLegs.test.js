@@ -72,8 +72,8 @@ describe('return corner elevation payload (CC5)', () => {
     expect(cz).toBeGreaterThan(face.z);
     expect(cz).toBeLessThan(face.z + face.height);
     expect(drawing.swingMarks[0].lines).toEqual([
-      { x1: face.x, z1: face.z + face.height / 2, x2: face.x + face.width, z2: face.z + face.height },
-      { x1: face.x, z1: face.z + face.height / 2, x2: face.x + face.width, z2: face.z },
+      { x1: face.x + face.width, z1: face.z + face.height / 2, x2: face.x, z2: face.z + face.height },
+      { x1: face.x + face.width, z1: face.z + face.height / 2, x2: face.x, z2: face.z },
     ]);
   });
 

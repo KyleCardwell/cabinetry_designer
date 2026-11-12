@@ -69,7 +69,7 @@ describe('return leg layout (CC4)', () => {
     expect(legB.reveals.values.left).toBe(entry.reveals.values.right);
     expect(legB.reveals.sources.left).toBe(entry.reveals.sources.right);
     expect(legB.faces).toHaveLength(1);
-    expect(legB.faces[0]).toMatchObject({ x: 108.0625, width: 10.9375, hinge: 'left' });
+    expect(legB.faces[0]).toMatchObject({ x: 108.0625, width: 10.9375, hinge: 'right' });
     expect(legB.openings).toHaveLength(1);
     expect(legB.warnings).toEqual([]);
     expect(cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS)).not.toHaveProperty('cornerReturn');
@@ -102,10 +102,10 @@ describe('return leg layout (CC4)', () => {
       height: entry.box.height - entry.reveals.values.top - entry.reveals.values.bottom });
   });
 
-  it('hinges an unspecified B door away from the corner', () => {
+  it('leaves both bi-fold doors without a hinge until one is chosen (CC9.1)', () => {
     delete owner.grid.cells[0].node.face.hinge;
     const { legB } = runFaceLayouts(subject, ownerWall, owner, DEFAULT_SETTINGS).get('cc').cornerReturn;
-    expect(legB.faces[0]).toMatchObject({ hinge: 'left', hingeRule: true });
+    expect(legB.faces[0]).not.toHaveProperty('hinge');
   });
 
   it('keeps depth A for the return box beside a depth-21 return run', () => {
@@ -246,7 +246,7 @@ describe('return leg layout (CC4)', () => {
     expect(legB.openings).toHaveLength(entry.openings.length);
   });
 
-  it('lays out a right-end return with its corner on the left and its default hinge on the right', () => {
+  it('lays out a right-end return with its corner on the left and no chosen hinge (CC9.1)', () => {
     owner.grid = run({ items: [auto('a'), fixed('cc', 36)] }).grid;
     owner.grid.cells[1].node.face = { type: 'door' };
     owner.anchors = { left: false, right: true };
@@ -259,7 +259,8 @@ describe('return leg layout (CC4)', () => {
     expect(legB.box).toMatchObject({ x: 24, width: 12 });
     expect(legB.reveals.values.left).toBe(1);
     expect(legB.reveals.sources.left).toBe('rule:corner');
-    expect(legB.faces[0]).toMatchObject({ x: 25, width: 10.9375, hinge: 'right', hingeRule: true });
+    expect(legB.faces[0]).toMatchObject({ x: 25, width: 10.9375 });
+    expect(legB.faces[0]).not.toHaveProperty('hinge');
   });
 
   describe('step c return leg picking', () => {
@@ -323,6 +324,7 @@ describe('return leg layout (CC4)', () => {
     });
 
     it('details the B door and places a pull of the same size as A', () => {
+      owner.ends.left.corner.pulls = 'both';
       const original = structuredClone(subject);
       const leg = cornerReturnLegs(subject, returnWall, DEFAULT_SETTINGS)[0];
       const face = leg.faceLayout.faces[0];

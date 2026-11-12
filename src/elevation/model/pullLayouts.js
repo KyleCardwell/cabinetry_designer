@@ -1,5 +1,6 @@
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
+import { cornerBifold } from './cornerBifold.js';
 import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { cabinetFaceLevels } from './doorStyleResolve.js';
 import { getFaceNode } from './faceTree.js';
@@ -123,6 +124,8 @@ export function runPulls(room, wall, run, settings, scene = runScene(room, wall,
   const parts = new Map(details.parts.map((part) => [part.key, part]));
   const levelsWall = wallViewForRun(wall, run);
   for (const [pieceId, layout] of scene.faceLayouts) {
+    const bifold = layout.corner ? cornerBifold(run, layout.corner.side, layout.layoutFace) : null;
+    if (bifold?.hingedLeg === 'A' && bifold.pulls === 'one') continue;
     const item = layout.box.columnId ? findLeaf(run.grid, pieceId)
       : runItems(run).find((candidate) => candidate.id === pieceId);
     for (const face of layout.faces) {

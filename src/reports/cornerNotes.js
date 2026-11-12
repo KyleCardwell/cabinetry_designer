@@ -1,4 +1,5 @@
 import { cornerEnd } from '../elevation/model/cornerEnd.js';
+import { cornerBifold } from '../elevation/model/cornerBifold.js';
 import { formatInch, formatSize } from './format.js';
 
 const EPSILON = 1e-6;
@@ -42,6 +43,7 @@ export function cornerReportNotes(room, wall, run, entry, settings, cornerFrame)
   const { side, kind } = entry.corner;
   const { depthA, depthB, shape } = cornerEnd(room, wall, run, side, settings);
   const legB = entry.cornerReturn?.legB;
+  const bifold = cornerBifold(run, side, entry.layoutFace);
   const diagonal = cornerFrame?.diagonal;
   const roundUp = (value) => Math.ceil(value * 16 - 1e-9) / 16;
   const [left, right] = facingOrder(side,
@@ -69,7 +71,6 @@ export function cornerReportNotes(room, wall, run, entry, settings, cornerFrame)
     } : {},
     sides,
     doors,
-    hinge: kind === 90 && entry.faces.some(({ type }) => type === 'door')
-      && legB?.faces.some(({ type }) => type === 'door') ? 'bi-fold doors' : null,
+    hinge: bifold ? `bi-fold doors ${bifold.hinge === 'left' ? 'hl' : bifold.hinge === 'right' ? 'hr' : 'hinge?'}` : null,
   };
 }

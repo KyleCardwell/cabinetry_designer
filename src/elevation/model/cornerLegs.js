@@ -1,9 +1,9 @@
 import { cornerEnd } from './cornerEnd.js';
+import { cornerBifold, cornerLegBFaceTree } from './cornerBifold.js';
 import { cornerLegBands } from './cornerLegBands.js';
 import { cornerReturnPoint } from './corners.js';
 import { squashDoorDetails, squashFaceLayouts, squashPulls } from './cornerSquash.js';
 import { runDoorDetails } from './doorDetails.js';
-import { flipHinges } from './faces.js';
 import { runItems, updateRootItem } from './grid.js';
 import { runPulls } from './pullLayouts.js';
 import { runScene } from './runScene.js';
@@ -13,8 +13,7 @@ import { wallViewForRun } from './wallSides.js';
 export function cornerLegBDetails(room, wall, run, settings, columnId, entry) {
   const faceLayout = entry.cornerReturn.legB;
   const item = runItems(run).find(({ id }) => id === columnId);
-  const stored = run.ends[entry.corner.side].corner?.legBFace;
-  const face = stored ? { type: stored } : item.face ? flipHinges(item.face) : null;
+  const face = cornerLegBFaceTree(run, entry.corner.side, item.face);
   const legRun = {
     ...run,
     ...(run.grid ? { grid: updateRootItem(run.grid, columnId, { face }) } : {}),
@@ -60,7 +59,9 @@ export function cornerReturnLegs(room, wall, settings) {
           faceLayout = entry.cornerReturn.legB;
           const leg = cornerLegBDetails(room, view, run, settings, columnId, entry);
           doorDetails = leg.doorDetails;
-          pulls = runPulls(room, view, leg.run, settings, leg.scene, doorDetails).pulls;
+          const bifold = cornerBifold(run, side, entry.layoutFace);
+          pulls = bifold?.hingedLeg === 'B' && bifold.pulls === 'one' ? []
+            : runPulls(room, view, leg.run, settings, leg.scene, doorDetails).pulls;
         } else {
           const squash = entry.cornerReturn.squash;
           const squashes = new Map([[columnId, squash]]);
