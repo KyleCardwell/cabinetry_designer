@@ -73,6 +73,27 @@ export default function PlanScene({
     />
   ));
   const tops = <PlanTops room={room} settings={settings} scale={scale} />;
+  const openingProps = ({ frame, wall, opening }) => ({
+    room,
+    wall,
+    frame,
+    opening,
+    settings,
+    selected: selection.openingId === opening.id,
+    selectable: tool === 'select' && !entry,
+    scale,
+    text,
+    onSelect: handleOpeningSelect,
+    onMove: (x) => handleOpeningMove(wall.id, opening.id, x),
+    cursor,
+  });
+  // A casing stands proud of the wall face, above the bases and tops under a window,
+  // so it draws after them; runs above it (uppers) still draw over it.
+  const casings = orderedOpenings
+    .filter(({ opening }) => opening.casing)
+    .map((entry) => (
+      <PlanOpening key={`${entry.opening.id}:casing`} {...openingProps(entry)} layer="casing" />
+    ));
 
   return (
     <>
@@ -104,25 +125,12 @@ export default function PlanScene({
           selected={selection.recessId === recess.id}
         />
       )))}
-      {orderedOpenings.map(({ frame, wall, opening }) => (
-        <PlanOpening
-          key={opening.id}
-          room={room}
-          wall={wall}
-          frame={frame}
-          opening={opening}
-          settings={settings}
-          selected={selection.openingId === opening.id}
-          selectable={tool === 'select' && !entry}
-          scale={scale}
-          text={text}
-          onSelect={handleOpeningSelect}
-          onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
-          cursor={cursor}
-        />
+      {orderedOpenings.map((entry) => (
+        <PlanOpening key={entry.opening.id} {...openingProps(entry)} />
       ))}
       {footprints.slice(0, split)}
       {firstUpper >= 0 && tops}
+      {firstUpper >= 0 && casings}
       {footprints.slice(split)}
       {walls.flatMap((wall) => wallEndPanels(room, wall, settings).flatMap((panel) => [
         { key: `${wall.id}:${panel.endpoint}`, points: wallEndPanelPolygon(room, wall, panel) },
@@ -140,6 +148,7 @@ export default function PlanScene({
         />
       )))}
       {firstUpper < 0 && tops}
+      {firstUpper < 0 && casings}
       {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
         const frame = wallSideFrame(room, wall, soffit.wallSide);
         return (

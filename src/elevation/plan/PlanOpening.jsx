@@ -33,6 +33,9 @@ export default function PlanOpening({
   onSelect,
   onMove,
   cursor,
+  // 'opening' draws the void, jambs and label at the wall; 'casing' draws only the
+  // casing, which PlanScene layers above lower runs and tops so nothing below cuts it off.
+  layer = 'opening',
 }) {
   const factor = text?.dimension ?? 1;
   const dragStartRef = useRef(null);
@@ -72,6 +75,7 @@ export default function PlanOpening({
   const selectedStroke = selected ? '#f8fafc' : '#e2e8f0';
   const selectedWidth = (selected ? 2.5 : 1) / scale;
   const draggable = selected && selectable && Boolean(onMove);
+  const cursorKey = `${opening.id}:${layer}`;
 
   const stopEvent = (event) => {
     event.cancelBubble = true;
@@ -100,10 +104,10 @@ export default function PlanOpening({
         onSelect?.(event, opening.id);
       }}
       onMouseEnter={() => cursorKeys.request(
-        opening.id,
+        cursorKey,
         draggable ? CURSORS.move : CURSORS.select,
       )}
-      onMouseLeave={() => cursorKeys.release(opening.id)}
+      onMouseLeave={() => cursorKeys.release(cursorKey)}
       onDragStart={(event) => {
         stopEvent(event);
         dragStartRef.current = event.target.absolutePosition();
@@ -121,6 +125,17 @@ export default function PlanOpening({
         onMove?.(nextX);
       }}
     >
+      {layer === 'casing' ? casingPolygon && (
+        <Line
+          points={linePoints(casingPolygon)}
+          closed
+          fill="#a8a29e"
+          opacity={0.9}
+          stroke={selected ? '#f8fafc' : '#e7e5e4'}
+          strokeWidth={selectedWidth}
+        />
+      ) : (
+      <>
       <Line
         points={linePoints(voidPolygon)}
         closed
@@ -141,16 +156,6 @@ export default function PlanOpening({
         strokeWidth={(opening.kind === 'window' ? 1.25 : 1) / scale}
         listening={false}
       />
-      {casingPolygon && (
-        <Line
-          points={linePoints(casingPolygon)}
-          closed
-          fill="#a8a29e"
-          opacity={0.9}
-          stroke={selected ? '#f8fafc' : '#e7e5e4'}
-          strokeWidth={selectedWidth}
-        />
-      )}
       <Text
         x={labelPoint.x}
         y={labelPoint.y}
@@ -164,6 +169,8 @@ export default function PlanOpening({
         fill="#e2e8f0"
         listening={false}
       />
+      </>
+      )}
     </Group>
   );
 }
