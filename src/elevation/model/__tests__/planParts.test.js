@@ -50,7 +50,7 @@ describe('CC5 step a corner parts in plan', () => {
     expect(face.kind).toBe('face');
     const expected = kind === 90
       ? [[24.125, -25], [24.875, -25], [24.875, -35.9375], [24.125, -35.9375]]
-      : [[35.7459, -24.7415], [24.7415, -35.7459], [24.2112, -35.2156], [35.2156, -24.2112]];
+      : [[35.9709, -24.9665], [24.9665, -35.9709], [24.4362, -35.4406], [35.4406, -24.4362]];
     face.points.forEach((point, i) => point.forEach((value, j) => {
       expect(Math.abs(value - expected[i][j])).toBeLessThan(0.001);
     }));

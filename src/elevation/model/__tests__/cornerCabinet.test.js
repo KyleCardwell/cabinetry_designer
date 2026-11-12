@@ -8,11 +8,11 @@ describe('CC6.1 step a Euro 45 box and door fit', () => {
 
   it.each([
     ['base', 36, 24, 24, 11.25, 11.25, 15.9099, 45,
-      [35.8375, 24.65], [24.65, 35.8375], 15.8215, 15.5625, 0.1295, 11.1875, null],
+      [36.0625, 24.875], [24.875, 36.0625], 15.8215, 15.5625, 0.1295, 11.1875, [0.3921, 0.3921]],
     ['upper', 24, 12, 12, 11.25, 11.25, 15.9099, 45,
-      [23.8375, 12.65], [12.65, 23.8375], 15.8215, 15.5625, 0.1295, 11.1875, null],
+      [24.0625, 12.875], [12.875, 24.0625], 15.8215, 15.5625, 0.1295, 11.1875, [0.3921, 0.3921]],
     ['uneven', 36, 24, 15, 20.25, 11.25, 23.1652, 29.055,
-      [35.9243, 24.6263], [15.7486, 35.8351], 23.0802, 22.8125, 0.1338, 20.1757, -0.0189],
+      [36.0507, 24.8538], [15.875, 36.0625], 23.0802, 22.8125, 0.1338, 20.1757, [0.2085, 0.5974]],
   ])('anchor: %s shape, feet, order and clearance', (
     _name, leg, depthA, depthB, a, b, trueWidth, angle, fa, fb, span, ordered, reveal, shownA, clearance,
   ) => {
@@ -38,9 +38,9 @@ describe('CC6.1 step a Euro 45 box and door fit', () => {
     ]) expect(actual).toBeCloseTo(expected, 3);
     expect(shape.miters.a).toBeCloseTo(depthB === 15 ? 14.527 : 22.5, 3);
     expect(shape.miters.b).toBeCloseTo(depthB === 15 ? 30.473 : 22.5, 3);
-    if (clearance === null) expect(face.sideClearance.a).toBeNull();
-    else expect(face.sideClearance.a).toBeCloseTo(clearance, 3);
-    expect(face.sideClearance.b).toBeNull();
+    // CC6.2: the door face sits in the neighbours' face plane, so the door is over both side edges.
+    expect(face.sideClearance.a).toBeCloseTo(clearance[0], 3);
+    expect(face.sideClearance.b).toBeCloseTo(clearance[1], 3);
   });
 
   it('keeps the five-sided shape by default and treats zero Euro thickness as framed', () => {
@@ -65,15 +65,15 @@ describe('CC6.1 step a Euro 45 box and door fit', () => {
   it('anchor: a three-quarter door clears the uneven side without changing its ordered size', () => {
     const thick = cornerFaceLayout({ ...base, depthB: 15 });
     const thin = cornerFaceLayout({ ...base, depthB: 15, doorThickness: 0.75 });
-    expect(thin.sideClearance.a).toBeCloseTo(0.0357, 3);
-    expect(thin.sideClearance.b).toBeNull();
+    expect(thin.sideClearance.a).toBeCloseTo(0.2632, 3);
+    expect(thin.sideClearance.b).toBeCloseTo(0.6278, 3);
     expect(thin.ordered).toBe(thick.ordered);
   });
 
   it('checks the B side when the uneven depths are mirrored', () => {
     const face = cornerFaceLayout({ ...base, depthA: 15 });
-    expect(face.sideClearance.a).toBeNull();
-    expect(face.sideClearance.b).toBeCloseTo(-0.0189, 3);
+    expect(face.sideClearance.a).toBeCloseTo(0.5974, 3);
+    expect(face.sideClearance.b).toBeCloseTo(0.2085, 3);
   });
 
   it('leaves clearance unknown when door thickness is absent or null', () => {

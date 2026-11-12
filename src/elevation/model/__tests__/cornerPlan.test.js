@@ -73,8 +73,8 @@ describe('CC5 step a corner plan pieces', () => {
   });
 
   it.each([
-    [24, [[35.7459, 24.7415], [24.7415, 35.7459], [24.2112, 35.2156], [35.2156, 24.2112]]],
-    [15, [[35.8074, 24.6913], [15.8656, 35.7701], [15.5014, 35.1144], [35.4431, 24.0357]]],
+    [24, [[35.9709, 24.9665], [24.9665, 35.9709], [24.4362, 35.4406], [35.4406, 24.4362]]],
+    [15, [[35.9338, 24.9189], [15.9920, 35.9977], [15.6278, 35.3420], [35.5695, 24.2633]]],
   ])('anchors 4–5: replaces the 45 rectangle at depth B %s with the true diagonal', (depthB, polygon) => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB });
     const result = pieces();
@@ -153,7 +153,7 @@ describe('CC5 step a corner plan pieces', () => {
     expect(payload.plan.parts.find(({ id }) => id === 'cc').points)
       .toEqual([[0, 0], [36, 0], [36, -24], [35.25, -24], [24, -35.25], [24, -36], [0, -36]]);
     expectPolygon(payload.plan.parts.find(({ id }) => id === 'cc:r').points,
-      [[35.7459, -24.7415], [24.7415, -35.7459], [24.2112, -35.2156], [35.2156, -24.2112]]);
+      [[35.9709, -24.9665], [24.9665, -35.9709], [24.4362, -35.4406], [35.4406, -24.4362]]);
   });
 
   it('anchor 7: draws a panel on B with the same thin face polygon', () => {

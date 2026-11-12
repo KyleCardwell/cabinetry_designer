@@ -107,7 +107,7 @@ describe('CC6 step d corner faces in frame openings', () => {
     result = resolved(subject);
     expect(result.entry.box.width).toBeCloseTo(15.8215, 3);
     expect(result.entry.faces[0].width).toBe(15.5625);
-    expect(result.entry.squash.pivot).toBeCloseTo(36.2125, 3);
+    expect(result.entry.squash.pivot).toBeCloseTo(36.0625, 3);
   });
 
   it('uses framed rows and fits for split face trees on both corner kinds and the return leg', () => {

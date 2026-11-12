@@ -90,8 +90,8 @@ it('anchor 2: Euro Corner 45 outlines seven points and draws only the diagonal c
   const faces = drawing.filter(({ key }) => key === 'cc:r');
   expect(faces).toHaveLength(1);
   expect(faces[0].props.closed).toBe(true);
-  const expected = mapped([[35.7459, 24.7415], [24.7415, 35.7459],
-    [24.2112, 35.2156], [35.2156, 24.2112]]);
+  const expected = mapped([[35.9709, 24.9665], [24.9665, 35.9709],
+    [24.4362, 35.4406], [35.4406, 24.4362]]);
   expect(faces[0].props.points).toHaveLength(8);
   faces[0].props.points.forEach((value, i) => expect(value).toBeCloseTo(expected[i], 3));
 });

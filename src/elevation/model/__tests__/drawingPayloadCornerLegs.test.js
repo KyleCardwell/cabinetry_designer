@@ -87,7 +87,7 @@ describe('CC5 step d return corner elevation payload', () => {
       .find(({ partId }) => partId === 'cc:r');
     const drawing = draw();
     const face = drawing.parts.find(({ id }) => id === faceId);
-    expect(face.x).toBeCloseTo(107.8791, 4);
+    expect(face.x).toBeCloseTo(108.0291, 4);
     expect(face.width).toBeCloseTo(11.0043, 4);
     expect(face).toMatchObject({ back: 24.125, front: 24.875 });
     expect(drawing.doorDetails[0]).toEqual({ partId: faceId,

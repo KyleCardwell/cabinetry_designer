@@ -80,16 +80,15 @@ describe('CC1 step c plain corners', () => {
     });
   });
 
-  it('CC6.1 warns for the uneven thick door and clears the warning for a thinner door', () => {
+  it('CC6.2 keeps the uneven door over both side edges once it is set out to the neighbours\' face plane', () => {
     Object.assign(owner.ends.left.corner, { kind: 45, depthB: 15 });
     const thick = cornerEnd(subject, ownerWall, owner, 'left', DEFAULT_SETTINGS);
-    expect(thick.faceLayout.sideClearance.a).toBeCloseTo(-0.0189, 3);
-    expect(thick.warnings).toEqual([{ code: 'corner-door-clips-side', side: 'left',
-      message: "The corner door reaches behind a cabinet side's front edge; check the legs and depths." }]);
+    expect(thick.faceLayout.sideClearance.a).toBeCloseTo(0.2085, 3);
+    expect(thick.warnings).toEqual([]);
     owner._doorThickness = 0.75;
     // Keep the anchor's 7/8-inch face offset with the thinner door and a thicker bumper.
     const thin = cornerEnd(subject, ownerWall, owner, 'left', { ...DEFAULT_SETTINGS, bumperThickness: 1 / 8 });
-    expect(thin.faceLayout.sideClearance.a).toBeCloseTo(0.0357, 3);
+    expect(thin.faceLayout.sideClearance.a).toBeCloseTo(0.2632, 3);
     expect(thin.warnings).toEqual([]);
   });
 

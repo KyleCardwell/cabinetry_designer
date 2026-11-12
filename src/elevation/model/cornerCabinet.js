@@ -14,13 +14,19 @@ export function cornerFaceLayout({
 
   const w = Math.hypot(a, b);
   const n = [b / w, a / w];
-  const c = n[0] * (legA - t) + n[1] * depthA + offsetA;
+  const na = [legA + sideReveal, depthA + offsetA];
+  const nb = [depthB + offsetB, legB + sideReveal];
+  // Euro 45 (CC6.2): the hinges set the door out so its face lies in the neighbours' door-face plane,
+  // through the nearer of their front corners; framed / beaded 45s keep the bumper off the diagonal.
+  const c = t > 0
+    ? Math.min(n[0] * na[0] + n[1] * na[1], n[0] * nb[0] + n[1] * nb[1])
+    : n[0] * (legA - t) + n[1] * depthA + offsetA;
   const foot = ([x, y]) => {
     const distance = c - n[0] * x - n[1] * y;
     return [x + distance * n[0], y + distance * n[1]];
   };
-  const fa = foot([legA + sideReveal, depthA + offsetA]);
-  const fb = foot([depthB + offsetB, legB + sideReveal]);
+  const fa = foot(na);
+  const fb = foot(nb);
   const span = Math.hypot(fb[0] - fa[0], fb[1] - fa[1]);
   const ordered = Math.floor((span - 2 * diagonalReveal) * 16 + 1e-9) / 16;
   const reveal = (span - ordered) / 2;
