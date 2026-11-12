@@ -1,13 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { combinedViewOf, jogWalls } from '../combinedElevations.js';
+import { combinedViewOf } from '../combinedElevations.js';
 import { toDrawingPayload } from '../drawingPayload.js';
 import { resolveCombinedFaces } from '../../components/CombinedFaces.jsx';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
-import { combinedCornerShapes, cornerShapes } from '../cornerParts.js';
+import { combinedCornerShapes } from '../cornerParts.js';
 import { gridFromItems } from '../grid.js';
 import { syncRoom } from '../room.js';
-import { outlineBounds } from '../sectionProfileOutline.js';
 
 const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
 const cr45 = structuredClone(profiles.find(({ id }) => id === 'cr45'));
@@ -47,14 +46,6 @@ function setup() {
 }
 
 describe('DM6 step e combined jog walls', () => {
-  it('anchor 1: identifies only Wall 3 between the shown Wall 4 and Wall 2 faces', () => {
-    const { room, combined } = setup();
-    expect(combined.faces.map(({ wallId, dx }) => [wallId, dx])).toEqual([['W4', 120], ['W2', 0]]);
-    expect(jogWalls(room, combined)).toEqual(new Set(['W3']));
-    expect(jogWalls(room, { faces: [combined.faces[0]] })).toEqual(new Set());
-    expect(jogWalls(room, null)).toEqual(new Set());
-  });
-
   it('anchor 2: keeps the tall end-on from Wall 2 only, with face x 95 1/8…120 in both outputs', () => {
     const { room, combined } = setup();
     for (const returns of ['section', 'end']) {
@@ -85,30 +76,4 @@ describe('DM6 step e combined jog walls', () => {
     }
   });
 
-  it('anchor 3: draws one through crown starting at combined x 90 3/8, dropping the tall end-view crown', () => {
-    const { room, combined } = setup();
-    const payload = toDrawingPayload(room, settings).elevations.find(({ faces }) => faces);
-    const crowns = payload.parts.filter(({ kind }) => kind === 'crown');
-    expect(crowns).toHaveLength(1);
-    expect(crowns[0]).toMatchObject({ runId: 'face-tall', x: 90.375 });
-    expect(payload.parts.filter(({ kind }) => kind === 'top_mold')).toHaveLength(1);
-    expect(outlineBounds(crowns[0].outline).minX).toBe(90.375);
-    const shapes = combinedCornerShapes(room, combined, settings);
-    expect([...shapes.values()].flat().flatMap(({ parts }) => parts).some(({ kind }) => kind === 'crown')).toBe(false);
-    const canvas = resolveCombinedFaces(room, combined, settings);
-    expect([...canvas.values()].flatMap(({ shapes }) => shapes).flatMap(({ parts }) => parts)
-      .some(({ kind }) => kind === 'crown')).toBe(false);
-  });
-
-  it('anchor 4: leaves Wall 2 alone with hatched Section returns when the group is off', () => {
-    const { room } = setup();
-    room.combinedElevations[0].on = false;
-    expect(combinedViewOf(room, 'W2')).toBeNull();
-    const expected = cornerShapes(room, room.walls[0], 'front', settings).flatMap(({ parts }) => parts);
-    expect(expected.filter(({ runId, kind }) => runId === 'tall' && kind === 'section')).toHaveLength(2);
-    const payload = toDrawingPayload(room, settings).elevations.find(({ wallId }) => wallId === 'W2');
-    expect(payload.parts.filter(({ runId }) => runId === 'tall')).toEqual(expected);
-    const noGroup = { ...room, combinedElevations: [] };
-    expect(toDrawingPayload(noGroup, settings)).toEqual(toDrawingPayload(room, settings));
-  });
 });

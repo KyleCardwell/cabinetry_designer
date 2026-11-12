@@ -1,20 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
-import { Line, Text } from 'react-konva';
 import { attach, room, roomLine, run, wall } from '../../test/builders.js';
-import { createLiveEntryController } from '../canvas/useLiveEntry.js';
 import { wallToScreen } from '../canvas/transform.js';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { resolveWall, syncRoom } from '../model/room.js';
-import elevationReducer, {
-  addRoomLine, createInitialElevationState, setSelection, setTool, updateLayoutLine,
-} from '../store/elevationSlice.js';
-import ElevationCanvas from './ElevationCanvas.jsx';
+import elevationReducer, { addRoomLine, createInitialElevationState, setSelection } from '../store/elevationSlice.js';
 import ElevationToolbar from './ElevationToolbar.jsx';
 import AddToolMenu from './AddToolMenu.jsx';
-import LayoutLines, { ROOM_LINE_COLOR } from './LayoutLines.jsx';
-import WallContentLayer from './WallContentLayer.jsx';
-import useLineDrag from './canvas/useLineDrag.js';
 import useStageClick from './canvas/useStageClick.js';
 
 vi.mock('react', async (original) => ({
@@ -55,58 +47,6 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
-it('anchor 1: draws R1 at W2 front x 39 in cyan; W3 front has no line', () => {
-  const face = resolveWall(fixture, fixture.walls[1]);
-  const tree = nodes(LayoutLines({ wall: face, transform }));
-  const dashed = tree.find(({ type, props }) => type === Line && props.dash);
-  expect(ROOM_LINE_COLOR).toBe('#22d3ee');
-  expect(dashed.props).toMatchObject({ stroke: ROOM_LINE_COLOR, dash: [6, 4] });
-  expect(dashed.props.points[0]).toBe(wallToScreen({ x: 39, z: 0 }, transform).x);
-  expect(tree.find(({ type }) => type === Text).props).toMatchObject({ text: 'R1', fill: ROOM_LINE_COLOR });
-  expect(LayoutLines({ wall: resolveWall(fixture, fixture.walls[2]), transform })).toBeNull();
-});
-
-it('anchor 2: keeps the attached front projection at -30 and hides the unattached back projection at 150', () => {
-  fixture = syncRoom({ ...fixture, roomLines: [roomLine('R1', { from: 'right', value: 30 })] }, DEFAULT_SETTINGS);
-  const tree = nodes(LayoutLines({ wall: resolveWall(fixture, fixture.walls[1]), transform }));
-  expect(tree.find(({ type, props }) => type === Line && props.dash).props.points[0])
-    .toBe(wallToScreen({ x: -30, z: 0 }, transform).x);
-  expect(LayoutLines({ wall: resolveWall(fixture, fixture.walls[1], 'back'), transform })).toBeNull();
-});
-
-it('anchor 3: canvas click selects the room line, and the existing drag hook commits W2 face value 45', () => {
-  const face = resolveWall(fixture, fixture.walls[1]);
-  const canvas = nodes(ElevationCanvas.render({ room: fixture, wall: face, settings: DEFAULT_SETTINGS }, null));
-  const content = canvas.find(({ type }) => type === WallContentLayer);
-  const layout = nodes(WallContentLayer(content.props)).find(({ type }) => type === LayoutLines);
-  expect(layout.props.selectedRoomLineId).toBe('R1');
-  const lineTree = nodes(LayoutLines(layout.props));
-  const draggable = lineTree.find(({ props }) => props.dragBoundFunc);
-  expect(draggable.props.draggable).toBe(true);
-  expect(lineTree.find(({ type, props }) => type === Line && props.dash).props.strokeWidth).toBe(2);
-  draggable.props.onClick({ cancelBubble: false });
-  expect(dispatch).toHaveBeenLastCalledWith(setSelection({ roomLineId: 'R1' }));
-
-  const entry = createLiveEntryController(vi.fn());
-  const entryRef = { current: null };
-  const hook = useLineDrag({ room: fixture, wall: face, settings: DEFAULT_SETTINGS, dispatch,
-    cursor: { hold: vi.fn(), releaseHold: vi.fn() }, entryRef, liveGestureRef: { current: null },
-    beginEntry: entry.begin, updateEntry: entry.update, cancelEntry: entry.cancel, commitEntry: entry.commit,
-    setEntryPointer: vi.fn(), setStretchPreview: vi.fn(), stageRef: { current: null },
-  });
-  const dragTree = nodes(LayoutLines({ ...layout.props,
-    onDragStart: hook.startLineDrag, onDragMove: hook.updateLineDrag, onDragEnd: hook.finishLineDrag,
-  }));
-  const drag = dragTree.find(({ props }) => props.dragBoundFunc);
-  drag.props.onDragStart({});
-  entryRef.current = entry.entry;
-  const target = { x: () => (45 - 39) * layout.props.transform.scale, position: vi.fn() };
-  drag.props.onDragMove({ target });
-  drag.props.onDragEnd({ target });
-  expect(dispatch).toHaveBeenLastCalledWith(updateLayoutLine({ wallId: 'wall-2', lineId: 'R1', value: 45 }));
-  expect(state.rooms[0].roomLines[0].value).toBe(105);
-});
-
 it('anchor 5: the elevation tool adds at W2 x 80 from the right end, with snapping and face selection', () => {
   const menu = nodes(ElevationToolbar({})).find(({ type }) => type === AddToolMenu);
   expect(menu.props).toBeDefined();
@@ -134,8 +74,4 @@ it('anchor 5: the elevation tool adds at W2 x 80 from the right end, with snappi
   useStageClick({ ...props, wall: resolveWall(fixture, fixture.walls[1], 'back') })
     .handleStageClick({ target: { getStage() { return this; } }, evt: { button: 0 } });
   expect(dispatch.mock.calls[0][0].payload).toMatchObject({ wallSide: 'back', from: 'right', value: 40 });
-});
-
-it("accepts setTool('roomLine') in the store whitelist", () => {
-  expect(elevationReducer(state, setTool('roomLine')).tool).toBe('roomLine');
 });

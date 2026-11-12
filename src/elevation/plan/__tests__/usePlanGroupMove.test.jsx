@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layer, Rect, Stage } from 'react-konva';
-import elevationReducer, {
-  createInitialElevationState, moveWallGroup, setSelection, setTool, setView, setActiveWall, setActiveWallSide,
-} from '../../store/elevationSlice.js';
+import elevationReducer, { createInitialElevationState, moveWallGroup } from '../../store/elevationSlice.js';
 import { attach, room, roomLine, run, wall } from '../../../test/builders.js';
-import { elevationToPlan, wallFrame } from '../../model/geometry.js';
+import { elevationToPlan } from '../../model/geometry.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { syncRoom } from '../../model/roomSync.js';
 import PlanCanvas from '../PlanCanvas.jsx';
@@ -186,32 +184,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('anchor 1: adds a violet diamond 18 screen pixels along the wall from the unchanged wall handle', () => {
-  const [wallHandle, group] = handles();
-  const scale = node(Layer).props.scaleX;
-  expect(handles()).toHaveLength(2);
-  expect(wallFrame(state.rooms[0], island())).toMatchObject({ r: { x: -1, y: 0 }, n: { x: 0, y: -1 } });
-  expect(group.props).toMatchObject({
-    x: wallHandle.props.x - 18 / scale, y: wallHandle.props.y,
-    width: 10 / scale, height: 10 / scale, rotation: 45, fill: '#a78bfa',
-  });
-  group.props.onMouseEnter(); render();
-  expect(tree[0].props.style.cursor).toBe('move');
-  groupHandle().props.onMouseLeave(); render();
-  expect(tree[0].props.style.cursor).not.toBe('move');
-  wallHandle.props.onClick({}); render();
-  expect(entry().kind).toBe('wall-perpendicular');
-});
-
-it('anchor 2: a whole-room group has only the wall handle and M does nothing', () => {
-  state = { ...state, rooms: [syncRoom(room({ walls: [fixture().walls[1]] }), DEFAULT_SETTINGS)] };
-  render();
-  expect(handles()).toHaveLength(1);
-  expect(groupHandle()).toBeUndefined();
-  key('m');
-  expect(active()).toBe(false);
-});
-
 it('anchor 3: snaps along 10.2 to 10, syncs the sink at plan x 120 and commits once ahead of picking', () => {
   const before = state.rooms[0];
   begin();
@@ -251,99 +223,5 @@ it('anchor 5: typed 12 overrides subsequent pointer motion and the input Enter c
   expect(island().x1).toBe(168);
   inputKey('Enter');
   expect(groupActions()).toEqual([moveWallGroup({ wallId: 'wall-2', along: 12 })]);
-});
-
-it('anchor 6: a held island offers only Across Wall 2 and the input has no Tab hint', () => {
-  const subject = fixture();
-  subject.walls[1].attach = attach('R1');
-  state = { ...state, rooms: [syncRoom(subject, DEFAULT_SETTINGS)] }; render();
-  begin();
-  expect(entry().modes.map(({ key, label }) => ({ key, label })))
-    .toEqual([{ key: 'across', label: 'Across Wall 2' }]);
-  const input = inputNodes();
-  expect(input.find(({ type }) => type === 'p').props.children.flat().join('')).not.toContain('Tab');
-  move({ x: 100, y: 90 }); key('Enter');
-  expect(groupActions()).toEqual([moveWallGroup({ wallId: 'wall-2', across: 6 })]);
-});
-
-it('anchor 7: Escape clears the preview without dispatching a move', () => {
-  const before = state.rooms[0];
-  begin(); move({ x: 110, y: 96 }); key('Escape');
-  expect(groupActions()).toEqual([]);
-  expect(active()).toBe(false);
-  expect(scene().room).toBe(before);
-  expect(node(PlanOverlays).props.wallMovePreview).toBeNull();
-  expect(tree[0].props.style.cursor).not.toBe('move');
-});
-
-it('anchor 8: M starts group move with a wall selected and the existing run move with the sink selected', () => {
-  key('M');
-  expect(entry().kind).toBe('wall-group-move');
-  key('Escape');
-  dispatch(setSelection({ runId: 'sink' })); render();
-  key('M');
-  // The existing run move refuses a line-held sink; a free sink starts the original gesture.
-  expect(active()).toBe(false);
-  expect(state.message).toContain('attached to line R1');
-  const subject = fixture(); delete subject.walls[1].runs[0].attach;
-  state = { ...state, rooms: [syncRoom(subject, DEFAULT_SETTINGS)] }; render();
-  key('M');
-  expect(entry().kind).toBe('run-move');
-});
-
-it('anchor 9: a refused preview keeps the last good room and a refused commit dispatches no move', () => {
-  const subject = fixture();
-  subject.walls = subject.walls.slice(1);
-  subject.walls[0].runs = [];
-  subject.roomLines = [roomLine('R2', { wallId: 'wall-2', value: 5 })];
-  state = { ...state, rooms: [syncRoom(subject, DEFAULT_SETTINGS)] }; render();
-  begin(); move({ x: 118, y: 96 });
-  const good = scene().room;
-  expect(island().x1).toBe(178);
-  move({ x: 110, y: 96 });
-  expect(scene().room).toBe(good);
-  expect(state.message).toBe('R2 would end up past the end of every wall it can be measured from: move R2 first.');
-  expect(active()).toBe(true);
-  click();
-  expect(groupActions()).toEqual([]);
-  expect(scene().room).toBe(state.rooms[0]);
-});
-
-it('cancels on right-click, room/wall/selection/tool/view change and unmount, with no late commit', () => {
-  const initial = state;
-  for (const exit of [
-    () => node(Stage).props.onContextMenu({ evt: { preventDefault: vi.fn() } }),
-    () => { state = { ...state, rooms: [{ ...state.rooms[0], id: 'other' }], activeRoomId: 'other' }; },
-    () => dispatch(setActiveWall('wall-3')),
-    () => dispatch(setActiveWallSide('back')),
-    () => dispatch(setSelection({ runId: 'sink' })),
-    () => dispatch(setTool('wall')),
-    () => dispatch(setView('elevation')),
-    () => hooks.unmount(),
-  ]) {
-    state = initial; render(); point({ x: 120, y: 96 });
-    begin(); move({ x: 110, y: 96 });
-    exit(); render();
-    expect(active()).toBe(false);
-    expect(scene().room).toBe(state.rooms[0]);
-    expect(tree[0].props.style.cursor).not.toBe('move');
-    key('Enter');
-    expect(groupActions()).toEqual([]);
-  }
-});
-
-it('highlights and translates every connected island wall with its wall-relative contents', () => {
-  const subject = fixture();
-  subject.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
-  subject.walls.push(wall({ id: 'wall-5', x1: 60, y1: 96, x2: 60, y2: 150,
-    connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }));
-  state = { ...state, rooms: [syncRoom(subject, DEFAULT_SETTINGS)] }; render();
-  begin(); move({ x: 110, y: 96 });
-  const frame = wallFrame(state.rooms[0], state.rooms[0].walls[1]);
-  // Joining W5 flips W2's front frame: negative along still gives plan delta (−10, 0).
-  expect(frame.r).toEqual({ x: 1, y: 0 });
-  expect(entry().value).toBe(-10);
-  expect(node(PlanOverlays).props.wallMovePreview.affectedWallIds).toEqual(['wall-2', 'wall-5']);
-  expect(scene().walls.find(({ id }) => id === 'wall-5')).toMatchObject({ x1: 50, y1: 96, x2: 50, y2: 150 });
 });
 

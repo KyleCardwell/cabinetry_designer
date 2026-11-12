@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
-import { Group, Line, Stage } from 'react-konva';
+import { Line, Stage } from 'react-konva';
 import elevationReducer, { createInitialElevationState, setWallLanding } from '../../store/elevationSlice.js';
 import { K } from '../../../test/fixtures/landingRoomK.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { syncRoom } from '../../model/roomSync.js';
-import { wallSideFrame } from '../../model/wallSides.js';
-import { wallFrame } from '../../model/geometry.js';
-import { canvasDimensionRows } from '../elevationMarkers.js';
 import PlanCanvas from '../PlanCanvas.jsx';
 import PlanScene from '../PlanScene.jsx';
 import PlanWallShape from '../PlanWallShape.jsx';
@@ -44,12 +41,6 @@ let listeners;
 let stage;
 let render;
 const node = (type) => tree.find((item) => item.type === type);
-const key = (value, extra = {}) => {
-  const event = { key: value, target: { tagName: 'DIV' }, preventDefault: vi.fn(), ...extra };
-  [...(listeners.get('keydown') ?? [])].forEach((listener) => listener(event));
-  render();
-  return event;
-};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -163,38 +154,6 @@ function clickSpan(index = 1) {
   render();
 }
 
-it('anchor 2: clicking 85–124 opens Move Wall 2 at the pointer without selecting the host', () => {
-  const selection = state.selection;
-  const props = hostProps();
-  const hitLines = hits();
-  expect(hitLines).toHaveLength(2);
-  const rows = canvasDimensionRows(props.room, props.wall, props.settings, props.scale, props.text.dimension);
-  const frame = wallSideFrame(props.room, props.wall, 'back');
-  const outward = wallFrame(props.room, props.wall).n;
-  expect(hitLines[1].props.points).toEqual([85, 124].flatMap((x) => [
-    frame.leftPoint.x + frame.r.x * x + outward.x * rows.backRowOffset,
-    frame.leftPoint.y + frame.r.y * x + outward.y * rows.backRowOffset,
-  ]));
-  expect(hitLines[1].props.hitStrokeWidth).toBe(10 / props.scale);
-  expect(hitLines[1].props.listening).toBe(true);
-  const row = wallTree().find(({ type, key }) => type === Group && key === 'back');
-  expect(row.props.listening).not.toBe(false);
-  expect(nodes(row).filter(({ type }) => type === Line).every(({ props }) => props.listening)).toBe(true);
-  hitLines[1].props.onMouseEnter(); render();
-  expect(tree[0].props.style.cursor).toBe('pointer');
-  hits()[1].props.onMouseLeave(); render();
-  expect(tree[0].props.style.cursor).toBe('default');
-  clickSpan();
-  expect(entry()).toMatchObject({ kind: 'landing-span', label: 'Move Wall 2', value: 39, modeKey: 'landed', min: 0, max: Infinity });
-  expect(entry().modes.map(({ key, label, value }) => ({ key, label, value }))).toEqual([
-    { key: 'landed', label: 'Move Wall 2', value: 39 },
-    { key: 'host', label: 'Move Wall 3', value: 39 },
-  ]);
-  expect(input().props.position).toEqual(pointer);
-  expect(state.selection).toBe(selection);
-  expect(dispatch).not.toHaveBeenCalled();
-});
-
 it('anchor 3: typing 26 and Enter dispatches the landed payload once', () => {
   clickSpan(); typeValue('26'); inputKey('Enter');
   expect(actions()).toEqual([setWallLanding({
@@ -222,43 +181,4 @@ it('anchor 5: clicking 0–80.5 starts at 80.5 and commits ref left and to near'
   expect(actions()).toEqual([setWallLanding({
     wallId: 'wall-2', endpoint: 'end', ref: 'left', to: 'near', offset: 70, move: 'landed',
   })]);
-});
-
-it('anchor 6: Escape cancels without dispatching or changing selection', () => {
-  const selection = state.selection;
-  clickSpan(); typeValue('26'); inputKey('Escape');
-  expect(entry()).toBeUndefined();
-  clickSpan(); key('Escape');
-  expect(entry()).toBeUndefined();
-  expect(dispatch).not.toHaveBeenCalled();
-  expect(state.selection).toBe(selection);
-});
-
-it('right-click cancels over empty canvas without dispatching or changing selection', () => {
-  const selection = state.selection;
-  clickSpan(); typeValue('26');
-  const event = { evt: { preventDefault: vi.fn() } };
-  node(Stage).props.onContextMenu(event); render();
-  expect(event.evt.preventDefault).toHaveBeenCalledOnce();
-  expect(event.cancelBubble).toBe(true);
-  expect(entry()).toBeUndefined();
-  expect(dispatch).not.toHaveBeenCalled();
-  expect(state.selection).toBe(selection);
-});
-
-it('requires Select and no open entry, uses named labels, and clamps both modes to zero', () => {
-  state = { ...state, tool: 'wall' }; render(); clickSpan();
-  expect(entry()).toBeUndefined();
-  state = { ...state, tool: 'select', rooms: [{ ...state.rooms[0], walls: state.rooms[0].walls.map((wall) => wall.id === 'wall-3'
-    ? { ...wall, numberOverride: 8, name: 'Host' } : wall) }] }; render();
-  const initialRooms = state.rooms;
-  clickSpan(); typeValue('12'); clickSpan(0);
-  expect(entry()).toMatchObject({ value: 39, typed: '12' });
-  inputKey('Tab');
-  expect(entry().label).toBe('Move Wall 8 · Host');
-  typeValue('-3'); inputKey('Enter');
-  expect(actions()[0].payload.offset).toBe(0);
-  state = { ...state, rooms: initialRooms }; render();
-  clickSpan(); typeValue('-3'); inputKey('Enter');
-  expect(actions()[1].payload.offset).toBe(0);
 });

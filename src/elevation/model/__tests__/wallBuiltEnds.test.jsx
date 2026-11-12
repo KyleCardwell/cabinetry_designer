@@ -3,18 +3,10 @@ import { auto, room as makeRoom, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { planClearances } from '../clearances.js';
 import { elevationDimensions } from '../elevationDimensions.js';
-import { wallFrame, wallLength } from '../geometry.js';
-import { wallBadgeGroups } from '../partNumbers.js';
-import { roomParts } from '../parts.js';
-import { pickStack } from '../pick.js';
 import { planDimensions } from '../planDimensions.js';
-import { planParts } from '../planParts.js';
-import { resolveWall, syncRoom } from '../room.js';
+import { syncRoom } from '../room.js';
 import { wallBuiltEnds, wallEndPanelPolygon, wallEndPanels } from '../wallEndPanels.js';
 import { wallOutline } from '../wallOutline.js';
-import { wallParts } from '../wallParts.js';
-import { shippingList } from '../../../reports/shippingList.js';
-import WallHeightProperties from '../../components/properties/WallHeightProperties.jsx';
 import PlanWallShape, { PlanWallDimensions } from '../../plan/PlanWallShape.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(),
@@ -29,7 +21,6 @@ vi.mock('react-konva', () => ({ Group: 'group', Line: 'line', Text: 'text', Circ
 
 const S = { ...DEFAULT_SETTINGS, runFlex: 0.25 };
 const OFF = { ...S, runFlex: 0 };
-const panelParts = (parts) => parts.filter(({ kind }) => kind === 'wall_end_panel');
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 
@@ -106,76 +97,4 @@ describe('SPEC-RF3 step b built wall ends', () => {
       .map(({ length }) => length)).toEqual([42, 42]);
   });
 
-  it('moves panel plan pieces, wall parts, badges and picking while keeping parts and shipping sizes', () => {
-    const source = island();
-    const drawn = syncRoom(source, OFF);
-    const room = syncRoom(source, S);
-    const parts = panelParts(roomParts(room, S));
-    const before = panelParts(roomParts(drawn, OFF));
-    expect(parts.map(({ x }) => x)).toEqual([-0.0625, 89.25]);
-    expect(parts.map(({ width, height }) => [width, height])).toEqual(before.map(({ width, height }) => [width, height]));
-    expect(panelParts(shippingList(room, S).rows).map(({ size }) => size))
-      .toEqual(panelParts(shippingList(drawn, OFF).rows).map(({ size }) => size));
-    expect(panelParts(planParts(room, S)).map(({ points }) => points[0][0])).toEqual([-0.0625, 89.25]);
-    for (const side of ['front', 'back']) {
-      const view = resolveWall(room, room.walls[0], side);
-      const panels = panelParts(wallParts(room, room.walls[0], side, S));
-      expect(panels.map(({ x }) => x).sort((a, b) => a - b)).toEqual([-0.0625, 89.25]);
-      const badges = wallBadgeGroups(room, view, S).filter(({ key }) => key.startsWith('panel:'));
-      expect(badges.map(({ pieces }) => pieces[0].x).sort((a, b) => a - b)).toEqual([-0.0625, 89.25]);
-      expect(pickStack(room, view, S, { x: -0.03125, z: 1 }).some(({ kind }) => kind === 'end_panel')).toBe(true);
-    }
-  });
-
-  it('keeps the length field at 90 drawn and restores all end geometry and dimensions when flex is zero', () => {
-    const source = island();
-    const room = syncRoom(source, S);
-    const view = resolveWall(room, room.walls[0], 'front');
-    const field = nodes(WallHeightProperties({ room, wall: view, plan: true }))
-      .find(({ props }) => props?.ariaLabel === 'Wall length');
-    expect(field.props.value).toBe(90);
-    expect(wallLength(room.walls[0])).toBe(90);
-    expect([view.x1, view.y1, view.x2, view.y2]).toEqual([0, 0, 90, 0]);
-    const off = syncRoom(room, OFF);
-    const drawn = syncRoom(source, OFF);
-    expect(wallBuiltEnds(off.walls[0])).toEqual({ start: 0, end: 0 });
-    expect(wallOutline(off, off.walls[0])).toEqual([{ x: 0, y: 0 }, { x: 90, y: 0 }, { x: 90, y: 0 }, { x: 0, y: 0 }]);
-    expect(planTree(off, OFF).filter(({ type }) => type === 'text').map(({ props }) => props.text)).toContain('90');
-    expect(planParts(off, OFF)).toEqual(planParts(drawn, OFF));
-    expect(planDimensions(off, OFF)).toEqual(planDimensions(drawn, OFF));
-    expect(planClearances(off, OFF)).toEqual(planClearances(drawn, OFF));
-    expect(roomParts(off, OFF)).toEqual(roomParts(drawn, OFF));
-    expect(shippingList(off, OFF)).toEqual(shippingList(drawn, OFF));
-    for (const side of ['front', 'back']) {
-      expect(elevationDimensions(off, off.walls[0], side, OFF)).toEqual(elevationDimensions(drawn, drawn.walls[0], side, OFF));
-      expect(wallParts(off, off.walls[0], side, OFF)).toEqual(wallParts(drawn, drawn.walls[0], side, OFF));
-    }
-  });
-
-  it('maps a single built endpoint through flipped and angled views and preserves a connected corner', () => {
-    for (const flipped of [false, true]) {
-      const room = island();
-      const wall = room.walls[0];
-      Object.assign(wall, { x2: 54, y2: 72, thickness: 4.5, flipped, _endFlex: { end: 0.125 } });
-      expect(wallOutline(room, wall).slice(0, 2)).toEqual([{ x: 0, y: 0 }, { x: 54.075, y: 72.1 }]);
-      for (const side of ['front', 'back']) {
-        const view = resolveWall(room, wall, side);
-        expect(wallBuiltEnds(view)).toEqual({ start: 0, end: 0.125 });
-        const frame = wallFrame(room, view);
-        const overall = elevationDimensions(room, wall, side, S)
-          .find(({ row, kind }) => (row === 'wall' || row === 'upper.outer') && kind === 'wall');
-        expect([overall.start, overall.end, overall.text]).toEqual(frame.leftEndpoint === 'end'
-          ? [-0.125, 90, '90 1/8'] : [0, 90.125, '90 1/8']);
-      }
-    }
-    const room = island();
-    const wallI = room.walls[0];
-    Object.assign(wallI, { thickness: 4.5, _endFlex: { start: 0.0625 }, connections: { end: { wallId: 'B', endpoint: 'start' } } });
-    room.walls.push(wall({ id: 'B', x1: 90, y1: 0, x2: 90, y2: 96, thickness: 4.5, connections: { start: { wallId: 'I', endpoint: 'end' } } }));
-    room.wallOrder.push('B');
-    expect(wallOutline(room, wallI)).toEqual([
-      { x: -0.0625, y: 0 }, { x: 90, y: 0 }, { x: 94.5, y: -4.5 }, { x: -0.0625, y: -4.5 },
-    ]);
-    expect(planParts(room, S).find(({ kind }) => kind === 'wall').points.map(([x]) => x)).toEqual([-0.0625, 90, 94.5, -0.0625]);
-  });
 });

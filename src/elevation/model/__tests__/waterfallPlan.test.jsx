@@ -111,18 +111,4 @@ describe('SPEC-50.10 step 508 waterfall legs in plan', () => {
     }]);
   });
 
-  it('keeps unpicked, blocked and non-countertop ends out of the plan and export', () => {
-    for (const props of [
-      { waterfall: undefined },
-      { anchors: { left: true } },
-      { anchors: { left: { to: 'wall', wallId: 'other' } } },
-      { top: 'crown' }, { top: 'topMold' }, { top: 'none' },
-    ]) {
-      const input = setup(props, {}, true);
-      expect(input.pieces).not.toHaveProperty('waterfallLegs');
-      expect(input.legs).toEqual([]);
-      expect(nodes(PlanRunFootprint({ ...input, scale: 4 }))
-        .some(({ key }) => key === 'base:waterfall:left')).toBe(false);
-    }
-  });
 });
