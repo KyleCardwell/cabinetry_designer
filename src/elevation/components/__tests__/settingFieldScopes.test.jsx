@@ -1,0 +1,146 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import elevationReducer, { createInitialElevationState } from '../../store/elevationSlice.js';
+import SettingField from '../SettingField.jsx';
+
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
+vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
+
+const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
+  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
+let state;
+let dispatch;
+let hooks;
+let currentHooks;
+let hookIndex;
+let effects;
+let dirty;
+
+// Keep hook state per component while walking the JSX, including InchInput's
+// draft text and effects. This exercises blur/reset and room switches together
+// with the real Redux reducer without requiring a browser DOM.
+function render(Component = SettingField, props = {}) {
+  let result;
+  do {
+    dirty = false;
+    effects = [];
+    const mounted = new Set();
+    const walk = (element, path) => {
+      if (Array.isArray(element)) return element.map((child, index) => walk(child, `${path}/${child?.key ?? index}`));
+      if (!element || typeof element !== 'object') return element;
+      if (typeof element.type === 'function') {
+        const id = `${path}/${element.type.name}`;
+        mounted.add(id);
+        if (!hooks.has(id)) hooks.set(id, []);
+        currentHooks = hooks.get(id);
+        hookIndex = 0;
+        return walk(element.type(element.props), id);
+      }
+      return { ...element, props: { ...element.props, children: walk(element.props.children, `${path}/children`) } };
+    };
+    result = walk({ type: Component, props }, 'root');
+    for (const id of hooks.keys()) if (!mounted.has(id)) hooks.delete(id);
+    effects.forEach((effect) => effect());
+  } while (dirty);
+  return result;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  state = createInitialElevationState(null);
+  state.settings.baseDepth = 24;
+  state.layers = { project: { id: 42, values: {} }, phase: { id: 'p1', values: {} } };
+  dispatch = vi.fn((action) => { state = elevationReducer(state, action); return action; });
+  useDispatch.mockReturnValue(dispatch);
+  useSelector.mockImplementation((selector) => selector({ elevation: state }));
+  hooks = new Map();
+  useState.mockImplementation((initial) => {
+    const slots = currentHooks;
+    const index = hookIndex++;
+    if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial };
+    return [slots[index].value, (next) => {
+      const value = typeof next === 'function' ? next(slots[index].value) : next;
+      if (!Object.is(value, slots[index].value)) dirty = true;
+      slots[index].value = value;
+    }];
+  });
+  useEffect.mockImplementation((effect, deps) => {
+    const index = hookIndex++;
+    const previous = currentHooks[index];
+    if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) {
+      currentHooks[index] = { deps };
+      effects.push(effect);
+    }
+  });
+});
+
+function commit(scope, settingKey, value) {
+  const props = { scope, settingKey };
+  const label = `${scope[0].toUpperCase()}${scope.slice(1)} ${settingKey === 'baseDepth' ? 'Base depth' : settingKey === 'baseCutoutFoot' ? 'Cutout foot' : 'Square cutout height'}`;
+  field(render(SettingField, props), label).props.onChange({ target: { value } });
+  field(render(SettingField, props), label).props.onBlur();
+  return render(SettingField, props);
+}
+
+describe('setting field scopes (DB5)', () => {
+
+  it('rejects negative cutout feet and nonpositive cutout heights in both layer scopes', () => {
+    for (const scope of ['project', 'phase']) {
+      for (const settingKey of ['baseCutoutFoot', 'baseCutoutHeight']) {
+        hooks.clear();
+        commit(scope, settingKey, '2');
+        dispatch.mockClear();
+        for (const invalid of settingKey === 'baseCutoutFoot' ? ['-1'] : ['0', '-1']) {
+          commit(scope, settingKey, invalid);
+          expect(state.layers[scope].values[settingKey]).toBe(2);
+          expect(dispatch).not.toHaveBeenCalled();
+        }
+      }
+    }
+  });
+});
+
+describe('report field scopes (RP1)', () => {
+  it('inherits text in project, phase and room, commits trimmed pins, and resets or clears to inherit', () => {
+    state.settings.report = { ...state.settings.report, wood: 'PAINT GRADE' };
+    for (const scope of ['project', 'phase', 'room']) {
+      state = structuredClone(state);
+      hooks.clear();
+      state.layers.project.values = {};
+      state.layers.phase.values = {};
+      delete state.rooms[0].settingsOverrides;
+      const props = { scope, settingKey: 'report.wood' };
+      const label = `${scope[0].toUpperCase()}${scope.slice(1)} Wood`;
+      let input = field(render(SettingField, props), label);
+      expect(input.props).toMatchObject({ type: 'text', value: '', placeholder: 'PAINT GRADE' });
+      expect(input.props.className).not.toContain('teal');
+      const change = (value) => {
+        field(render(SettingField, props), label).props.onChange({ target: { value } });
+        field(render(SettingField, props), label).props.onBlur();
+        return render(SettingField, props);
+      };
+      let tree = change(' MAPLE ');
+      input = field(tree, label);
+      expect(input.props.value).toBe('MAPLE');
+      expect(input.props.className).toContain('border-teal-500');
+      const own = () => scope === 'room' ? state.rooms[0].settingsOverrides : state.layers[scope].values;
+      expect(own().report.wood).toBe('MAPLE');
+      tree = change('   ');
+      expect(own()?.report).toBeUndefined();
+      expect(field(tree, label).props).toMatchObject({ value: '', placeholder: 'PAINT GRADE' });
+      tree = change('PAINT GRADE');
+      expect(field(tree, label).props.className).toContain('border-teal-500');
+      field(tree, 'Reset Wood').props.onClick();
+      expect(own()?.report).toBeUndefined();
+    }
+    state = structuredClone(state);
+    state.layers.project.values = { report: { wood: 'OAK' } };
+    expect(field(render(SettingField, { scope: 'phase', settingKey: 'report.wood' }), 'Phase Wood').props.placeholder).toBe('OAK');
+    expect(render(SettingField, { scope: 'team', settingKey: 'report.jobNumber' })).toBeNull();
+    expect(render(SettingField, { scope: 'room', settingKey: 'report.companyName' })).toBeNull();
+    const job = field(render(SettingField, { scope: 'project', settingKey: 'report.jobNumber' }), 'Project Job #');
+    expect(job.props.type).toBe('text');
+  });
+});

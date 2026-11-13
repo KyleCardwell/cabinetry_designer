@@ -1,0 +1,176 @@
+import { useRef } from 'react';
+import { Group, Line, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import {
+  dot,
+  elevationToPlan,
+  subtract,
+} from '../model/geometry.js';
+import {
+  openingGeometry,
+  openingReferenceBounds,
+} from '../model/openings.js';
+import { planSideReach } from '../model/planDimensions.js';
+import { openingPlanDepths } from '../model/recesses.js';
+import { formatInches } from '../model/units.js';
+import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
+import { readableRotation } from './textRotation.js';
+
+function linePoints(points) {
+  return points.flatMap((point) => [point.x, point.y]);
+}
+
+export default function PlanOpening({
+  room,
+  wall,
+  frame,
+  opening,
+  settings,
+  selected,
+  selectable,
+  scale,
+  text,
+  onSelect,
+  onMove,
+  cursor,
+  // 'opening' draws the void, jambs and label at the wall; 'casing' draws only the
+  // casing, which PlanScene layers above lower runs and tops so nothing below cuts it off.
+  layer = 'opening',
+}) {
+  const factor = text?.dimension ?? 1;
+  const dragStartRef = useRef(null);
+  const cursorKeys = useCursorKeys(cursor);
+  const geometry = openingGeometry(opening, frame.length, settings);
+  const { jamb, casing } = geometry;
+  const depths = openingPlanDepths(wall, opening);
+  const referenceX = geometry.offsets.left[opening.measureMode].edge;
+  const range = openingReferenceBounds(opening, frame.length, settings);
+  const voidPolygon = [
+    elevationToPlan(frame, jamb.x, depths.face),
+    elevationToPlan(frame, jamb.x + jamb.width, depths.face),
+    elevationToPlan(frame, jamb.x + jamb.width, depths.back),
+    elevationToPlan(frame, jamb.x, depths.back),
+  ];
+  const jambLines = [jamb.x, jamb.x + jamb.width].map((x) => [
+    elevationToPlan(frame, x, depths.face),
+    elevationToPlan(frame, x, depths.back),
+  ]);
+  const detailOffset = opening.kind === 'window' ? (depths.face + depths.back) / 2 : depths.face;
+  const detailLine = [
+    elevationToPlan(frame, jamb.x, detailOffset),
+    elevationToPlan(frame, jamb.x + jamb.width, detailOffset),
+  ];
+  const casingPolygon = casing ? [
+    elevationToPlan(frame, casing.x, depths.face),
+    elevationToPlan(frame, casing.x + casing.width, depths.face),
+    elevationToPlan(frame, casing.x + casing.width, depths.face + casing.thickness),
+    elevationToPlan(frame, casing.x, depths.face + casing.thickness),
+  ] : null;
+  const labelOffset = depths.back - planSideReach(room, wall, 'back', settings) - 10 * factor / scale;
+  const labelPoint = elevationToPlan(
+    frame,
+    jamb.x + jamb.width / 2,
+    labelOffset,
+  );
+  const selectedStroke = selected ? '#f8fafc' : '#e2e8f0';
+  const selectedWidth = (selected ? 2.5 : 1) / scale;
+  const draggable = selected && selectable && Boolean(onMove);
+  const cursorKey = `${opening.id}:${layer}`;
+
+  const stopEvent = (event) => {
+    event.cancelBubble = true;
+  };
+
+  const constrainedPosition = (position) => {
+    const start = dragStartRef.current;
+    if (!start) return position;
+    const requestedDelta = dot(subtract(position, start), frame.r) / scale;
+    const nextX = Math.min(range.max, Math.max(range.min, referenceX + requestedDelta));
+    const deltaPixels = (nextX - referenceX) * scale;
+    return {
+      x: start.x + frame.r.x * deltaPixels,
+      y: start.y + frame.r.y * deltaPixels,
+    };
+  };
+
+  return (
+    <Group
+      listening={selectable}
+      draggable={draggable}
+      dragBoundFunc={constrainedPosition}
+      onMouseDown={stopEvent}
+      onClick={(event) => {
+        stopEvent(event);
+        onSelect?.(event, opening.id);
+      }}
+      onMouseEnter={() => cursorKeys.request(
+        cursorKey,
+        draggable ? CURSORS.move : CURSORS.select,
+      )}
+      onMouseLeave={() => cursorKeys.release(cursorKey)}
+      onDragStart={(event) => {
+        stopEvent(event);
+        dragStartRef.current = event.target.absolutePosition();
+        onSelect?.(event, opening.id);
+      }}
+      onDragEnd={(event) => {
+        stopEvent(event);
+        const start = dragStartRef.current;
+        const end = event.target.absolutePosition();
+        const delta = start ? dot(subtract(end, start), frame.r) / scale : 0;
+        const nextX = Math.min(range.max, Math.max(range.min, referenceX + delta));
+        event.target.position({ x: 0, y: 0 });
+        event.target.getLayer()?.batchDraw();
+        dragStartRef.current = null;
+        onMove?.(nextX);
+      }}
+    >
+      {layer === 'casing' ? casingPolygon && (
+        <Line
+          points={linePoints(casingPolygon)}
+          closed
+          fill="#a8a29e"
+          opacity={0.9}
+          stroke={selected ? '#f8fafc' : '#e7e5e4'}
+          strokeWidth={selectedWidth}
+        />
+      ) : (
+      <>
+      <Line
+        points={linePoints(voidPolygon)}
+        closed
+        fill={PLAN_BACKGROUND_COLOR}
+      />
+      {jambLines.map((points, index) => (
+        <Line
+          key={index}
+          points={linePoints(points)}
+          stroke={selectedStroke}
+          strokeWidth={selectedWidth}
+          listening={false}
+        />
+      ))}
+      <Line
+        points={linePoints(detailLine)}
+        stroke={opening.kind === 'window' ? '#7dd3fc' : '#e2e8f0'}
+        strokeWidth={(opening.kind === 'window' ? 1.25 : 1) / scale}
+        listening={false}
+      />
+      <Text
+        x={labelPoint.x}
+        y={labelPoint.y}
+        width={120 * factor / scale}
+        offsetX={60 * factor / scale}
+        offsetY={PLAN_DIM_FONT_SIZE * factor / 2 / scale}
+        align="center"
+        rotation={readableRotation(Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI)}
+        text={`${opening.label} · ${formatInches(jamb.width)}`}
+        fontSize={PLAN_DIM_FONT_SIZE * factor / scale}
+        fill="#e2e8f0"
+        listening={false}
+      />
+      </>
+      )}
+    </Group>
+  );
+}

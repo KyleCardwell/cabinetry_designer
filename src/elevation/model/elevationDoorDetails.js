@@ -1,0 +1,43 @@
+import { doorDrawing, runDoorDetails } from './doorDetails.js';
+import { resolveWall } from './room.js';
+import { panelMaterial } from './constants.js';
+import { runScene } from './runScene.js';
+import { cornerSquashes, squashDoorDetails } from './cornerSquash.js';
+
+/**
+ * Each part's door detail on one wall face as geometry draws it (SPEC-46.4): openings, profile lines and miters (SPEC-50) when the room draws details,
+ * the style label when it shows tags; keyed by the part's id in `elevationParts`.
+ */
+export function elevationDoorDetails(room, wall, side, settings, partIds = null) {
+  const { details, tags } = doorDrawing(room);
+  if (!details && !tags) return [];
+
+  const view = resolveWall(room, wall, side);
+  const result = [];
+  for (const run of view.runs) {
+    const scene = runScene(room, view, run, settings);
+    const squashes = cornerSquashes(scene.faceLayouts);
+    const drawing = squashDoorDetails(runDoorDetails(room, view, run, settings, scene), squashes);
+    for (const part of drawing.parts) {
+      const { pieceId, path } = part;
+      let partId = pieceId;
+      if (part.kind === 'face') {
+        const half = part.key.slice(`${pieceId}:${path}`.length + 1);
+        partId = `${pieceId}:${path}${half}`;
+      }
+      if (partId === null || (partIds && !partIds.has(partId))) continue;
+
+      const entry = { partId };
+      const seeThrough = part.kind === 'face' && part.construction === 'five_piece'
+        && panelMaterial(part.panelMaterial)?.seeThrough;
+      if (details && !seeThrough && part.openingsShown && part.openings.length) {
+        entry.openings = part.openings.map(({ x, z, width, height }) => ({ x, z, width, height }));
+      }
+      if (details && part.lines.length) entry.profileLines = part.lines.map(({ x, z, width, height }) => ({ x, z, width, height }));
+      if (details && part.miters.length) entry.miters = part.miters.map(({ x1, z1, x2, z2 }) => ({ x1, z1, x2, z2 }));
+      if (tags) entry.tag = part.label;
+      if (entry.openings || entry.profileLines || entry.miters || tags) result.push(entry);
+    }
+  }
+  return result;
+}

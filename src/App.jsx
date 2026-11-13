@@ -4,9 +4,25 @@ import { useSelector, useDispatch } from 'react-redux';
 import { supabase } from './api/supabaseClient';
 import { initAuth, setSession, clearAuth } from './store/slices/authSlice';
 import AppShell from './components/layout/AppShell';
-import ProjectList from './components/projects/ProjectList';
-import RoomEditor from './components/rooms/RoomEditor';
+import ProjectsPage from './projects/ProjectsPage.jsx';
+import ProjectPage from './projects/ProjectPage.jsx';
+import useLeaveProjectPresence from './projects/useLeaveProjectPresence.js';
+import RoomPage from './projects/RoomPage.jsx';
+import VersionPage from './projects/VersionPage.jsx';
 import Login from './components/auth/Login';
+import ElevationLab from './elevation/ElevationLab';
+import LibraryLayout from './library/LibraryLayout.jsx';
+import DoorDesignsPage from './library/DoorDesignsPage.jsx';
+import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
+import ProfilesPage from './library/ProfilesPage.jsx';
+import PullsPage from './library/PullsPage.jsx';
+import SlidesPage from './library/SlidesPage.jsx';
+import AccessoriesPage from './library/AccessoriesPage.jsx';
+import SettingsPage from './library/SettingsPage.jsx';
+import ProfileEditorPage from './library/profileEditor/ProfileEditorPage.jsx';
+import ShapesPage from './library/ShapesPage.jsx';
+import ShapeEditorPage from './library/shapeEditor/ShapeEditorPage.jsx';
+import { SANDBOX_ENABLED } from './sandbox.js';
 
 function App() {
   const dispatch = useDispatch();
@@ -44,12 +60,34 @@ function App() {
     return <Login />;
   }
 
+  return <SignedInApp />;
+}
+
+function SignedInApp() {
+  useLeaveProjectPresence();
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<ProjectList />} />
-        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Navigate to="/projects" replace />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:projectId" element={<ProjectPage />} />
+        {SANDBOX_ENABLED && <Route path="/elevation-lab" element={<ElevationLab />} />}
+        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPage />} />
+        <Route path="/projects/:projectId/rooms/:roomId/versions/:versionId" element={<VersionPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
+        <Route path="/library/shapes/:shapeId" element={<ShapeEditorPage />} />
+        <Route path="/library" element={<LibraryLayout />}>
+          <Route index element={<Navigate to="door-designs" replace />} />
+          <Route path="door-designs" element={<DoorDesignsPage />} />
+          <Route path="door-style" element={<TeamDoorStylePage />} />
+          <Route path="profiles" element={<ProfilesPage />} />
+          <Route path="pulls" element={<PullsPage />} />
+          <Route path="slides" element={<SlidesPage />} />
+          <Route path="accessories" element={<AccessoriesPage />} />
+          <Route path="shapes" element={<ShapesPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </AppShell>
   );

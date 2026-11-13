@@ -1,0 +1,236 @@
+import { findLeaf } from '../elevation/model/cellTree.js';
+import { gapReach } from '../elevation/model/cells.js';
+import { FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
+import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
+import { cornerLap } from '../elevation/model/cornerLaps.js';
+import { sideOf } from '../elevation/model/frames.js';
+import { runItems } from '../elevation/model/grid.js';
+import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
+import { runSeamGap } from '../elevation/model/styles.js';
+import { resolveTopSegments } from '../elevation/model/topSegments.js';
+import { wallEndPanelAt } from '../elevation/model/wallSides.js';
+import { formatInch } from './format.js';
+
+const EPSILON = 1e-6;
+
+/** Active inside returns belong to their cabinet's frame, ordered left before right. */
+export function frameReturnNotes(run, region) {
+  if (!region) return [];
+  return ['left', 'right'].flatMap((side) => (run._insideEnds ?? [])
+    .filter((entry) => entry.choice === 'return' && entry.side === side
+      && region.cabinetIds.includes(entry.leafId))
+    .map(({ leafId }) => {
+      const leaf = run.grid ? findLeaf(run.grid, leafId)
+        : runItems(run).find((item) => item.id === leafId);
+      const width = leaf?.insideEnds?.[side]?.width ?? FRAME_RETURN_WIDTH;
+      return `${formatInch(width)} ${side} return`;
+    }));
+}
+
+/** Step returns belong to the taller cabinet's frame and name its shorter neighbours. */
+export function frameStepReturnNotes(run, region, cells, numberOf) {
+  if (!region) return [];
+  const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet'
+    && region.cabinetIds.includes(piece.id));
+  const reach = gapReach(cells.gaps ?? []);
+  return (run._stepEnds ?? [])
+    .filter((entry) => entry.choice === 'return' && region.cabinetIds.includes(entry.leafId))
+    .flatMap((entry) => {
+      const owner = boxes.find((box) => box.id === entry.leafId);
+      if (!owner) return [];
+      const numbers = [...new Set(boxes.filter((box) => box !== owner
+        && sideOf(owner, box, reach) === entry.side)
+        .map((box) => numberOf(box.id)).filter((number) => number != null))].sort((a, b) => a - b);
+      if (!numbers.length) return [];
+      const location = numbers.map((number) => `#${number}`).join('/');
+      const position = entry.edge === 'top' ? 'above' : 'below';
+      return [{
+        x: owner.x + (entry.side === 'right' ? owner.width : 0),
+        edge: entry.edge,
+        text: `${formatInch(entry.width ?? FRAME_RETURN_WIDTH)} ${entry.side} return, ${formatInch(entry.height)} tall ${position} cabinet ${location}`,
+      }];
+    })
+    .sort((a, b) => a.x - b.x || (a.edge === b.edge ? 0 : a.edge === 'top' ? -1 : 1))
+    .map((entry) => entry.text);
+}
+
+/** Reference the cabinet directly below/above each notch, including nested columns. */
+export function frameNotchNotes(region, boxes, numberOf) {
+  if (!region) return [];
+  return [...(region.notches ?? [])]
+    .sort((a, b) => (a.edge === b.edge ? a.x - b.x : a.edge === 'top' ? -1 : 1))
+    .flatMap((notch) => {
+      const columnBoxes = boxes.filter((box) => region.cabinetIds.includes(box.id)
+        && (box.columnId ?? box.id) === notch.columnId);
+      columnBoxes.sort((a, b) => (notch.edge === 'top'
+        ? (b.z + b.height) - (a.z + a.height) : a.z - b.z) || a.x - b.x);
+      const number = columnBoxes.length ? numberOf(columnBoxes[0].id) : null;
+      return number == null ? [] : [`${formatInch(notch.height)} notch @ #${number}`];
+    });
+}
+
+/** Add report roles and the region's overlapping box IDs without changing member order. */
+export function frameMemberRoles(region, members, boxes) {
+  const cabinetIds = new Set(region.cabinetIds);
+  const regionBoxes = boxes.filter((box) => cabinetIds.has(box.id))
+    .sort((a, b) => a.x - b.x || a.z - b.z);
+
+  return members.map((member) => {
+    const sitsOn = regionBoxes.filter((box) => (
+      Math.min(member.x + member.width, box.x + box.width) - Math.max(member.x, box.x) > EPSILON
+      && Math.min(member.z + member.height, box.z + box.height) - Math.max(member.z, box.z) > EPSILON
+    )).map((box) => box.id);
+
+    let role = member.kind;
+    if (member.kind === 'stile') {
+      if (Math.abs(member.x - region.x) <= EPSILON) role = 'left-stile';
+      else if (Math.abs(member.x + member.width - region.x - region.width) <= EPSILON) role = 'right-stile';
+    } else if (member.kind === 'rail') {
+      const touchesNotch = (edge) => (region.notches ?? []).some((notch) => notch.edge === edge
+        && Math.min(member.x + member.width, notch.x + notch.width) - Math.max(member.x, notch.x) > EPSILON
+        && Math.abs(edge === 'top' ? member.z + member.height - notch.z
+          : member.z - notch.z - notch.height) <= EPSILON);
+      if (Math.abs(member.z - region.z) <= EPSILON || touchesNotch('bottom')) role = 'bottom-rail';
+      else if (Math.abs(member.z + member.height - region.z - region.height) <= EPSILON
+        || touchesNotch('top')) role = 'top-rail';
+      else role = sitsOn.length >= 2 ? 'rail' : 'mid-rail';
+    }
+
+    return { ...member, role, sitsOn };
+  });
+}
+
+export { frameStandards } from '../elevation/model/frameStandards.js';
+
+const NOTE_ORDER = ['left-stile', 'right-stile', 'top-rail', 'bottom-rail', 'stile', 'rail', 'mid-rail', 'mullion'];
+const STILE_ROLES = new Set(['left-stile', 'right-stile', 'stile', 'mullion']);
+const INTERIOR_ROLES = new Set(['stile', 'rail', 'mid-rail', 'mullion']);
+const WIDTH_EPSILON = 1e-4;
+const sameWidth = (a, b) => Math.abs(a - b) <= WIDTH_EPSILON;
+const uniformWidth = (members) => members.length > 0
+  && members.every((member) => sameWidth(member.width, members[0].width));
+
+/** Explain differing widths using the first applicable construction rule. */
+export function frameReasons(room, wall, run, scene, region, entries, settings, standards) {
+  const edge = (rect, side) => rect.x + (side === 'right' ? rect.width : 0);
+  const atEdge = (piece, side) => Math.abs(edge(piece, side) - edge(region, side)) <= EPSILON;
+  const pieces = scene.cells.pieces;
+  const overlapKinds = new Map(resolveTopSegments(run).segments
+    .filter(({ mode }) => mode === 'overlap')
+    .flatMap(({ kind, columnIds }) => columnIds.map((id) => [id, kind])));
+  const reasonFor = (member) => {
+    if (member.role === 'left-stile' || member.role === 'right-stile') {
+      const side = member.role === 'left-stile' ? 'left' : 'right';
+      if (atEdge(run, side) && cornerLap(room, wall, run, side, settings)?.laps) return 'corner lap';
+      if (pieces.some((piece) => region.fillerIds.includes(piece.id) && atEdge(piece, side))) return 'filler';
+      if (region.legButts?.some((joint) => joint.side === side)) return 'butts end panel, no miter';
+      if (pieces.some((piece) => piece.id === `${run.id}:${side}`
+        && piece.kind === 'end_panel' && region.panelIds.includes(piece.id) && atEdge(piece, side))) {
+        return `mitered to ${formatInch(runEndThickness(room, wall, run, settings)[side])} end panel`;
+      }
+      if (region.wallPanels?.some((panel) => panel.side === side && atEdge(panel, side))) {
+        const { endpoint } = wallEndPanelAt(room, wall, side, settings);
+        return `mitered to ${formatInch(wallPanelThickness(room, wall, settings)[endpoint])} end panel`;
+      }
+    }
+    if (member.role === 'stile') {
+      const boxes = pieces.filter((piece) => member.sitsOn.includes(piece.id));
+      const seam = runSeamGap(room, run, settings);
+      for (const left of boxes) {
+        for (const right of boxes) {
+          const gap = right.x - left.x - left.width;
+          const overlap = Math.min(left.z + left.height, right.z + right.height) - Math.max(left.z, right.z);
+          if (gap - seam > EPSILON && overlap > EPSILON
+            && left.x + left.width >= member.x - EPSILON
+            && right.x <= member.x + member.width + EPSILON) {
+            return `${formatInch(gap - seam)} spacer`;
+          }
+        }
+      }
+    }
+    if (member.role === 'top-rail' && member.height - standards['top-rail'] > WIDTH_EPSILON) {
+      const box = pieces.find((piece) => member.sitsOn.includes(piece.id)
+        && overlapKinds.has(piece.columnId ?? piece.id));
+      if (box) return `${overlapKinds.get(box.columnId ?? box.id)} overlap`;
+    }
+    if (member.role === 'bottom-rail') {
+      const { height, count } = frameBottomParts(run);
+      if (height > 0) {
+        return `${run.bottom.slice(0, count).map((part) => BOTTOM_PART_LABELS[part.kind].toLowerCase()).join(' & ')} behind`;
+      }
+    }
+    return null;
+  };
+  return entries.map((entry) => {
+    const width = STILE_ROLES.has(entry.role) ? entry.width : entry.height;
+    const reason = !sameWidth(width, standards[entry.role]) && reasonFor(entry);
+    return reason ? { ...entry, reason } : entry;
+  });
+}
+
+/** Format frame note text from roles, shop standards and optional member reasons. */
+export function frameNotes(entries, standards, { bead = 0, numberOf = () => null } = {}) {
+  const notes = [];
+  if (bead > 0) {
+    const beadText = bead === 0.25 ? '' : ` (${formatInch(bead)} bead)`;
+    const outer = formatInch(standards['left-stile']);
+    const widths = entries.some((entry) => INTERIOR_ROLES.has(entry.role))
+      ? `${outer} outer stiles & rails, ${formatInch(standards.stile)} interior stiles & rails`
+      : `${outer} stiles & rails`;
+    notes.push(`beaded face frame${beadText} - ${widths}`);
+  }
+
+  // Rails run horizontally, so their cross-section width is the rectangle's height.
+  const members = entries.map((entry) => ({
+    ...entry,
+    width: STILE_ROLES.has(entry.role) ? entry.width : entry.height,
+  }));
+  const differing = members.filter((member) => !sameWidth(member.width, standards[member.role]));
+  if (differing.length === 0) return notes;
+
+  if (!differing.some((member) => member.reason)) {
+    if (uniformWidth(members)) return [...notes, `${formatInch(members[0].width)} stiles & rails`];
+    const stiles = members.filter((member) => STILE_ROLES.has(member.role));
+    const rails = members.filter((member) => !STILE_ROLES.has(member.role));
+    if (uniformWidth(stiles) && uniformWidth(rails)) {
+      return [...notes, `${formatInch(stiles[0].width)} stiles, ${formatInch(rails[0].width)} rails`];
+    }
+  }
+
+  const groups = [];
+  for (const member of differing) {
+    const { role, width } = member;
+    const reason = member.reason || '';
+    const numbers = [...new Set(member.sitsOn.map(numberOf).filter((number) => number != null))]
+      .sort((a, b) => a - b);
+    let needsLocation = INTERIOR_ROLES.has(role);
+    if (role === 'top-rail' || role === 'bottom-rail') {
+      needsLocation = !members.filter((other) => other.role === role).every((other) => (
+        differing.includes(other) && sameWidth(other.width, width)
+      ));
+    }
+    const location = needsLocation ? numbers.map((number) => `#${number}`).join('/') : '';
+    let group = groups.find((other) => other.role === role
+      && sameWidth(other.width, width) && other.reason === reason);
+    if (!group) {
+      group = { role, width, reason, count: 0, locations: [], lowest: Infinity };
+      groups.push(group);
+    }
+    group.count += 1;
+    group.lowest = Math.min(group.lowest, numbers[0] ?? Infinity);
+    if (location && !group.locations.some((item) => item.text === location)) {
+      group.locations.push({ text: location, lowest: numbers[0] });
+    }
+  }
+
+  groups.sort((a, b) => NOTE_ORDER.indexOf(a.role) - NOTE_ORDER.indexOf(b.role)
+    || (a.lowest === b.lowest ? 0 : a.lowest - b.lowest));
+  return notes.concat(groups.map((group) => {
+    const word = group.role.replace('-', ' ')
+      + (INTERIOR_ROLES.has(group.role) && group.count > 1 ? 's' : '');
+    const locations = group.locations.sort((a, b) => a.lowest - b.lowest).map((item) => item.text);
+    const location = locations.length > 0 ? ` @ ${locations.join(', ')}` : '';
+    const reason = group.reason ? ` (${group.reason})` : '';
+    return `${formatInch(group.width)} ${word}${location}${reason}`;
+  }));
+}

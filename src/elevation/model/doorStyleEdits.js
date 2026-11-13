@@ -1,0 +1,236 @@
+import { DEFAULT_DESIGN_ID, DESIGN_DEFAULT_KEYS, DOOR_DESIGNS, DOOR_STYLE_KEYS, findDoorDesign, sheetThickness, teamDoorStyle } from './doorStyles.js';
+import { gridLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
+import { formatInches } from './units.js';
+import { resolveDoorStyle } from './doorStyleResolve.js';
+import { midDefaults, partSizes } from './doorSizes.js';
+import { inset } from './doorProfileLines.js';
+import { partDetail } from './doorDetails.js';
+
+/** Set only defaults that differ between designs; absent defaults never clear a value. */
+export function applyDesignDefaults(style, fromDesign, toDesign) {
+  const next = { ...style, designId: toDesign.id };
+  for (const key of DESIGN_DEFAULT_KEYS) {
+    const value = toDesign.defaults?.[key];
+    if (value === undefined || value === fromDesign?.defaults?.[key]) continue;
+    if (key === 'thickness') next.thickness = value;
+    if (key === 'stileWidth') {
+      next.stiles = { ...style.stiles, left: value, right: value };
+      next.rails = { ...style.rails, top: value, bottom: value };
+    }
+    if (key === 'panelThickness') next.panel = { ...style.panel, thickness: value };
+    if (key === 'slabBelow') next.shortFace = { ...style.shortFace, slabBelow: value };
+  }
+  return next;
+}
+
+/** First unused letter, followed by the first unused positive integer label. */
+export function nextDoorStyleLabel(styles = []) {
+  const labels = new Set(styles.map((style) => style.label));
+  for (const label of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+    if (!labels.has(label)) return label;
+  }
+  let number = 1;
+  while (labels.has(String(number))) number += 1;
+  return String(number);
+}
+
+/** A complete independent copy with a fresh identity and no name. */
+export function newDoorStyle(styles, base, id) {
+  const copy = structuredClone(base);
+  delete copy.name;
+  return { ...copy, id, label: nextDoorStyleLabel(styles) };
+}
+
+/** Append a plain molding, up to the style's six-molding limit. */
+export function addAppliedMolding(style) {
+  const moldings = style.appliedMoldings ?? [];
+  if (moldings.length >= 6) return style;
+  return { ...style, appliedMoldings: [...moldings, { profileId: null, offset: 0 }] };
+}
+
+/** Update one molding without changing its position or the other entries. */
+export function updateAppliedMolding(style, index, changes) {
+  const moldings = style.appliedMoldings ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= moldings.length) return style;
+  const { profileId, offset } = { ...moldings[index], ...changes };
+  if ((profileId !== null && !(typeof profileId === 'string' && profileId.trim()))
+    || !Number.isFinite(offset)) return style;
+  return {
+    ...style,
+    appliedMoldings: moldings.map((molding, at) => (at === index ? { profileId, offset } : molding)),
+  };
+}
+
+/** Remove one molding, preserving the order of the remaining entries. */
+export function removeAppliedMolding(style, index) {
+  const moldings = style.appliedMoldings ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= moldings.length) return style;
+  return { ...style, appliedMoldings: moldings.filter((molding, at) => at !== index) };
+}
+
+/** Visit matching picks in room, wall, run, grid and face order. */
+function visitDoorStyleUses(room, styleId, visit) {
+  const pick = (object, key, use) => {
+    if (object != null && Object.hasOwn(object, key) && object[key] === styleId) {
+      visit(object, key, use);
+    }
+  };
+  const keys = (object, at) => {
+    for (const key of DOOR_STYLE_KEYS) pick(object, key, { ...at, key });
+  };
+
+  keys(room, { level: 'room' });
+  for (const wall of room.walls ?? []) {
+    const wallAt = { wallId: wall.id };
+    keys(wall, { level: 'wall', ...wallAt });
+    for (const endpoint of ['start', 'end']) {
+      pick(wall.endPanels?.[endpoint], 'styleId', { level: 'wallEndPanel', ...wallAt, endpoint });
+    }
+    for (const run of wall.runs ?? []) {
+      const runAt = { ...wallAt, runId: run.id };
+      keys(run, { level: 'run', ...runAt });
+      for (const side of ['left', 'right']) {
+        pick(run.ends?.[side], 'styleId', { level: 'runEnd', ...runAt, side });
+      }
+      if (!run.grid) continue;
+      for (const leaf of gridLeaves(run.grid)) {
+        if (leaf.kind === 'cabinet') {
+          const itemAt = { ...runAt, itemId: leaf.id };
+          keys(leaf, { level: 'cabinet', ...itemAt });
+          for (const { node, path } of treeLeaves(leaf.face)) {
+            pick(node, 'styleId', { level: 'face', ...itemAt, path });
+          }
+        } else if (leaf.kind === 'panel') {
+          pick(leaf, 'styleId', { level: 'panelCell', ...runAt, cellId: leaf.id });
+        }
+      }
+    }
+  }
+}
+
+/** Every place that explicitly picks the style, ordered from room to face. */
+export function doorStyleUses(room, styleId) {
+  const uses = [];
+  visitDoorStyleUses(room, styleId, (object, key, use) => uses.push(use));
+  return uses;
+}
+
+/** Move or clear picks on a deep copy, preserving the room's style list. */
+export function reassignDoorStyle(room, fromId, toId) {
+  const copy = structuredClone(room);
+  visitDoorStyleUses(copy, fromId, (object, key) => {
+    if (toId === null) delete object[key];
+    else object[key] = toId;
+  });
+  return copy;
+}
+
+const PART_SIDES = ['top', 'bottom', 'left', 'right'];
+const sideGroup = (side) => (side === 'top' || side === 'bottom' ? 'rails' : 'stiles');
+
+/** Replace or remove a sizes group, omitting the sizes object when empty. */
+function withSizeGroup(sizes, key, group) {
+  const next = { ...sizes };
+  if (Object.keys(group).length) next[key] = group;
+  else delete next[key];
+  return Object.keys(next).length ? next : undefined;
+}
+
+/** Set or clear one typed rail or stile width. */
+export function setPartSide(sizes, side, width) {
+  if (!PART_SIDES.includes(side) || (width !== null && !(Number.isFinite(width) && width > 0))) return sizes;
+  const key = sideGroup(side);
+  const group = { ...sizes?.[key] };
+  if (width === null) delete group[side];
+  else group[side] = width;
+  return withSizeGroup(sizes, key, group);
+}
+
+/** Set or clear a side's note, dropping an empty notes group. */
+export function setPartNote(sizes, side, note) {
+  if (!PART_SIDES.includes(side)) return sizes;
+  const notes = { ...sizes?.notes };
+  if (note === null || note === '') delete notes[side];
+  else notes[side] = note;
+  return withSizeGroup(sizes, 'notes', notes);
+}
+
+function styleRow(style, design) {
+  return `${style.label} · ${design.code} · ${formatInches(style.thickness)}`;
+}
+
+/** Team and room picker rows, plus the style inherited without this level's own pick. */
+export function pickOptions(room, settings, partType, levelsAbove, node = null) {
+  const designs = settings?.doorDesigns ?? DOOR_DESIGNS;
+  const ownKey = { door: 'doorStyleId', drawer_front: 'drawerFrontStyleId', panel: 'panelStyleId' }[partType];
+  const here = { ...node };
+  delete here[ownKey];
+  const levels = node ? [{ level: 'here', node: here }, ...levelsAbove] : levelsAbove;
+  const { style, design, source } = resolveDoorStyle(room, settings, partType, levels);
+  const prefix = partType !== 'door' && (source.level === 'team' || source.key === 'doorStyleId')
+    ? 'Same as doors' : 'Inherit';
+  const team = teamDoorStyle(settings);
+  const teamRow = styleRow(team, findDoorDesign(team.designId, designs) ?? findDoorDesign(DEFAULT_DESIGN_ID, designs));
+  const inheritText = source.level === 'spot'
+    ? `Sheet slab here (${formatInches(sheetThickness(settings))})`
+    : `${prefix} (${styleRow(style, design)})`;
+  return {
+    inherit: { id: style.id, text: inheritText },
+    options: [
+      { id: 'default', text: `Team default (${teamRow})` },
+      ...(partType === 'panel' ? [{ id: 'sheet', text: `Sheet slab (${formatInches(sheetThickness(settings))})` }] : []),
+      ...(room?.doorStyles ?? []).map((entry) => ({
+        id: entry.id,
+        text: styleRow(entry, findDoorDesign(entry.designId, designs) ?? findDoorDesign(DEFAULT_DESIGN_ID, designs)),
+      })),
+    ],
+  };
+}
+
+/** Display typed and resolved sizes, or explain why this part is a slab. */
+export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], offsets) {
+  const core = inset({ x: 0, z: 0, ...part }, edgeOut);
+  const sizeRect = design.construction === 'slab' ? part : core;
+  const result = partSizes(style, design, { ...sizeRect, coreHeight: core.height, sizes: part.sizes },
+    midDefaults(style, design, offsets));
+  const sizes = part.sizes ?? {};
+  const mids = (kind) => result[kind].map((entry) => {
+    const node = entry.path.split('.').slice(1).reduce((node, index) => node?.children?.[index], sizes.layout);
+    return { ...entry, typed: node?.mids?.[entry.index]?.width != null };
+  });
+  if (result.construction === 'slab' && !result.molding) {
+    const note = `Slab under ${formatInches(style.shortFace.slabBelow)} — molding left off`;
+    return { title: 'Slab', note, rows: [], midRails: [], midStiles: [], opening: null };
+  }
+  const molding = result.construction === 'slab' && result.molding;
+  if (molding) {
+    const detail = partDetail(style, design, { x: 0, z: 0, ...part }, part.sizes, edgeOut, moldings, offsets);
+    return {
+      title: 'Applied moldings', note: null,
+      rows: detail.moldings.map(({ index, offset, typed, shifted }) => ({
+        index, label: `Molding ${index + 1}`, value: offset, typed, readOnly: true,
+        note: shifted ? 'moved out for a short front' : null,
+      })),
+      midRails: detail.sizes.midRails.map((mid) => ({ ...mid, typed: false })),
+      midStiles: detail.sizes.midStiles.map((mid) => ({ ...mid, typed: false })),
+      opening: detail.sizes.opening, area: detail.sizes.area,
+    };
+  }
+  const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];
+  return {
+    title: 'Stiles & rails',
+    note: null,
+    rows: PART_SIDES.map((side, index) => ({
+      side,
+      label: labels[index],
+      typed: sizes[sideGroup(side)]?.[side] ?? null,
+      value: result[sideGroup(side)][side],
+      source: result.sources[side],
+      note: sizes.notes?.[side] ?? null,
+    })),
+    midRails: mids('midRails'),
+    midStiles: mids('midStiles'),
+    opening: result.opening,
+  };
+}

@@ -1,0 +1,69 @@
+import { Group, Line, Rect, Text } from 'react-konva';
+import { formatDimension } from '../model/units.js';
+import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
+import { readableRotation } from './textRotation.js';
+import { gappedLine } from '../canvas/gappedLine.js';
+
+const COLOR = '#5eead4';
+const TICK_HALF = 4;
+
+/** Plan clearances (SPEC-36.3): a dimension line across each gap, with ticks and a label. */
+export default function PlanClearances({ dimensions, scale, text: textScale }) {
+  const factor = textScale?.dimension ?? 1;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
+  return (
+    <Group listening={false}>
+      {dimensions.map(({
+        kind, from, to, length,
+      }) => {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const span = Math.hypot(dx, dy);
+        const unit = span > 0 ? { x: dx / span, y: dy / span } : { x: 1, y: 0 };
+        const tick = { x: (-unit.y * TICK_HALF * factor) / scale, y: (unit.x * TICK_HALF * factor) / scale };
+        const text = formatDimension(length);
+        const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+        const height = (PLAN_DIM_FONT_SIZE + 4) * factor / scale;
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        const center = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+        const inline = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 16) * factor <= span * scale;
+        return (
+          <Group key={`${kind}:${from.x}:${from.y}:${to.x}:${to.y}`}>
+            {gappedLine(from, to, center, inline ? width / 2 : 0, 0.5 / scale).map((points, index) => (
+              <Line key={`line:${index}`} points={points} stroke={COLOR} strokeWidth={1 / scale} />
+            ))}
+            {[['from', from], ['to', to]].map(([end, point]) => (
+              <Line
+                key={end}
+                points={[point.x - tick.x, point.y - tick.y, point.x + tick.x, point.y + tick.y]}
+                stroke={COLOR}
+                strokeWidth={1 / scale}
+              />
+            ))}
+            <Group x={(from.x + to.x) / 2} y={(from.y + to.y) / 2} rotation={readableRotation(angle)}>
+              <Rect
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                fill={PLAN_BACKGROUND_COLOR}
+                opacity={0.85}
+              />
+              <Text
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
+                align="center"
+                verticalAlign="middle"
+                text={text}
+                fontSize={fontSize}
+                fill={COLOR}
+              />
+            </Group>
+          </Group>
+        );
+      })}
+    </Group>
+  );
+}

@@ -1,0 +1,344 @@
+import { CABINET_TYPE_IDS } from './constants.js';
+import { blindPartWidths } from './blind.js';
+import { blindCellWidths, partPieces } from './cells.js';
+import { findLeaf } from './cellTree.js';
+import { cornerEnd } from './cornerEnd.js';
+import { cornerReturnLegs } from './cornerLegs.js';
+import { cornerReturnPoint } from './corners.js';
+import { faceOutline } from './faceTree.js';
+import { runBaseProfile as runBase } from './furnitureBase.js';
+import { furnitureBaseGroups } from './furnitureBaseGroups.js';
+import { wallLength } from './geometry.js';
+import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
+import { resolveProfile } from './profile.js';
+import { runScene } from './runScene.js';
+import { teeFillers } from './tees.js';
+import { runMoldings } from './tops.js';
+import { wallNumbers } from './topology.js';
+import { miteredSpan, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
+import { WALL_SIDES, wallSideView } from './wallSides.js';
+import { woodTopGroups } from './woodTopGroups.js';
+
+export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
+
+const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel', 'panel', 'shelf']);
+const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
+
+export function moldingPartKey(molding) {
+  return `molding:${molding}`;
+}
+
+export function wallEndPanelPartKey(wallId, endpoint) {
+  return `${wallId}:endPanel:${endpoint}`;
+}
+
+export function compareRuns(a, b) {
+  return a.x - b.x || a.id.localeCompare(b.id);
+}
+
+function runsInWalkOrder(view) {
+  const lower = view.runs.filter((run) => LOWER_TYPES.has(run.cabinetTypeId));
+  const upper = view.runs.filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER);
+  return [...lower.sort(compareRuns), ...upper.sort(compareRuns)];
+}
+
+export function carriesMolding(wall, run, profile, molding, settings) {
+  if (molding === 'toeKick') {
+    // Callers already resolved the wall's inherited profile.
+    return runBase(null, { profile }, run, {}).kind === 'toe_kick';
+  }
+  return runMoldings(wall, run, profile, settings)[molding] ?? false;
+}
+
+/**
+ * Where a seam T goes in its run's part list (SPEC-37.3): the key of the part it follows. A vertical T
+ * follows the last part of the boxes on its left (a whole stacked column), a horizontal T the first
+ * of the boxes below it, so it sits between the cabinets of its seam. Null if none of them is a part.
+ */
+function teeAnchor(tee, parts, pieces) {
+  const before = tee.boxIds
+    .map((id) => pieces.find((piece) => piece.id === id))
+    .filter((piece) => piece && (tee.orientation === 'vertical'
+      ? piece.x + piece.width / 2 < tee.x + tee.width / 2
+      : piece.z + piece.height / 2 < tee.z + tee.height / 2));
+  const indexes = before
+    .map((piece) => parts.findIndex((part) => part.pieceId === piece.id))
+    .filter((index) => index >= 0);
+  if (indexes.length === 0) return null;
+  return parts[tee.orientation === 'vertical' ? Math.max(...indexes) : Math.min(...indexes)].key;
+}
+
+/** ROT positions belong to the stored face tree, even when no box can be sized there. */
+function rotParts(part, run) {
+  if (part.kind !== 'cabinet' || !run.grid) return [];
+  const leaf = findLeaf(run.grid, part.key);
+  if (leaf?.kind !== 'cabinet' || leaf.purpose !== 'trash' || !leaf.face) return [];
+  return faceOutline(leaf.face)
+    .filter(({ node }) => !node.children && node.type === 'door' && node.action === 'pullout')
+    .flatMap(({ path }) => [['rot', 'rot'], ['trash_lid', 'lid']].map(([kind, suffix]) => ({
+      key: `${leaf.id}:${suffix}:${path}`,
+      kind,
+      cabinetId: leaf.id,
+      facePath: path,
+      wallId: part.wallId,
+      side: part.side,
+      runId: part.runId,
+      pieceId: null,
+      molding: null,
+      width: null,
+      x: null,
+      z: null,
+      height: null,
+      source: 'face',
+    })));
+}
+
+function runParts(room, wall, side, settings) {
+  const view = wallSideView(wall, side);
+  return runsInWalkOrder(view).flatMap((run) => {
+    const scene = runScene(room, view, run, settings);
+    const { result: layout, cells, frames, cornerFrames } = scene;
+    const widths = blindPartWidths(room, view, run, settings, layout);
+    const entries = scene.blind.entries;
+    const cellWidths = blindCellWidths(cells.pieces, layout.pieces, entries);
+    const blindPanels = new Set(entries
+      .filter((entry) => entry.panel && entry.endPieceId)
+      .map((entry) => entry.endPieceId));
+    const inFrame = frames.fillerIds;
+    const { tees } = teeFillers(room, run, cells, settings);
+    const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
+    const miters = panelRunMiters(room, view, run, settings);
+    const pieceParts = partPieces(cells.pieces, settings)
+      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
+        && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
+      .map((piece) => ({
+        key: piece.id,
+        kind: piece.kind,
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: piece.id,
+        molding: null,
+        // A back panel mitered into a wall end panel is longer by the panel it runs over (SPEC-43).
+        width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id)
+          ?? miteredSpan(piece, run, miters).width,
+        x: miteredSpan(piece, run, miters).x,
+        z: piece.z,
+        height: piece.height,
+        source: 'piece',
+      }));
+    // A T-filler between boxes is a filler part of its own, numbered beside its seam (SPEC-37.3).
+    const seamParts = tees.filter((tee) => !tee.end).map((tee) => ({
+      anchor: teeAnchor(tee, pieceParts, cells.pieces),
+      part: {
+        key: tee.id,
+        kind: 'filler',
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: tee.id,
+        molding: null,
+        width: tee.partWidth,
+        x: tee.x,
+        z: tee.z,
+        height: tee.height,
+        source: 'tee',
+      },
+    }));
+    const insideOwners = new Map(cells.pieces.filter((piece) => piece.inside)
+      .map((piece) => [piece.id, piece.ownerId]));
+    const fills = new Map(runLegFills(room, view, run, settings).map((fill) => [fill.leg.id, fill]));
+    const cornerReturns = new Map();
+    for (const [columnId, entry] of scene.faceLayouts) {
+      if (!entry.corner) continue;
+      const corner = cornerEnd(room, view, run, entry.corner.side, settings, layout);
+      if (!corner.active || !['end_panel', 'filler'].includes(corner.returnSide.type)) continue;
+      let strip = scene.cornerPanels.find((panel) => panel.columnId === columnId);
+      if (corner.returnSide.type === 'filler') {
+        const point = cornerReturnPoint(room, view, run, corner.side);
+        const returnWall = room.walls.find(({ id }) => id === point.wallId);
+        strip = cornerReturnLegs(room, wallSideView(returnWall, point.wallSide), settings)
+          .find((leg) => leg.columnId === columnId)?.returnPanel;
+      }
+      if (!strip) continue;
+      cornerReturns.set(columnId, {
+        key: `${columnId}:return`, kind: corner.returnSide.type, source: 'corner_return', columnId,
+        wallId: wall.id, side, runId: run.id, pieceId: null, molding: null,
+        x: strip.x, width: strip.width, z: run.z, height: run.height,
+      });
+    }
+    const frameParts = [
+      ...cornerFrames.map(({ columnId, owner: { x, width, z, height } }) => ({
+        key: `${columnId}:frame`, kind: 'frame', source: 'frame', columnId,
+        wallId: wall.id, side, runId: run.id, pieceId: null, molding: null,
+        x, width, z, height,
+      })),
+      ...frames.regions.map((region) => ({
+        key: region.id,
+        kind: 'frame',
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: null,
+        molding: null,
+        width: region.width,
+        x: region.x,
+        z: region.z,
+        height: region.height,
+        source: 'frame',
+      })),
+    ];
+    const frameAnchors = new Map(cornerFrames.map(({ columnId }) => [`${columnId}:frame`, columnId]));
+    for (const region of frames.regions) {
+      const cabinets = new Set(region.cabinetIds);
+      const last = pieceParts.findLast((part) => part.kind === 'cabinet' && cabinets.has(part.key));
+      if (last) frameAnchors.set(region.id, last.key);
+    }
+    return [
+      ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
+        part,
+        ...[cornerReturns.get(part.key)].filter(Boolean),
+        ...pieceParts.filter((panel) => insideOwners.get(panel.key) === part.key),
+        ...rotParts(part, run),
+        ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
+        ...frameParts.filter((frame) => frameAnchors.get(frame.key) === part.key),
+      ]),
+      ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
+      ...frameParts.filter((part) => !frameAnchors.has(part.key)),
+      ...runLegs(room, view, run, settings)
+        .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
+        .flatMap(({ leg, bounds }) => [{
+          key: leg.id,
+          kind: 'leg',
+          wallId: wall.id,
+          side,
+          runId: run.id,
+          pieceId: null,
+          molding: null,
+          ...bounds,
+          source: 'leg',
+        }, ...[fills.get(leg.id)].filter(Boolean).map((fill) => ({
+          key: fill.id,
+          kind: fill.type === 'panel' ? 'leg_panel' : 'leg_filler',
+          wallId: wall.id,
+          side,
+          runId: run.id,
+          pieceId: null,
+          molding: null,
+          ...fill.bounds,
+          source: 'leg_fill',
+        }))]),
+    ];
+  });
+}
+
+function wallPanelPart(wall, panel) {
+  return {
+    key: wallEndPanelPartKey(wall.id, panel.endpoint),
+    kind: 'wall_end_panel',
+    wallId: wall.id,
+    side: null,
+    runId: null,
+    pieceId: null,
+    molding: null,
+    width: panel.width,
+    x: panel.front.x,
+    z: panel.bottom,
+    height: panel.top - panel.bottom,
+    source: 'wall_end_panel',
+  };
+}
+
+/**
+ * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
+ * panels, then each face's runs in walk order, then right end panels), with each furniture base group
+ * immediately before its earliest run's first part and each wood top after its runs' last part.
+ * Each face frame follows its last cabinet and that cabinet's followers, before the run's end panels
+ * and legs. One part per molding kind finishes the room. The single list part numbers, reports,
+ * the estimator and the AI layer read.
+ */
+export function roomParts(room, settings) {
+  const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
+  const walls = [...wallNumbers(room).entries()]
+    .sort((a, b) => a[1] - b[1])
+    .map(([wallId]) => wallById.get(wallId))
+    .filter(Boolean);
+
+  const wallParts = walls.flatMap((wall) => {
+    const panels = wallEndPanels(room, wall, settings);
+    const left = panels.filter((panel) => panel.front.side === 'left');
+    const right = panels.filter((panel) => panel.front.side === 'right');
+    return [
+      ...left.map((panel) => wallPanelPart(wall, panel)),
+      ...WALL_SIDES.flatMap((side) => runParts(room, wall, side, settings)),
+      ...right.map((panel) => wallPanelPart(wall, panel)),
+    ];
+  });
+
+  const firstPartByRun = new Map();
+  wallParts.forEach((part, index) => {
+    if (part.runId && !firstPartByRun.has(part.runId)) firstPartByRun.set(part.runId, { part, index });
+  });
+  const basesByIndex = new Map();
+  for (const group of furnitureBaseGroups(room, settings)) {
+    const first = group.runIds.map((id) => firstPartByRun.get(id)).filter(Boolean)
+      .sort((a, b) => a.index - b.index)[0];
+    const index = first?.index ?? wallParts.length;
+    const x = first ? Math.min(...group.steps
+      .filter((step) => step.wallId === first.part.wallId && step.side === first.part.side)
+      .map((step) => first.part.side === 'back'
+        ? wallLength(wallById.get(step.wallId)) - step.x2 : step.x1)) : 0;
+    const bases = basesByIndex.get(index) ?? [];
+    bases.push({ x, part: { key: group.key, kind: 'furniture_base', runIds: group.runIds } });
+    basesByIndex.set(index, bases);
+  }
+  const basesAt = (index) => (basesByIndex.get(index) ?? [])
+    .sort((a, b) => a.x - b.x).map(({ part }) => part);
+  const parts = wallParts.flatMap((part, index) => [...basesAt(index), part]);
+  // Retain a base even when its member runs have no numbered parts, ahead of the moldings.
+  parts.push(...basesAt(wallParts.length));
+
+  const lastPartByRun = new Map();
+  parts.forEach((part, index) => {
+    if (part.runId) lastPartByRun.set(part.runId, index);
+  });
+  const topsByIndex = new Map();
+  for (const group of woodTopGroups(room, settings)) {
+    const indexes = group.runIds.map((id) => lastPartByRun.get(id)).filter((index) => index !== undefined);
+    const index = indexes.length ? Math.max(...indexes) + 1 : parts.length;
+    const tops = topsByIndex.get(index) ?? [];
+    tops.push({ key: group.key, kind: 'wood_top', runIds: group.runIds,
+      wallId: null, side: null, runId: null, pieceId: null });
+    topsByIndex.set(index, tops);
+  }
+  // Insert against the original indexes so connected groups and inserts retain their walk order.
+  for (let index = parts.length; index >= 0; index -= 1) {
+    const tops = topsByIndex.get(index);
+    if (tops) parts.splice(index, 0, ...tops);
+  }
+
+  for (const molding of PART_MOLDINGS) {
+    const present = walls.some((wall) => {
+      const profile = resolveProfile(settings, room, wall);
+      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding, settings));
+    });
+    if (present) {
+      parts.push({
+        key: moldingPartKey(molding),
+        kind: 'molding',
+        wallId: null,
+        side: null,
+        runId: null,
+        pieceId: null,
+        molding,
+        width: null,
+        x: null,
+        z: null,
+        height: null,
+        source: 'molding',
+      });
+    }
+  }
+  return parts;
+}

@@ -1,0 +1,239 @@
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { PANEL_TYPES, findDoorDesign } from '../model/doorStyles.js';
+import { applyDesignDefaults } from '../model/doorStyleEdits.js';
+import { doorProfileOffsets } from '../model/doorProfileLines.js';
+import { midDefaults } from '../model/doorSizes.js';
+import { formatInchesInput } from '../model/units.js';
+import DoorProfilePickers from './DoorProfilePickers.jsx';
+import DoorSectionView from './DoorSectionView.jsx';
+import DoorMidSectionView from './DoorMidSectionView.jsx';
+import InchInput from './InchInput.jsx';
+import TextInput from './TextInput.jsx';
+
+const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
+const HEADING_CLASS = 'text-sm font-semibold text-gray-300';
+
+function SizeField({ label, value, onChange, allowZero = false, allowBlank = false, placeholder, disabled = false }) {
+  return (
+    <label className={`block text-xs text-gray-400 ${disabled ? 'opacity-50' : ''}`}>
+      {label}
+      <InchInput
+        value={value}
+        displayStep={1 / 16}
+        allowBlank={allowBlank}
+        placeholder={placeholder}
+        disabled={disabled}
+        onCommit={(next) => {
+          if (!(allowBlank && next === null)
+            && (!Number.isFinite(next) || (allowZero ? next < 0 : !(next > 0)))) return false;
+          onChange(next);
+          return true;
+        }}
+        aria-label={label}
+        className="mt-1"
+      />
+    </label>
+  );
+}
+
+export default function DoorStyleFields({ draft, setDraft, designs }) {
+  const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
+  const design = findDoorDesign(draft.designId, designs);
+  const mid = midDefaults(draft, design, doorProfileOffsets(draft, design, profiles));
+  const slab = design?.construction === 'slab';
+  const fivePiece = design?.construction === 'five_piece';
+  const frameUnused = slab;
+  const arched = Boolean(design && (design.topRail.shape !== 'flat' || design.bottomRail.shape !== 'flat'));
+  const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
+  const changeSize = (group, key, value) => setDraft((previous) => ({
+    ...previous,
+    [group]: { ...previous[group], [key]: value },
+  }));
+  const sizes = [draft.stiles.left, draft.stiles.right, draft.rails.top, draft.rails.bottom];
+  const same = sizes.every((size) => size === sizes[0]);
+  const [sides, setSides] = useState(false);
+  const showSides = sides || !same;
+  const setAll = (value) => setDraft((previous) => ({
+    ...previous,
+    stiles: { left: value, right: value },
+    rails: { top: value, bottom: value },
+  }));
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <div className="space-y-4">
+        <label className="block text-xs text-gray-400">
+          Design
+          <select
+            value={draft.designId}
+            onChange={(event) => {
+              const nextDesign = findDoorDesign(event.target.value, designs);
+              if (nextDesign) setDraft((previous) => applyDesignDefaults(
+                previous, findDoorDesign(previous.designId, designs), nextDesign,
+              ));
+            }}
+            aria-label="Design"
+            className={`mt-1 ${INPUT_CLASS}`}
+          >
+            {designs.map(({ id, code, description }) => (
+              <option key={id} value={id}>{code} — {description}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs text-gray-400">
+          Material
+          <TextInput
+            value={draft.material}
+            onCommit={(material) => setDraft((previous) => {
+              const next = { ...previous };
+              if (material) next.material = material;
+              else delete next.material;
+              return next;
+            })}
+            placeholder="Room wood"
+            aria-label="Material"
+            className="mt-1"
+          />
+        </label>
+        <SizeField label="Thickness" value={draft.thickness} onChange={(value) => change('thickness', value)} />
+        <section className="space-y-2">
+          <h3 className={HEADING_CLASS}>{slab ? 'Molding inset' : 'Stiles & rails'}</h3>
+          {slab && <p className="text-xs text-gray-400">Not used by slab doors — kept if you switch back</p>}
+          {!showSides ? (
+            <>
+              <SizeField
+                label={slab ? 'Inset' : 'Stile & rail width'}
+                value={draft.stiles.left}
+                disabled={frameUnused}
+                onChange={setAll}
+              />
+              <button
+                type="button"
+                className="text-xs text-blue-400 hover:underline disabled:opacity-50"
+                disabled={frameUnused}
+                onClick={() => setSides(true)}
+              >
+                Different sizes…
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['stiles', 'left', slab ? 'Left' : 'Left stile'],
+                  ['stiles', 'right', slab ? 'Right' : 'Right stile'],
+                  ['rails', 'top', slab ? 'Top' : 'Top rail'],
+                  ['rails', 'bottom', slab ? 'Bottom' : 'Bottom rail'],
+                ].map(([group, key, label]) => (
+                  <SizeField
+                    key={`${group}.${key}`}
+                    label={label}
+                    value={draft[group][key]}
+                    disabled={frameUnused}
+                    onChange={(value) => changeSize(group, key, value)}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-blue-400 hover:underline disabled:opacity-50"
+                disabled={frameUnused}
+                onClick={() => {
+                  setAll(draft.stiles.left);
+                  setSides(false);
+                }}
+              >
+                Use one width
+              </button>
+            </>
+          )}
+          {fivePiece && <p className="text-xs text-gray-500">Short doors and drawer fronts still shrink their rails by the short-face rule.</p>}
+        </section>
+        <section className="space-y-2">
+          <h3 className={HEADING_CLASS}>Panel</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <label className={`block text-xs text-gray-400 ${fivePiece ? '' : 'opacity-50'}`}>
+              Panel type
+              <select
+                value={draft.panel.type}
+                disabled={!fivePiece}
+                onChange={(event) => changeSize('panel', 'type', event.target.value)}
+                aria-label="Panel type"
+                className={`mt-1 ${INPUT_CLASS}`}
+              >
+                {PANEL_TYPES.map((type) => (
+                  <option key={type} value={type}>{type === 'flat' ? 'Flat' : 'Raised'}</option>
+                ))}
+              </select>
+            </label>
+            <SizeField
+              label="Panel thickness"
+              value={draft.panel.thickness}
+              disabled={!fivePiece}
+              onChange={(value) => changeSize('panel', 'thickness', value)}
+            />
+          </div>
+        </section>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            {['rail', 'stile'].map((key) => (
+              <SizeField
+                key={key}
+                label={`Mid ${key}`}
+                value={draft.mid[key]}
+                allowBlank
+                placeholder={formatInchesInput(mid[key])}
+                disabled={!fivePiece}
+                onChange={(value) => setDraft((previous) => {
+                  const next = { ...previous.mid };
+                  if (value === null) delete next[key];
+                  else next[key] = value;
+                  return { ...previous, mid: next };
+                })}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">Blank keeps the same flat as the frame.</p>
+        </div>
+        <div className="space-y-1">
+          <SizeField
+            label="Arch rise"
+            value={draft.arch.rise}
+            disabled={!arched}
+            onChange={(value) => changeSize('arch', 'rise', value)}
+          />
+          <p className="text-xs text-gray-400">Drawn flat until arched rails are added</p>
+        </div>
+        <section className="space-y-2">
+          <h3 className={HEADING_CLASS}>Short faces</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              ['minPanel', 'Min panel'],
+              ['minRail', 'Min rail/inset'],
+              ['slabBelow', slab ? 'Moldings off below' : 'Slab below'],
+              ['step', 'Round to'],
+            ].map(([key, label]) => (
+              <SizeField
+                key={key}
+                label={label}
+                value={draft.shortFace[key]}
+                allowZero={key === 'slabBelow'}
+                onChange={(value) => changeSize('shortFace', key, value)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+      <div className="space-y-2 self-start md:sticky md:top-0">
+        <h3 className={HEADING_CLASS}>Section</h3>
+        <DoorSectionView style={draft} design={design} />
+        {fivePiece && <DoorMidSectionView style={draft} design={design} />}
+        <section className="space-y-2">
+          <h3 className={HEADING_CLASS}>Profiles</h3>
+          <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} />
+        </section>
+      </div>
+    </div>
+  );
+}

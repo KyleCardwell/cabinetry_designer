@@ -1,0 +1,169 @@
+import { wallAccessories } from './accessories.js';
+import { findLeaf } from './cellTree.js';
+import { DEFAULT_SETTINGS } from './constants.js';
+import { sheetThickness } from './doorStyles.js';
+import { wallDrawerBoxes } from './drawerBoxes.js';
+import { getInteriorNode } from './interiorTree.js';
+import { wallInteriors } from './interiors.js';
+import { resolveWall } from './room.js';
+import { wallRollouts } from './rollouts.js';
+import { autoStackCount, spacedStack } from './spacedStack.js';
+
+const door = (face) => ['door', 'pair_door'].includes(face.type);
+const shelfFace = (face) => face.type === 'open'
+  || (door(face) && (face.action === undefined || ['pocket', 'sliding'].includes(face.action)));
+// Top- and bottom-hinged doors don't hinge on the box sides, so they need no hinge plate holes (Kyle 2026-10-19).
+export const sideHinged = (face) => door(face) && face.action === undefined && !['top', 'bottom'].includes(face.hinge);
+export const covers = (face, section) => (
+  Math.min(face.x + face.width, section.x + section.width) - Math.max(face.x, section.x) > 1 / 4
+  && Math.min(face.z + face.height, section.z + section.height) - Math.max(face.z, section.z) > 1 / 4
+);
+
+/** Tallest clear vertical band after clipping overlapping physical-section drawer spaces. */
+export function shelfZone(section, boxes) {
+  const top = section.z + section.height;
+  const spaces = boxes.map(({ space }) => space).filter((space) => (
+    Math.min(space.x + space.width, section.x + section.width) > Math.max(space.x, section.x)
+    && Math.min(space.z + space.height, top) > Math.max(space.z, section.z)
+  )).map((space) => ({ z: Math.max(section.z, space.z), top: Math.min(top, space.z + space.height) }))
+    .sort((a, b) => a.z - b.z);
+  let cursor = section.z;
+  let zone = { z: section.z, height: 0 };
+  for (const space of [...spaces, { z: top, top }]) {
+    if (space.z - cursor > zone.height) zone = { z: cursor, height: space.z - cursor };
+    cursor = Math.max(cursor, space.top);
+  }
+  return zone;
+}
+
+/** Resolve adjustable shelves and shop flags for each placed, wall-coordinate section. */
+export function sectionShelves({ interior, faces, boxes = [], leaf, settings, rollouts = new Map(), accessories = new Map() }) {
+  const setting = (key) => settings?.[key] ?? DEFAULT_SETTINGS[key];
+  const result = new Map();
+  for (const section of interior.sections) {
+    const node = getInteriorNode(interior.tree, section.path) ?? {};
+    const pick = node.shelves ?? {};
+    const cabinet = leaf.shelves ?? {};
+    const source = (key) => pick[key] !== undefined ? 'manual' : cabinet[key] !== undefined ? 'cabinet' : 'auto';
+    const glass = pick.glass ?? cabinet.glass ?? false;
+    const nosingKind = pick.nosing ?? cabinet.nosing ?? 'none';
+    const kind = glass ? 'none' : nosingKind;
+    // Clearance is per side, 1/16" each side (Kyle 2026-10-20).
+    const width = section.width - 2 * setting('shelfWidthClearance');
+    const depth = section.depth - setting('shelfSetback');
+    const thickness = glass ? setting('glassShelfThickness') : sheetThickness(settings);
+    const makeNosing = (kind) => ({
+      kind, height: setting('shelfNosingHeight'), thickness: setting('shelfNosingThickness'), length: width,
+    });
+    const nosing = kind === 'none' ? null : makeNosing(kind);
+    const clear = shelfZone(section, boxes);
+    const entry = rollouts.get(section.path);
+    let zone = entry ? { z: entry.top, height: Math.max(0, clear.z + clear.height - entry.top) } : clear;
+    const shoeCount = pick.shoe ?? 0;
+    let shoe = null;
+    if (shoeCount > 0) {
+      const angle = setting('shoeShelfAngle');
+      const radians = angle * Math.PI / 180;
+      const s = Math.sin(radians);
+      const c = Math.cos(radians);
+      const shoeNosing = makeNosing(nosingKind === 'none' ? 'hardwood' : nosingKind);
+      const shoeThickness = sheetThickness(settings);
+      const shoeDepth = (depth - shoeNosing.height * s) / c;
+      const nosingTop = shoeNosing.height / c;
+      const pitch = setting('shoeShelfClear') + nosingTop;
+      const positions = Array.from({ length: shoeCount }, (_, index) => zone.z + index * pitch);
+      const top = positions[shoeCount - 1] + nosingTop;
+      shoe = {
+        count: shoeCount, angle, width, depth: shoeDepth,
+        orderedDepth: shoeNosing.kind === 'folded' ? shoeDepth + setting('foldedNosingExtra')
+          : shoeDepth - shoeNosing.thickness,
+        thickness: shoeThickness, nosing: shoeNosing, pitch, nosingTop,
+        frontHeight: shoeNosing.height * c, rise: shoeDepth * s + shoeThickness * c,
+        positions, top,
+      };
+      const zoneTop = zone.z + zone.height;
+      zone = { z: Math.min(top, zoneTop), height: Math.max(0, zoneTop - top) };
+    }
+    const covering = faces.filter((face) => covers(face, section));
+    const eligible = !accessories.get(section.path)?.whole && !['sink', 'cooktop', 'oven'].includes(leaf.purpose) && covering.some(shelfFace);
+    const visible = nosing?.height ?? thickness;
+    // Auto: the most shelves that still leave at least `shelfSpacing` (11" default) clear between them (Kyle 2026-10-19).
+    const spacing = setting('shelfSpacing');
+    const floor = zone.z;
+    const ceiling = floor + zone.height;
+    const bottom = pick.bottom === undefined ? null : section.z + pick.bottom;
+    const top = pick.top === undefined ? null : section.z + section.height - pick.top;
+    const count = pick.count ?? (eligible ? autoStackCount({ floor, ceiling, height: visible, bottom, top,
+      minClear: spacing, min: 0,
+      max: Math.max(1, Math.floor(((top ?? ceiling) - (bottom ?? floor)) / visible)),
+    }) : 0);
+    const { positions, gap, warnings } = spacedStack({ floor, ceiling,
+      heights: Array(count).fill(visible), bottom, top });
+    if (gap !== null && gap < 3) warnings.push({ code: 'shelves-crowded' });
+    if (bottom !== null && bottom < floor - 1e-9) warnings.push({ code: 'shelves-into-fills' });
+    if ((count > 0 || shoeCount > 0) && (section.edges?.left === 'zone' || section.edges?.right === 'zone')) {
+      warnings.push({ code: 'shelves-no-side' });
+    }
+    const shoeClear = count > 0 ? positions[0] - zone.z : zone.height;
+    if (shoe && shoeClear < setting('shoeShelfClear') - 1e-9) {
+      warnings.push({ code: 'shoe-shelves-tight', clear: Math.max(0, shoeClear) });
+    }
+    result.set(section.path, {
+      count, countSource: pick.count === undefined ? 'auto' : 'manual', zone, width, depth,
+      bottomSource: pick.bottom === undefined ? 'auto' : 'manual',
+      topMode: pick.top === undefined ? 'equal' : 'fromTop',
+      orderedDepth: kind === 'folded' ? depth + setting('foldedNosingExtra')
+        : kind === 'hardwood' ? depth - nosing.thickness : depth,
+      // Clear spacing shared by the unpicked gaps.
+      gap,
+      thickness, glass, glassSource: source('glass'), nosing, nosingSource: source('nosing'),
+      banding: glass ? null : !nosing,
+      positions,
+      shoe,
+      warnings,
+    });
+  }
+  // A zone changes shelf placement, but all its physical-section members share shop flags.
+  const physicalSections = interior.physicalSections ?? interior.sections.map((section) => ({ members: [section.path] }));
+  const sections = new Map(interior.sections.map((section) => [section.path, section]));
+  for (const { members } of physicalSections) {
+    const node = getInteriorNode(interior.tree, members[0]) ?? {};
+    const lineBore = node.lineBore ?? members.some((path) => {
+      const shelf = result.get(path);
+      return shelf.count + (shelf.shoe?.count ?? 0) > 0;
+    });
+    const hinges = node.hinges ?? members.some((path) => faces.some((face) => sideHinged(face) && covers(face, sections.get(path))));
+    for (const path of members) {
+      Object.assign(result.get(path), {
+        lineBore, lineBoreSource: node.lineBore === undefined ? 'auto' : 'manual',
+        hinges, hingesSource: node.hinges === undefined ? 'auto' : 'manual',
+      });
+    }
+  }
+  return result;
+}
+
+/** Share all interior passes across every cabinet on the wall face. */
+export function wallInteriorData(room, wall, side, settings) {
+  const faceLayoutsByRun = new Map();
+  const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
+  const boxes = wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
+  const rollouts = wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
+  const accessories = wallAccessories(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes, rollouts });
+  const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
+  const shelves = new Map(interiors.map((interior) => [interior.itemId, sectionShelves({
+    interior,
+    faces: faceLayoutsByRun.get(interior.runId)?.get(interior.itemId)?.faces ?? [],
+    boxes: boxes.get(interior.itemId)?.boxes ?? [],
+    rollouts: rollouts.get(interior.itemId),
+    accessories: accessories.get(interior.itemId),
+    leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId),
+    settings,
+  })]));
+  return { interiors: new Map(interiors.map((interior) => [interior.itemId, interior])), boxes, rollouts, accessories, shelves };
+}
+
+/** Adjustable shelves retain the same wall-coordinate results as the shared interior data. */
+export function wallShelves(room, wall, side, settings) {
+  return wallInteriorData(room, wall, side, settings).shelves;
+}

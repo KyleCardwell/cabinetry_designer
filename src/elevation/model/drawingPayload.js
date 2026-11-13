@@ -1,0 +1,244 @@
+import { elevationKey, elevationLetters, wallLabel } from './topology.js';
+import { resolveWall } from './room.js';
+import { WALL_SIDES } from './wallSides.js';
+import { elevationParts } from './elevationParts.js';
+import { bandParts } from './bandParts.js';
+import { wallParts } from './wallParts.js';
+import { cornerParts } from './cornerParts.js';
+import { paperSize, plotScale } from './drawingScale.js';
+import { elevationDimensions } from './elevationDimensions.js';
+import { elevationMarks } from './elevationMarks.js';
+import { elevationDoorDetails } from './elevationDoorDetails.js';
+import { doorDrawing } from './doorDetails.js';
+import { elevationSwingMarks } from './swingMarks.js';
+import { elevationPulls } from './pullLayouts.js';
+import { elevationPartNumbers } from './elevationPartNumbers.js';
+import { planParts, planShapes } from './planParts.js';
+import { planDimensions } from './planDimensions.js';
+import { planMarks } from './planMarks.js';
+import { combinedViewOf } from './combinedElevations.js';
+import { combinedElevationPayload } from './combinedPayload.js';
+import { wallShowThrough } from './showThrough.js';
+import { glassMarks } from './glassMarks.js';
+import { openingGeometry } from './openings.js';
+import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
+import { runScene } from './runScene.js';
+import { cornerSquashes, squashRect, squashX } from './cornerSquash.js';
+import { cornerLegPayload } from './cornerLegPayload.js';
+
+export const DRAWING_PAYLOAD_VERSION = 1;
+
+export function shapeBlockName(name, id) {
+  const label = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+  const suffix = id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  return `SHAPE_${label}_${suffix}`;
+}
+
+function itemLines({ x, z, width, height }) {
+  if (width === 0 || height === 0) return [{ x1: x, z1: z, x2: x + width, z2: z + height }];
+  return [
+    { x1: x, z1: z, x2: x + width, z2: z },
+    { x1: x + width, z1: z, x2: x + width, z2: z + height },
+    { x1: x + width, z1: z + height, x2: x, z2: z + height },
+    { x1: x, z1: z + height, x2: x, z2: z },
+  ];
+}
+
+function interiorRecord({ itemId, items }) {
+  const seen = new Set();
+  const lines = items.filter(({ drawing }) => !drawing).flatMap(itemLines).filter(({ x1, z1, x2, z2 }) => {
+    const ends = [[x1, z1], [x2, z2]].sort(([ax, az], [bx, bz]) => ax - bx || az - bz);
+    const key = JSON.stringify(ends);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const labels = items.filter(({ kind, width, height }) => kind === 'accessory' && width > 0 && height > 0)
+    .map(({ label, x, z, width, height }) => ({ text: label, x, z, width, height }));
+  return { partId: itemId, lines, labels };
+}
+
+export function faceParts(room, wall, side, settings, options) {
+  return [
+    ...elevationParts(room, wall, side, settings),
+    ...bandParts(room, wall, side, settings),
+    ...wallParts(room, wall, side, settings, { soffitJoins: options?.soffitJoins }),
+    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
+  ];
+}
+
+/** One face's door details (openings, profile lines, miters, tags) for `faceParts` output, as the drawing gets them. */
+export function faceDoorDetails(room, wall, side, settings, sourceParts) {
+  const partIds = new Set(sourceParts.map(({ id }) => id));
+  const doorDetails = elevationDoorDetails(room, wall, side, settings, partIds);
+  if (doorDrawing(room).details) {
+    for (const { id, doorDetail } of sourceParts) {
+      if (!doorDetail) continue;
+      const entry = { partId: id };
+      for (const field of ['openings', 'profileLines', 'miters']) {
+        if (doorDetail[field]?.length) entry[field] = doorDetail[field];
+      }
+      if (entry.openings || entry.profileLines || entry.miters) doorDetails.push(entry);
+    }
+  }
+  return doorDetails;
+}
+
+/**
+ * Everything one face draws, as geometry gets it, without its dimensions, marks or part numbers:
+ * parts (frame openings and glass as `holes`), door details, swing marks, pulls, visible interiors,
+ * accessory shapes and glass marks. Measure snaps to all of it (FX5).
+ */
+export function faceDrawing(room, wall, side, settings, options) {
+  const view = resolveWall(room, wall, side);
+  const cornerLegs = cornerLegPayload(room, view, settings);
+  const legs = view.runs.flatMap((run) => runLegs(room, view, run, settings)
+    .map((placed) => ({ ...placed, runId: run.id })));
+  const sourceParts = faceParts(room, wall, side, settings, options);
+  // Geometry accepts details in doorDetails only, never on the parts themselves.
+  const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
+  parts.push(...legs.map(({ leg, runId, bounds, front, back }) => ({
+    id: leg.id, kind: 'leg', runId, ...bounds, front, back,
+    coversBoxEdges: false, opaque: false, openEdges: ['left', 'right', 'top', 'bottom'],
+  })));
+  parts.push(...view.runs.flatMap((run) => runLegFills(room, view, run, settings)
+    .flatMap(({ id, type, bounds, front, back, face, returns = [] }) => [{
+      id, kind: type === 'panel' ? 'end_panel' : 'filler', runId: run.id, ...bounds,
+      front: face?.front ?? front, back: face?.back ?? back,
+      coversBoxEdges: type === 'filler',
+    }, ...returns.map(({ edge, start, end, front, back }) => ({
+      id: `${id}:return-${edge}`, kind: 'end_panel', runId: run.id,
+      x: start, width: end - start, z: bounds.z, height: bounds.height, front, back,
+      coversBoxEdges: false,
+    }))])));
+  parts.push(...cornerLegs.parts);
+  const partIds = new Set(parts.map(({ id }) => id));
+  const doorDetails = [...faceDoorDetails(room, wall, side, settings, sourceParts), ...cornerLegs.doorDetails];
+  const swingMarks = [...elevationSwingMarks(room, wall, side, settings, partIds), ...cornerLegs.swingMarks];
+  const pulls = [...elevationPulls(room, wall, side, settings, partIds), ...cornerLegs.pulls];
+  const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
+  const interiors = showThrough.map(interiorRecord)
+    .filter(({ partId, lines, labels }) => partIds.has(partId) && (lines.length || labels.length));
+  const shapes = showThrough.filter(({ itemId }) => partIds.has(itemId))
+    .flatMap(({ itemId, items }) => items.filter(({ drawing }) => drawing).map(({ drawing }) => ({
+      partId: itemId,
+      kind: 'accessory',
+      depth: drawing.depth,
+      loops: drawing.outlines.map(({ closed, outline }) => ({ closed, points: outline })),
+      ...(!drawing.stretched ? { block: {
+        name: shapeBlockName(drawing.shapeName, drawing.shapeId),
+        ...drawing.insert,
+        mirror: drawing.mirror,
+      } } : {}),
+    })));
+  shapes.push(...legs.map(({ leg, shapeName, stretched, outlines, insert }) => ({
+    partId: leg.id,
+    kind: 'leg',
+    depth: 0,
+    loops: outlines.map(({ closed, outline }) => ({ closed, points: outline })),
+    ...(!stretched && !leg.square ? { block: {
+      name: shapeBlockName(shapeName, leg.shapeId), ...insert, mirror: leg.mirror === true,
+    } } : {}),
+  })));
+  const squashes = new Map(view.runs.flatMap((run) =>
+    [...cornerSquashes(runScene(room, view, run, settings).faceLayouts)]));
+  const glass = showThrough.flatMap(({ glass }) => glass).map((entry) => {
+    const squash = squashes.get(entry.partId.split(':')[0]);
+    return squash ? {
+      ...entry,
+      openings: entry.openings.map((rect) => squashRect(rect, squash)),
+      marks: entry.marks.map((mark) => ({
+        ...mark, x1: squashX(mark.x1, squash), x2: squashX(mark.x2, squash),
+      })),
+    } : entry;
+  });
+  const openingsByPart = new Map(glass.map(({ partId, openings }) => [partId, openings]));
+  for (const part of parts) {
+    if (part.kind === 'face' && openingsByPart.has(part.id)) part.holes = openingsByPart.get(part.id);
+  }
+  const glassMarksOut = [
+    ...glass.map(({ partId, marks }) => ({ partId, lines: marks })),
+    ...(view.openings ?? []).filter(({ kind }) => kind === 'window').map((opening) => ({
+      partId: opening.id, lines: glassMarks(openingGeometry(opening, view.length, settings).jamb),
+    })),
+  ].filter(({ partId, lines }) => partIds.has(partId) && lines.length);
+  return { view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: glassMarksOut };
+}
+
+function facePayload(room, wall, side, key, letter, settings, options) {
+  const {
+    view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: marks,
+  } = faceDrawing(room, wall, side, settings, options);
+
+  return {
+    key,
+    letter,
+    wallId: wall.id,
+    side,
+    title: `Elevation ${letter}`,
+    wallLabel: wallLabel(room, wall),
+    length: view.length,
+    height: wall.height,
+    parts,
+    dimensions: elevationDimensions(room, wall, side, settings, options),
+    marks: elevationMarks(room, wall, side, settings),
+    doorDetails,
+    partNumbers: elevationPartNumbers(room, wall, side, settings),
+    ...(swingMarks.length ? { swingMarks } : {}),
+    ...(pulls.length ? { pulls } : {}),
+    ...(interiors.length ? { interiors } : {}),
+    ...(shapes.length ? { shapes } : {}),
+    ...(marks.length ? { glassMarks: marks } : {}),
+  };
+}
+
+/**
+ * What geometry draws for one room (SPEC-40, payload v1): one elevation per lettered wall face, in
+ * letter order. Takes a synced room (every room in the store is). Round 40 carries each face's
+ * outline; round 41 adds each face's parts; round 42 its bands; 42.1 the wall's own parts; 42.2 its
+ * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
+ * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
+ * markers and labels; 46.4 each face's door details; 50.13 its part number badges; HP2 its swing marks;
+ * HP5 its pulls; CE combines every saved group into one elevation; IN14 its visible interiors and glass.
+ */
+export function toDrawingPayload(room, settings, { revision } = {}) {
+  const shapes = planShapes(room, settings);
+  const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
+    const wall = room.walls.find((candidate) => WALL_SIDES.some(
+      (side) => elevationKey(candidate.id, side) === key,
+    ));
+    const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
+    const combined = combinedViewOf(room, wall.id, side);
+    if (combined) {
+      return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
+        facePayload(room, faceWall, faceSide, key, letter, settings, options));
+    }
+    return facePayload(room, wall, side, key, letter, settings);
+  });
+
+  return {
+    payloadVersion: DRAWING_PAYLOAD_VERSION,
+    units: 'in',
+    room: {
+      id: room.id,
+      name: room.name,
+      ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
+    },
+    elevations,
+    plotScale: plotScale(settings),
+    paperSize: paperSize(settings),
+    plan: {
+      parts: planParts(room, settings),
+      dimensions: planDimensions(room, settings),
+      marks: planMarks(room, settings),
+      ...(shapes.length ? { shapes } : {}),
+    },
+  };
+}
+
+/** "G1 Euro kitchen" → "g1-euro-kitchen.zip" (SPEC-40); the API uses the same rule. */
+export function drawingZipName(roomName) {
+  const name = roomName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return `${name || 'room'}.zip`;
+}

@@ -1,0 +1,1420 @@
+import { fixed, room as makeRoom, run as makeRun, wall as makeWall } from '../../../test/builders.js';
+import { DOOR_DESIGNS } from '../../model/doorStyles.js';
+import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
+import { BUILT_IN_SLIDES } from '../../model/slides.js';
+import { newAccessory } from '../../model/accessories.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
+import { syncRoom } from '../../model/room.js';
+import {
+  ELEVATION_STORAGE_KEY,
+  isElevationDocument,
+  loadElevationDocument,
+  normalizeElevationDocument,
+  toElevationDocument
+} from '../persistence.js';
+import { createInitialElevationState } from '../elevationSlice.js';
+import { MICRO_SHAKER } from '../../model/__tests__/fixtures/microShakerDesign.js';
+
+function storageWith(entries) {
+  const values = new Map(entries);
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
+function currentDocument() {
+  const settings = structuredClone(DEFAULT_SETTINGS);
+  return {
+    schemaVersion: 4,
+    settings,
+    rooms: [makeRoom({
+      id: 'room-1',
+      name: 'Room 1',
+      profile: { ...settings.defaultProfile },
+      partNumberStart: 1,
+      partNumberOverrides: {},
+      wallOrder: ['wall-a', 'wall-b'],
+      walls: [
+        makeWall({ id: 'wall-a', runs: [makeRun({ id: 'a', x: 12, width: 48, z: 4, height: 30.5,
+          autoCount: false, items: [fixed('a-cab', 45)] })] }),
+        makeWall({ id: 'wall-b', y1: 60, x2: 96, y2: 60, height: 90,
+          runs: [makeRun({ id: 'b', x: 7, width: 48, z: 10, height: 20,
+            autoCount: false, items: [fixed('b-cab', 45)] })] }),
+      ],
+    })],
+    activeRoomId: 'room-1',
+    activeWallId: 'wall-b',
+    view: 'elevation',
+  };
+}
+
+it('defaults missing accessories, round trips saved entries and rejects invalid libraries (IN12b)', () => {
+  const document = currentDocument();
+  delete document.settings.accessories;
+  const serialized = JSON.stringify(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, serialized]]) };
+  const loaded = loadElevationDocument();
+  expect(loaded).not.toBeNull();
+  expect(loaded.settings.accessories).toEqual([]);
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(document.settings).not.toHaveProperty('accessories');
+  expect(window.localStorage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
+  const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, price: 185 };
+  loaded.settings.accessories = [accessory];
+  const saved = toElevationDocument(createInitialElevationState(loaded));
+  window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(saved));
+  expect(loadElevationDocument().settings.accessories).toEqual([accessory]);
+  for (const accessories of [[{ ...accessory, minOpening: { width: 0 } }], [null],
+    [accessory, { ...accessory, id: 'b' }], [accessory, { ...accessory, name: 'Other' }],
+    null, {}, 'accessories']) {
+    const invalid = { ...loaded, settings: { ...loaded.settings, accessories } };
+    expect(isElevationDocument(invalid)).toBe(false);
+    window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(invalid));
+    expect(loadElevationDocument()).toBeNull();
+  }
+});
+
+describe('cabinet purpose persistence (IN1a)', () => {
+
+  it('accepts a known purpose on a cabinet only', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const [purpose, valid] of [['sink', true], ['charging', false], ['garage', false], ['', false], [null, false]]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.purpose = purpose;
+      expect(isElevationDocument(document)).toBe(valid);
+    }
+    const document = structuredClone(base);
+    const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+    cell.node = { ...cell.node, kind: 'filler', purpose: 'sink' };
+    expect(isElevationDocument(document)).toBe(false);
+  });
+});
+
+describe('cabinet box persistence (IN1b)', () => {
+  it('accepts nonempty cabinet overrides and preserves them through save and load', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const box of [
+      { top: 'overlay', finTop: true },
+      ...['dado', 'inset', 'applied', 'none'].map((back) => ({ back })),
+      ...['between', 'overlay', 'spreaders', 'none'].map((value) => ({ top: value, bottom: value })),
+      { left: true, right: false, finTop: false, finBottom: true },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.box = box;
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      const loaded = normalizeElevationDocument(JSON.parse(JSON.stringify(saved)));
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node.box).toEqual(box);
+    }
+  });
+
+  it('rejects empty, malformed and non-cabinet box overrides', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const box of [
+      {}, null, [], 'inset', true, 1,
+      { top: 'dado' }, { bottom: 'applied' }, { back: 'between' },
+      { left: 'no' }, { right: 0 }, { finTop: 'true' }, { finBottom: null },
+      { back: undefined }, { back: null }, { back: 'inset', unknown: true },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.box = box;
+      expect(isElevationDocument(document), JSON.stringify(box)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, box: { top: 'overlay', finTop: true },
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+  });
+});
+
+describe('interior persistence (IN2)', () => {
+  it('round-trips empty sections and seam/banding keys and rejects invalid divider data (IN7)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    const linked = {
+      direction: 'horizontal',
+      children: [{ direction: 'vertical', children: [{}, {}],
+        dividers: [{ kind: 'fixed', seam: 'r.1:2', at: 30, banding: false }] }, {}],
+      dividers: [{ kind: 'partition', seam: 'r:pair' }],
+    };
+    for (const interior of [{}, linked]) {
+      for (const nested of [false, true]) {
+        const document = structuredClone(base);
+        const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+        cell.node.interior = interior;
+        if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+        expect(isElevationDocument(document)).toBe(true);
+        const saved = toElevationDocument(createInitialElevationState(document));
+        globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+        const loaded = loadElevationDocument();
+        expect(isElevationDocument(loaded)).toBe(true);
+        const node = loaded.rooms[0].walls[0].runs[0].grid.cells[0].node;
+        expect(nested ? node.cells[0].node : node).toHaveProperty('interior', interior);
+      }
+    }
+    for (const divider of [
+      { kind: 'fixed', seam: 'r:pair' }, { kind: 'fixed', seam: 'x' },
+      { kind: 'fixed', banding: null }, { kind: 'stretcher', banding: false },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = {
+        direction: 'vertical', children: [{}, {}], dividers: [divider],
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, interior: {},
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+  });
+
+  it('round-trips root and nested cabinet interiors and rejects other stored shapes and leaf kinds', () => {
+    const interior = {
+      direction: 'horizontal',
+      children: [{ direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }] }, {}],
+      dividers: [{ kind: 'double_partition', at: 12, from: 'right', depth: 10 }],
+    };
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const nested of [false, true]) {
+      const document = structuredClone(base);
+      const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+      cell.node.interior = interior;
+      if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+      const loaded = loadElevationDocument();
+      expect(isElevationDocument(loaded)).toBe(true);
+      const node = loaded.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      expect((nested ? node.cells[0].node : node).interior).toEqual(interior);
+    }
+    for (const invalid of [null, [], { ...interior, dividers: [] }]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = invalid;
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, interior,
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+      delete document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior;
+      expect(isElevationDocument(document)).toBe(true);
+    }
+  });
+});
+
+describe('pull reference persistence (HP3c)', () => {
+  it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const [value, valid] of [[0, false], [40, true], [null, true], [-1, false], ['40', false], [Infinity, false]]) {
+      const document = structuredClone(base);
+      const cabinet = document.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      cabinet.pullHeight = value;
+      cabinet.face = { type: 'false_front', size: null, pullId: 'none', pullAt: 'top-rail', pullOrientation: 'horizontal', pullCount: 3 };
+      expect(isElevationDocument(document)).toBe(valid);
+      const normalized = normalizeElevationDocument(document);
+      expect(isElevationDocument(normalized)).toBe(valid);
+      expect(normalized.rooms[0].walls[0].runs[0].grid.cells[0].node.face).toEqual(cabinet.face);
+    }
+    const old = structuredClone(base);
+    delete old.settings.pullHeight;
+    expect(normalizeElevationDocument(old).settings.pullHeight).toBe(45);
+  });
+
+  it('validates wall, run, cabinet and leaf picks and loads old rooms with default pulls', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const target of ['wall', 'run', 'cabinet']) {
+      for (const key of ['doorPullId', 'drawerPullId']) {
+        for (const value of [5, '', false, {}, null, 'none', 'gone']) {
+          const document = structuredClone(base);
+          const wall = document.rooms[0].walls[0];
+          const run = wall.runs[0];
+          const node = target === 'wall' ? wall : target === 'run' ? run : run.grid.cells[0].node;
+          node[key] = value;
+          const valid = value === null || typeof value === 'string' && value.length > 0;
+          expect(isElevationDocument(document), `${target}.${key} = ${JSON.stringify(value)}`).toBe(valid);
+          expect(isElevationDocument(normalizeElevationDocument(document))).toBe(valid);
+        }
+      }
+    }
+    for (const type of ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.face = { type, size: null, pullId: 'gone' };
+      expect(isElevationDocument(document)).toBe(!['panel', 'open'].includes(type));
+    }
+    const old = currentDocument();
+    delete old.settings.doorPullId;
+    delete old.settings.drawerPullId;
+    const loaded = normalizeElevationDocument(old);
+    expect(isElevationDocument(loaded)).toBe(true);
+    for (const partType of ['door', 'drawer']) expect(resolvePull(loaded.settings, partType, []).pullId).toBe('pull-4');
+  });
+});
+
+describe('sandbox slide persistence (IN4b)', () => {
+  const custom = { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Shop slide', hardwareSlideId: 3 };
+
+  it('rejects duplicate names and ids, invalid slides and altered built-in mounts', () => {
+    for (const slides of [
+      [{ ...custom, name: 'X' }, { ...custom, id: 'other', name: 'x' }],
+      [...BUILT_IN_SLIDES, custom, { ...custom, name: 'Other' }],
+      [{ ...custom, name: BUILT_IN_SLIDES[0].name }],
+      [{ ...BUILT_IN_SLIDES[1], mount: 'undermount' }],
+      [{ ...custom, lengths: [] }], [null], null, {}, 'slides',
+    ]) {
+      const document = normalizeElevationDocument(currentDocument());
+      document.settings.slides = slides;
+      expect(isElevationDocument(document)).toBe(false);
+      expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument()).toBeNull();
+    }
+  });
+});
+
+describe('sandbox pull persistence (HP3b)', () => {
+  const bar = {
+    id: 'p1', name: 'Bar', kind: 'pull', length: 5, centers: 4, width: 0.375,
+    projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
+  };
+
+  it('rejects name clashes and other invalid saved lists without repairing their entries', () => {
+    for (const pulls of [
+      [...BUILT_IN_PULLS, bar, { ...bar, id: 'p2', name: 'BAR' }],
+      [...BUILT_IN_PULLS, bar, { ...bar, name: 'Other' }],
+      [...BUILT_IN_PULLS, { ...bar, name: BUILT_IN_PULLS[0].name }],
+      [{ ...BUILT_IN_PULLS[1], id: 'pull-4' }],
+      [...BUILT_IN_PULLS, { ...bar, width: 0 }],
+      [...BUILT_IN_PULLS, null], null, {}, 'pulls',
+    ]) {
+      const document = normalizeElevationDocument(currentDocument());
+      document.settings.pulls = pulls;
+      expect(isElevationDocument(document)).toBe(false);
+      expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument()).toBeNull();
+    }
+  });
+});
+
+describe('corner lap persistence (FL2)', () => {
+  it('round-trips over and into, and rejects invalid lap values on load (A2)', () => {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.endFiller = { left: { cornerLap: 'over' }, right: { cornerLap: 'into' } };
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    expect(loadElevationDocument().rooms[0].walls[0].runs[0].endFiller).toEqual(run.endFiller);
+    for (const value of ['sideways', 'auto', null, true, 1]) {
+      run.endFiller.left.cornerLap = value;
+      expect(isElevationDocument(document)).toBe(false);
+      window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
+      expect(loadElevationDocument()).toBeNull();
+    }
+  });
+});
+
+it('persists baseUnder only as true on root and nested void or panel leaves', () => {
+  for (const kind of ['void', 'panel']) {
+    for (const nested of [false, true]) {
+      const document = currentDocument();
+      const run = document.rooms[0].walls[0].runs[0];
+      const leaf = { id: 'opening', kind, baseUnder: true };
+      run.grid = gridFromItems('a', [{ id: 'opening', kind, width: null, baseUnder: true }]);
+      if (nested) {
+        run.grid.cells[0].node = {
+          id: 'stack', cols: [{ id: 'col', size: null, sizeMode: 'auto' }],
+          rows: ['top', 'bottom'].map((id) => ({ id, size: null, sizeMode: 'auto' })),
+          cells: [
+            { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'drawer', kind: 'cabinet' } },
+            { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: leaf },
+          ],
+        };
+      }
+      const node = nested ? leaf : run.grid.cells[0].node;
+      expect(isElevationDocument(document)).toBe(true);
+      const state = createInitialElevationState(document);
+      expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid).toEqual(run.grid);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument().rooms[0].walls[0].runs[0].grid).toEqual(run.grid);
+      for (const invalid of [false, null, 1, 'true']) {
+        node.baseUnder = invalid;
+        expect(isElevationDocument(document)).toBe(false);
+      }
+      node.baseUnder = true;
+      for (const invalidKind of ['cabinet', 'filler', 'shelves']) {
+        node.kind = invalidKind;
+        expect(isElevationDocument(document)).toBe(false);
+      }
+    }
+  }
+});
+
+function tbtDocument() {
+  const document = currentDocument();
+  const wall = document.rooms[0].walls[0];
+  const run = (id, cabinetTypeId, x, width, height, anchors) => ({
+    id,
+    cabinetTypeId,
+    x,
+    width,
+    z: 4,
+    height,
+    depth: 24,
+    ends: {
+      left: { type: 'none', width: null },
+      right: { type: 'none', width: null },
+    },
+    autoCount: false,
+    maxCabinetWidth: null,
+    grid: gridFromItems(id, [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }]),
+    heightMode: 'manual',
+    overrides: {},
+    anchors,
+  });
+  wall.runs = [
+    run('T1', CABINET_TYPE_IDS.TALL, 0, 24, 80, {
+      left: false,
+      right: { to: 'joint', jointId: 'J1', offset: 0 },
+    }),
+    run('B', CABINET_TYPE_IDS.BASE, 24, 36, 30.5, {
+      left: { to: 'joint', jointId: 'J1', offset: 0 },
+      right: { to: 'joint', jointId: 'J2', offset: 0 },
+    }),
+    run('T2', CABINET_TYPE_IDS.TALL, 60, 24, 80, {
+      left: { to: 'joint', jointId: 'J2', offset: 0 },
+      right: false,
+    }),
+  ];
+  wall.joints = [{ id: 'J1', x: 24 }, { id: 'J2', x: 60 }];
+  document.rooms[0].walls[1].joints = [];
+  return document;
+}
+
+afterEach(() => {
+  delete globalThis.window;
+});
+
+describe('elevation persistence migration', () => {
+
+  it('defaults missing joints and round-trips joined runs unchanged', () => {
+    const withoutJoints = currentDocument();
+    globalThis.window = {
+      localStorage: storageWith([[
+        ELEVATION_STORAGE_KEY,
+        JSON.stringify(withoutJoints),
+      ]]),
+    };
+
+    const loadedWithoutJoints = loadElevationDocument();
+    expect(loadedWithoutJoints.rooms.every((room) => (
+      room.walls.every((wall) => Array.isArray(wall.joints) && wall.joints.length === 0)
+    ))).toBe(true);
+
+    const joined = tbtDocument();
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(joined)]]),
+    };
+    expect(isElevationDocument(joined)).toBe(true);
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(joined));
+  });
+
+  it('clears missing joint anchors and rejects invalid joint offsets', () => {
+    const stale = tbtDocument();
+    stale.rooms[0].walls[0].runs[0].anchors.right.jointId = 'J9';
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(stale)]]),
+    };
+    expect(loadElevationDocument().rooms[0].walls[0].runs[0].anchors.right).toBe(false);
+
+    const malformed = tbtDocument();
+    malformed.rooms[0].walls[0].runs[0].anchors.right.offset = 'x';
+    expect(isElevationDocument(malformed)).toBe(false);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(malformed)]]),
+    };
+    expect(loadElevationDocument()).toBeNull();
+  });
+
+  it('defaults a missing elevationForced field and rejects non-boolean values', () => {
+    const current = currentDocument();
+    delete current.rooms[0].walls[0].elevationForced;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].elevationForced).toBe(false);
+    expect(isElevationDocument(loaded)).toBe(true);
+
+    loaded.rooms[0].walls[0].elevationForced = 'yes';
+    expect(isElevationDocument(loaded)).toBe(false);
+  });
+
+  it('validates optional cabinet pins without requiring the referenced opening', () => {
+    const current = currentDocument();
+    const column = current.rooms[0].walls[0].runs[0].grid.cols[0];
+    column.pin = {
+      anchor: 'center',
+      from: 'opening',
+      openingId: 'deleted-opening',
+      openingAnchor: 'casing-left',
+      value: 0,
+    };
+    column.absorb = true;
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(rootItems(loaded.rooms[0].walls[0].runs[0].grid)[0]).toMatchObject({
+      pin: { openingId: 'deleted-opening' },
+      absorb: true,
+    });
+    // LL4: an old opening pin still loads (so an old lab room opens); the next sync drops it.
+    expect(syncRoom(loaded.rooms[0], loaded.settings).walls[0].runs[0].grid.cols[0]).not.toHaveProperty('pin');
+
+    column.pin.anchor = 'top';
+    expect(isElevationDocument(current)).toBe(false);
+  });
+
+  it('round-trips base and standard matches and rejects misplaced matches (IN7.4)', () => {
+    const current = normalizeElevationDocument(currentDocument());
+    const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
+    const matched = { direction: 'vertical', size: null, match: 'base', children: [
+      { type: 'drawer_front', size: null, match: 'standard' }, { type: 'drawer_front', size: null },
+    ] };
+    item.face = { direction: 'vertical', size: null, children: [{ type: 'door', size: null }, matched] };
+    expect(isElevationDocument(current)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(current));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node.face).toEqual(item.face);
+    for (const invalid of [matched, { type: 'door', size: null, match: 'base' },
+      { ...item.face, direction: 'horizontal' },
+      { ...item.face, children: [item.face.children[0], { ...matched, match: 'tall' }] },
+    ]) {
+      item.face = invalid;
+      expect(isElevationDocument(current)).toBe(false);
+    }
+  });
+
+  it('round-trips a valid cabinet face and rejects a malformed one', () => {
+    const current = currentDocument();
+    const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
+    const face = {
+      direction: 'vertical',
+      size: null,
+      children: [
+        {
+          direction: 'horizontal',
+          size: 6,
+          children: [
+            { type: 'drawer_front', size: null },
+            { type: 'drawer_front', size: null },
+          ],
+        },
+        { type: 'pair_door', size: null },
+      ],
+    };
+    item.face = face;
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node).toMatchObject({ face });
+
+    item.face = { type: 'shelf', size: null };
+    expect(isElevationDocument(current)).toBe(false);
+    item.face = null;
+    expect(isElevationDocument(current)).toBe(true);
+  });
+
+  it('round-trips styles, run face options and manual reveals', () => {
+    const current = currentDocument();
+    const room = current.rooms[0];
+    const run = room.walls[0].runs[0];
+    const item = run.grid.cells[0].node;
+    room.style = { cabinetStyleId: 14 };
+    run.style = { beadWidth: 0.5 };
+    run.upperBottom = 'flush';
+    run.hanging = true;
+    run.top = 'wood';
+    item.style = { cabinetStyleId: 15 };
+    item.reveals = { top: 0.1875, left: null };
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    const loadedRun = loaded.rooms[0].walls[0].runs[0];
+    expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
+    expect(loadedRun).toMatchObject({
+      style: { beadWidth: 0.5 }, upperBottom: 'flush', hanging: true, top: 'wood',
+    });
+    expect(loadedRun.grid.cells[0].node).toMatchObject({
+      style: { cabinetStyleId: 15 },
+      reveals: { top: 0.1875, left: null },
+    });
+  });
+
+  it('rejects malformed styles, run face options and reveals', () => {
+    const current = currentDocument();
+    const room = current.rooms[0];
+    const run = room.walls[0].runs[0];
+    const item = run.grid.cells[0].node;
+    const check = (mutate, undo) => {
+      mutate();
+      expect(isElevationDocument(current)).toBe(false);
+      undo();
+      expect(isElevationDocument(current)).toBe(true);
+    };
+    check(() => { room.style = { cabinetStyleId: 99 }; }, () => { delete room.style; });
+    check(() => { run.style = { beadWidth: -0.25 }; }, () => { run.style = null; });
+    check(() => { run.upperBottom = 'floating'; }, () => { delete run.upperBottom; });
+    check(() => { run.hanging = 'yes'; }, () => { delete run.hanging; });
+    check(() => { item.face = { type: 'door', size: null, noRail: [0] }; }, () => { delete item.face; });
+    check(() => { run.top = 'quartz'; }, () => { run.top = 'stone'; });
+    check(() => { item.style = { finish: 'paint' }; }, () => { item.style = {}; });
+    check(() => { item.reveals = { pair: 0.125 }; }, () => { item.reveals = null; });
+  });
+
+  it('validates opening anchors on either run side', () => {
+    const current = currentDocument();
+    const run = current.rooms[0].walls[0].runs[0];
+    run.anchors.right = {
+      to: 'opening',
+      openingId: 'deleted-opening',
+      edge: 'casing',
+      clearance: null,
+    };
+    expect(isElevationDocument(current)).toBe(true);
+    run.anchors.right.edge = 'rough';
+    expect(isElevationDocument(current)).toBe(false);
+  });
+
+  it('rejects a malformed opening so the editor can start fresh', () => {
+    const current = currentDocument();
+    current.rooms[0].walls[0].openings.push({
+      id: 'door-1',
+      kind: 'door',
+      label: 'D1',
+      measureMode: 'rough',
+      width: 36,
+      height: 80,
+      sillZ: 0,
+      offset: 24,
+      offsetFrom: 'left',
+      casing: { width: 3, thickness: 0.75 },
+    });
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    expect(isElevationDocument(current)).toBe(false);
+    expect(loadElevationDocument()).toBeNull();
+  });
+
+});
+
+describe('wall side persistence', () => {
+  it('accepts valid wall sides and rejects invalid run and joint sides', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].runs[0].wallSide = 'back';
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalidRun = tbtDocument();
+    invalidRun.rooms[0].walls[0].runs[0].wallSide = 'side';
+    expect(isElevationDocument(invalidRun)).toBe(false);
+
+    const invalidJoint = tbtDocument();
+    invalidJoint.rooms[0].walls[0].joints[0].wallSide = 'up';
+    expect(isElevationDocument(invalidJoint)).toBe(false);
+  });
+});
+
+describe('wall end panel persistence', () => {
+  it('validates complete endpoint panel shapes when present', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].endPanels = { start: { width: null }, end: null };
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalidWidth = tbtDocument();
+    invalidWidth.rooms[0].walls[0].endPanels = { start: { width: 'x' }, end: null };
+    expect(isElevationDocument(invalidWidth)).toBe(false);
+
+    const missingEnd = tbtDocument();
+    missingEnd.rooms[0].walls[0].endPanels = { start: null };
+    expect(isElevationDocument(missingEnd)).toBe(false);
+
+    const omitted = tbtDocument();
+    delete omitted.rooms[0].walls[0].endPanels;
+    expect(isElevationDocument(omitted)).toBe(true);
+  });
+});
+
+describe('wall landing persistence', () => {
+  it('validates wall landings and wall run anchors', () => {
+    const empty = tbtDocument();
+    empty.rooms[0].walls[0].landings = { start: null, end: null };
+    expect(isElevationDocument(empty)).toBe(true);
+
+    const landed = tbtDocument();
+    landed.rooms[0].walls[0].landings = {
+      start: { wallId: 'x', side: 'front', ref: 'left', to: 'near', offset: 60 },
+      end: null,
+    };
+    expect(isElevationDocument(landed)).toBe(true);
+
+    const invalidLanding = tbtDocument();
+    invalidLanding.rooms[0].walls[0].landings = {
+      start: { wallId: 'x', side: 'front', ref: 'left', to: 'edge', offset: 60 },
+      end: null,
+    };
+    expect(isElevationDocument(invalidLanding)).toBe(false);
+
+    const anchored = tbtDocument();
+    anchored.rooms[0].walls[0].runs[0].anchors.left = { to: 'wall', wallId: 'x' };
+    expect(isElevationDocument(anchored)).toBe(true);
+
+    const invalidAnchor = tbtDocument();
+    invalidAnchor.rooms[0].walls[0].runs[0].anchors.left = { to: 'wall' };
+    expect(isElevationDocument(invalidAnchor)).toBe(false);
+  });
+});
+
+describe('SPEC-19 soffit persistence', () => {
+  const SF = (overrides = {}) => ({
+    id: 'SF',
+    wallSide: 'front',
+    x: 40,
+    width: 60,
+    bottom: 84,
+    depth: 14,
+    molding: 'crown',
+    anchors: { left: false, right: false },
+    ...overrides,
+  });
+
+  it('validates soffits and soffit anchors and defaults older settings', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].soffits = [SF()];
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalid = tbtDocument();
+    invalid.rooms[0].walls[0].soffits = [SF({ molding: 'cove' })];
+    expect(isElevationDocument(invalid)).toBe(false);
+
+    const anchored = tbtDocument();
+    anchored.rooms[0].walls[0].runs[0].anchors.left = {
+      to: 'soffit', soffitId: 'SF', offset: 0,
+    };
+    expect(isElevationDocument(anchored)).toBe(true);
+
+    const older = tbtDocument();
+    delete older.settings.defaultSoffitDepth;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(older)]]),
+    };
+    expect(loadElevationDocument().settings.defaultSoffitDepth).toBe(14);
+  });
+});
+
+describe('SPEC-23 part number persistence', () => {
+  it('validates, defaults and preserves room part number fields', () => {
+    const omitted = tbtDocument();
+    delete omitted.rooms[0].partNumberStart;
+    delete omitted.rooms[0].partNumberOverrides;
+    expect(isElevationDocument(omitted)).toBe(true);
+    expect(normalizeElevationDocument(omitted).rooms[0]).toMatchObject({
+      partNumberStart: 1,
+      partNumberOverrides: {},
+    });
+
+    const present = tbtDocument();
+    present.rooms[0].partNumberStart = 100;
+    present.rooms[0].partNumberOverrides = { 'piece-1': 7 };
+    expect(normalizeElevationDocument(present).rooms[0]).toMatchObject({
+      partNumberStart: 100,
+      partNumberOverrides: { 'piece-1': 7 },
+    });
+
+    for (const partNumberStart of [0, 1.5]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].partNumberStart = partNumberStart;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+    const invalidOverride = tbtDocument();
+    invalidOverride.rooms[0].partNumberOverrides = { 'piece-1': 0 };
+    expect(isElevationDocument(invalidOverride)).toBe(false);
+  });
+
+});
+
+describe('SPEC-25 blind corner persistence', () => {
+  it('validates optional blind widths and round-trips them unchanged', () => {
+    const omitted = tbtDocument();
+    expect(isElevationDocument(omitted)).toBe(true);
+
+    const present = tbtDocument();
+    present.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = { left: 42 };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(present));
+
+    for (const blind of [{ left: 0 }, { left: -42 }, []]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = blind;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+});
+
+describe('SPEC-27 end filler persistence', () => {
+  it('defaults return settings and validates optional end filler details', () => {
+    expect(DEFAULT_SETTINGS.fillerReturnDepth).toBe(2.5);
+    expect(DEFAULT_SETTINGS.fillerReturnThickness).toBe(0.75);
+    expect(DEFAULT_SETTINGS.fillerThickness).toBe(0.8125);
+    expect(DEFAULT_SETTINGS.fillerReturnTongue).toBe(0.125);
+
+    const older = tbtDocument();
+    delete older.settings.fillerReturnDepth;
+    delete older.settings.fillerReturnThickness;
+    delete older.settings.fillerThickness;
+    delete older.settings.fillerReturnTongue;
+    const normalized = normalizeElevationDocument(older);
+    expect(isElevationDocument(normalized)).toBe(true);
+    expect(normalized.settings).toMatchObject({
+      fillerReturnDepth: 2.5,
+      fillerReturnThickness: 0.75,
+      fillerThickness: 0.8125,
+      fillerReturnTongue: 0.125,
+    });
+
+    const omitted = tbtDocument();
+    expect(isElevationDocument(omitted)).toBe(true);
+
+    const present = tbtDocument();
+    present.rooms[0].walls[0].runs[0].endFiller = {
+      left: { width: 6, returnDepth: 3 },
+      right: null,
+    };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(present));
+
+    for (const endFiller of [{ left: { width: 0 } }, { left: [] }]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].endFiller = endFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+});
+
+describe('SPEC-28 blind end persistence', () => {
+  it('defaults and validates blind ends and zero return depth', () => {
+    expect(DEFAULT_SETTINGS.blindFillerWidth).toBe(6);
+
+    const older = tbtDocument();
+    delete older.settings.blindFillerWidth;
+    expect(normalizeElevationDocument(older).settings.blindFillerWidth).toBe(6);
+
+    const blindEnd = tbtDocument();
+    blindEnd.rooms[0].walls[0].runs[0].ends.left = { type: 'blind', width: null };
+    expect(isElevationDocument(blindEnd)).toBe(true);
+
+    const invalidEnd = tbtDocument();
+    invalidEnd.rooms[0].walls[0].runs[0].ends.left = { type: 'corner', width: null };
+    expect(isElevationDocument(invalidEnd)).toBe(false);
+
+    const zeroReturn = tbtDocument();
+    zeroReturn.rooms[0].walls[0].runs[0].endFiller = {
+      left: { returnDepth: 0 },
+      right: null,
+    };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(zeroReturn)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(zeroReturn));
+
+    for (const endFiller of [{ left: { width: 0 } }, { left: { returnDepth: -1 } }]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].endFiller = endFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+
+});
+
+describe('SPEC-32 grid persistence', () => {
+  const PIN = {
+    anchor: 'center',
+    from: 'left',
+    openingId: null,
+    openingAnchor: 'center',
+    value: 60,
+  };
+
+  it('rejects v4 runs that keep items or blind, or hold a malformed grid', () => {
+    expect(isElevationDocument(currentDocument())).toBe(true);
+    const rejects = (mutate) => {
+      const document = currentDocument();
+      mutate(document.rooms[0].walls[0].runs[0]);
+      expect(isElevationDocument(document)).toBe(false);
+    };
+
+    rejects((run) => { run.items = []; });
+    rejects((run) => { run.blind = { left: 36, right: null }; });
+    rejects((run) => { delete run.grid; });
+    rejects((run) => { run.grid.cols[0].pin = { ...PIN, anchor: 'top' }; });
+    rejects((run) => { run.grid.cells[0].node.blind = { left: 0 }; });
+    rejects((run) => { run.grid.cells[0].node.blind = []; });
+    rejects((run) => { run.grid.cells[0].node.blind = { top: 36 }; });
+    rejects((run) => { run.grid.cells[0].node.kind = 'shelves'; });
+    rejects((run) => { run.grid.cells[0].node.face = { type: 'shelf', size: null }; });
+    rejects((run) => {
+      run.grid.rows.push({ id: 'r2', size: null, sizeMode: 'auto' });
+    });
+  });
+
+});
+
+describe('SPEC-33 split columns', () => {
+  const NESTED = {
+    id: 'g',
+    cols: [{ id: 'g:c', size: null, sizeMode: 'auto' }],
+    rows: [{ id: 'g:r0', size: null, sizeMode: 'auto' }, { id: 'g:r1', size: 12, sizeMode: 'manual' }],
+    cells: [
+      { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'top', kind: 'cabinet', face: { type: 'door', size: null } } },
+      { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: {
+        id: 'h',
+        cols: [{ id: 'h:c0', size: null, sizeMode: 'auto' }, { id: 'h:c1', size: null, sizeMode: 'auto' }],
+        rows: [{ id: 'h:r', size: null, sizeMode: 'auto' }],
+        cells: [
+          { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'l', kind: 'cabinet' } },
+          { col: 1, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'r', kind: 'cabinet', reveals: { top: 0 } } },
+        ],
+      } },
+    ],
+  };
+  function splitDocument() {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.grid.cols[0] = { id: 'g:col', size: 45, sizeMode: 'manual' };
+    run.grid.cells[0].node = structuredClone(NESTED);
+    return document;
+  }
+
+  it('saves and loads a run with a split column', () => {
+    expect(isElevationDocument(splitDocument())).toBe(true);
+    const current = splitDocument();
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(splitDocument()));
+  });
+
+  it("rejects nested grids the model doesn't allow yet", () => {
+    const rejects = (mutate) => {
+      const document = splitDocument();
+      const node = document.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      mutate(node);
+      expect(isElevationDocument(document)).toBe(false);
+    };
+
+    rejects((node) => {
+      node.cols.push({ id: 'g:c2', size: null, sizeMode: 'auto' });
+      node.cells.push(
+        { col: 1, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'x', kind: 'cabinet' } },
+        { col: 1, row: 1, colSpan: 1, rowSpan: 1, node: { id: 'y', kind: 'cabinet' } },
+      );
+    });
+    rejects((node) => {
+      node.rows = [node.rows[0]];
+      node.cells = [node.cells[0]];
+    });
+    rejects((node) => { node.cells[0].node.kind = 'filler'; });
+    rejects((node) => { node.cells[0].node.face = { type: 'shelf', size: null }; });
+    rejects((node) => { node.cells[0].node.blind = { left: 0 }; });
+    rejects((node) => { node.cells[1].node.cells[1].node.reveals = { top: 'x' }; });
+    rejects((node) => { node.rows[1] = { id: 'g:r1', size: 12, sizeMode: 'auto' }; });
+  });
+
+});
+
+describe('SPEC-34 cell kinds', () => {
+  const cellAt = (row, node) => ({ col: 0, row, colSpan: 1, rowSpan: 1, node });
+  const KINDS = {
+    id: 'k',
+    cols: [{ id: 'k:c', size: null, sizeMode: 'auto' }],
+    rows: ['k:r0', 'k:r1', 'k:r2', 'k:r3'].map((id) => ({ id, size: null, sizeMode: 'auto' })),
+    cells: [
+      cellAt(0, { id: 'sh', kind: 'shelves', shelves: { count: 3, back: true }, depth: 12, align: 'back' }),
+      cellAt(1, { id: 'ov', kind: 'cabinet', depth: 21, align: 'back', blind: { left: 30 } }),
+      cellAt(2, { id: 'op', kind: 'void' }),
+      cellAt(3, { id: 'bp', kind: 'panel', depth: 0.75, align: 'back' }),
+    ],
+  };
+  function kindDocument() {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.grid.cols[0] = { id: 'k:col', size: 45, sizeMode: 'manual' };
+    run.grid.cells[0].node = structuredClone(KINDS);
+    return document;
+  }
+
+  it('round-trips Auto and typed spacing picks on nested and root shelves (IN15a)', () => {
+    for (const nested of [false, true]) {
+      for (const shelves of [{ back: false }, { back: true, bottom: 0, top: 0 },
+        { back: false, count: 12, bottom: 6.25, top: 2 }]) {
+        const document = nested ? kindDocument() : currentDocument();
+        const grid = document.rooms[0].walls[0].runs[0].grid;
+        const node = nested ? grid.cells[0].node.cells[0].node : grid.cells[0].node;
+        Object.keys(node).forEach((key) => { if (key !== 'id') delete node[key]; });
+        Object.assign(node, { kind: 'shelves', shelves });
+        expect(isElevationDocument(document)).toBe(true);
+        const state = createInitialElevationState(document);
+        expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid).toEqual(grid);
+        for (const patch of [{ count: null }, { count: 0 }, { count: 13 }, { count: 1.5 },
+          { bottom: -1 }, { top: -1 }, { bottom: null }, { top: '2' }, { bottom: Infinity },
+          { top: NaN }, { unknown: 1 }, { back: null }]) {
+          node.shelves = { ...shelves, ...patch };
+          expect(isElevationDocument(document), JSON.stringify(patch)).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('saves and loads panel, void and shelves cells with depth and align', () => {
+    expect(isElevationDocument(kindDocument())).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(kindDocument())]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(kindDocument()));
+  });
+
+  it('rejects cells that break the kind rules', () => {
+    const rejects = (mutate) => {
+      const document = kindDocument();
+      mutate(document.rooms[0].walls[0].runs[0].grid.cells[0].node.cells.map((entry) => entry.node));
+      expect(isElevationDocument(document)).toBe(false);
+    };
+    rejects(([, , open]) => { open.depth = 12; });
+    rejects(([, , , panel]) => { panel.face = { type: 'door', size: null }; });
+    rejects(([, , , panel]) => { panel.blind = { left: 30 }; });
+    rejects(([, , , panel]) => { panel.kind = 'shelf'; });
+    rejects(([shelves]) => { shelves.shelves = { count: 0, back: true }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2.5, back: true }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 13, back: false }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2 }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2, back: true, gap: 1 }; });
+    rejects(([shelves]) => { delete shelves.shelves; });
+    rejects(([, oven]) => { oven.depth = 0; });
+    rejects(([, oven]) => { oven.align = 'middle'; });
+    const root = currentDocument();
+    root.rooms[0].walls[0].runs[0].grid.cells[0].node.kind = 'shelf';
+    expect(isElevationDocument(root)).toBe(false);
+  });
+
+});
+
+describe('SPEC-34.1 top-level cell kinds', () => {
+  function rootKindDocument() {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
+      { id: 'side', kind: 'panel', width: 0.75 },
+      { id: 'cab', kind: 'cabinet', width: null, depth: 21, align: 'back' },
+      { id: 'open', kind: 'void', width: null },
+      { id: 'shelf', kind: 'shelves', width: null, shelves: { count: 2, back: false } },
+      { id: 'back', kind: 'panel', width: null, depth: 0.75, align: 'back' },
+    ]);
+    return document;
+  }
+
+  it('saves and loads top-level panel, void and shelves columns', () => {
+    expect(isElevationDocument(rootKindDocument())).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(rootKindDocument())]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(rootKindDocument()));
+  });
+
+  it('rejects top-level cells that break the kind rules', () => {
+    const rejects = (mutate) => {
+      const document = rootKindDocument();
+      mutate(document.rooms[0].walls[0].runs[0].grid.cells.map((entry) => entry.node));
+      expect(isElevationDocument(document)).toBe(false);
+    };
+    rejects(([side]) => { side.face = { type: 'door', size: null }; });
+    rejects(([side]) => { side.kind = 'shelf'; });
+    rejects(([, cab]) => { cab.depth = 0; });
+    rejects(([, , open]) => { open.depth = 3; });
+    rejects(([, , , shelf]) => { delete shelf.shelves; });
+  });
+});
+
+describe('SPEC-34.2 panel doors and hinges', () => {
+  it('saves and loads panel doors and door hinges', () => {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
+      { id: 'cover', kind: 'panel', width: 0.75, doors: 'cover' },
+      { id: 'flush', kind: 'panel', width: 0.75, doors: 'flush' },
+      {
+        id: 'cab',
+        kind: 'cabinet',
+        width: null,
+        face: { type: 'door', size: null, hinge: 'left' },
+      },
+    ]);
+    expect(isElevationDocument(document)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(document));
+
+    document.rooms[0].walls[0].runs[0].grid.cells[0].node.doors = 'overlay';
+    expect(isElevationDocument(document)).toBe(false);
+  });
+});
+
+describe('SPEC-34.3 follow anchors', () => {
+  it('saves a followed side and rejects bad ones', () => {
+    const withAnchor = (anchor) => {
+      const document = currentDocument();
+      document.rooms[0].walls[0].runs[0].anchors.left = anchor;
+      return document;
+    };
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'right', offset: 0 }))).toBe(true);
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'left', offset: -1.5 }))).toBe(true);
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'up', offset: 0 }))).toBe(false);
+    expect(isElevationDocument(withAnchor({ to: 'follow', side: 'right', offset: 0 }))).toBe(false);
+  });
+});
+
+describe('SPEC-35 run shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+  const RAIL = { id: 'rail', kind: 'light_rail', height: 1.5, doors: 'cover' };
+  const CAP = { id: 'cap', kind: 'bottom_cap', height: 1.5, doors: 'visible' };
+
+  it('saves tops, parts below, stack links and outset, and rejects bad ones', () => {
+    expect(isElevationDocument(withRun({ top: 'crown' }))).toBe(true);
+    expect(isElevationDocument(withRun({ top: 'none' }))).toBe(true);
+    expect(isElevationDocument(withRun({ top: 'marble' }))).toBe(false);
+    expect(isElevationDocument(withRun({ bottom: [RAIL, CAP] }))).toBe(true);
+    expect(isElevationDocument(withRun({ bottom: [{ ...CAP, doors: 'cover' }] }))).toBe(false);
+    expect(isElevationDocument(withRun({ bottom: [{ ...RAIL, height: 0 }] }))).toBe(false);
+    expect(isElevationDocument(withRun({ stack: { below: { runId: 'b', offset: 0 }, above: null } }))).toBe(true);
+    expect(isElevationDocument(withRun({ stack: { below: { offset: 0 }, above: null } }))).toBe(false);
+    expect(isElevationDocument(withRun({ outset: 2 }))).toBe(true);
+    expect(isElevationDocument(withRun({ outset: -1 }))).toBe(false);
+  });
+
+});
+
+describe('SPEC-35.3 extensions shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+  const endWith = (extend) => ({
+    left: { type: 'end_panel', width: null, extend },
+    right: { type: 'filler', width: null },
+  });
+  const gridWith = (item) => gridFromItems('a', [item, { id: 'a-cab', kind: 'cabinet', width: null }]);
+
+  it('saves extensions on ends, panels and fillers, and rejects bad ones', () => {
+    expect(isElevationDocument(withRun({ ends: endWith({ down: { to: 'floor' } }) }))).toBe(true);
+    expect(isElevationDocument(withRun({ ends: endWith({ down: { to: 'ceiling' } }) }))).toBe(false);
+    expect(isElevationDocument(withRun({ ends: endWith({}) }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'p', kind: 'panel', width: 0.75, extend: { up: { to: 'ceiling' } } }),
+    }))).toBe(true);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'f', kind: 'filler', width: 3, extend: { down: { to: 'by', amount: 4 } } }),
+    }))).toBe(true);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'f', kind: 'filler', width: 3, extend: { down: { to: 'by', amount: -4 } } }),
+    }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({
+        id: 's', kind: 'shelves', width: 30, shelves: { count: 2, back: false }, extend: { up: { to: 'ceiling' } },
+      }),
+    }))).toBe(false);
+  });
+});
+
+describe('SPEC-36 gaps shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+
+  it('saves a run seam gap and column gaps, and never the derived one', () => {
+    expect(isElevationDocument(withRun({ seamGap: 0.5 }))).toBe(true);
+    expect(isElevationDocument(withRun({ seamGap: -0.5 }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridFromItems('a', [
+        { id: 'p', kind: 'panel', width: 0.75, gap: 0.5 },
+        { id: 'a-cab', kind: 'cabinet', width: null },
+      ]),
+    }))).toBe(true);
+    const state = currentDocument();
+    state.rooms[0].walls[0].runs[0]._seamGap = 0.5;
+    expect('_seamGap' in toElevationDocument(state).rooms[0].walls[0].runs[0]).toBe(false);
+  });
+});
+
+describe('SPEC-36.2 wall end panel frame join', () => {
+  it('saves valid wall end panel frame joins and rejects invalid ones', () => {
+    const withFrame = (frame) => {
+      const document = currentDocument();
+      document.rooms[0].walls[0].endPanels = {
+        start: { width: 0.75, ...(frame === undefined ? {} : { frame }) },
+        end: null,
+      };
+      return document;
+    };
+
+    expect(isElevationDocument(withFrame(undefined))).toBe(true);
+    expect(isElevationDocument(withFrame('miter'))).toBe(true);
+    expect(isElevationDocument(withFrame('butt'))).toBe(true);
+    expect(isElevationDocument(withFrame(null))).toBe(false);
+    expect(isElevationDocument(withFrame('lap'))).toBe(false);
+  });
+});
+
+describe('SPEC-37 T-filler persistence', () => {
+  const firstRun = (document) => document.rooms[0].walls[0].runs[0];
+
+  it('defaults the cover and thickness and validates the run setting', () => {
+    expect(DEFAULT_SETTINGS.teeCover).toBe(0.75);
+    expect(DEFAULT_SETTINGS.teeThickness).toBe(0.8125);
+    const older = tbtDocument();
+    delete older.settings.teeCover;
+    delete older.settings.teeThickness;
+    const normalized = normalizeElevationDocument(older);
+    expect(normalized.settings.teeCover).toBe(0.75);
+    expect(normalized.settings.teeThickness).toBe(0.8125);
+    expect(isElevationDocument(normalized)).toBe(true);
+
+    for (const value of ['seams', 'all']) {
+      const valid = tbtDocument();
+      firstRun(valid).tFiller = value;
+      expect(isElevationDocument(valid)).toBe(true);
+    }
+    for (const value of ['vertical', true, null]) {
+      const invalid = tbtDocument();
+      firstRun(invalid).tFiller = value;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+
+  it('validates a cabinet\'s sides and an end filler\'s flag', () => {
+    for (const tFiller of [{ left: true }, { left: true, top: false }, { bottom: false }]) {
+      const valid = tbtDocument();
+      firstRun(valid).grid.cells[0].node.tFiller = tFiller;
+      expect(isElevationDocument(valid)).toBe(true);
+    }
+    for (const tFiller of [{}, { middle: true }, { left: 'yes' }, { left: null }, true]) {
+      const invalid = tbtDocument();
+      firstRun(invalid).grid.cells[0].node.tFiller = tFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+
+    const flagged = tbtDocument();
+    firstRun(flagged).endFiller = { left: { tFiller: true }, right: { width: 3, tFiller: false } };
+    expect(isElevationDocument(flagged)).toBe(true);
+    firstRun(flagged).endFiller = { left: { tFiller: 'yes' } };
+    expect(isElevationDocument(flagged)).toBe(false);
+  });
+});
+
+it('defaults sheet thickness on old documents and round-trips room overrides (EP1)', () => {
+  const saved = currentDocument();
+  delete saved.settings.sheetThickness;
+  saved.rooms[0].settingsOverrides = { sheetThickness: 0.6875 };
+  const loaded = normalizeElevationDocument(saved);
+  expect(loaded.settings.sheetThickness).toBe(0.75);
+  expect(saved.settings).not.toHaveProperty('sheetThickness');
+  expect(isElevationDocument(loaded)).toBe(true);
+  const roundTrip = normalizeElevationDocument(JSON.parse(JSON.stringify(toElevationDocument(loaded))));
+  expect(roundTrip.settings.sheetThickness).toBe(0.75);
+  expect(roundTrip.rooms[0].settingsOverrides).toEqual({ sheetThickness: 0.6875 });
+  loaded.settings.sheetThickness = 0.5;
+  expect(normalizeElevationDocument(toElevationDocument(loaded)).settings.sheetThickness).toBe(0.5);
+});
+
+it('keeps a saved Micro Shaker as the team\'s own design and appends nothing (not a built-in)', () => {
+  const saved = currentDocument();
+  saved.settings.doorDesigns = [...structuredClone(DOOR_DESIGNS), structuredClone(MICRO_SHAKER)];
+  const encoded = JSON.stringify(saved);
+  const storage = storageWith([[ELEVATION_STORAGE_KEY, encoded]]);
+  globalThis.window = { localStorage: storage };
+  const loaded = loadElevationDocument();
+  expect(loaded.settings.doorDesigns).toEqual(saved.settings.doorDesigns);
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
+
+  const without = currentDocument();
+  without.settings.doorDesigns = structuredClone(DOOR_DESIGNS);
+  expect(normalizeElevationDocument(without).settings.doorDesigns.map(({ id }) => id))
+    .toEqual(['five-piece-square', 'slab', 'slab-mdf']);
+});
+
+it('defaults older roll-out settings, preserves picks and validates stored roll-outs on load/save (IN9)', () => {
+  const legacy = currentDocument();
+  delete legacy.settings.rolloutHeight;
+  delete legacy.settings.rolloutSpacer;
+  const normalized = normalizeElevationDocument(legacy);
+  expect(normalized.settings).toMatchObject({ rolloutHeight: 4.25, rolloutSpacer: 1.25 });
+  expect(isElevationDocument(normalized)).toBe(true);
+  expect(gridLeaves(normalized.rooms[0].walls[0].runs[0].grid)[0]).not.toHaveProperty('interior');
+  legacy.settings.rolloutHeight = 6;
+  legacy.settings.rolloutSpacer = 1.5;
+  expect(normalizeElevationDocument(legacy).settings).toMatchObject({ rolloutHeight: 6, rolloutSpacer: 1.5 });
+  const interior = {
+    direction: 'vertical', children: [{}, {
+      rollouts: { count: 2, items: [{ at: 0 }, { height: 6, depth: 18, slideId: 'x' }] },
+    }], dividers: [{ kind: 'fixed' }],
+  };
+  for (const nested of [false, true]) {
+    const document = structuredClone(normalized);
+    const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+    cell.node.interior = structuredClone(interior);
+    if (nested) cell.node = gridFromItems('nested', [
+      { ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null },
+    ]);
+    expect(isElevationDocument(document)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(document));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
+  }
+  for (const rollouts of [{ count: 0 }, { count: 1, items: [{ depth: 0 }] }, { count: 2, layout: 'side' },
+    { count: 2, layout: 'pair' }, { count: 2, layout: 'stack' }]) {
+    const invalid = structuredClone(normalized);
+    invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = { rollouts };
+    expect(isElevationDocument(invalid)).toBe(false);
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(invalid)]]) };
+    expect(loadElevationDocument()).toBeNull();
+  }
+});
+
+describe('shelf and flag persistence (IN8)', () => {
+  it('defaults older settings and round-trips shoe settings and section counts (IN13b)', () => {
+    expect(DEFAULT_SETTINGS.shoeShelfAngle).toBe(12);
+    expect(DEFAULT_SETTINGS.shoeShelfClear).toBe(6);
+    const legacy = currentDocument();
+    delete legacy.settings.shoeShelfAngle;
+    delete legacy.settings.shoeShelfClear;
+    const document = normalizeElevationDocument(legacy);
+    expect(document.settings).toMatchObject({ shoeShelfAngle: 12, shoeShelfClear: 6 });
+    Object.assign(document.settings, { shoeShelfAngle: 15, shoeShelfClear: 7 });
+    document.rooms[0].settingsOverrides = { shoeShelfAngle: 10, shoeShelfClear: 8 };
+    const interior = {
+      direction: 'vertical', children: [{ shelves: { shoe: 0 } }, { shelves: { shoe: 20, count: 2 } }],
+      dividers: [{ kind: 'fixed' }],
+    };
+    document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
+    expect(isElevationDocument(document)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(document));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(loaded.settings).toMatchObject({ shoeShelfAngle: 15, shoeShelfClear: 7 });
+    expect(loaded.rooms[0].settingsOverrides).toEqual({ shoeShelfAngle: 10, shoeShelfClear: 8 });
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
+  });
+
+  it('round-trips cabinet picks and customized nested sections on root and nested cabinets', () => {
+    const legacy = currentDocument();
+    const keys = ['shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',
+      'shelfNosingHeight', 'shelfNosingThickness', 'foldedNosingExtra'];
+    for (const key of keys) delete legacy.settings[key];
+    const normalized = normalizeElevationDocument(legacy);
+    expect(isElevationDocument(normalized)).toBe(true);
+    for (const key of keys) expect(normalized.settings[key]).toBe(DEFAULT_SETTINGS[key]);
+    legacy.settings.shelfSpacing = 10;
+    expect(normalizeElevationDocument(legacy).settings.shelfSpacing).toBe(10);
+    const interior = {
+      direction: 'vertical',
+      children: [{ shelves: { count: 0, glass: false, nosing: 'none' }, hinges: true, lineBore: false },
+        { shelves: { count: 20, glass: true, nosing: 'folded' }, hinges: false, lineBore: true }],
+      dividers: [{ kind: 'fixed' }],
+    };
+    const shelves = { glass: false, nosing: 'hardwood' };
+    for (const nested of [false, true]) {
+      const document = normalizeElevationDocument(currentDocument());
+      const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+      Object.assign(cell.node, { interior, shelves });
+      if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+      const loaded = loadElevationDocument();
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0]).toMatchObject({ interior, shelves });
+    }
+  });
+
+  it('rejects malformed cabinet or section picks and keeps legacy shelves-cell validation separate', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const shelves of [{}, null, [], { count: 0 }, { back: false }, { glass: 0 }, { glass: null }, { nosing: 'oak' }]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.shelves = shelves;
+      expect(isElevationDocument(document), JSON.stringify(shelves)).toBe(false);
+    }
+    for (const interior of [
+      { shelves: {} }, { shelves: { count: 21 } }, { hinges: null }, { lineBore: 1 },
+      { direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed' }], shelves: { glass: true } },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['filler', 'panel', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'other', kind, width: 1, shelves: { glass: true },
+      };
+      expect(isElevationDocument(document)).toBe(false);
+      if (kind === 'shelves') {
+        document.rooms[0].walls[0].runs[0].grid.cells[0].node.shelves = { count: 1, back: false };
+        expect(isElevationDocument(document)).toBe(true);
+      }
+    }
+  });
+});
+

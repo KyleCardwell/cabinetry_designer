@@ -1,0 +1,173 @@
+import { DOOR_DESIGNS } from '../doorStyles.js';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS as CURRENT_SETTINGS } from '../constants.js';
+const DEFAULT_SETTINGS = { ...CURRENT_SETTINGS, doorDesigns: DOOR_DESIGNS };
+import { DEFAULT_DOOR_STYLE, isPartSizes } from '../doorStyles.js';
+import { partSizeRows, pickOptions, setPartNote, setPartSide } from '../doorStyleEdits.js';
+import { setFacePart } from '../faceTree.js';
+
+const [SQUARE, SLAB, SLAB_AM] = DOOR_DESIGNS;
+const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A' };
+const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', thickness: 1 };
+const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-mdf', thickness: 0.75 };
+
+describe('SPEC-46.1 a face\'s own style and sizes', () => {
+  it('sets and clears styleId and sizes on a face leaf, never on a group or an open face', () => {
+    const face = {
+      direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, { type: 'open', size: null }],
+    };
+    const withA = setFacePart(face, 'r.0', { styleId: 'ds-a' });
+    expect([withA.children[0], face.children[0]])
+      .toEqual([{ type: 'drawer_front', size: 6, styleId: 'ds-a' }, { type: 'drawer_front', size: 6 }]);
+    const sized = setFacePart(withA, 'r.0', { sizes: { rails: { top: 2 } } });
+    expect(setFacePart(sized, 'r.0', { styleId: null }).children[0])
+      .toEqual({ type: 'drawer_front', size: 6, sizes: { rails: { top: 2 } } });
+    expect(setFacePart(sized, 'r.0', { styleId: 'ds-b', sizes: null }).children[0])
+      .toEqual({ type: 'drawer_front', size: 6, styleId: 'ds-b' });
+    expect([
+      setFacePart(face, 'r', { styleId: 'ds-a' }),
+      setFacePart(face, 'r.1', { styleId: 'ds-a' }),
+      setFacePart(face, 'r.5', { styleId: 'ds-a' }),
+    ].every((next) => next === face)).toBe(true);
+    expect(setFacePart(withA, 'r.0', { styleId: 'ds-a' })).toBe(withA);
+    expect(setFacePart(sized, 'r.0', { sizes: { rails: { top: 2 } } })).toBe(sized);
+  });
+});
+
+describe('SPEC-46.1 per-part size edits (P13)', () => {
+  it('sets and clears one stile or rail, dropping empty groups', () => {
+    const one = setPartSide(undefined, 'top', 2.625);
+    const two = setPartSide(one, 'bottom', 2.625);
+    expect([one, two]).toEqual([{ rails: { top: 2.625 } }, { rails: { top: 2.625, bottom: 2.625 } }]);
+    expect(setPartSide(undefined, 'left', 3.5)).toEqual({ stiles: { left: 3.5 } });
+    expect(setPartSide({ rails: { top: 2.625 }, notes: { top: 'match' } }, 'top', null)).toEqual({ notes: { top: 'match' } });
+    expect(setPartSide({ rails: { top: 2.625 } }, 'top', null)).toBeUndefined();
+    const sizes = { stiles: { left: 3 } };
+    expect([setPartSide(sizes, 'left', 0), setPartSide(sizes, 'middle', 3)].every((next) => next === sizes)).toBe(true);
+  });
+
+  it('sets and clears notes without leaving empty groups', () => {
+    const results = [
+      setPartNote(undefined, 'left', 'scribe'),
+      setPartNote({ notes: { left: 'scribe' }, stiles: { left: 3.5 } }, 'left', ''),
+      setPartNote({ notes: { left: 'scribe' } }, 'left', null),
+    ];
+    expect(results).toEqual([
+      { notes: { left: 'scribe' } },
+      { stiles: { left: 3.5 } },
+      undefined,
+    ]);
+    expect(results.map((entry) => entry === undefined || isPartSizes(entry)))
+      .toEqual([true, true, true]);
+  });
+});
+
+describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
+  it('lists the team default and the room\'s styles, and what a level inherits from above', () => {
+    const room = { doorStyles: [A, B, C], doorStyleId: 'ds-b' };
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [])).toEqual({
+      inherit: { id: 'default', text: 'Inherit (Std · 5PC · 13/16")' },
+      options: [
+        { id: 'default', text: 'Team default (Std · 5PC · 13/16")' },
+        { id: 'ds-a', text: 'A · 5PC · 13/16"' },
+        { id: 'ds-b', text: 'B · 5PC · 1"' },
+        { id: 'ds-c', text: 'C · Slab - MDF Core · 3/4"' },
+      ],
+    });
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [{ level: 'room', node: room }], {}).inherit)
+      .toEqual({ id: 'ds-b', text: 'Inherit (B · 5PC · 1")' });
+    expect(pickOptions({}, { ...DEFAULT_SETTINGS, teamDoorStyle: { ...DEFAULT_SETTINGS.teamDoorStyle, thickness: 1 } }, 'door', [])).toEqual({
+      inherit: { id: 'default', text: 'Inherit (Std · 5PC · 1")' },
+      options: [{ id: 'default', text: 'Team default (Std · 5PC · 1")' }],
+    });
+  });
+
+  it('shows drawer fronts and panels following the doors, counting this level\'s own Doors pick', () => {
+    const room = { doorStyles: [A, B, C], doorStyleId: 'ds-b', drawerFrontStyleId: 'ds-a' };
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', [], room).inherit)
+      .toEqual({ id: 'ds-b', text: 'Same as doors (B · 5PC · 1")' });
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', [], room).inherit)
+      .toEqual({ id: 'ds-b', text: 'Same as doors (B · 5PC · 1")' });
+    const above = [{ level: 'room', node: { ...room, drawerFrontStyleId: 'default', panelStyleId: 'ds-c' } }];
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', above, {}).inherit)
+      .toEqual({ id: 'default', text: 'Inherit (Std · 5PC · 13/16")' });
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', above, {}).inherit)
+      .toEqual({ id: 'ds-c', text: 'Inherit (C · Slab - MDF Core · 3/4")' });
+    expect(pickOptions({}, DEFAULT_SETTINGS, 'panel', [], {})).toEqual({
+      inherit: { id: 'default', text: "Same as doors (Std · 5PC · 13/16\")" },
+      options: [{ id: 'default', text: "Team default (Std · 5PC · 13/16\")" }, { id: 'sheet', text: 'Sheet slab (3/4")' }],
+    });
+  });
+
+  it('gives each side\'s typed value, final value, where it came from and its note', () => {
+    expect(partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, {
+      width: 15, height: 7, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' }, layout: { split: 'cols', children: [{ size: 2.5 }, {}] } },
+    })).toEqual({
+      title: 'Stiles & rails',
+      note: null,
+      rows: [
+        { side: 'top', label: 'Top rail', typed: null, value: 2.4375, source: 'rule', note: null },
+        { side: 'bottom', label: 'Bottom rail', typed: null, value: 2.4375, source: 'rule', note: null },
+        { side: 'left', label: 'Left stile', typed: 3.5, value: 3.5, source: 'part', note: 'scribe' },
+        { side: 'right', label: 'Right stile', typed: null, value: 3, source: 'style', note: null },
+      ],
+      midRails: [],
+      midStiles: [{ kind: 'stile', path: 'root', index: 0, at: 7.5, width: 3, source: 'flat',
+        name: 'MS1', from: 'BR', to: 'TR', full: true, typed: false }],
+      opening: { width: 8.5, height: 2.125 },
+    });
+    const typed = partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, {
+      width: 15, height: 30, sizes: {
+        layout: { split: 'cols', children: [{}, {}], mids: [{ width: 4 }] },
+      },
+    });
+    expect(typed.midStiles[0]).toMatchObject({ width: 4, source: 'part', typed: true });
+  });
+
+  it('keeps Slab - MDF Core size rows usable without frame sizes and explains plain slabs', () => {
+    const coreRows = partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 8.5 }, 0.3125);
+    expect(coreRows.rows.map(({ value }) => value)).toEqual([2.875, 2.875, 3, 3]);
+    expect(coreRows.opening).toEqual({ width: 8.375, height: 2.125 });
+    expect(partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 5 }, 0.3125).title).toBe('Slab');
+    expect(partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 30 }, 0.3125).opening)
+      .toEqual({ width: 15, height: 30 });
+    const molding = partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, {
+      width: 15, height: 30, sizes: { layout: { split: 'rows', children: [{ size: 15 }, {}], mids: [{ width: 4 }] } },
+    });
+    expect([molding.title, molding.rows.map(({ label }) => label), molding.midRails, molding.opening]).toEqual([
+      'Applied moldings', [], [{ kind: 'rail', path: 'root', index: 0, at: 15, width: 0,
+        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true, typed: false }], { width: 15, height: 30 },
+    ]);
+    const slab = { title: 'Slab', rows: [], midRails: [], midStiles: [], opening: null };
+    expect([
+      partSizeRows(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 }),
+      partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 }),
+      partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 4.75 }),
+    ]).toEqual([
+      { title: 'Applied moldings', rows: [], midRails: [], midStiles: [], opening: { width: 15, height: 30 }, area: { x: 0, z: 0, width: 15, height: 30 }, note: null },
+      { ...slab, note: 'Slab under 4 13/16" — molding left off' },
+      { ...slab, note: 'Slab under 4 13/16" — molding left off' },
+    ]);
+  });
+
+  it('reads typed widths by layout path and index, including zero-width slab mids (MR2c)', () => {
+    const part = { width: 30, height: 39, sizes: { layout: {
+      split: 'rows', children: [
+        { split: 'cols', children: [{}, {}, {}], mids: [{}, { width: 4 }] },
+        { split: 'cols', children: [{}, {}], mids: [{ width: 5 }] },
+      ],
+    } } };
+    for (const design of [SQUARE, SLAB_AM]) {
+      const result = partSizeRows(DEFAULT_DOOR_STYLE, design, part);
+      expect(result.midRails).toMatchObject([{ name: 'MR1', typed: false }]);
+      expect(result.midStiles).toHaveLength(3);
+      for (const [path, index, typed] of [['root.0', 0, false], ['root.0', 1, true], ['root.1', 0, true]]) {
+        // MR4: typed widths are ignored on slabs.
+        expect(result.midStiles.find((mid) => mid.path === path && mid.index === index)).toMatchObject({
+          typed: design === SLAB_AM ? false : typed, name: expect.stringMatching(/^MS\d$/),
+          ...(design === SLAB_AM ? { width: 0, source: 'flat' } : {}),
+        });
+      }
+    }
+  });
+});

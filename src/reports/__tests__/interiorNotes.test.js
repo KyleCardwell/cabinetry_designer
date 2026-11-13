@@ -1,0 +1,367 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { boxConstruction } from '../../elevation/model/boxConstruction.js';
+import { resolveInterior } from '../../elevation/model/interiors.js';
+import { sectionRollouts } from '../../elevation/model/rollouts.js';
+import { sectionShelves } from '../../elevation/model/shelves.js';
+import { BUILT_IN_SLIDES } from '../../elevation/model/slides.js';
+import { interiorNotes } from '../interiorNotes.js';
+
+const S = (count, rest = {}) => ({ count, lineBore: true, hinges: true, ...rest });
+const group = (direction, children) => ({ direction, children, dividers: children.slice(1).map(() => ({})) });
+const vertical = (count) => group('vertical', Array.from({ length: count }, () => ({})));
+const divider = (kind, rest = {}) => ({ path: 'r', index: 0, kind, banding: true, ...rest });
+const rollout = (depth, z, rest = {}) => ({ depth, z, x: 0, slideId: 'blum-562h',
+  slide: { name: 'Blum Tandem 562H' }, ...rest });
+
+function input(tree = null, entries = [['r', S(1)]], dividers = []) {
+  const sections = [];
+  const walk = (node, path, rect) => {
+    if (!node?.children) {
+      sections.push({ path, ...rect });
+      return;
+    }
+    node.children.forEach((child, index) => {
+      const n = node.children.length;
+      const bounds = node.direction === 'vertical'
+        ? { ...rect, z: rect.z + rect.height * (n - index - 1) / n, height: rect.height / n }
+        : { ...rect, x: rect.x + rect.width * index / n, width: rect.width / n };
+      walk(child, `${path}.${index}`, bounds);
+    });
+  };
+  // Wall-coordinate fixtures also catch tests that assume a box-local origin.
+  walk(tree, 'r', { x: 100, z: 50, width: 30, height: 60 });
+  return { interior: { tree, sections, dividers }, shelves: new Map(entries), rollouts: new Map(),
+    boxes: [], roomSlideId: 'blum-562h', settings: DEFAULT_SETTINGS };
+}
+
+function nestedInput() {
+  const tree = group('vertical', [group('horizontal', [{}, {}]), {}]);
+  const data = input(tree, [
+    ['r.0.0', S(1)], ['r.0.1', S(1)],
+    ['r.1', S(0, { lineBore: false, hinges: false, lineBoreSource: 'auto', hingesSource: 'auto' })],
+  ], [divider('fixed', { fromBottom: 30 }), divider('partition', { path: 'r.0', fromLeft: 15, dimFrom: 'left' })]);
+  data.boxes = [{ kind: 'drawer', space: { x: 105, z: 52, width: 20, height: 20 } }];
+  return data;
+}
+
+describe('physical-section notes (IN15b)', () => {
+  const as = (count, extra = {}) => ({ shelves: { count, ...extra } });
+  const ro = () => ({ shelves: { count: 0 }, rollouts: { count: 2, items: [{ depth: 18 }, { depth: 18 }] } });
+  const zones = (...children) => ({ direction: 'vertical', children,
+    dividers: children.slice(1).map(() => ({ kind: 'zone' })) });
+
+  it.each([
+    ['1', zones(as(2), ro()), [], ['2 as', '2 ro - 18"']],
+    ['2', { ...zones(as(2), ro(), as(3)), dividers: [{ kind: 'zone' }, { kind: 'fixed', at: 20.5 }] },
+      ['fs up 20 1/2" oc'], ['Top Sec (2 as, 2 ro - 18")', 'Btm Sec (3 as)']],
+    ['3', zones(as(2), ro(), as(2)), [], ['4 as', '2 ro - 18"']],
+    ['4', zones(ro(), { ...ro(), lineBore: true }), [], ['NLB', '4 ro - 18"']],
+    ['4b', zones({ ...ro(), lineBore: true }, ro()), [], ['4 ro - 18"']],
+    ['5', zones(as(2, { glass: true }), as(2)), [], ['2 as (1/4" glass)', '2 as']],
+  ])('anchor %s: combines notes across zones', (_, tree, dividers, sections) => {
+    const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
+    const box = { x: 0, z: 0, width: 24, height: 84, depth: 24 };
+    const leaf = { interior: tree };
+    const interior = resolveInterior(tree, box, boxConstruction(leaf), settings);
+    const args = { interior, faces: [{ ...box, type: 'door' }], leaf, settings };
+    const rollouts = sectionRollouts(args);
+    const data = { ...args, rollouts, shelves: sectionShelves({ ...args, rollouts }), roomSlideId: 'blum-562h' };
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers, sections, fronts: null });
+    expect(data).toEqual(before);
+  });
+
+  it('combines nested zone-only members in item order while keeping real-divider subtrees separate', () => {
+    const data = input(zones(zones({}, {}), {}, group('horizontal', [{}, {}])), [
+      ['r.0.0', S(2, { nosing: { kind: 'hardwood' }, shoe: { count: 1 } })],
+      ['r.0.1', S(1, { nosing: { kind: 'folded' }, shoe: { count: 2 } })],
+      ['r.1', S(3, { nosing: { kind: 'hardwood' } })],
+      ['r.2.0', S(1)], ['r.2.1', S(2)],
+    ], [divider('zone'), divider('zone', { index: 1 }), divider('zone', { path: 'r.0' }),
+      divider('partition', { path: 'r.2', fromLeft: 15, dimFrom: 'left' })]);
+    const members = ['r.0.0', 'r.0.1', 'r.1'];
+    data.interior.physicalSections = [
+      { key: members[0], members, x: 100, z: 70, width: 30, height: 40 },
+      ...data.interior.sections.filter(({ path }) => path.startsWith('r.2'))
+        .map((section) => ({ ...section, key: section.path, members: [section.path] })),
+    ];
+    data.faces = [{ type: 'drawer_front', path: 'drawer', x: 105, z: 80, width: 20, height: 10 }];
+    data.depths = new Map([['drawer', 18]]);
+    data.shelves.get('r.0.0').lineBore = false;
+    data.shelves.get('r.0.0').lineBoreSource = 'manual';
+    data.boxes = [{ space: { x: 105, z: 80, width: 20, height: 10 } }];
+    data.rollouts = new Map([
+      ['r.0.0', { rollouts: [rollout(18, 105)] }],
+      ['r.0.1', { rollouts: [rollout(21, 95, { slideId: 'other', slide: { name: 'Other' } })] }],
+      ['r.1', { rollouts: [rollout(18, 75)] }],
+    ]);
+    data.accessories = new Map(members.map((path, index) => [path, { lineBoreRow: true, items: [
+      { accessory: { name: `Rod ${index + 1}`, attachesTo: 'section' }, qty: 1 },
+    ] }]));
+    // All member flags have already been resolved from the first member.
+    members.forEach((path) => { data.shelves.get(path).lineBore = false; });
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers: [], fronts: null, sections: [
+      'Top Sec (NLB, DF\'s (1 - 10", 18" drw), 5 as, no banding - add 1 1/2" nosing, 1 as, +2" as depth - FF to cut & fold for 1 1/2" nosing, 3 shoe shelves, 2 ro - 18", 1 ro - 21" (Other), Rod 1, Rod 2, Rod 3)',
+      'Btm Sec (pt 15" oc from L, Left Sec (1 as), Right Sec (2 as))',
+    ] });
+    expect(data).toEqual(before);
+    members.forEach((path) => { data.shelves.get(path).lineBore = true; });
+    expect(interiorNotes(data).sections[0]).toContain('3 shoe shelves, 3rd row lb, 2 ro - 18"');
+  });
+});
+
+describe('shoe shelf notes (IN13b)', () => {
+  it('orders flat shelves, shoes, third-row line bore, roll-outs and accessories without changing inputs', () => {
+    const data = input(null, [['r', S(2, { shoe: { count: 4, nosing: { kind: 'folded' } } })]]);
+    data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
+    data.accessories = new Map([['r', { lineBoreRow: true, items: [
+      { accessory: { name: 'Fixed rod', reportText: 'fixed rod', attachesTo: 'section' },
+        qty: 1, orderedLength: 22.25 },
+    ] }]]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data).sections)
+      .toEqual(['2 as', '4 shoe shelves', '3rd row lb', '1 ro - 18"', 'fixed rod - 22 1/4"']);
+    expect(data).toEqual(before);
+    data.shelves.set('r', S(0, { shoe: { count: 1 } }));
+    expect(interiorNotes(data).sections)
+      .toEqual(['1 shoe shelf', '3rd row lb', '1 ro - 18"', 'fixed rod - 22 1/4"']);
+    for (const shoe of [undefined, null, { count: 0 }]) {
+      data.shelves.set('r', S(0, { shoe }));
+      expect(interiorNotes(data).sections).toEqual(['1 ro - 18"', 'fixed rod - 22 1/4"']);
+    }
+    data.shelves.clear();
+    expect(interiorNotes(data).sections).toEqual(['1 ro - 18"', 'fixed rod - 22 1/4"']);
+  });
+});
+
+describe('accessory notes (IN13a)', () => {
+  it('preserves notes without length or line-bore effects, including legacy entries', () => {
+    const data = input(null, [['r', S(2)]]);
+    data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
+    const plain = { dividers: [], sections: ['2 as', '1 ro - 18"'], fronts: null };
+    expect(interiorNotes(data)).toEqual(plain);
+    data.accessories = new Map([['r', { items: [
+      { accessory: { name: 'Tray dividers', attachesTo: 'section' }, qty: 2 },
+      { accessory: { name: 'Hook', reportText: 'robe hook', attachesTo: 'section' }, qty: 1,
+        orderedLength: null, fromBottom: 60 },
+    ] }]]);
+    const before = structuredClone(data);
+    const expected = { ...plain, sections: [...plain.sections, '2 Tray dividers, robe hook'] };
+    expect(interiorNotes(data)).toEqual(expected);
+    data.accessories.get('r').lineBoreRow = false;
+    expect(interiorNotes(data)).toEqual(expected);
+    delete data.accessories.get('r').lineBoreRow;
+    expect(data).toEqual(before);
+  });
+});
+
+describe('accessory notes (IN12b)', () => {
+  it('keeps stored order in one note after roll-outs regardless of sizing or whole-section warnings', () => {
+    const data = input();
+    data.rollouts.set('r', { rollouts: [rollout(21, 60), rollout(21, 80)] });
+    const whole = { accessory: { name: 'Susan', reportText: '6472-28 lazy susan', attachesTo: 'section', wholeSection: true },
+      qty: 1, warnings: [{ code: 'accessory-too-small' }] };
+    data.accessories = new Map([['r', { items: [whole,
+      { accessory: { name: 'Tray dividers', reportText: '', attachesTo: 'section' }, qty: 2, warnings: [] }],
+    whole, warnings: [{ code: 'accessory-whole-section' }] }]]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data).sections).toEqual(['1 as', '2 ro - 21"', '6472-28 lazy susan, 2 Tray dividers']);
+    expect(data).toEqual(before);
+  });
+
+  it('omits missing and wrong-place items without changing other notes', () => {
+    const data = input();
+    const withoutAccessories = interiorNotes(data);
+    data.accessories = new Map([['r', { whole: null, warnings: [], items: [
+      { accessory: null, qty: 1, warnings: [{ code: 'accessory-missing' }] },
+      { accessory: { name: 'Drawer accessory', reportText: 'Do not print', attachesTo: 'drawer_box' },
+        qty: 2, warnings: [{ code: 'accessory-wrong-place' }] },
+    ] }]]);
+    expect(interiorNotes(data)).toEqual(withoutAccessories);
+  });
+});
+
+describe('drawer accessory tags (IN12c)', () => {
+  it('passes tags to section and cabinet fronts, separating equal heights by tag in top-down order', () => {
+    const data = input();
+    data.faces = [
+      { type: 'drawer_front', path: 'bottom', x: 105, width: 20, height: 6, z: 60 },
+      { type: 'drawer_front', path: 'top', x: 105, width: 20, height: 6, z: 90 },
+      { type: 'drawer_front', path: 'outside', x: 0, width: 10, height: 6, z: 0 },
+    ];
+    data.depths = new Map([['bottom', 21], ['top', 21], ['outside', 21]]);
+    data.accessoryTags = new Map([['top', 'charging unit'], ['outside', '2 Knife insert']]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers: [],
+      sections: ['DF\'s (1 - 6" (charging unit), 1 - 6", 21" drws)', '1 as'],
+      fronts: 'DF\'s (1 - 6" (2 Knife insert), 21" drw)' });
+    expect(data).toEqual(before);
+  });
+});
+
+describe('interior notes (IN10)', () => {
+  it('prints a single unwrapped section', () => {
+    expect(interiorNotes(input())).toMatchObject({ dividers: [], sections: ['1 as'] });
+  });
+
+  it('prints the resolved open-box flags', () => {
+    expect(interiorNotes(input(null, [['r', S(0, { lineBore: false, hinges: false })]])))
+      .toMatchObject({ dividers: [], sections: ['NLB, NPH (No Doors)'] });
+  });
+
+  it('prints a fixed shelf and top/bottom sections', () => {
+    expect(interiorNotes(input(vertical(2), [['r.0', S(3)], ['r.1', S(1)]],
+      [divider('fixed', { fromBottom: 42 })])))
+      .toMatchObject({ dividers: ['fs up 42" oc'], sections: ['Top Sec (3 as)', 'Btm Sec (1 as)'] });
+  });
+
+  it('prints both shelf centres lower first and no banding', () => {
+    const data = input(vertical(2), [], [divider('double_fixed', { fromBottom: 12.5, banding: false })]);
+    expect(interiorNotes(data).dividers).toEqual(['2 fs (up 12 1/8", 12 7/8"), no banding']);
+    data.settings = { sheetThickness: 0.5 };
+    expect(interiorNotes(data).dividers).toEqual(['2 fs (up 12 1/4", 12 3/4"), no banding']);
+    data.interior.dividers = [divider('fixed', { fromBottom: 42, banding: false })];
+    expect(interiorNotes(data).dividers).toEqual(['fs up 42" oc, no banding']);
+  });
+
+  it('uses the partition dimension origin', () => {
+    const data = input(group('horizontal', [{}, {}]), [['r.0', S(1)], ['r.1', S(1)]],
+      [divider('partition', { fromLeft: 21, dimFrom: 'left' })]);
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['pt 21" oc from L'],
+      sections: ['Left Sec (1 as)', 'Right Sec (1 as)'] });
+    data.interior.dividers = [divider('double_partition', { fromRight: 20.25, dimFrom: 'right' })];
+    expect(interiorNotes(data).dividers).toEqual(['dbl pt 20 1/4" oc from R']);
+  });
+
+  it('nests group notes and suppresses auto flags for every drawer kind', () => {
+    const data = nestedInput();
+    const before = structuredClone(data);
+    for (const kind of ['drawer', 'rot', 'hamper']) {
+      data.boxes[0].kind = kind;
+      expect(interiorNotes(data)).toMatchObject({ dividers: ['fs up 30" oc'],
+        sections: ['Top Sec (pt 15" oc from L, Left Sec (1 as), Right Sec (1 as))'] });
+    }
+    data.boxes[0].kind = 'drawer';
+    expect(data).toEqual(before);
+  });
+
+  it('retains manual flags in drawer sections', () => {
+    const data = nestedInput();
+    data.shelves.get('r.1').lineBoreSource = 'manual';
+    expect(interiorNotes(data).sections).toEqual([
+      'Top Sec (pt 15" oc from L, Left Sec (1 as), Right Sec (1 as))', 'Btm Sec (NLB)',
+    ]);
+    data.shelves.get('r.1').hingesSource = 'manual';
+    expect(interiorNotes(data).sections.at(-1)).toBe('Btm Sec (NLB, NPH (No Doors))');
+  });
+
+  it('names all siblings, including empty sections', () => {
+    for (const [direction, expected] of [
+      ['vertical', ['Top Sec (1 as)', 'Mid Sec (1 as)', 'Mid Btm Sec (1 as)', 'Btm Sec (1 as)']],
+      ['vertical', ['Sec 1 (1 as)', 'Sec 2 (1 as)', 'Sec 3 (1 as)', 'Sec 4 (1 as)', 'Sec 5 (1 as)']],
+      ['horizontal', ['Left Sec (1 as)', 'Mid Sec (1 as)', 'Right Sec (1 as)']],
+      ['vertical', ['Top Sec (1 as)', 'Mid Sec (1 as)', 'Btm Sec (1 as)']],
+      ['horizontal', ['Sec 1 (1 as)', 'Sec 2 (1 as)', 'Sec 3 (1 as)', 'Sec 4 (1 as)']],
+    ]) {
+      const tree = group(direction, expected.map(() => ({})));
+      const data = input(tree, expected.map((_, index) => [`r.${index}`, S(1)]));
+      expect(interiorNotes(data).sections).toEqual(expected);
+      data.shelves = new Map([['r.0', S(1)]]);
+      expect(interiorNotes(data).sections).toEqual([expected[0]]);
+    }
+  });
+
+  it('prints hardwood, folded and glass shelf notes', () => {
+    const data = input(null, [['r', S(2, { nosing: { kind: 'hardwood' } })]]);
+    expect(interiorNotes(data).sections).toEqual(['2 as, no banding - add 1 1/2" nosing']);
+    data.shelves.get('r').nosing.kind = 'folded';
+    expect(interiorNotes(data).sections).toEqual(['2 as, +2" as depth - FF to cut & fold for 1 1/2" nosing']);
+    data.shelves.get('r').glass = true;
+    expect(interiorNotes(data).sections).toEqual(['2 as (1/4" glass)']);
+  });
+
+  it('groups roll-outs before the section flags', () => {
+    const data = input(null, [['r', S(0, { lineBore: false })]]);
+    data.rollouts.set('r', { rollouts: [rollout(18, 60), rollout(18, 80)] });
+    expect(interiorNotes(data).sections).toEqual(['NLB', '2 ro - 18"']);
+  });
+
+  it('lists roll-out groups top-down and tags other slides', () => {
+    const data = input();
+    data.rollouts.set('r', { rollouts: [rollout(21, 60), rollout(22, 80, {
+      slideId: 'accuride-3832', slide: { name: 'Accuride 3832' },
+    })] });
+    const before = structuredClone(data);
+    expect(interiorNotes(data).sections).toEqual(['1 as', '1 ro - 22" (Accuride 3832), 1 ro - 21"']);
+    expect(data).toEqual(before);
+    data.roomSlideId = 'accuride-3832';
+    expect(interiorNotes(data).sections)
+      .toEqual(['1 as', '1 ro - 22", 1 ro - 21" (Blum Tandem 562H)']);
+  });
+
+  it('prints stretcher centres and keeps empty siblings in naming', () => {
+    const data = input(vertical(2), [
+      ['r.0', S(0, { lineBore: false, hinges: false, lineBoreSource: 'auto', hingesSource: 'auto' })],
+      ['r.1', S(1)],
+    ], [divider('stretcher', { fromBottom: 24.3125 })]);
+    data.boxes = [{ space: { x: 105, z: 85, width: 20, height: 20 } }];
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['stretcher up 24 5/16" oc'], sections: ['Btm Sec (1 as)'] });
+  });
+
+  it('omits empty contents and uses shelf settings with default fallbacks', () => {
+    const data = input(null, [['r', S(0, { nosing: { kind: 'hardwood' }, glass: true })]]);
+    expect(interiorNotes(data)).toMatchObject({ dividers: [], sections: [] });
+    data.settings = { glassShelfThickness: 0.375, shelfNosingHeight: 2, foldedNosingExtra: 2.5 };
+    data.shelves.get('r').count = 2;
+    expect(interiorNotes(data).sections).toEqual(['2 as (3/8" glass)']);
+    data.shelves.get('r').glass = false;
+    expect(interiorNotes(data).sections).toEqual(['2 as, no banding - add 2" nosing']);
+    data.shelves.get('r').nosing.kind = 'folded';
+    expect(interiorNotes(data).sections).toEqual(['2 as, +2 1/2" as depth - FF to cut & fold for 2" nosing']);
+  });
+
+  it('orders dividers by index and paired roll-outs left first, retaining depthless groups', () => {
+    const data = input(vertical(3), [['r.0', S(0)]], [
+      divider('fixed', { index: 1, fromBottom: 20 }), divider('fixed', { index: 0, fromBottom: 40 }),
+    ]);
+    data.rollouts.set('r.0', { rollouts: [rollout(18, 100, { x: 120 }), rollout(null, 100, { x: 100 })] });
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['fs up 40" oc', 'fs up 20" oc'],
+      sections: ['Top Sec (1 ro, 1 ro - 18")'] });
+    // A box outside this section must not hide its flags, even if it overlaps the section.
+    data.shelves.get('r.0').lineBore = false;
+    data.boxes = [{ space: { x: 100, z: 50, width: 30, height: 60 } }];
+    expect(interiorNotes(data).sections).toEqual(['Top Sec (NLB, 1 ro, 1 ro - 18")']);
+  });
+
+  describe('drawer fronts in their section, flags first (IN10.1)', () => {
+    const front = (path, height, z) => ({ type: 'drawer_front', path, x: 105, width: 20, height, z });
+
+    it('prints a tall\'s bottom drawers inside Btm Sec, with the depth', () => {
+      const data = input(vertical(2), [['r.0', S(3)],
+        ['r.1', S(0, { lineBore: false, hinges: false, lineBoreSource: 'auto', hingesSource: 'auto' })]],
+      [divider('fixed', { fromBottom: 30 })]);
+      data.faces = [front('a', 12, 52), front('b', 12, 66)];
+      data.depths = new Map([['a', 21], ['b', 21]]);
+      data.boxes = [{ space: { x: 100, z: 52, width: 30, height: 12 } }];
+      expect(interiorNotes(data)).toEqual({ dividers: ['fs up 30" oc'],
+        sections: ['Top Sec (3 as)', 'Btm Sec (DF\'s (2 - 12", 21" drws))'], fronts: null });
+    });
+
+    it('puts flags first and each item on its own line in a single section', () => {
+      const data = input(null, [['r', S(1, { lineBore: false, lineBoreSource: 'manual' })]]);
+      data.faces = [front('a', 5.875, 100)];
+      data.depths = new Map([['a', 21]]);
+      data.rollouts.set('r', { rollouts: [rollout(21, 60)] });
+      expect(interiorNotes(data)).toEqual({ dividers: [],
+        sections: ['NLB', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', '1 ro - 21"'], fronts: null });
+    });
+
+    it('keeps fronts outside every section at the cabinet level', () => {
+      const data = input();
+      data.faces = [{ type: 'drawer_front', path: 'x', x: 0, width: 10, height: 6, z: 0 }];
+      expect(interiorNotes(data)).toEqual({ dividers: [], sections: ['1 as'], fronts: 'DF\'s (1 - 6")' });
+    });
+  });
+});

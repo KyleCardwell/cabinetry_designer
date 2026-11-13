@@ -1,0 +1,332 @@
+import { isAccessoryItems } from './accessoryItems.js';
+import { EPSILON } from './cells.js';
+import { DEFAULT_SETTINGS, panelMaterial } from './constants.js';
+import { isPartSizes, isStyleRef } from './doorStyles.js';
+import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
+
+/** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
+export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
+
+export const DOOR_HINGES = ['left', 'right', 'top', 'bottom'];
+export const DOOR_ACTIONS = ['flipper', 'pocket', 'sliding', 'pullout'];
+
+export const FACE_TYPE_LABELS = {
+  door: 'Door',
+  pair_door: 'Pair door',
+  drawer_front: 'Drawer front',
+  false_front: 'False front',
+  panel: 'Panel',
+  open: 'Open',
+};
+
+/** 'vertical' stacks children top to bottom; 'horizontal' places them left to right. */
+export const FACE_DIRECTIONS = ['vertical', 'horizontal'];
+
+/** An auto section smaller than this (inches) produces a 'face-too-small' warning. */
+export const MIN_FACE_SIZE = 1;
+
+export const ROOT_FACE_PATH = 'r';
+
+const ZERO_REVEALS = { top: 0, bottom: 0, left: 0, right: 0, horizontal: 0, vertical: 0 };
+
+function isSize(size) {
+  return size === null || (Number.isFinite(size) && size > 0);
+}
+
+function isDrawerBox(box, allowAccessories) {
+  if (!box || typeof box !== 'object' || Array.isArray(box)) return false;
+  const keys = Reflect.ownKeys(box);
+  return keys.length > 0 && keys.every((key) => (
+    key === 'slideId' ? typeof box[key] === 'string' && box[key].length > 0
+      : key === 'accessories' ? allowAccessories && isAccessoryItems(box[key])
+      : ['height', 'depth'].includes(key) && Number.isFinite(box[key]) && box[key] > 0
+  ));
+}
+
+/** Whether `noRail` is a sorted list of seams (i = between children i and i + 1) that lie between two leaves. */
+function isSeamList(node) {
+  const { noRail, children } = node;
+  return Array.isArray(noRail)
+    && noRail.length > 0
+    && noRail.every((seam, index) => Number.isInteger(seam)
+      && seam >= 0
+      && seam <= children.length - 2
+      && (index === 0 || seam > noRail[index - 1])
+      && Boolean(children[seam].type)
+      && Boolean(children[seam + 1].type));
+}
+
+/**
+ * Whether a value is a valid stored face node (recursively).
+ * A group may carry noRail, a sorted list of seams with no rail or mullion (SPEC-36.3): seam i is between sections i and i + 1, and both must be leaves.
+ * A height-sized group may match the base bank; drawer / false fronts and horizontal rows of them may match standard.
+ */
+export function isFaceNode(node) {
+  return isFaceNodeWithin(node, null);
+}
+
+function isFaceNodeWithin(node, parentDirection) {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
+  if (!isSize(node.size)) return false;
+  if (Object.hasOwn(node, 'panelMaterial')
+    && (!['door', 'pair_door'].includes(node.type)
+      || node.action === 'pullout' || !panelMaterial(node.panelMaterial))) return false;
+  if (Object.hasOwn(node, 'match')) {
+    if (parentDirection !== 'vertical' || node.size !== null) return false;
+    if (node.match === 'base') {
+      if (node.type !== undefined) return false;
+    } else if (node.match === 'standard') {
+      const fronts = (face) => Boolean(face && (face.type
+        ? ['drawer_front', 'false_front'].includes(face.type)
+        : Array.isArray(face.children) && face.children.every(fronts)));
+      if (!(node.type ? fronts(node) : node.direction === 'horizontal' && fronts(node))) return false;
+    } else return false;
+  }
+  if (node.drawerBox !== undefined
+    && (!(node.type === 'drawer_front' || (node.type === 'door' && node.action === 'pullout'))
+      || !isDrawerBox(node.drawerBox, node.type === 'drawer_front'))) return false;
+  if (FACE_TYPES.includes(node.type)) {
+    if (node.action !== undefined) {
+      if (!['door', 'pair_door'].includes(node.type) || !DOOR_ACTIONS.includes(node.action)) return false;
+      if (node.type === 'pair_door' && node.action === 'pullout') return false;
+    }
+    if (node.hinge !== undefined) {
+      if (node.type !== 'door' || !DOOR_HINGES.includes(node.hinge)) return false;
+      if (['sliding', 'pullout'].includes(node.action)) return false;
+      if (['flipper', 'pocket'].includes(node.action) && !['left', 'right'].includes(node.hinge)) return false;
+    }
+    const partType = pullPartType(node.type);
+    const positions = PULL_POSITIONS[partType === 'false_front' ? 'drawer' : partType];
+    if (node.pullAt !== undefined && !positions?.includes(node.pullAt)) return false;
+    if (node.pullOrientation !== undefined
+      && (!partType || !PULL_ORIENTATIONS.includes(node.pullOrientation))) return false;
+    if (node.pullCount !== undefined
+      && (!['drawer', 'false_front'].includes(partType)
+        || !Number.isInteger(node.pullCount) || node.pullCount < 2 || node.pullCount > MAX_PULL_COUNT)) return false;
+    return node.children === undefined && node.direction === undefined && node.noRail === undefined
+      && (pullPartType(node.type) ? isStyleRef(node.pullId) : node.pullId === undefined)
+      && isStyleRef(node.styleId)
+      && (node.sizes === undefined || isPartSizes(node.sizes));
+  }
+  return node.type === undefined
+    && node.drawerBox === undefined
+    && node.hinge === undefined && node.action === undefined && node.pullId === undefined
+    && node.pullAt === undefined && node.pullOrientation === undefined && node.pullCount === undefined
+    && FACE_DIRECTIONS.includes(node.direction)
+    && Array.isArray(node.children)
+    && node.children.length >= 2
+    && node.children.every((child) => isFaceNodeWithin(child, node.direction))
+    && (node.noRail === undefined || isSeamList(node));
+}
+
+/** Copy a face tree, swapping stored horizontal hinges without reversing children or paths. */
+export function flipHinges(face) {
+  return {
+    ...face,
+    ...(face.hinge === 'left' ? { hinge: 'right' } : face.hinge === 'right' ? { hinge: 'left' } : {}),
+    ...(face.children ? { children: face.children.map(flipHinges) } : {}),
+  };
+}
+
+/** The face a cabinet shows before anyone edits it. */
+export function defaultFace(width, settings) {
+  const threshold = settings.pairDoorAboveWidth ?? DEFAULT_SETTINGS.pairDoorAboveWidth;
+  return { type: width > threshold ? 'pair_door' : 'door', size: null };
+}
+
+/** The six reveal values for a cabinet type. */
+export function faceRevealsFor(cabinetTypeId, settings) {
+  return {
+    ...ZERO_REVEALS,
+    ...(settings.faceReveals?.[cabinetTypeId] ?? DEFAULT_SETTINGS.faceReveals[cabinetTypeId]),
+  };
+}
+
+/** The rectangle the faces fill: the piece minus its edge reveals. */
+export function faceArea(piece, reveals) {
+  return {
+    x: piece.x + reveals.left,
+    z: piece.z + reveals.bottom,
+    width: piece.width - reveals.left - reveals.right,
+    height: piece.height - reveals.top - reveals.bottom,
+  };
+}
+
+/**
+ * Resolve a face tree into true face rectangles, in wall coordinates.
+ * A pair_door leaf produces two rectangles with the same path (half 'left' / 'right').
+ * A face beside a turned-off seam carries `opening`: the path of the first face of its shared opening (SPEC-36.3).
+ * Optional reveals.squarePaths is a Set of leaf paths with zero fit and pair gap.
+ *
+ * @returns {{faces: {path, type, half?, x, z, width, height}[], warnings: {code, path}[]}}
+ */
+export function resolveFaces(face, area, reveals) {
+  const faces = [];
+  const warnings = [];
+
+  const pairGap = reveals.pair ?? reveals.vertical;
+  const fit = reveals.fit ?? 0;
+  const pairFit = reveals.pairFit ?? fit;
+  const isSquare = (path) => reveals.squarePaths?.has(path) ?? false;
+  const fitAt = (path) => (isSquare(path) ? 0 : fit);
+  const pairFitAt = (path) => (isSquare(path) ? 0 : pairFit);
+
+  const shared = Number.isFinite(reveals.shared) ? reveals.shared : null;
+
+  const placeLeaf = (node, rect, path, inset, opening) => {
+    const leaf = {
+      x: rect.x + inset.left,
+      z: rect.z + inset.bottom,
+      width: rect.width - (inset.left + inset.right),
+      height: rect.height - (inset.top + inset.bottom),
+    };
+    const extra = {
+      ...(opening ? { opening } : {}),
+      ...(node.action ? { action: node.action } : {}),
+      ...(node.panelMaterial ? { panelMaterial: node.panelMaterial } : {}),
+    };
+    if (node.type === 'pair_door') {
+      const gap = isSquare(path) ? 0 : pairGap;
+      const half = (leaf.width - gap) / 2;
+      faces.push({
+        path, type: node.type, half: 'left', x: leaf.x, z: leaf.z, width: half, height: leaf.height, ...extra,
+      });
+      faces.push({
+        path,
+        type: node.type,
+        half: 'right',
+        x: leaf.x + half + gap,
+        z: leaf.z,
+        width: half,
+        height: leaf.height,
+        ...extra,
+      });
+    } else {
+      faces.push({ path, type: node.type, ...leaf, ...extra, ...(node.hinge ? { hinge: node.hinge } : {}) });
+    }
+  };
+
+  const place = (node, rect, path) => {
+    if (node.type) {
+      const leafFit = fitAt(path);
+      const side = node.type === 'pair_door' ? pairFitAt(path) : leafFit;
+      placeLeaf(node, rect, path, {
+        left: side, right: side, top: leafFit, bottom: leafFit,
+      });
+      return;
+    }
+
+    const stacked = node.direction === 'vertical';
+    // Seams with no rail or mullion (SPEC-36.3): seam i is between children i and i + 1.
+    const cuts = shared !== null && node.noRail ? new Set(node.noRail) : new Set();
+    const gap = stacked ? reveals.horizontal : reveals.vertical;
+    const childPathAt = (index) => `${path}.${index}`;
+    const gapAfter = (index) => (cuts.has(index)
+      ? (isSquare(childPathAt(index)) && isSquare(childPathAt(index + 1)) ? 0 : shared)
+      : gap);
+    const length = stacked ? rect.height : rect.width;
+    const lastIndex = node.children.length - 1;
+    const hasAuto = node.children.some((child) => child.size === null);
+    const isAuto = (child, index) => child.size === null || (!hasAuto && index === lastIndex);
+    const fixedTotal = node.children.reduce(
+      (sum, child, index) => (isAuto(child, index) ? sum : sum + child.size),
+      0,
+    );
+    const autoCount = node.children.filter(isAuto).length;
+    // A face next to a cut seam takes no fit on that edge, so an auto slot grows by it and the faces stay equal.
+    const uncutEdges = (index) => 2 - (cuts.has(index - 1) ? 1 : 0) - (cuts.has(index) ? 1 : 0);
+    const gaps = cuts.size
+      ? node.children.reduce((sum, _child, index) => (index < lastIndex ? sum + gapAfter(index) : sum), 0)
+      : gap * lastIndex;
+    const cutFit = cuts.size
+      ? fit * node.children.reduce((sum, child, index) => (
+        isAuto(child, index) && !isSquare(childPathAt(index)) ? sum + uncutEdges(index) : sum
+      ), 0)
+      : 0;
+    const autoSize = (length - gaps - fixedTotal - cutFit) / autoCount;
+    if (autoSize < MIN_FACE_SIZE) warnings.push({ code: 'face-too-small', path });
+
+    let cursor = stacked ? rect.z + rect.height : rect.x;
+    node.children.forEach((child, index) => {
+      const size = isAuto(child, index)
+        ? autoSize + (cuts.size ? fitAt(childPathAt(index)) * uncutEdges(index) : 0)
+        : child.size;
+      const childRect = stacked
+        ? { x: rect.x, z: cursor - size, width: rect.width, height: size }
+        : { x: cursor, z: rect.z, width: size, height: rect.height };
+      const childPath = childPathAt(index);
+      if (child.type && (cuts.has(index - 1) || cuts.has(index))) {
+        // The faces on either side of a cut seam are one opening in the frame, named for its first face.
+        let first = index;
+        while (cuts.has(first - 1)) first -= 1;
+        const along = child.type === 'pair_door' && !stacked ? pairFitAt(childPath) : fitAt(childPath);
+        const lead = cuts.has(index - 1) ? 0 : along;
+        const trail = cuts.has(index) ? 0 : along;
+        const across = child.type === 'pair_door' && stacked ? pairFitAt(childPath) : fitAt(childPath);
+        placeLeaf(child, childRect, childPath, stacked
+          ? {
+            left: across, right: across, top: lead, bottom: trail,
+          }
+          : {
+            left: lead, right: trail, top: across, bottom: across,
+          }, `${path}.${first}`);
+      } else {
+        place(child, childRect, childPath);
+      }
+      cursor = stacked ? cursor - size - gapAfter(index) : cursor + size + gapAfter(index);
+    });
+  };
+
+  place(face, area, ROOT_FACE_PATH);
+  return { faces, warnings };
+}
+
+/** Resolved faces for one cabinet piece from splitRun. Pass revealValues to use style/rule reveals. */
+export function cabinetFaces(item, piece, cabinetTypeId, settings, revealValues = null) {
+  const reveals = revealValues ?? faceRevealsFor(cabinetTypeId, settings);
+  const face = item?.face ?? defaultFace(piece.width, settings);
+  return resolveFaces(face, faceArea(piece, reveals), reveals);
+}
+
+function overlapsHeight(a, b) {
+  return Math.min(a.z + a.height, b.z + b.height) - Math.max(a.z, b.z) > 1e-6;
+}
+
+/**
+ * Hinge side for each resolved 'door' face: stored, else against the one hinge stop it touches,
+ * else away from the one covered side it touches, toward a wall, then toward the nearer run end.
+ * Optional context uses wall coordinates, like the faces. Warns when a hinge is on a covered side.
+ */
+export function applyHinges(faces, stops, covered, context = {}) {
+  const warnings = [];
+  const next = faces.map((face) => {
+    if (face.type !== 'door' || ['sliding', 'pullout'].includes(face.action)) return face;
+    const beside = faces.filter((other) => other !== face && overlapsHeight(other, face));
+    const touches = {
+      left: !beside.some((other) => other.x + other.width <= face.x + 1e-6),
+      right: !beside.some((other) => other.x >= face.x + face.width - 1e-6),
+    };
+    let hinge = face.hinge ?? null;
+    let rule = false;
+    if (!hinge) {
+      const stopLeft = touches.left && stops.left;
+      const stopRight = touches.right && stops.right;
+      const coverLeft = touches.left && covered.left > 0;
+      const coverRight = touches.right && covered.right > 0;
+      const wallLeft = touches.left && Boolean(context.wallSides?.left);
+      const wallRight = touches.right && Boolean(context.wallSides?.right);
+      if (stopLeft !== stopRight) hinge = stopLeft ? 'left' : 'right';
+      else if (coverLeft !== coverRight) hinge = coverLeft ? 'right' : 'left';
+      else if (wallLeft !== wallRight) hinge = wallLeft ? 'left' : 'right';
+      else if (Number.isFinite(context.runCenter)) {
+        hinge = face.x + face.width / 2 - context.runCenter > EPSILON ? 'right' : 'left';
+      }
+      rule = hinge !== null;
+    }
+    if (hinge && touches[hinge] && covered[hinge] > 0) {
+      warnings.push({ code: 'hinge-on-covered-side', path: face.path });
+    }
+    return hinge ? { ...face, hinge, ...(rule ? { hingeRule: true } : {}) } : face;
+  });
+  return { faces: next, warnings };
+}

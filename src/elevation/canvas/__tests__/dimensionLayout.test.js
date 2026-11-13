@@ -1,0 +1,160 @@
+import { describe, expect, it } from 'vitest';
+import {
+  belowRowOffsets,
+  dimensionRowOffsets,
+  layoutDimensionRow,
+} from '../dimensionLayout.js';
+
+describe('belowRowOffsets', () => {
+  it('SPEC-10 1. stacks empty below-wall rows from the wall outward', () => {
+    expect(belowRowOffsets()).toEqual({
+      clearances: 20,
+      pieces: 42,
+      overall: 64,
+      openings: 86,
+      label: 108,
+    });
+  });
+
+  it('SPEC-10 2. accounts for clearance popout levels', () => {
+    expect(belowRowOffsets({ clearances: 2 })).toEqual({
+      clearances: 20,
+      pieces: 70,
+      overall: 92,
+      openings: 114,
+      label: 136,
+    });
+  });
+
+  it('SPEC-10 3. accounts for piece and opening popout levels', () => {
+    expect(belowRowOffsets({ pieces: 1, openings: 2 })).toEqual({
+      clearances: 20,
+      pieces: 42,
+      overall: 78,
+      openings: 100,
+      label: 150,
+    });
+  });
+
+  it('SPEC-39.1 drops the clearance row when clearances are drawn in the wall', () => {
+    expect(belowRowOffsets({ clearanceRow: false })).toEqual({
+      clearances: 20,
+      pieces: 20,
+      overall: 42,
+      openings: 64,
+      label: 86,
+    });
+  });
+});
+
+describe('layoutDimensionRow', () => {
+  it('reserves two 4px line pieces as well as the padded text width (DM7)', () => {
+    const segments = [30, 29, 26].map((end) => ({ start: 0, end }));
+    const { labels } = layoutDimensionRow(segments, { scale: 1, fontSize: 11 });
+    expect(labels[0]).toMatchObject({ text: '30', mode: 'inline', level: 0 });
+    expect(labels[0].width).toBeCloseTo(21.2);
+    expect(labels.slice(1).map(({ mode }) => mode)).toEqual(['popout', 'popout']);
+
+    // Equality fits: 22px padded text + two 4px pieces = 30px.
+    expect(layoutDimensionRow([{ start: 0, end: 30 }], {
+      scale: 1, fontSize: 11, charWidth: 7,
+    }).labels[0].mode).toBe('inline');
+  });
+
+  it('SPEC-50.14 measures the 0–24.875 segment without an inch mark at test 13 inputs', () => {
+    const { labels } = layoutDimensionRow([{ start: 0, end: 24.875 }], { scale: 4, fontSize: 11 });
+    expect(labels[0]).toMatchObject({ text: '24 7/8', mode: 'inline', level: 0 });
+    expect(labels[0].width).toBeCloseTo(6 * 0.6 * 11 + 8);
+  });
+
+  it('keeps a fitting label inline and pops out a narrow segment', () => {
+    const result = layoutDimensionRow([
+      { start: 0, end: 30 },
+      { start: 30, end: 31.5 },
+    ], { scale: 4, fontSize: 11 });
+
+    expect(result.labels).toMatchObject([
+      { text: '30', mode: 'inline', level: 0 },
+      { text: '1 1/2', mode: 'popout', level: 1 },
+    ]);
+    expect(result.levels).toBe(1);
+  });
+
+  it('uses two popout levels, then hides a third colliding label', () => {
+    const result = layoutDimensionRow([
+      { start: 0, end: 1 },
+      { start: 1, end: 2 },
+      { start: 2, end: 3 },
+    ], { scale: 4, fontSize: 11 });
+
+    expect(result.labels.map(({ mode, level }) => ({ mode, level }))).toEqual([
+      { mode: 'popout', level: 1 },
+      { mode: 'popout', level: 2 },
+      { mode: 'hidden', level: 0 },
+    ]);
+    expect(result.labels.map((label) => label.center)).toEqual([2, 6, 10]);
+    expect(result.labels[0].width).toBeCloseTo(14.6);
+    expect(result.levels).toBe(2);
+  });
+
+  it('keeps a long single segment inline with no popout levels', () => {
+    const result = layoutDimensionRow([{ start: 0, end: 60 }], {
+      scale: 4,
+      fontSize: 11,
+    });
+
+    expect(result.labels[0]).toMatchObject({ mode: 'inline', level: 0 });
+    expect(result.levels).toBe(0);
+  });
+
+  it('shows the required value for a violated clearance segment', () => {
+    const result = layoutDimensionRow([{
+      start: 0,
+      end: 2.5,
+      required: 4,
+      violated: true,
+    }], { scale: 4, fontSize: 11 });
+
+    expect(result.labels[0].text).toBe('2 1/2 (4)');
+    expect(result.labels[0].width).toBeCloseTo(9 * 0.6 * 11 + 8);
+  });
+});
+
+describe('dimensionRowOffsets', () => {
+  it('accounts for inner popout levels in horizontal and vertical outer rows', () => {
+    expect(dimensionRowOffsets('horizontal', 0)).toEqual({ inner: 20, outer: 42 });
+    expect(dimensionRowOffsets('horizontal', 2)).toEqual({ inner: 20, outer: 70 });
+    expect(dimensionRowOffsets('vertical', 0)).toEqual({ inner: 24, outer: 50 });
+    expect(dimensionRowOffsets('vertical', 2)).toEqual({ inner: 24, outer: 82 });
+  });
+
+  it('adds a middle vertical row before the outer row when present', () => {
+    expect(dimensionRowOffsets('vertical', 2, true)).toEqual({
+      inner: 24,
+      middle: 82,
+      outer: 108,
+    });
+  });
+});
+
+it('doubles every below-wall offset, including popout spacing (TX1)', () => {
+  for (const levels of [{ pieces: 1 }, { clearances: 2, pieces: 1, overall: 2, openings: 1 },
+    { clearanceRow: false, pieces: 1 }]) {
+    const original = belowRowOffsets(levels);
+    expect(belowRowOffsets(levels, 2)).toEqual(Object.fromEntries(
+      Object.entries(original).map(([key, value]) => [key, value * 2]),
+    ));
+  }
+});
+
+it('scales vertical rows and the middle-row slot (TX1)', () => {
+  expect(dimensionRowOffsets('vertical', 1, true, 1.5)).toEqual({ inner: 36, middle: 99, outer: 138 });
+  expect(dimensionRowOffsets('horizontal', 2, false, 2)).toEqual({ inner: 40, outer: 140 });
+  expect(dimensionRowOffsets('vertical', 1, false, 1.5)).toEqual({ inner: 36, outer: 99 });
+});
+
+it('the scaled font moves a 1 1/2-inch segment from inline to popout (TX1)', () => {
+  const segments = [{ start: 0, end: 1.5 }];
+  expect(layoutDimensionRow(segments, { scale: 40, fontSize: 11 }).labels[0].mode).toBe('inline');
+  expect(layoutDimensionRow(segments, { scale: 40, fontSize: 27.5 }).labels[0].mode).toBe('popout');
+});

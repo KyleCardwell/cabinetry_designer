@@ -1,0 +1,464 @@
+import { describe, expect, it } from 'vitest';
+import {
+  attach, auto, fixed, pin, room as buildRoom, run as buildRun, wall as buildWall,
+} from '../../../test/builders.js';
+import { runItems } from '../grid.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { syncRoom } from '../room.js';
+import { splitRun, syncAutoItems } from '../splitRun.js';
+
+function widths(result) {
+  return result.pieces.map((piece) => piece.width);
+}
+
+function codes(entries) {
+  return entries.map((entry) => entry.code);
+}
+
+describe('splitRun', () => {
+  it('solves the one-pin worked example without a rounding warning', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a'), { ...auto('b'), attach: attach('P', 'center') }, auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 48 } });
+
+    expect(widths(result)).toEqual([1.5, 32, 29, 28, 28, 1.5]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(120);
+    const pinnedPiece = result.pieces.find((piece) => piece.id === 'b');
+    expect(pinnedPiece.x + pinnedPiece.width / 2).toBe(48);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+  });
+
+  it('resolves the same one-pin layout from the cabinet left edge', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [auto('a'), { ...auto('b'), attach: attach('P', 'left') }, auto('c'), auto('d')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 33.5 } });
+
+    expect(widths(result)).toEqual([1.5, 32, 29, 28, 28, 1.5]);
+  });
+
+  it('retains pass-one pin width and warns for wide segment cabinets', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), { ...auto('c'), attach: attach('P', 'center') }, auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { c: 90 } });
+
+    expect(widths(result)).toEqual([1.5, 37, 37, 29, 14, 1.5]);
+    expect(result.warnings.filter((entry) => entry.code === 'wide-cabinet'))
+      .toEqual([
+        expect.objectContaining({ pieceId: 'a' }),
+        expect.objectContaining({ pieceId: 'b' }),
+      ]);
+  });
+
+  it('solves a two-pin run with one interior cabinet', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [auto('a'), { ...fixed('b', 23), attach: attach('P', 'center') }, auto('c'), { ...fixed('d', 23), attach: attach('P', 'center') }, auto('e')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, d: 84 } });
+
+    expect(widths(result)).toEqual([1.5, 23, 23, 25, 23, 23, 1.5]);
+    expect(result.pieces.find((piece) => piece.id === 'b').x + 11.5).toBe(36);
+    expect(result.pieces.find((piece) => piece.id === 'd').x + 11.5).toBe(84);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+  });
+
+  it('concentrates an interior remainder in the chosen absorber', () => {
+    const items = [
+      auto('a'),
+      { ...fixed('b', 19.5), attach: attach('P', 'center') },
+      auto('c'),
+      auto('d'),
+      { ...fixed('e', 19.5), attach: attach('P', 'center') },
+      auto('f'),
+    ];
+    const run = buildRun({ autoCount: false, items });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 90 } });
+    expect(widths(result)).toEqual([1.75, 18.5, 19.5, 20, 20.5, 19.5, 18.5, 1.75]);
+    expect(result.pieces.find((piece) => piece.id === 'd').absorbed).toBe(0.5);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+
+    const firstAbsorbs = splitRun({
+      ...run,
+      items: items.map((item) => (item.id === 'c' ? { ...item, absorb: true } : item)),
+    }, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 90 } });
+    expect(widths(firstAbsorbs))
+      .toEqual([1.75, 18.5, 19.5, 20.5, 20, 19.5, 18.5, 1.75]);
+    expect(firstAbsorbs.pieces.find((piece) => piece.id === 'c').absorbed).toBe(0.5);
+  });
+
+  it('grows a free run end to make an outer pin reachable', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), { ...auto('e'), attach: attach('P', 'center') }],
+      anchors: { left: false, right: false },
+      heightMode: 'manual',
+      overrides: {},
+    });
+    const wall = buildWall({
+      id: 'wall', runs: [run], lines: [{ id: 'P', label: 'L1', from: 'left', value: 112 }],
+    });
+    const room = buildRoom({ id: 'room', name: 'Room', wallOrder: ['wall'], walls: [wall] });
+    const grown = syncRoom(room, DEFAULT_SETTINGS).walls[0].runs[0];
+    const result = splitRun(grown, DEFAULT_SETTINGS, { pinTargets: { e: 112 } });
+
+    expect(grown).toMatchObject({ x: 0, width: 125 });
+    expect(widths(result)).toEqual([2.5, 24.5, 24.5, 24.5, 24.5, 23, 1.5]);
+    expect(result.pieces.find((piece) => piece.id === 'e').x + 11.5).toBe(112);
+    expect(codes(result.warnings)).not.toContain('pin-unreachable');
+  });
+
+  it('clamps a return pin when its run end is unable to grow', () => {
+    const run = buildRun({
+      autoCount: false,
+      anchors: { left: false, right: true },
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), { ...fixed('e', 23), pin: pin(0, { from: 'return', wallId: 'W', runId: 'R', edge: 'center' }) }],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { e: 112 } });
+    const piece = result.pieces.find((candidate) => candidate.id === 'e');
+
+    expect(piece.x + piece.width / 2).toBe(107);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'pin-unreachable',
+      pieceId: 'e',
+      message: expect.stringMatching(/112.*107/),
+    }));
+  });
+
+  it('clamps a short middle return-pin segment because run growth cannot widen it', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [
+        auto('a'),
+        { ...fixed('b', 19.5), pin: pin(0, { from: 'return', wallId: 'W', runId: 'R', edge: 'center' }) },
+        auto('c'),
+        auto('d'),
+        { ...fixed('e', 19.5), pin: pin(0, { from: 'return', wallId: 'W', runId: 'R', edge: 'center' }) },
+        auto('f'),
+      ],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 40 } });
+    const later = result.pieces.find((piece) => piece.id === 'e');
+
+    expect(later.x + later.width / 2).toBe(67.5);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'pin-unreachable',
+      pieceId: 'e',
+      message: expect.stringMatching(/cannot widen a middle pin segment/),
+    }));
+  });
+
+  it('errors for an unfilled gap between adjacent pins but accepts zero gap', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [auto('a'), { ...fixed('b', 23), attach: attach('P', 'center') }, { ...fixed('c', 23), attach: attach('P', 'center') }, auto('d')],
+    });
+    const gap = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, c: 84 } });
+    expect(gap.errors).toContainEqual(expect.objectContaining({
+      code: 'pin-gap',
+      message: expect.stringMatching(/b.*c/),
+    }));
+
+    const touching = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, c: 59 } });
+    expect(codes(touching.errors)).not.toContain('pin-gap');
+  });
+
+  it('preserves the established no-pin no-flex remainder behavior', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 61.25,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    expect(widths(splitRun(run, DEFAULT_SETTINGS))).toEqual([30.625, 30.625]);
+  });
+
+  it('distributes extra width above unequal per-side filler minimums', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 3 },
+    });
+
+    expect(widths(result)).toEqual([2.25, 28.5, 28.5, 28.5, 28.5, 3.75]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(120);
+  });
+
+  it('preserves the established result when both filler minimums are equal', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 1.5 },
+    });
+
+    expect(widths(result)).toEqual([2, 29, 29, 29, 29, 2]);
+  });
+
+  it('gives one flex filler its minimum plus all distributable extra', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 96,
+      ends: {
+        left: { type: 'end_panel', width: null },
+        right: { type: 'filler', width: null },
+      },
+      items: [auto('a'), auto('b'), auto('c')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 3 },
+    });
+
+    expect(widths(result)).toEqual([0.8125, 30.5, 30.5, 30.5, 3.6875]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(96);
+  });
+
+  it('splits a 120-inch run into four rounded cabinets and two flex fillers', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a'), auto('b'), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([2, 29, 29, 29, 29, 2]);
+    expect(result.warnings).toEqual([]);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('positions an end panel, three cabinets, and a right flex filler', () => {
+    const initial = buildRun({
+      width: 96,
+      autoCount: true,
+      ends: {
+        left: { type: 'end_panel', width: null },
+        right: { type: 'filler', width: null },
+      },
+    });
+    const result = splitRun(syncAutoItems(initial, DEFAULT_SETTINGS), DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([0.8125, 31, 31, 31, 2.1875]);
+    expect(result.pieces.map((piece) => piece.x)).toEqual([0, 0.8125, 31.8125, 62.8125, 93.8125]);
+  });
+
+  it('uses an explicit end-panel width instead of the default thickness', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 62,
+      ends: {
+        left: { type: 'end_panel', width: 2 },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([2, 30, 30]);
+    expect(result.pieces.map((piece) => piece.x)).toEqual([0, 2, 32]);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('warns for both wide autos alongside a fixed cabinet', () => {
+    const run = buildRun({
+      autoCount: false,
+      items: [auto('auto-left'), fixed('fixed', 36), auto('auto-right')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([1.5, 40.5, 36, 40.5, 1.5]);
+    expect(result.warnings).toEqual([
+      expect.objectContaining({ code: 'wide-cabinet', pieceId: 'auto-left' }),
+      expect.objectContaining({ code: 'wide-cabinet', pieceId: 'auto-right' }),
+    ]);
+  });
+
+  it('uses the auto-count synchronized item after a fixed cabinet', () => {
+    const run = buildRun({
+      autoCount: true,
+      items: [auto('auto-left'), fixed('fixed', 36), auto('auto-right')],
+    });
+    const synced = syncAutoItems(run, DEFAULT_SETTINGS);
+    const result = splitRun(synced, DEFAULT_SETTINGS);
+
+    expect(runItems(synced)).toHaveLength(4);
+    expect(widths(result)).toEqual([1.5, 27, 36, 27, 27, 1.5]);
+  });
+
+  it('honors fixed three-inch fillers', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 60,
+      ends: {
+        left: { type: 'filler', width: 3 },
+        right: { type: 'filler', width: 3 },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([3, 27, 27, 3]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('splits 61 inches evenly without flex fillers', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 61,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([30.5, 30.5]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('warns when no-flex auto widths are not cabinet-rounding multiples', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 61.25,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([30.625, 30.625]);
+    expect(codes(result.warnings)).toContain('widths-not-rounded');
+  });
+
+  it('reports an over-constrained run and still returns its fixed pieces', () => {
+    const run = buildRun({ autoCount: false, width: 30, items: [fixed('fixed', 36)] });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(codes(result.errors)).toEqual(['over-constrained']);
+    expect(widths(result)).toEqual([0, 36, 0]);
+  });
+
+  it('assigns exact sixteenth-inch fillers for a 100 1/8-inch run', () => {
+    const initial = buildRun({ width: 100.125, autoCount: true });
+    const result = splitRun(syncAutoItems(initial, DEFAULT_SETTINGS), DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([2.0625, 32, 32, 32, 2.0625]);
+  });
+
+  it('preserves the fill and max-width invariants across the required range', () => {
+    for (let eighths = 30 * 8; eighths <= 240 * 8; eighths += 1) {
+      const width = eighths / 8;
+      const initial = buildRun({ width, autoCount: true });
+      const result = splitRun(syncAutoItems(initial, DEFAULT_SETTINGS), DEFAULT_SETTINGS);
+      const total = result.pieces.reduce((sum, piece) => sum + piece.width, 0);
+      const cabinets = result.pieces.filter((piece) => piece.kind === 'cabinet');
+      const fillers = result.pieces.filter((piece) => piece.kind === 'filler');
+
+      expect(result.errors, `errors at run width ${width}`).toEqual([]);
+      expect(total, `sum at run width ${width}`).toBeCloseTo(width, 6);
+      expect(cabinets.every((piece) => piece.width <= 36), `cabinet max at ${width}`).toBe(true);
+      expect(fillers.every((piece) => piece.width >= 1.5), `filler min at ${width}`).toBe(true);
+    }
+  });
+
+  it('reports does-not-fill when fixed pieces leave unused space without flex or autos', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 40,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'none', width: null },
+      },
+      items: [fixed('fixed', 36)],
+    });
+
+    expect(codes(splitRun(run, DEFAULT_SETTINGS).errors)).toEqual(['does-not-fill']);
+  });
+
+  it('gives a lone right flex filler the fractional remainder', () => {
+    const run = buildRun({
+      autoCount: false,
+      width: 40.1,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'filler', width: null },
+      },
+      items: [auto('a')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+    const total = result.pieces.reduce((sum, piece) => sum + piece.width, 0);
+
+    expect(total).toBeCloseTo(40.1, 10);
+  });
+});
+
+describe('syncAutoItems', () => {
+  it('creates four auto cabinets for a 120-inch run', () => {
+    const run = buildRun({ autoCount: true });
+    const synced = syncAutoItems(run, DEFAULT_SETTINGS);
+
+    expect(runItems(synced)).toHaveLength(4);
+    expect(runItems(synced).every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
+  });
+
+  it('returns an auto-count-disabled run unchanged', () => {
+    const run = buildRun({ autoCount: false, items: [auto('a')] });
+    expect(syncAutoItems(run, DEFAULT_SETTINGS)).toBe(run);
+  });
+
+  it('removes auto-added cabinets from the end before fixed items and fillers (AC1)', () => {
+    const interiorFiller = { id: 'filler', kind: 'filler', width: 3 };
+    const run = buildRun({
+      width: 30,
+      autoCount: true,
+      items: [auto('a'), fixed('fixed', 12), interiorFiller, { ...auto('b'), autoAdded: true }],
+    });
+    const synced = syncAutoItems(run, DEFAULT_SETTINGS);
+
+    expect(runItems(synced)).toEqual([auto('a'), fixed('fixed', 12), interiorFiller]);
+  });
+});
+
+describe('SPEC-34.1 auto cell kinds', () => {
+  const NONE = { type: 'none', width: null };
+  it('shares auto width with panel, void and shelves items', () => {
+    const layout = splitRun(buildRun({ autoCount: false, width: 60, ends: { left: NONE, right: NONE }, items: [
+      { id: 'a', kind: 'cabinet', width: null },
+      { id: 'p', kind: 'panel', width: null, depth: 0.75, align: 'back' },
+      { id: 'c', kind: 'cabinet', width: 20 },
+    ] }), DEFAULT_SETTINGS);
+    expect(layout.pieces.map(({ id, kind, x, width, depth }) => [id, kind, x, width, depth])).toEqual([
+      ['a', 'cabinet', 0, 20, 24], ['p', 'panel', 20, 20, 0.75], ['c', 'cabinet', 40, 20, 24],
+    ]);
+    expect(layout.pieces[1]).toEqual({
+      id: 'p', kind: 'panel', role: 'item', cabinetTypeId: CABINET_TYPE_IDS.BASE, width: 20, auto: true,
+      align: 'back', x: 20, z: 4, height: 30.5, depth: 0.75,
+    });
+    expect(layout.warnings).toEqual([]);
+    expect(layout.errors).toEqual([]);
+  });
+
+  it('never warns about the width of a panel', () => {
+    const layout = splitRun(buildRun({ autoCount: false, width: 36.75, ends: { left: NONE, right: NONE }, items: [
+      { id: 'a', kind: 'cabinet', width: 36 },
+      { id: 'p', kind: 'panel', width: null },
+    ] }), DEFAULT_SETTINGS);
+    expect(layout.pieces.map(({ id, width }) => [id, width])).toEqual([['a', 36], ['p', 0.75]]);
+    expect(layout.warnings).toEqual([]);
+  });
+
+  it('auto count never removes a panel', () => {
+    const synced = syncAutoItems(buildRun({ width: 30, ends: { left: NONE, right: NONE }, items: [
+      { id: 'a', kind: 'cabinet', width: null },
+      { id: 'b', kind: 'cabinet', width: null, autoAdded: true },
+      { id: 'p', kind: 'panel', width: null },
+    ], autoCount: true }), DEFAULT_SETTINGS);
+    expect(runItems(synced).map(({ id }) => id)).toEqual(['a', 'p']);
+  });
+
+  it('carries a panel\'s doors onto its piece', () => {
+    const layout = splitRun(buildRun({ autoCount: false, width: 30, ends: { left: NONE, right: NONE }, items: [
+      { id: 'p', kind: 'panel', width: 0.75, doors: 'cover' },
+      { id: 'a', kind: 'cabinet', width: null },
+    ] }), DEFAULT_SETTINGS);
+    expect(layout.pieces[0].doors).toBe('cover');
+    expect(layout.pieces[1]).not.toHaveProperty('doors');
+  });
+});

@@ -1,0 +1,652 @@
+import { isPlainObject } from '@reduxjs/toolkit';
+import { FRAME_JOINS } from '../../model/constants.js';
+import { endFit, isEndLegs } from '../../model/endLegs.js';
+import { cellWidthsBlocker } from '../../model/cellWidths.js';
+import { isLegList } from '../../model/legs.js';
+import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
+import { cornerAt, cornerEndActive, cornerOwnersAt, cornerReturnRuns } from '../../model/corners.js';
+import { defaultLegA, normalizeCornerEnd } from '../../model/cornerEnd.js';
+import { setGridTrackSize } from '../../model/cellTree.js';
+import {
+  gridLeaves,
+  runItems,
+  resizeGridBlind,
+  setGridBlind,
+  updateRootItem,
+} from '../../model/grid.js';
+import {
+  isFollowAnchor,
+  isJointAnchor,
+} from '../../model/joints.js';
+import { recessEndType } from '../../model/recesses.js';
+import {
+  dissolveJoint as dissolveJointPure,
+  joinEdges,
+  joinStack,
+  resizeRun as resizeRunPure,
+} from '../../model/room.js';
+import { soffitEndType } from '../../model/soffits.js';
+import { wallViewForRun } from '../../model/wallSides.js';
+import { isBaseCutoutList, isTopSegmentList } from '../persistence.js';
+import {
+  withoutAuto,
+  wallLocation,
+  runLocation,
+  syncRoomAt,
+  settingsFor,
+  clearTransientSelection,
+} from './helpers.js';
+
+function validRunLegs({ room, run }, legs) {
+  if (!isLegList(legs)) return false;
+  const otherIds = new Set(room.walls.flatMap((wall) => wall.runs
+    .filter((other) => other.id !== run.id).flatMap((other) => (other.legs ?? []).map((leg) => leg.id))));
+  return legs.every((leg) => !otherIds.has(leg.id));
+}
+
+/** Build and validate the entire end change before touching the stored run. */
+function withRunEndLegs(run, side, value) {
+  if (side !== 'left' && side !== 'right') return null;
+  const next = { ...run, endLegs: { ...run.endLegs } };
+  if (!value?.legs) delete next.endLegs[side];
+  else {
+    const end = { ...value };
+    if ((end.fit === 'between' && end.legs !== 'both')
+      || (end.fit === 'behind' && !['front', 'both'].includes(end.legs))) delete end.fit;
+    if (end.fit !== 'between') delete end.panel;
+    next.endLegs[side] = end;
+  }
+  if (!Object.keys(next.endLegs).length) delete next.endLegs;
+  else if (!isEndLegs(next.endLegs)) return null;
+  const fit = next.endLegs?.[side]?.fit;
+  const previous = endFit(run, side);
+  if (fit || previous) next.ends = { ...run.ends, [side]: {
+    type: fit ? 'none' : previous === 'between' ? 'end_panel' : 'filler', width: null,
+  } };
+  return next;
+}
+
+export const runReducers = {
+  addRun(state, action) {
+    const location = wallLocation(state, action.payload);
+    const run = action.payload.run ?? action.payload;
+    if (!location || !run?.id) return;
+    location.wall.runs.push(run);
+    syncRoomAt(state, location.roomIndex);
+  },
+  replaceRun(state, action) {
+    const run = action.payload.run;
+    if (!run?.id) return;
+    const location = runLocation(state, {
+      ...action.payload,
+      runId: run.id,
+    });
+    if (!location) return;
+    location.wall.runs[location.runIndex] = run;
+    syncRoomAt(state, location.roomIndex);
+  },
+  updateRun(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { wallId, roomId, runId, changes, patch, ...inlineChanges } = action.payload;
+    void wallId;
+    void roomId;
+    void runId;
+    const applied = changes ?? patch ?? inlineChanges;
+    Object.assign(location.run, applied);
+    // LL6: a typed run width goes back to "Run width".
+    if (applied.width !== undefined) delete location.run.widthFrom;
+    syncRoomAt(state, location.roomIndex);
+  },
+  deleteRun(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    location.wall.runs.splice(location.runIndex, 1);
+    if (state.selection.runId === action.payload.runId) clearTransientSelection(state);
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunEnd(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    const end = action.payload.end ?? action.payload.value ?? {
+      type: action.payload.type,
+      width: action.payload.width,
+    };
+    const previous = location.run.ends[side]?.type;
+    const { auto, corner, ...current } = location.run.ends[side] ?? {};
+    void auto;
+    void corner;
+    location.run.ends[side] = end.type === 'corner'
+      ? normalizeCornerEnd(end)
+      : end.type === 'none'
+        ? { type: end.type, width: end.width }
+        : { ...current, type: end.type, width: end.width };
+    if (end.type !== 'end_panel') delete location.run.ends[side].frame;
+    else if (Object.hasOwn(end, 'frame')) {
+      if (end.frame == null) delete location.run.ends[side].frame;
+      else if (FRAME_JOINS.includes(end.frame)) location.run.ends[side].frame = end.frame;
+    }
+    if (end.type !== previous) delete location.run.ends[side].height;
+    else if ((end.type === 'filler' || end.type === 'end_panel') && Object.hasOwn(end, 'height')) {
+      if (end.height == null) delete location.run.ends[side].height;
+      else if (end.height === 'full' || end.height === 'cabinets') {
+        location.run.ends[side].height = end.height;
+      }
+    }
+    if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
+    if (end.type === 'corner') {
+      const cols = location.run.grid.cols;
+      const col = cols[side === 'left' ? 0 : cols.length - 1];
+      if (col && col.sizeMode !== 'manual') {
+        location.run.grid = setGridTrackSize(location.run.grid, col.id, defaultLegA(location.run));
+      }
+    }
+    if (end.type === 'corner' && cornerEndActive(location.room, location.wall, location.run, side).active) {
+      const { corner, runs } = cornerReturnRuns(location.room, location.wall, location.run, side);
+      for (const run of runs) {
+        const returnSide = corner.neighborSide;
+        const returnEnd = run.ends[returnSide];
+        if (returnEnd.type === 'filler' && returnEnd.width == null) {
+          run.ends[returnSide] = { type: 'none', width: null };
+          if (run.endFiller) run.endFiller[returnSide] = null;
+        }
+      }
+    }
+    if (end.type === 'none' || end.type === 'corner'
+      || (end.type === 'end_panel' && previous !== 'end_panel')) {
+      if (location.run.endFiller) location.run.endFiller[side] = null;
+    }
+    const legs = location.run.endLegs?.[side];
+    if (legs) {
+      if (end.type === 'blind' || end.type === 'corner') {
+        delete location.run.endLegs[side];
+        if (!Object.keys(location.run.endLegs).length) delete location.run.endLegs;
+      } else {
+        delete legs.fit;
+        delete legs.panel;
+      }
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunType(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    location.run.cabinetTypeId = action.payload.typeId
+      ?? action.payload.cabinetTypeId
+      ?? action.payload.type;
+    if (action.payload.resetToDefaults ?? action.payload.reset ?? false) {
+      location.run.heightMode = 'auto';
+      location.run.overrides = {};
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunHeightMode(state, action) {
+    const location = runLocation(state, action.payload);
+    const mode = action.payload.mode ?? action.payload.value;
+    if (!location || (mode !== 'auto' && mode !== 'manual')) return;
+    location.run.heightMode = mode;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunOverride(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { key, value } = action.payload;
+    if (value === undefined || (value === null && key !== 'furnitureBaseProfileId'
+      && key !== 'baseCutoutProfileId' && key !== 'nosingProfileId')) delete location.run.overrides[key];
+    else location.run.overrides[key] = value;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunTopOverhang(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, value } = action.payload;
+    if (!location || !['front', 'back', 'left', 'right'].includes(side)) return;
+    if (value === null) {
+      if (!location.run.topOverhang) return;
+      delete location.run.topOverhang[side];
+      if (Object.keys(location.run.topOverhang).length === 0) delete location.run.topOverhang;
+    } else {
+      if (!Number.isFinite(value) || value < 0) return;
+      location.run.topOverhang ??= {};
+      location.run.topOverhang[side] = value;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  toggleRunWaterfall(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    const run = location.run;
+    if (run.waterfall?.[side]) {
+      delete run.waterfall[side];
+      if (Object.keys(run.waterfall).length === 0) delete run.waterfall;
+    } else {
+      run.waterfall ??= {};
+      run.waterfall[side] = {};
+    }
+  },
+  setRunWaterfallBaseToLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, value } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right') || typeof value !== 'boolean') return;
+    const pick = location.run.waterfall?.[side];
+    if (!pick) return;
+    if (value) pick.baseToLeg = true;
+    else delete pick.baseToLeg;
+  },
+  addBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const cutouts = [...(location.run.baseCutouts ?? []), action.payload.cutout];
+    if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
+  },
+  addRunLegs(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location || !Array.isArray(action.payload.legs) || !action.payload.legs.length) return;
+    const legs = [...(location.run.legs ?? []), ...action.payload.legs];
+    if (validRunLegs(location, legs)) location.run.legs = legs;
+  },
+  setRunEndLegs(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const next = withRunEndLegs(location.run, action.payload.side, action.payload.endLegs);
+    if (!next) return;
+    const endsChanged = next.ends !== location.run.ends;
+    location.wall.runs[location.runIndex] = next;
+    // Changing the end piece also refreshes derived end thickness and cabinet layout.
+    if (endsChanged) syncRoomAt(state, location.roomIndex);
+  },
+  applyRunLegPreset(state, action) {
+    const location = runLocation(state, action.payload);
+    const { endLegs = {}, legs = [] } = action.payload;
+    if (!location || !isPlainObject(endLegs) || !Array.isArray(legs)) return;
+    const appended = [...(location.run.legs ?? []), ...legs];
+    if (legs.length && !validRunLegs(location, appended)) return;
+    let next = location.run;
+    for (const [side, value] of Object.entries(endLegs)) {
+      next = withRunEndLegs(next, side, value);
+      if (!next) return;
+    }
+    if (legs.length) next = { ...next, legs: appended };
+    const endsChanged = next.ends !== location.run.ends;
+    location.wall.runs[location.runIndex] = next;
+    if (endsChanged) syncRoomAt(state, location.roomIndex);
+  },
+  updateRunLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.legs) return;
+    const { legId, changes } = action.payload;
+    const legs = location.run.legs.map((leg) => leg.id === legId
+      ? Object.fromEntries(Object.entries({ ...leg, ...changes })
+        .filter(([key, value]) => !['shapeId', 'square', 'mirror', 'mirrorDepth', 'takesRoom', 'sitsOn'].includes(key) || value !== undefined)) : leg);
+    if (validRunLegs(location, legs)) location.run.legs = legs;
+  },
+  removeRunLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.legs) return;
+    const legs = location.run.legs.filter((leg) => leg.id !== action.payload.legId);
+    if (legs.length) location.run.legs = legs;
+    else delete location.run.legs;
+  },
+  updateBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    const { cutoutId, changes } = action.payload;
+    if (!location?.run.baseCutouts) return;
+    const cutouts = location.run.baseCutouts.map((cutout) => (
+      cutout.id === cutoutId
+        ? Object.fromEntries(Object.entries({ ...cutout, ...changes })
+          .filter(([key, value]) => !['width', 'left', 'right', 'profileId'].includes(key) || value !== undefined))
+        : cutout
+    ));
+    if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
+  },
+  removeBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.baseCutouts) return;
+    location.run.baseCutouts = location.run.baseCutouts.filter((cutout) => cutout.id !== action.payload.cutoutId);
+  },
+  addTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const segments = [...(location.run.topSegments ?? []), action.payload.segment];
+    if (isTopSegmentList(segments)) location.run.topSegments = segments;
+  },
+  updateTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    const { segmentId, changes } = action.payload;
+    if (!location?.run.topSegments) return;
+    const segments = location.run.topSegments.map((segment) => (
+      segment.id === segmentId ? { ...segment, ...changes } : segment
+    ));
+    if (isTopSegmentList(segments)) location.run.topSegments = segments;
+  },
+  removeTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.topSegments) return;
+    location.run.topSegments = location.run.topSegments.filter((segment) => segment.id !== action.payload.segmentId);
+  },
+  setRunAnchor(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    const value = action.payload.anchor
+      ?? action.payload.value
+      ?? action.payload.anchored
+      ?? false;
+    const validOpeningAnchor = Boolean(value)
+      && typeof value === 'object'
+      && value.to === 'opening'
+      && typeof value.openingId === 'string'
+      && (value.edge === 'casing' || value.edge === 'jamb')
+      && (value.clearance === null || Number.isFinite(value.clearance));
+    const validWallAnchor = Boolean(value)
+      && typeof value === 'object'
+      && value.to === 'wall'
+      && typeof value.wallId === 'string';
+    const validSoffitAnchor = Boolean(value)
+      && typeof value === 'object'
+      && value.to === 'soffit'
+      && typeof value.soffitId === 'string'
+      && (value.offset === null || Number.isFinite(value.offset));
+    const validRecessAnchor = Boolean(value)
+      && typeof value === 'object'
+      && value.to === 'recess'
+      && typeof value.recessId === 'string'
+      && (value.edge === 'left' || value.edge === 'right')
+      && (value.offset === null || value.offset === undefined || Number.isFinite(value.offset));
+    if (typeof value !== 'boolean'
+      && !validOpeningAnchor
+      && !validWallAnchor
+      && !validSoffitAnchor
+      && !validRecessAnchor) return;
+    const previous = location.run.anchors[side];
+    if ((isJointAnchor(previous) || isFollowAnchor(previous)) && !isJointAnchor(value)) {
+      location.run.ends[side] = withoutAuto(location.run.ends[side]);
+    }
+    const anchor = validSoffitAnchor || validRecessAnchor ? { ...value, offset: value.offset ?? 0 } : value;
+    location.run.anchors[side] = validOpeningAnchor || validWallAnchor || validSoffitAnchor || validRecessAnchor
+      ? { ...anchor }
+      : anchor;
+    if (validSoffitAnchor) {
+      location.run.ends[side] = {
+        type: soffitEndType(location.wall, location.run, side, anchor, settingsFor(state, location.room)),
+        width: null,
+      };
+    } else if (validRecessAnchor) {
+      location.run.ends[side] = {
+        type: recessEndType(wallViewForRun(location.wall, location.run), location.run, side),
+        width: null,
+      };
+    } else if ((validWallAnchor || value === true)
+      && cornerOwnersAt(location.room, location.wall, location.run, side).length) {
+      const end = location.run.ends[side];
+      if (end.type !== 'none' && end.type !== 'corner' && !(end.type === 'filler' && end.width != null)) {
+        location.run.ends[side] = { type: 'none', width: null };
+      }
+    } else if (validWallAnchor) {
+      if (location.run.ends[side].type !== 'corner') {
+        location.run.ends[side] = { type: 'filler', width: null };
+      }
+    } else if (value === true) {
+      const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
+      if (inside && !['blind', 'corner'].includes(location.run.ends[side].type)) {
+        location.run.ends[side] = { type: 'filler', width: null };
+      } else if (!inside && location.run.ends[side].type !== 'end_panel') {
+        location.run.ends[side] = { type: 'end_panel', width: null };
+      }
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  joinRunEdges(state, action) {
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    const { runId, side, targetRunId, targetSide } = action.payload;
+    const result = joinEdges(
+      location.room,
+      location.wall.id,
+      { runId, side },
+      { runId: targetRunId, side: targetSide },
+      settingsFor(state, location.room),
+    );
+    if (!result.ok) state.message = result.reason;
+    else {
+      state.rooms[location.roomIndex] = result.room;
+      state.message = null;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunJointOffset(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, offset } = action.payload;
+    const anchor = location?.run.anchors?.[side];
+    if (!location || !Number.isFinite(offset) || !anchor
+      || (anchor.to !== 'joint' && anchor.to !== 'follow')) return;
+    anchor.offset = offset;
+    syncRoomAt(state, location.roomIndex);
+  },
+  joinRunStack(state, action) {
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    const { runId, edge, leaderRunId } = action.payload;
+    const result = joinStack(
+      location.room,
+      location.wall.id,
+      runId,
+      edge,
+      leaderRunId,
+      settingsFor(state, location.room),
+    );
+    if (!result.ok) state.message = result.reason;
+    else {
+      state.rooms[location.roomIndex] = result.room;
+      state.message = null;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunStackOffset(state, action) {
+    const location = runLocation(state, action.payload);
+    const { edge, offset } = action.payload;
+    const link = location?.run.stack?.[edge];
+    if (!location || !link || !Number.isFinite(offset)) return;
+    link.offset = offset;
+    syncRoomAt(state, location.roomIndex);
+  },
+  freeRunStack(state, action) {
+    const location = runLocation(state, action.payload);
+    const { edge } = action.payload;
+    if (!location || !location.run.stack?.[edge]) return;
+    location.run.stack[edge] = null;
+    syncRoomAt(state, location.roomIndex);
+  },
+  dissolveJoint(state, action) {
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    const result = dissolveJointPure(
+      location.room,
+      location.wall.id,
+      action.payload.jointId,
+      settingsFor(state, location.room),
+    );
+    if (!result.ok) state.message = result.reason;
+    else {
+      state.rooms[location.roomIndex] = result.room;
+      state.message = null;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  resizeRun(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const result = resizeRunPure(
+      location.room,
+      location.wall.id,
+      location.run.id,
+      action.payload.width,
+      action.payload.grow ?? 'right',
+      settingsFor(state, location.room),
+    );
+    if (!result.ok) state.message = result.message ?? result.reason;
+    else {
+      state.rooms[location.roomIndex] = result.room;
+      state.message = null;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** LL6: the typed-width prompt's pick, one dispatch: `{ wallId, runId, width, grow, removed, auto, end }`. */
+  applyRunWidthChoice(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { width, grow, removed, auto, end } = action.payload;
+    const result = applyRunWidthChoicePure(
+      location.room, location.wall.id, location.run.id,
+      { width, grow, removed, auto, end }, settingsFor(state, location.room),
+    );
+    state.widthPrompt = null;
+    if (!result.ok) {
+      state.message = result.message ?? result.reason;
+      return;
+    }
+    state.rooms[location.roomIndex] = result.room;
+    state.message = null;
+    syncRoomAt(state, location.roomIndex);
+  },
+  replaceWallLayout(state, action) {
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    location.wall.runs = action.payload.runs;
+    location.wall.joints = action.payload.joints;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunCornerClearance(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, value } = action.payload;
+    const validValue = value === 'auto'
+      || value === 'face'
+      || (typeof value === 'number' && Number.isFinite(value));
+    if (!location || (side !== 'left' && side !== 'right') || !validValue) return;
+    location.run.cornerClearance = {
+      ...(location.run.cornerClearance ?? {}),
+      [side]: value,
+    };
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunBlind(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, width } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    const run = location.run;
+    run.grid = resizeGridBlind(run.grid, side, width);
+  },
+  setRunEndFiller(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, key, value } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    if (key !== 'width' && key !== 'returnDepth' && key !== 'tFiller' && key !== 'cornerLap') return;
+    if (key === 'cornerLap' && value !== null && value !== 'over' && value !== 'into') return;
+    const run = location.run;
+    run.endFiller = { left: null, right: null, ...(run.endFiller ?? {}) };
+    const current = run.endFiller[side] ?? { width: null, returnDepth: null };
+    const minimum = key === 'width' ? 0 : -1;
+    const next = { ...current };
+    if (key === 'cornerLap') {
+      if (value === null) delete next.cornerLap;
+      else next.cornerLap = value;
+    } else if (key === 'tFiller') {
+      if (typeof value === 'boolean') next.tFiller = value;
+      else delete next.tFiller;
+    } else {
+      next[key] = Number.isFinite(value) && value > minimum ? value : null;
+    }
+    run.endFiller[side] = next.width == null && next.returnDepth == null
+      && next.tFiller === undefined && next.cornerLap === undefined
+      ? null
+      : next;
+    if (key === 'cornerLap') syncRoomAt(state, location.roomIndex);
+  },
+  setAutoCount(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    location.run.autoCount = action.payload.value ?? action.payload.autoCount;
+    if (location.run.autoCount) {
+      for (const item of runItems(location.run)) {
+        if (item.kind === 'cabinet' && item.width === null
+          && Object.keys(item).every((key) => ['id', 'kind', 'width'].includes(key))) {
+          location.run.grid = updateRootItem(location.run.grid, item.id, { autoAdded: true });
+        }
+      }
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  setMaxCabinetWidth(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    location.run.maxCabinetWidth = action.payload.value
+      ?? action.payload.maxCabinetWidth
+      ?? null;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunSeamGap(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { gap = null } = action.payload;
+    if (gap !== null && !(Number.isFinite(gap) && gap >= 0)) return;
+    if (gap === null) {
+      if (location.run.seamGap === undefined) return;
+      delete location.run.seamGap;
+    } else {
+      if (location.run.seamGap === gap) return;
+      location.run.seamGap = gap;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** SPEC-RF1: hold the run at its drawn width (no run flex); false/null lets it flex again. */
+  setRunHoldWidth(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const hold = action.payload.hold === true;
+    if (hold === (location.run.holdWidth === true)) return;
+    if (hold) location.run.holdWidth = true;
+    else delete location.run.holdWidth;
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** LL6: 'cells' takes the width from the cabinets (only when nothing blocks it); null goes back to Run width. */
+  setRunWidthFrom(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const value = action.payload.value ?? null;
+    if (value === 'cells') {
+      if (location.run.widthFrom === 'cells' || cellWidthsBlocker(location.run, location.wall) !== null) return;
+      location.run.widthFrom = 'cells';
+    } else if (value === null) {
+      if (location.run.widthFrom === undefined) return;
+      delete location.run.widthFrom;
+    } else return;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setRunTFiller(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { value = null } = action.payload;
+    if (value !== null && !['none', 'seams', 'all'].includes(value)) return;
+    if (value === null) delete location.run.tFiller;
+    else location.run.tFiller = value;
+    syncRoomAt(state, location.roomIndex);
+  },
+  setItemTFiller(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const leaves = new Map(gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet')
+      .map((leaf) => [leaf.id, leaf]));
+    for (const { itemId, side, value } of action.payload.edits ?? []) {
+      const leaf = leaves.get(itemId);
+      if (!leaf || !['left', 'right', 'top', 'bottom'].includes(side)) continue;
+      if (value !== true && value !== false && value !== null) continue;
+      const next = { ...(leaf.tFiller ?? {}) };
+      if (value === null) delete next[side];
+      else next[side] = value;
+      if (Object.keys(next).length === 0) delete leaf.tFiller;
+      else leaf.tFiller = next;
+    }
+  },
+};

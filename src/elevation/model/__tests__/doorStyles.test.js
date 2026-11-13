@@ -1,0 +1,186 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import {
+  DEFAULT_DOOR_STYLE,
+  DOOR_DESIGNS,
+  findDoorDesign,
+  isDoorStyle,
+  isDoorStyleList,
+  isPartSizes,
+  isStyleRef,
+  teamDoorStyle,
+} from '../doorStyles.js';
+
+const style = (patch = {}) => ({ ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A', ...patch });
+
+describe('SPEC-46 door designs and the team default style', () => {
+  it('seeds a 5-piece square design and a slab design', () => {
+    expect(DOOR_DESIGNS.map(({ id, code, construction, slots }) => [id, code, construction, slots])).toEqual([
+      ['five-piece-square', '5PC', 'five_piece', ['outside', 'inside', 'panel', 'applied']],
+      ['slab', 'Slab', 'slab', ['outside', 'applied']],
+      ['slab-mdf', 'Slab - MDF Core', 'slab', ['outside', 'applied']],
+    ]);
+    expect(findDoorDesign('slab')).toBe(DOOR_DESIGNS[1]);
+    expect(findDoorDesign('110')).toBeNull();
+    expect(findDoorDesign('110', [{ ...DOOR_DESIGNS[0], id: '110', code: '110' }]).code).toBe('110');
+  });
+
+  it('defaults to square 3" stiles and rails, 13/16" thick, flat panel', () => {
+    expect(DEFAULT_DOOR_STYLE).toEqual({
+      id: 'default',
+      label: 'Std',
+      name: 'Team default',
+      designId: 'five-piece-square',
+      thickness: 0.8125,
+      stiles: { left: 3, right: 3 },
+      rails: { top: 3, bottom: 3 },
+      mid: {},
+      panel: { type: 'flat', thickness: 0.5 },
+      profiles: { outside: null, inside: null, panel: null },
+      appliedMoldings: [],
+      arch: { rise: 2 },
+      shortFace: { minPanel: 2.125, minRail: 1.625, slabBelow: 4.8125, step: 0.0625 },
+    });
+    expect(isDoorStyle(DEFAULT_DOOR_STYLE)).toBe(true);
+    expect(DEFAULT_SETTINGS.doorPanelDefault).toBe(0.5);
+  });
+
+  it('takes the team default style from settings.teamDoorStyle (SPEC-46.3)', () => {
+    expect(teamDoorStyle(DEFAULT_SETTINGS)).toEqual(DEFAULT_DOOR_STYLE);
+    expect(teamDoorStyle({ ...DEFAULT_SETTINGS, teamDoorStyle: { ...DEFAULT_DOOR_STYLE, thickness: 1 } }).thickness).toBe(1);
+    expect(teamDoorStyle({}).thickness).toBe(0.8125);
+    expect(DEFAULT_DOOR_STYLE.thickness).toBe(0.8125);
+  });
+});
+
+describe('SPEC-46 door style shapes', () => {
+  it('accepts optional positive mid widths unchanged (MR1a)', () => {
+    for (const mid of [{}, { stile: 4 }, { rail: 3.5 }, { rail: 3.5, stile: 4 }]) {
+      const candidate = style({ mid });
+      expect(isDoorStyle(candidate)).toBe(true);
+      expect(candidate.mid).toEqual(mid);
+    }
+  });
+
+  it('rejects nonpositive, nonfinite and unknown mid widths (MR1a)', () => {
+    for (const key of ['rail', 'stile']) {
+      for (const value of [0, -1, NaN, Infinity, '4', null, undefined]) {
+        expect(isDoorStyle(style({ mid: { [key]: value } }))).toBe(false);
+      }
+    }
+    for (const mid of [null, [], undefined, { extra: 0 }, { rail: 3, extra: 0 }]) {
+      expect(isDoorStyle(style({ mid }))).toBe(false);
+    }
+  });
+
+  it('accepts optional material up to 120 trimmed characters (RP1)', () => {
+    expect(isDoorStyle({ ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' })).toBe(true);
+    expect(isDoorStyle(style())).toBe(true);
+    expect(isDoorStyle(style({ material: 'x'.repeat(120) }))).toBe(true);
+    expect(isDoorStyle(style({ material: ` ${'x'.repeat(120)} ` }))).toBe(true);
+    for (const material of [7, 'x'.repeat(121), null, {}, []]) {
+      expect(isDoorStyle(style({ material }))).toBe(false);
+    }
+  });
+
+  it('accepts up to six strict applied moldings with finite offsets, optionally absent', () => {
+    const { appliedMoldings, ...withoutMoldings } = style();
+    void appliedMoldings;
+    expect([
+      withoutMoldings,
+      style({ appliedMoldings: [] }),
+      style({ appliedMoldings: [{ profileId: null, offset: -0.5 }] }),
+      style({ appliedMoldings: Array.from({ length: 6 }, () => ({ profileId: 'x', offset: 2.5 })) }),
+    ].map(isDoorStyle)).toEqual([true, true, true, true]);
+    const invalid = [
+      [{ profileId: 'x' }],
+      Array.from({ length: 7 }, () => ({ profileId: 'x', offset: 0 })),
+      [{ offset: 0 }],
+      [{ profileId: 42, offset: 0 }],
+      [{ profileId: 'x', offset: Infinity }],
+      [{ profileId: 'x', offset: NaN }],
+      [{ profileId: 'x', offset: '0' }],
+      [{ profileId: 'x', offset: 0, width: 1 }],
+      [null],
+      Array(1),
+      null,
+      {},
+    ];
+    expect(invalid.map((appliedMoldings) => isDoorStyle(style({ appliedMoldings }))))
+      .toEqual(invalid.map(() => false));
+    expect(isDoorStyle(style({ profiles: { ...DEFAULT_DOOR_STYLE.profiles, applied: null } }))).toBe(false);
+  });
+
+  it('accepts a complete style, with or without a name, and rejects anything off', () => {
+    const { name, ...unnamed } = style();
+    void name;
+    expect([style(), unnamed, style({ profiles: { inside: 'prof-og' } })].map(isDoorStyle)).toEqual([true, true, true]);
+    expect([
+      null,
+      [],
+      style({ id: '' }),
+      style({ label: 7 }),
+      style({ designId: undefined }),
+      style({ thickness: 0 }),
+      style({ rails: { top: 3 } }),
+      style({ stiles: { left: 3, right: -1 } }),
+      style({ mid: { extra: -0.125 } }),
+      style({ panel: { type: 'cloud', thickness: 0.25 } }),
+      style({ profiles: { crown: null } }),
+      style({ profiles: { inside: 42 } }),
+      style({ arch: { rise: 0 } }),
+      style({ shortFace: { ...DEFAULT_DOOR_STYLE.shortFace, step: 0 } }),
+      style({ color: 'red' }),
+    ].map(isDoorStyle)).toEqual(Array(15).fill(false));
+  });
+
+  it('accepts a room\'s list with unique ids and labels, never "default"', () => {
+    const A = style();
+    const B = style({ id: 'ds-b', label: 'B', thickness: 1 });
+    expect([undefined, [], [A, B]].map(isDoorStyleList)).toEqual([true, true, true]);
+    expect([
+      [A, { ...B, id: 'ds-a' }],
+      [A, { ...B, label: 'A' }],
+      [style({ id: 'default' })],
+      [style({ thickness: 'thick' })],
+      { a: A },
+      null,
+    ].map(isDoorStyleList)).toEqual(Array(6).fill(false));
+  });
+
+  it('takes a pick as absent, null or an id', () => {
+    expect([undefined, null, 'ds-a'].map(isStyleRef)).toEqual([true, true, true]);
+    expect(['', 5, {}].map(isStyleRef)).toEqual([false, false, false]);
+  });
+
+  it('checks per-part sizes: any stile or rail, mid layouts, arch rise, notes', () => {
+    expect([
+      { rails: { top: 2.625, bottom: 2.625 } },
+      { stiles: { left: 3.5 }, notes: { left: 'scribe' } },
+      { layout: { split: 'rows', children: [{ size: 27 }, {}], mids: [{ width: 3.625 }] } },
+      { archRise: 2.5 },
+    ].map(isPartSizes)).toEqual([true, true, true, true]);
+    expect([
+      null,
+      {},
+      { rails: {} },
+      { rails: { middle: 3 } },
+      { rails: { top: 0 } },
+      { stiles: { left: 'wide' } },
+      { midRails: [] },
+      { midRails: [{ width: 3 }] },
+      { midStiles: [{ at: 12, width: 0 }] },
+      { archRise: -1 },
+      { notes: { left: '' } },
+      { notes: { middle: 'scribe' } },
+      { color: 'red' },
+    ].map(isPartSizes)).toEqual(Array(13).fill(false));
+  });
+});
+
+it('accepts a mid layout and rejects retired lists and invalid trees (MR2b)', () => {
+  expect(isPartSizes({ layout: { split: 'rows', children: [{}, {}] } })).toBe(true);
+  expect(isPartSizes({ midRails: [{ at: 5 }] })).toBe(false);
+  for (const layout of [undefined, null, {}, { split: 'rows', children: [{}] },
+    { split: 'cols', children: [{ size: 0 }, {}] }]) expect(isPartSizes({ layout })).toBe(false);
+});

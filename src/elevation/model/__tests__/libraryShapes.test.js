@@ -1,0 +1,524 @@
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_SETTINGS, SHAPE_KINDS, LIBRARY_KEYS,
+  isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
+  moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots, resolveShape, placeShapeFront, shapeOutlines,
+  flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
+} from '../index.js';
+import { isSectionProfileDraft } from '../sectionProfiles.js';
+import { moveProfilePoints } from '../profileEditing.js';
+
+const ROD = {
+  id: 'rod', name: 'Closet rod', kind: 'accessory', version: 1, archived: false,
+  box: { x: 0, y: 0, z: 0, w: 30, h: 3, d: 2 }, stretch: {},
+  views: { front: {
+    units: 'in',
+    points: {
+      a: [0, 0], b: [3, 0], c: [3, 3], d: [0, 3],
+      e: [27, 0], f: [30, 0], g: [30, 3], h: [27, 3],
+      hl: [0.875, 1.5], hr: [2.125, 1.5], jl: [27.875, 1.5], jr: [29.125, 1.5],
+      r1: [3, 2.03125], r2: [27, 2.03125], r3: [3, 0.96875], r4: [27, 0.96875],
+    },
+    loops: [
+      { id: 'left', closed: true, segs: [
+        { type: 'line', from: 'a', to: 'b' }, { type: 'line', from: 'b', to: 'c' },
+        { type: 'line', from: 'c', to: 'd' }, { type: 'line', from: 'd', to: 'a' },
+      ] },
+      { id: 'right', closed: true, segs: [
+        { type: 'line', from: 'e', to: 'f' }, { type: 'line', from: 'f', to: 'g' },
+        { type: 'line', from: 'g', to: 'h' }, { type: 'line', from: 'h', to: 'e' },
+      ] },
+      { id: 'hole-left', closed: true, segs: [
+        { type: 'arc', from: 'hl', to: 'hr', center: [1.5, 1.5], ccw: true },
+        { type: 'arc', from: 'hr', to: 'hl', center: [1.5, 1.5], ccw: true },
+      ] },
+      { id: 'hole-right', closed: true, segs: [
+        { type: 'arc', from: 'jl', to: 'jr', center: [28.5, 1.5], ccw: true },
+        { type: 'arc', from: 'jr', to: 'jl', center: [28.5, 1.5], ccw: true },
+      ] },
+      { id: 'rod-top', closed: false, segs: [{ type: 'line', from: 'r1', to: 'r2' }] },
+      { id: 'rod-bottom', closed: false, segs: [{ type: 'line', from: 'r3', to: 'r4' }] },
+    ],
+  } },
+};
+
+describe('shapes (SH2)', () => {
+  it('creates the specified 12-inch box and front rectangle, with unique names and ids', () => {
+    const shape = newShape([], 'shape-1');
+    expect(DEFAULT_SETTINGS.shapes).toEqual([]);
+    expect(LIBRARY_KEYS).toContain('shapes');
+    expect(SHAPE_KINDS).toEqual({ accessory: 'Accessory', appliance: 'Appliance', leg: 'Leg / column', other: 'Other' });
+    expect(shape).toEqual({
+      id: 'shape-1', name: 'New shape', kind: 'other', version: 1, archived: false,
+      box: { x: 0, y: 0, z: 0, w: 12, h: 12, d: 12 }, stretch: {},
+      views: { front: {
+        units: 'in', points: { p1: [0, 0], p2: [12, 0], p3: [12, 12], p4: [0, 12] },
+        loops: [{ id: 'L1', closed: true, segs: [
+          { type: 'line', from: 'p1', to: 'p2' }, { type: 'line', from: 'p2', to: 'p3' },
+          { type: 'line', from: 'p3', to: 'p4' }, { type: 'line', from: 'p4', to: 'p1' },
+        ] }],
+      } },
+    });
+    const named = { ...shape, name: 'new shape', archived: true };
+    expect(newShape([named], 'shape-2').name).toBe('New shape 2');
+    expect(newShape([named, { ...shape, id: 'shape-2', name: 'NEW SHAPE 2' }], 'shape-3').name).toBe('New shape 3');
+    expect(newShape([]).id).toMatch(/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i);
+    expect(newShape([shape], shape.id)).toBeNull();
+  });
+
+  it('copies all geometry and zones deeply, resets metadata, and counts archived copy names', () => {
+    const base = { ...ROD, archived: true, version: 7, notes: 'Rod notes', stretch: { x: [[3, 27]] } };
+    const copy = copyShape([base, { ...ROD, id: 'copy', name: 'Closet rod COPY' }], base, 'copy-2');
+    expect(copy).toEqual({ ...base, id: 'copy-2', name: 'Closet rod copy 2', archived: false, version: 1 });
+    copy.views.front.points.r3[0] = 9;
+    copy.views.front.loops[2].segs[0].center[0] = 9;
+    copy.stretch.x[0][0] = 9;
+    expect(base.views.front.points.r3).toEqual([3, 0.96875]);
+    expect(base.views.front.loops[2].segs[0].center).toEqual([1.5, 1.5]);
+    expect(base.stretch.x).toEqual([[3, 27]]);
+    expect(copyShape([], null, 'bad')).toBeNull();
+  });
+
+  it('returns stored views or counter-clockwise size-box plan and side rectangles', () => {
+    const leg = { ...ROD, kind: 'leg', box: { x: -1.75, y: -1.75, z: 0, w: 3.5, h: 34.5, d: 3.5 } };
+    const plan = shapeView(leg, 'plan');
+    expect(plan.points).toEqual({ b1: [-1.75, -1.75], b2: [1.75, -1.75], b3: [1.75, 1.75], b4: [-1.75, 1.75] });
+    expect(shapeView(leg, 'side').points).toEqual({ b1: [-1.75, 0], b2: [1.75, 0], b3: [1.75, 34.5], b4: [-1.75, 34.5] });
+    expect(plan.loops).toEqual([{ id: 'box', closed: true, segs: [
+      { type: 'line', from: 'b1', to: 'b2' }, { type: 'line', from: 'b2', to: 'b3' },
+      { type: 'line', from: 'b3', to: 'b4' }, { type: 'line', from: 'b4', to: 'b1' },
+    ] }]);
+    const front = shapeView(leg, 'front');
+    expect(front).toEqual(ROD.views.front);
+    expect(front.points).not.toBe(ROD.views.front.points);
+    expect(leg.views.plan).toBeUndefined();
+    expect(shapeView(leg, 'top')).toBeNull();
+  });
+
+  it('checks x zones for arc crossing, edge contact, box overflow and overlapping/touching zones', () => {
+    const zones = [[[3, 27]], [[2, 27]], [[2.125, 27]], [[3, 31]], [[3, 10], [9, 20]], [[3, 10], [10, 20]]];
+    expect(zones.map((x) => shapeStretchProblems({ ...ROD, stretch: { x } }))).toEqual([
+      [], [{ axis: 'x', index: 0, problem: 'arc', view: 'front' }], [],
+      [{ axis: 'x', index: 0, problem: 'box' }],
+      [{ axis: 'x', index: 1, problem: 'overlap' }], [{ axis: 'x', index: 1, problem: 'overlap' }],
+    ]);
+    expect(shapeStretchProblems({ ...ROD, stretch: { x: [[-0.5e-6, 0.5]] } })).toEqual([]);
+    expect(shapeStretchProblems({ ...ROD, stretch: { x: [[12, 20], [3, 10]] } }))
+      .toEqual([{ axis: 'x', index: 1, problem: 'overlap' }]);
+  });
+
+  it('includes arc extremes between endpoints and reports one conflict per view and zone', () => {
+    expect(shapeStretchProblems({ ...ROD, stretch: { z: [[0.5, 1]] } }))
+      .toEqual([{ axis: 'z', index: 0, problem: 'arc', view: 'front' }]);
+    const shape = { ...ROD, views: { ...ROD.views, plan: ROD.views.front, side: ROD.views.front },
+      stretch: { y: [[0.9, 1]] } };
+    expect(shapeStretchProblems(shape)).toEqual([
+      { axis: 'y', index: 0, problem: 'arc', view: 'plan' },
+      { axis: 'y', index: 0, problem: 'arc', view: 'side' },
+    ]);
+    expect(stretchProblemText({ axis: 'x', problem: 'arc', view: 'front' }, [2, 27]))
+      .toBe('Stretch zone x 2"–27" crosses an arc in the front view.');
+    expect(stretchProblemText({ axis: 'z', problem: 'box' }, [0.5, 1]))
+      .toBe('Stretch zone z 1/2"–1" is outside the size box.');
+    expect(stretchProblemText({ axis: 'x', problem: 'overlap' }, [9, 20]))
+      .toBe('Stretch zone x 9"–20" overlaps the zone before it.');
+  });
+
+  it('moves the origin on front axes, including arc centres, other views and zones', () => {
+    const shape = { ...ROD, stretch: { x: [[3, 27]] }, views: { ...ROD.views, plan: {
+      units: 'in', points: { p: [3, 1], q: [27, 1] },
+      loops: [{ id: 'plan', closed: false, segs: [{ type: 'line', from: 'p', to: 'q' }] }],
+    } } };
+    const before = structuredClone(shape);
+    const moved = moveShapeOrigin(shape, 'front', 'r3');
+    expect(moved.box).toEqual({ x: -3, y: 0, z: -0.96875, w: 30, h: 3, d: 2 });
+    expect(moved.stretch.x).toEqual([[0, 24]]);
+    expect(moved.views.front.points.r3).toEqual([0, 0]);
+    expect(moved.views.plan.points.p).toEqual([0, 1]);
+    expect(moved.views.front.loops[2].segs[0]).toMatchObject({ center: [-1.5, 0.53125], ccw: true });
+    expect(shape).toEqual(before);
+    expect(moveShapeOrigin(shape, 'front', 'missing')).toBeNull();
+    expect(moveShapeOrigin(ROD, 'plan', 'b1')).toBeNull();
+  });
+
+  it('flips the whole shape on x and reverses arc winding; two flips restore the rod', () => {
+    const rod = { ...ROD, stretch: { x: [[3, 27]] } };
+    const flipped = flipShape(rod, 'x');
+    expect(flipped.box.x).toBe(-30);
+    expect(flipped.stretch.x).toEqual([[-27, -3]]);
+    expect(flipped.views.front.points.b).toEqual([-3, 0]);
+    expect(flipped.views.front.loops[2].segs[0]).toMatchObject({ center: [-1.5, 1.5], ccw: false });
+    expect(flipShape(flipped, 'x')).toEqual(rod);
+    expect(rod.views.front.loops[2].segs[0].ccw).toBe(true);
+  });
+
+  it('uses all three world axes correctly for origin moves and flips, leaving unrelated views alone', () => {
+    const shape = { ...ROD, views: { front: ROD.views.front, plan: ROD.views.front, side: ROD.views.front },
+      stretch: { x: [[3, 10], [12, 27]], y: [[0.2, 0.5]], z: [[2.2, 2.8]] } };
+    for (const [axis, views] of [['x', ['front', 'plan']], ['y', ['plan', 'side']], ['z', ['front', 'side']]]) {
+      const flipped = flipShape(shape, axis);
+      for (const view of ['front', 'plan', 'side']) {
+        expect(flipped.views[view].loops[2].segs[0].ccw).toBe(!views.includes(view));
+      }
+      expect(flipShape(flipped, axis)).toEqual(shape);
+    }
+    expect(flipShape(shape, 'x').stretch.x).toEqual([[-27, -12], [-10, -3]]);
+    const plan = moveShapeOrigin(shape, 'plan', 'hl');
+    expect(plan.box).toMatchObject({ x: -0.875, y: -1.5, z: 0 });
+    expect(plan.views.front.points.hl).toEqual([0, 1.5]);
+    expect(plan.views.side.points.hl).toEqual([-0.625, 1.5]);
+    const side = moveShapeOrigin(shape, 'side', 'hl');
+    expect(side.box).toMatchObject({ x: 0, y: -0.875, z: -1.5 });
+    expect(side.views.plan.points.hl).toEqual([0.875, 0.625]);
+    expect(side.views.front.points.hl).toEqual([0.875, 0]);
+  });
+
+  it('fits only drawn axes, unions views, and includes arc extrema', () => {
+    const rod = { ...ROD, box: { x: 5, y: 1, z: 5, w: 12, h: 12, d: 7 } };
+    expect(fitShapeBox(rod).box).toEqual({ x: 0, y: 1, z: 0, w: 30, h: 3, d: 7 });
+    const arc = {
+      units: 'in', points: { a: [-2, 0], b: [2, 0] },
+      loops: [{ id: 'arc', closed: false, segs: [
+        { type: 'arc', from: 'a', to: 'b', center: [0, 0], ccw: true },
+      ] }],
+    };
+    expect(fitShapeBox({ ...rod, views: { ...rod.views, plan: arc } }).box)
+      .toEqual({ x: -2, y: -2, z: 0, w: 32, h: 3, d: 2 });
+    expect(rod.box.x).toBe(5);
+    const flat = { units: 'in', points: { a: [0, 0], b: [1, 0] },
+      loops: [{ id: 'line', closed: false, segs: [{ type: 'line', from: 'a', to: 'b' }] }] };
+    expect(fitShapeBox({ ...rod, views: { front: flat } })).toBeNull();
+  });
+
+  it('rejects extra keys, invalid dimensions/views/metadata, but permits draft zone conflicts', () => {
+    const draft = { ...ROD, stretch: { x: [[2, 27]] } };
+    expect([isShape(ROD), isShape(draft), isShapeDraft(draft)]).toEqual([true, false, true]);
+    const invalid = [null, {}, { ...ROD, extra: true }, { ...ROD, name: ' Rod' }, { ...ROD, name: '' },
+      { ...ROD, id: '' }, { ...ROD, kind: 'toString' }, { ...ROD, version: 0 }, { ...ROD, version: 1.5 },
+      { ...ROD, archived: 0 }, { ...ROD, box: { ...ROD.box, w: 0 } },
+      { ...ROD, box: { ...ROD.box, h: -1 } }, { ...ROD, box: { ...ROD.box, d: Infinity } },
+      { ...ROD, box: { ...ROD.box, x: NaN } }, { ...ROD, box: { ...ROD.box, extra: 0 } },
+      { ...ROD, views: { ...ROD.views, top: ROD.views.front } }, { ...ROD, views: {} },
+      { ...ROD, views: { front: { ...ROD.views.front, units: 'mm' } } },
+      { ...ROD, stretch: undefined }, { ...ROD, stretch: { w: [[3, 27]] } }, { ...ROD, stretch: { x: [] } },
+      { ...ROD, stretch: { x: [[3, 3]] } }, { ...ROD, stretch: { x: [[3, Infinity]] } },
+      { ...ROD, stretch: { x: [[3, 4, 5]] } }, { ...ROD, stretch: { x: Array(5).fill([3, 4]) } },
+      { ...ROD, notes: ' padded ' }, { ...ROD, notes: 'a'.repeat(501) }, { ...ROD, notes: null }];
+    for (const value of invalid) {
+      expect(isShape(value)).toBe(false);
+      expect(isShapeDraft(value)).toBe(false);
+    }
+    expect(isShape({ ...ROD, notes: 'a'.repeat(500) })).toBe(true);
+    expect(newShape([], '')).toBeNull();
+    expect(flipShape(ROD, 'w')).toBeNull();
+    expect(fitShapeBox(null)).toBeNull();
+    expect(moveShapeOrigin(ROD, 'top', 'r3')).toBeNull();
+  });
+
+  it('requires unique ids and case-insensitive live names, while permitting archived duplicate names', () => {
+    const second = { ...ROD, id: 'rod-2', name: 'CLOSET ROD' };
+    expect([
+      isShapeList([]), isShapeList([ROD]), isShapeList([ROD, second]),
+      isShapeList([ROD, { ...second, archived: true }]),
+      isShapeList([{ ...ROD, archived: true }, second]),
+      isShapeList([{ ...ROD, archived: true }, { ...second, archived: true }]),
+      isShapeList([ROD, { ...ROD, name: 'Another' }]),
+      isShapeList([ROD, { ...second, stretch: { x: [[2, 27]] } }]),
+      isShapeList(null), isShapeList({}), isShapeList([null]),
+    ]).toEqual([true, true, false, true, true, true, false, false, false, false, false]);
+  });
+
+  it('adapts optional or drawn views to valid profile drafts and puts edited geometry back deeply', () => {
+    const profile = shapeViewProfile(ROD, 'plan');
+    expect(profile).toEqual({
+      id: 'rod:plan', name: ROD.name, kind: 'other', geometry: shapeView(ROD, 'plan'),
+      drawnPoints: { elevation: [] }, version: 1, archived: false,
+    });
+    expect(isSectionProfileDraft(profile)).toBe(true);
+    profile.geometry.points.b1 = [-1, -1];
+    const result = withShapeView(ROD, 'plan', profile);
+    expect(result.views.plan).toEqual(profile.geometry);
+    expect(result.views.front).toEqual(ROD.views.front);
+    expect(result.views.plan).not.toBe(profile.geometry);
+    expect(result.version).toBe(ROD.version);
+    expect(ROD.views.plan).toBeUndefined();
+    expect(shapeViewProfile(ROD, 'top')).toBeNull();
+    expect(withShapeView(ROD, 'front', { ...profile, geometry: {} })).toBeNull();
+    expect(withShapeView(ROD, 'top', profile)).toBeNull();
+    const draft = withShapeView({ ...ROD, stretch: { x: [[2, 27]] } }, 'front', shapeViewProfile(ROD, 'front'));
+    expect(isShapeDraft(draft)).toBe(true);
+    expect(isShape(draft)).toBe(false);
+  });
+});
+
+describe('shape origins and point groups (SH2.1)', () => {
+  it('places the rod centre at zero, including the box, zones, hole and rod lines', () => {
+    const rod = { ...ROD, stretch: { x: [[3, 27]] } };
+    const before = structuredClone(rod);
+    const moved = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    expect(moved.box).toEqual({ x: -15, y: 0, z: -1.5, w: 30, h: 3, d: 2 });
+    expect(moved.stretch.x).toEqual([[-12, 12]]);
+    expect(moved.views.front.loops[2].segs).toEqual([
+      { type: 'arc', from: 'hl', to: 'hr', center: [-13.5, 0], ccw: true },
+      { type: 'arc', from: 'hr', to: 'hl', center: [-13.5, 0], ccw: true },
+    ]);
+    expect(moved.views.front.points).toMatchObject({
+      hl: [-14.125, 0], hr: [-12.875, 0],
+      r1: [-12, 0.53125], r2: [12, 0.53125], r3: [-12, -0.53125], r4: [12, -0.53125],
+    });
+    expect(isShape(moved)).toBe(true);
+    expect(rod).toEqual(before);
+  });
+
+  it('returns all nine spots in view order, using the box and each view’s axes', () => {
+    const spots = shapeOriginSpots(ROD, 'front');
+    expect(spots).toEqual(['top', 'middle', 'bottom'].flatMap((row, r) =>
+      ['left', 'middle', 'right'].map((col, c) => ({ row, col, at: { x: c * 15, z: 3 - r * 1.5 } }))));
+    expect(spots[0].at).toEqual({ x: 0, z: 3 });
+    expect(spots[4].at).toEqual({ x: 15, z: 1.5 });
+    expect(spots[8].at).toEqual({ x: 30, z: 0 });
+    const shifted = moveShapeOriginTo(ROD, { x: 15, y: 1, z: 1.5 });
+    expect(shapeOriginSpots(shifted, 'front')[4].at).toEqual({ x: 0, z: 0 });
+    expect(shapeOriginSpots(shifted, 'plan').map(({ at }) => at))
+      .toEqual([[-15, 1], [0, 1], [15, 1], [-15, 0], [0, 0], [15, 0], [-15, -1], [0, -1], [15, -1]]
+        .map(([x, y]) => ({ x, y })));
+    expect(shapeOriginSpots(shifted, 'side').map(({ at }) => at))
+      .toEqual([[-1, 1.5], [0, 1.5], [1, 1.5], [-1, 0], [0, 0], [1, 0], [-1, -1.5], [0, -1.5], [1, -1.5]]
+        .map(([y, z]) => ({ y, z })));
+  });
+
+  it('moves shared world axes in every view and supports point groups through the view adapter', () => {
+    const shape = { ...ROD, views: { front: ROD.views.front, plan: ROD.views.front, side: ROD.views.front },
+      stretch: { x: [[3, 27]], y: [[0.25, 1.75]], z: [[0.5, 2.5]] } };
+    const before = structuredClone(shape);
+    const front = moveShapeOriginTo(shape, { x: 15, z: 1.5 });
+    expect(front.views.plan.points.hl).toEqual([-14.125, 1.5]);
+    expect(front.views.side.points.hl).toEqual([0.875, 0]);
+    expect(front.stretch).toEqual({ x: [[-12, 12]], y: [[0.25, 1.75]], z: [[-1, 1]] });
+    const plan = moveShapeOriginTo(shape, { x: 15, y: 1 });
+    expect(plan.views.front.points.hl).toEqual([-14.125, 1.5]);
+    expect(plan.views.side.points.hl).toEqual([-0.125, 1.5]);
+    expect(plan.box).toMatchObject({ x: -15, y: -1, z: 0 });
+    const side = moveShapeOriginTo(shape, { y: 1, z: 1.5 });
+    expect(side.views.front.points.hl).toEqual([0.875, 0]);
+    expect(side.views.plan.points.hl).toEqual([0.875, 0.5]);
+    expect(side.box).toMatchObject({ x: 0, y: -1, z: -1.5 });
+    const edited = withShapeView(shape, 'front', moveProfilePoints(shapeViewProfile(shape, 'front'), ['hl', 'hr'], [1, 0.5]));
+    expect(edited.views.front.loops[2].segs[0]).toMatchObject({ center: [2.5, 2], ccw: true });
+    expect(edited.views.plan).toEqual(shape.views.plan);
+    expect(edited.views.side).toEqual(shape.views.side);
+    expect(shape).toEqual(before);
+  });
+
+  it('rejects invalid origin coordinates, shapes and views, and preserves zero-offset shapes', () => {
+    for (const at of [null, [], {}, { w: 1 }, { x: NaN }, { z: Infinity }, { x: '1' }, { x: 1, extra: 0 }]) {
+      expect(moveShapeOriginTo(ROD, at)).toBeNull();
+    }
+    expect(moveShapeOriginTo(null, { x: 1 })).toBeNull();
+    expect(moveShapeOriginTo(ROD, { x: 0, z: 0 })).toEqual(ROD);
+    expect(shapeOriginSpots(null, 'front')).toBeNull();
+    expect(shapeOriginSpots(ROD, 'top')).toBeNull();
+  });
+});
+
+describe('empty views', () => {
+  it('drafts may have an empty view, but a shape needs something drawn in every view to save', () => {
+    const empty = { ...ROD, views: { ...ROD.views, plan: { units: 'in', points: {}, loops: [] } } };
+    expect(isShapeDraft(empty)).toBe(true);
+    expect(isShape(empty)).toBe(false);
+    expect(fitShapeBox(empty).box).toEqual(fitShapeBox(ROD).box);
+  });
+});
+
+
+describe('resolve and place shapes (SH3)', () => {
+  const rod = { ...ROD, stretch: { x: [[3, 27]] } };
+  const section = { x: 100, z: 10, width: 36, height: 80 };
+
+  it('stretches only the rod, translating the right bracket and its hole', () => {
+    const before = structuredClone(rod);
+    const resolved = resolveShape(rod, { w: 36 });
+    const { shape } = resolved;
+    expect(shape.box).toEqual({ ...rod.box, w: 36 });
+    expect(shape.stretch.x).toEqual([[3, 33]]);
+    expect(shape.views.front.points).toEqual({ ...rod.views.front.points,
+      e: [33, 0], f: [36, 0], g: [36, 3], h: [33, 3],
+      jl: [33.875, 1.5], jr: [35.125, 1.5], r2: [33, 2.03125], r4: [33, 0.96875],
+    });
+    expect(shape.views.front.loops[3].segs.map(({ center }) => center)).toEqual([[34.5, 1.5], [34.5, 1.5]]);
+    expect(shape.views.front.loops[2]).toEqual(rod.views.front.loops[2]);
+    expect(resolved.origin).toEqual({ x: 0, y: 0, z: 0 });
+    expect(resolved.warnings).toEqual([]);
+    expect(rod).toEqual(before);
+    shape.views.front.points.a[0] = 9;
+    shape.views.front.loops[2].segs[0].center[0] = 9;
+    shape.stretch.x[0][0] = 9;
+    expect(rod).toEqual(before);
+  });
+
+  it('splits growth and shrinkage proportionally across unequal zones', () => {
+    const xs = [3, 4, 10, 13, 16, 30];
+    const two = { ...rod, stretch: { x: [[2, 4], [10, 16]] }, views: { front: {
+      units: 'in', points: Object.fromEntries(xs.map((x, i) => [i, [x, 0]])),
+      loops: [{ id: 'line', closed: false, segs: xs.slice(1).map((_, i) => ({
+        type: 'line', from: String(i), to: String(i + 1),
+      })) }],
+    } } };
+    const grown = resolveShape(two, { w: 38 }).shape;
+    expect(Object.values(grown.views.front.points).map(([x]) => x)).toEqual([4, 6, 12, 18, 24, 38]);
+    expect(grown.stretch.x).toEqual([[2, 6], [12, 24]]);
+    const shrunk = resolveShape(two, { w: 26 }).shape;
+    expect(Object.values(shrunk.views.front.points).map(([x]) => x)).toEqual([2.5, 3, 9, 10.5, 12, 26]);
+    expect(shrunk.stretch.x).toEqual([[2, 3], [9, 12]]);
+  });
+
+  it('warns below the fixed width, permits collapsed zones, and ignores targets on fixed axes', () => {
+    const small = resolveShape(rod, { w: 5 });
+    expect(small.shape).toEqual(rod);
+    expect(small.warnings).toEqual([{ code: 'shape-too-small', axis: 'x', fixed: 6, target: 5 }]);
+    const minimum = resolveShape(rod, { w: 6 });
+    expect(minimum.warnings).toEqual([]);
+    expect(minimum.shape.box.w).toBe(6);
+    expect(minimum.shape.stretch.x).toEqual([[3, 3]]);
+    expect(minimum.shape.views.front.points).toMatchObject({ e: [3, 0], f: [6, 0], g: [6, 3], h: [3, 3] });
+    expect(placeShapeFront(minimum, { section, fromBottom: 0 }).bounds.width).toBe(6);
+    expect(resolveShape(rod, { w: 6 - 0.5e-6 }).warnings).toEqual([]);
+    expect(resolveShape(rod, { h: 10 })).toEqual({ shape: rod, origin: { x: 0, y: 0, z: 0 }, stretched: false, warnings: [] });
+    expect(resolveShape(rod, { w: null, h: null, d: null })).toEqual(resolveShape(rod));
+  });
+
+  it('places the stretched rod centreline at the measured height and centres its box', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    const resolved = resolveShape(rodc, { w: 36 });
+    expect(resolved.origin).toEqual({ x: 3, y: 0, z: 0 });
+    const before = structuredClone(resolved);
+    const placed = placeShapeFront(resolved, { section, fromBottom: 66 });
+    expect(placed.bounds).toEqual({ x: 100, z: 74.5, width: 36, height: 3 });
+    expect(placed.outlines.slice(4)).toEqual([
+      { closed: false, outline: [[103, 76.53125, 0], [133, 76.53125, 0]] },
+      { closed: false, outline: [[103, 75.46875, 0], [133, 75.46875, 0]] },
+    ]);
+    expect(placed.outlines[2].outline).toEqual([[100.875, 76, 1], [102.125, 76, 1]]);
+    expect((placed.outlines[2].outline[0][0] + placed.outlines[2].outline[1][0]) / 2).toBe(101.5);
+    expect(placeShapeFront(resolved, { section: { ...section, width: 40 }, fromBottom: 66 }).bounds.x).toBe(102);
+    expect(resolved).toEqual(before);
+  });
+
+  it('marks only successfully resized zoned axes as stretched (SH4)', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    for (const [target, stretched] of [
+      [{ w: 36 }, true], [{}, false], [{ w: 30 }, false], [{ w: 5 }, false], [{ h: 10 }, false],
+      [{ w: null }, false], [{ w: 30 + 0.5e-6 }, false], [{ w: 30 + 2e-6 }, true], [{ w: 6 }, true],
+    ]) expect(resolveShape(rodc, target).stretched, JSON.stringify(target)).toBe(stretched);
+    const zoned = { ...newShape([], 'zoned'), stretch: { x: [[3, 9]], y: [[3, 9]], z: [[3, 9]] } };
+    expect(resolveShape(zoned, { w: 5, d: 5, h: 5 }).stretched).toBe(false);
+    expect(resolveShape(zoned, { w: 5, d: 16 }).stretched).toBe(true);
+    expect(resolveShape(zoned, { h: 16 }).stretched).toBe(true);
+  });
+
+  it('places the resolved zero and mirrors it across the box centre (SH4)', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    const resolved = resolveShape(rodc, { w: 36 });
+    expect(placeShapeFront(resolved, { section, fromBottom: 66 }).insert).toEqual({ x: 118, z: 76 });
+    expect(placeShapeFront(resolved, { section, fromBottom: 66, mirror: true }).insert).toEqual({ x: 118, z: 76 });
+    const hook = { ...newShape([], 'HOOK'), box: { x: 0, y: 0, z: 0, w: 2, h: 4, d: 1.5 },
+      views: { front: { units: 'in', points: { a: [0, 0], b: [2, 0], c: [2, 4], d: [0, 4] },
+        loops: [{ id: 'hook', closed: true, segs: [
+          { type: 'line', from: 'a', to: 'b' }, { type: 'line', from: 'b', to: 'c' },
+          { type: 'line', from: 'c', to: 'd' }, { type: 'line', from: 'd', to: 'a' },
+        ] }],
+      } } };
+    const fixed = resolveShape(hook);
+    const normal = placeShapeFront(fixed, { section, fromBottom: 50 });
+    const mirrored = placeShapeFront(fixed, { section, fromBottom: 50, mirror: true });
+    expect(normal.insert).toEqual({ x: 117, z: 60 });
+    expect(mirrored.insert).toEqual({ x: 119, z: 60 });
+    expect(normal.outlines[0].outline[0].slice(0, 2)).toEqual([normal.insert.x, normal.insert.z]);
+    expect(mirrored.outlines[0].outline[0].slice(0, 2)).toEqual([mirrored.insert.x, mirrored.insert.z]);
+  });
+
+  it('mirrors the handed bracket across the stretched box and negates its bulges', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    const handed = { ...rodc, views: { front: { ...rodc.views.front,
+      loops: rodc.views.front.loops.filter(({ id }) => !['right', 'hole-right'].includes(id)),
+    } } };
+    const resolved = resolveShape(handed, { w: 36 });
+    const normal = placeShapeFront(resolved, { section, fromBottom: 66 });
+    const mirrored = placeShapeFront(resolved, { section, fromBottom: 66, mirror: true });
+    expect(mirrored.bounds).toEqual(normal.bounds);
+    expect(mirrored.outlines[0].outline).toEqual([[136, 74.5, 0], [133, 74.5, 0], [133, 77.5, 0], [136, 77.5, 0]]);
+    expect(mirrored.outlines[1].outline).toEqual([[135.125, 76, -1], [133.875, 76, -1]]);
+    expect(normal.outlines[1].outline.map(([, , bulge]) => bulge)).toEqual([1, 1]);
+  });
+
+  it('traces all six rod loops in order, retaining open line ends and closed circle bulges', () => {
+    expect(shapeOutlines(rod.views.front)).toEqual([
+      { closed: true, outline: [[0, 0, 0], [3, 0, 0], [3, 3, 0], [0, 3, 0]] },
+      { closed: true, outline: [[27, 0, 0], [30, 0, 0], [30, 3, 0], [27, 3, 0]] },
+      { closed: true, outline: [[0.875, 1.5, 1], [2.125, 1.5, 1]] },
+      { closed: true, outline: [[27.875, 1.5, 1], [29.125, 1.5, 1]] },
+      { closed: false, outline: [[3, 2.03125, 0], [27, 2.03125, 0]] },
+      { closed: false, outline: [[3, 0.96875, 0], [27, 0.96875, 0]] },
+    ]);
+  });
+
+  it('stretches shared axes in every view and tracks zero inside, after and before zones', () => {
+    const base = newShape([], 'all-axes');
+    const geometry = base.views.front;
+    geometry.points.h1 = [10.25, 10.5];
+    geometry.points.h2 = [10.75, 10.5];
+    geometry.loops.push({ id: 'hole', closed: true, segs: [
+      { type: 'arc', from: 'h1', to: 'h2', center: [10.5, 10.5], ccw: false },
+      { type: 'arc', from: 'h2', to: 'h1', center: [10.5, 10.5], ccw: false },
+    ] });
+    base.views = { front: geometry, plan: geometry, side: geometry };
+    base.stretch = { x: [[2, 10]], y: [[2, 10]], z: [[2, 10]] };
+    const moved = moveShapeOriginTo(base, { x: 6, y: 12, z: 0 });
+    const before = structuredClone(moved);
+    const resolved = resolveShape(moved, { w: 16, d: 16, h: 16 });
+    expect(resolved.origin).toEqual({ x: 2, y: 4, z: 0 });
+    expect(resolved.shape.box).toEqual({ x: -6, y: -12, z: 0, w: 16, d: 16, h: 16 });
+    expect(resolved.shape.stretch).toEqual({ x: [[-4, 8]], y: [[-10, 2]], z: [[2, 14]] });
+    for (const [view, start, end, center] of [
+      ['front', [-6, 0], [10, 16], [8.5, 14.5]],
+      ['plan', [-6, -12], [10, 4], [8.5, 2.5]],
+      ['side', [-12, 0], [4, 16], [2.5, 14.5]],
+    ]) {
+      expect(resolved.shape.views[view].points.p1).toEqual(start);
+      expect(resolved.shape.views[view].points.p3).toEqual(end);
+      expect(resolved.shape.views[view].loops[1].segs[0]).toMatchObject({ center, ccw: false });
+    }
+    expect(placeShapeFront(resolved, { section, fromBottom: 66 }).bounds)
+      .toEqual({ x: 110, z: 76, width: 16, height: 16 });
+    const centred = resolveShape(moveShapeOriginTo(moved, { z: 6 }), { w: 16, d: 16, h: 16 });
+    expect(centred.origin.z).toBe(2);
+    expect(placeShapeFront(centred, { section, fromBottom: 66 }).insert).toEqual({ x: 118, z: 76 });
+    expect(placeShapeFront(centred, { section, fromBottom: 66 }).bounds)
+      .toEqual({ x: 110, z: 68, width: 16, height: 16 });
+    const partial = resolveShape(moved, { w: 3, d: 16, h: 2 });
+    expect(partial.warnings).toEqual([
+      { code: 'shape-too-small', axis: 'x', fixed: 4, target: 3 },
+      { code: 'shape-too-small', axis: 'z', fixed: 4, target: 2 },
+    ]);
+    expect(partial.shape.box).toEqual({ ...moved.box, d: 16 });
+    expect(moved).toEqual(before);
+  });
+
+  it('splits open arcs over 180 degrees, preserving their endpoints and clockwise bulges', () => {
+    for (const ccw of [true, false]) {
+      const geometry = { units: 'in', points: { a: [1, 0], b: [0, ccw ? -1 : 1] },
+        loops: [{ id: 'arc', closed: false, segs: [{ type: 'arc', from: 'a', to: 'b', center: [0, 0], ccw }] }],
+      };
+      const before = structuredClone(geometry);
+      const [{ closed, outline }] = shapeOutlines(geometry);
+      expect(closed).toBe(false);
+      expect(outline).toHaveLength(3);
+      expect(outline[0]).toEqual([1, 0, ccw ? 0.668179 : -0.668179]);
+      expect(outline[1][0]).toBeCloseTo(-Math.SQRT1_2);
+      expect(outline[1][1]).toBeCloseTo(ccw ? Math.SQRT1_2 : -Math.SQRT1_2);
+      expect(outline[1][2]).toBe(outline[0][2]);
+      expect(outline[2]).toEqual([...geometry.points.b, 0]);
+      expect(geometry).toEqual(before);
+    }
+  });
+});

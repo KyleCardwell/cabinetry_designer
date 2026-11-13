@@ -1,0 +1,197 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { auto, fixed, room, run, wall } from '../../../test/builders.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { normalizeCornerEnd } from '../cornerEnd.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { planMeasureGeometry, snapMeasure } from '../measure.js';
+import { planParts } from '../planParts.js';
+import { layoutRun } from '../faceLayouts.js';
+import { resolveWall, syncRoom } from '../room.js';
+import { normalizeElevationDocument } from '../../store/persistence.js';
+
+const document = normalizeElevationDocument(
+  JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
+);
+// Keep these layout anchors independent of run flex (RF3).
+const settings = { ...document.settings, runFlex: 0 };
+const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
+const WALL_KINDS = ['wall', 'void', 'opening', 'casing', 'recess', 'soffit', 'wall_end_panel'];
+const wallThings = (room) => planParts(syncRoom(room, settings), settings)
+  .filter(({ kind }) => WALL_KINDS.includes(kind));
+
+const stored9b = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', import.meta.url), 'utf8'));
+const settings9b = { ...DEFAULT_SETTINGS, ...stored9b.settingsOverrides };
+const room9b = syncRoom(structuredClone(stored9b), settings9b);
+
+describe('corner parts in plan (CC5)', () => {
+  it.each([90, 45])('exports a %s corner polygon, faces and return panel with their tops', (kind) => {
+    const owner = run({ autoCount: false, items: [fixed('cc', 36), auto('a')], _doorThickness: 0.75,
+      style: { cabinetStyleId: 13 }, anchors: { left: true, right: false },
+      ends: { left: normalizeCornerEnd({ corner: { kind } }), right: { type: 'none' } },
+    });
+    owner.grid.cells[0].node.face = { type: 'door' };
+    owner.grid.cells[0].node.doorStyleId = 'thin';
+    const subject = room({ walls: [
+      wall({ runs: [owner],
+        connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }),
+      wall({ id: 'wall-2', x1: 0, y1: 144, x2: 0, y2: 0,
+        connections: { start: null, end: { wallId: 'wall-1', endpoint: 'start' } } }),
+    ], doorStyles: [{ ...DEFAULT_DOOR_STYLE, id: 'thin', label: 'Thin', thickness: 0.75 }] });
+    const cornerSettings = { ...DEFAULT_SETTINGS, bumperThickness: 0.125 };
+    const parts = planParts(subject, cornerSettings).filter(({ id }) => id === 'cc' || id.startsWith('cc:'));
+    const outline = [[0, 0], [36, 0], [36, -24],
+      ...(kind === 90 ? [[24, -24]] : [[35.25, -24], [24, -35.25]]), [24, -36], [0, -36]];
+    expect(parts.find(({ id }) => id === 'cc')).toMatchObject({ kind: 'cabinet', points: outline });
+    expect(parts.find(({ id }) => id === 'cc:return')).toMatchObject({ kind: 'end_panel',
+      points: [[0, -36], [24, -36], [24, -36.8125], [0, -36.8125]] });
+    const face = parts.find(({ id }) => id === (kind === 90 ? 'cc:B:r' : 'cc:r'));
+    expect(face.kind).toBe('face');
+    const expected = kind === 90
+      ? [[24.125, -25], [24.875, -25], [24.875, -35.9375], [24.125, -35.9375]]
+      : [[35.9709, -24.9665], [24.9665, -35.9709], [24.4362, -35.4406], [35.4406, -24.4362]];
+    face.points.forEach((point, i) => point.forEach((value, j) => {
+      expect(Math.abs(value - expected[i][j])).toBeLessThan(0.001);
+    }));
+    expect(parts).toHaveLength(kind === 90 ? 4 : 3);
+    expect(parts.every(({ top }) => top === owner.z + owner.height)).toBe(true);
+  });
+});
+
+describe('tops in the plan payload (PT1)', () => {
+  it('anchor 1 (PT2 c): adds the Room 9b exposed top edges, open where the tall frame covers the end', () => {
+    const tops = planParts(room9b, settings9b).filter(({ kind }) => kind === 'countertop');
+    expect(tops).toEqual([{
+      id: 'top:0:0', kind: 'countertop', closed: false,
+      points: [[-18.625, 20.6875], [-18.625, -40.25], [8.5625, -40.25], [8.5625, 20.6875]],
+    }]);
+    expect(planParts(room9b, settings9b).some((part) => 'bottom' in part)).toBe(false);
+    expect(tops[0]).not.toHaveProperty('top');
+    expect(tops[0]).not.toHaveProperty('runId');
+  });
+
+  it('snaps a plan measurement to the Room 9b top corner in canvas coordinates', () => {
+    const geometry = planMeasureGeometry(room9b, settings9b);
+    expect(snapMeasure({ x: -18.6, y: 40.3 }, geometry, 0.125))
+      .toEqual({ kind: 'corner', point: { x: -18.625, y: 40.25 } });
+  });
+});
+
+describe('SPEC-44 the room in plan: walls and what is in them', () => {
+  it('outlines each wall, cuts and cases the window, skips a wall with no thickness (G1)', () => {
+    const window = '93ab97a1-ce31-4283-8240-ead92a6ae665';
+    const island = '84063fed-ab0d-4a1d-ae05-ffe67decad5e';
+    expect(wallThings(stored('G1 Euro kitchen'))).toEqual([
+      { id: 'cb33d774-f31e-41c1-bbe4-198cbf981619:wall', kind: 'wall', points: [[-60, -84], [-60, 84], [-64.5, 88.5], [-64.5, -84]] },
+      { id: `${window}:void`, kind: 'void', points: [[-60, -36], [-60, 12], [-64.5, 12], [-64.5, -36]] },
+      { id: `${window}:detail`, kind: 'opening', points: [[-62.25, -36], [-62.25, 12]], closed: false },
+      { id: `${window}:casing`, kind: 'casing', points: [[-60, -39], [-60, 15], [-59.25, 15], [-59.25, -39]] },
+      { id: '4afd9749-bbe8-4848-8a67-a1d063bdfce8:wall', kind: 'wall', points: [[-60, 84], [60, 84], [64.5, 88.5], [-64.5, 88.5]] },
+      { id: '8cf88b99-0a56-4ec4-96c2-ffdcaeef4051:wall', kind: 'wall', points: [[60, 84], [60, 57], [64.5, 57], [64.5, 88.5]] },
+      { id: `${island}:endPanel:start`, kind: 'wall_end_panel', points: [[10.3125, -16.75], [9.5, -16.75], [9.5, 21], [10.3125, 21]], top: 34.5 },
+      { id: `${island}:endPanel:end`, kind: 'wall_end_panel', points: [[101, -16.75], [100.1875, -16.75], [100.1875, 21], [101, 21]], top: 34.5 },
+    ]);
+  });
+
+  it('fills a deep recess behind the wall and knocks its notch out; raised, its outline is dashed (G5)', () => {
+    const recess = '61c07d7e-ec8b-4306-9825-9f3decfb5fa1';
+    const mine = (parts) => parts.filter(({ id }) => id.startsWith(recess));
+    const fill = { id: `${recess}:fill`, kind: 'wall', points: [[-82.5, 19.5], [-25.5, 19.5], [-25.5, 31.5], [-82.5, 31.5]] };
+    expect(mine(wallThings(stored('G5 Recess room')))).toEqual([
+      fill,
+      { id: `${recess}:knockout`, kind: 'void', points: [[-78, 15], [-30, 15], [-30, 27], [-78, 27]] },
+    ]);
+    const raised = structuredClone(stored('G5 Recess room'));
+    raised.walls[1].recesses[0].bottom = 12;
+    const line = (index, points) => ({ id: `${recess}:line-${index}`, kind: 'recess', points, closed: false, dashed: true });
+    expect(mine(wallThings(raised))).toEqual([
+      fill,
+      line(0, [[-78, 15], [-78, 27]]),
+      line(1, [[-78, 27], [-30, 27]]),
+      line(2, [[-30, 27], [-30, 15]]),
+    ]);
+  });
+
+  it('dashes a soffit (G3)', () => {
+    expect(wallThings(stored('G3 Bath alcove')).filter(({ kind }) => kind === 'soffit')).toEqual([{
+      id: '5ac8edd3-2c75-476d-bc64-f80ade3f5fba', kind: 'soffit', points: [[-102, 9], [-30, 9], [-30, -5], [-102, -5]], dashed: true,
+    }]);
+  });
+});
+
+describe('SPEC-44 the room in plan: runs', () => {
+  it('draws a run\'s boxes, faces and end panels as the plan view does (G1 tall)', () => {
+    const run = 'b38f2f11-5318-42f2-9d95-8b9b3d1b9087';
+    const box = '28072a7d-e691-40d1-a005-4d0ed1c9e825';
+    const parts = planParts(syncRoom(stored('G1 Euro kitchen'), settings), settings);
+    expect(parts.filter(({ runId }) => runId === run)).toEqual([
+      { id: box, kind: 'cabinet', points: [[-60, -83.1875], [-60, -54.75], [-35, -54.75], [-35, -83.1875]], runId: run, top: 90 },
+      { id: `${run}:left`, kind: 'end_panel', points: [[-60, -84], [-60, -83.1875], [-34.125, -83.1875], [-34.125, -84]], runId: run, top: 90 },
+      { id: `${box}:rleft`, kind: 'face', points: [[-34.9375, -83.125], [-34.9375, -69.03125], [-34.125, -69.03125], [-34.125, -83.125]], runId: run, top: 90 },
+      { id: `${box}:rright`, kind: 'face', points: [[-34.9375, -68.90625], [-34.9375, -54.8125], [-34.125, -54.8125], [-34.125, -68.90625]], runId: run, top: 90 },
+      { id: `${run}:right`, kind: 'end_panel', points: [[-60, -54.75], [-60, -54], [-34.125, -54], [-34.125, -54.75]], runId: run, top: 90 },
+    ]);
+  });
+
+  it('gives every part of an upper run its top, dashing none (G1 wall 1 upper)', () => {
+    const run = '434f1164-3b6b-4a97-89e7-1c6438c4d95a';
+    const parts = planParts(syncRoom(stored('G1 Euro kitchen'), settings), settings)
+      .filter(({ runId }) => runId === run);
+    expect(parts.map(({ id, kind, top, dashed }) => [id.replace(run, 'run'), kind, top, dashed])).toEqual([
+      ['ae7626bb-d1e5-4396-8b5b-a8630bfed949', 'cabinet', 90, undefined],
+      ['2dc1a45e-c462-4c4a-99f3-65c8b6782a2a', 'cabinet', 90, undefined],
+      ['run:left', 'end_panel', 90, undefined],
+      ['ae7626bb-d1e5-4396-8b5b-a8630bfed949:r', 'face', 90, undefined],
+      ['2dc1a45e-c462-4c4a-99f3-65c8b6782a2a:r', 'face', 90, undefined],
+      ['run:right', 'filler', 90, undefined],
+      ['run:right:left', 'filler', 90, undefined],
+    ]);
+    expect(parts.at(-1).points).toEqual([[-50.3125, 69.3125], [-50.3125, 70.0625], [-47.8125, 70.0625], [-47.8125, 69.3125]]);
+  });
+
+  it('gives each stacked box its own top, so the higher one hides the lower (G4)', () => {
+    const run = '738c73a7-adda-40e0-bca9-a881403c1ffa';
+    const parts = planParts(syncRoom(stored('G4 T-filler run'), settings), settings)
+      .filter(({ runId, kind }) => runId === run && kind === 'cabinet');
+    expect(parts.map(({ id, top }) => [id, top])).toEqual([
+      ['36718dec-9ae3-48e7-bce7-f3d95d207a1c', 90],
+      ['0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba', 64],
+      ['87b307e7-2f67-48a7-a80e-a52d4249d55b', 90],
+      ['6ae1c6d6-ec28-40d7-aee3-f3b0898ed2fb', 90],
+    ]);
+  });
+
+  it('covers every golden room: frames, panels, T-fillers and stacks; only the soffit is dashed', () => {
+    const counts = Object.fromEntries(document.rooms.map((room) => {
+      const parts = planParts(syncRoom(room, settings), settings);
+      const kinds = {};
+      for (const { kind } of parts) kinds[kind] = (kinds[kind] ?? 0) + 1;
+      return [room.name, [parts.length, parts.filter(({ runId }) => runId).length, parts.filter(({ dashed }) => dashed).length,
+        parts.filter(({ top }) => top !== undefined).length, kinds]];
+    }));
+    expect(counts).toEqual({
+      'G1 Euro kitchen': [78, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11, countertop: 2 }],
+      'G2 Face frame kitchen': [23, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1, countertop: 1 }],
+      'G3 Bath alcove': [19, 14, 1, 14, { wall: 3, soffit: 1, cabinet: 3, filler: 4, face: 4, end_panel: 2, panel: 1, countertop: 1 }],
+      'G4 T-filler run': [20, 18, 0, 18, { wall: 2, cabinet: 4, end_panel: 2, face: 6, filler: 6 }],
+      'G5 Recess room': [28, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2, countertop: 1 }],
+      'G6 Stacked runs': [39, 34, 0, 34, { wall: 3, cabinet: 8, filler: 6, face: 16, end_panel: 3, panel: 1, countertop: 2 }],
+    });
+  });
+});
+
+describe('SPEC-44.2 plan runs lay out as the elevation does', () => {
+  it('keeps a pinned cabinet on its pin: G1 wall 1 base, 36" centred on the window', () => {
+    const synced = syncRoom(stored('G1 Euro kitchen'), settings);
+    const run = 'b822e8ac-1a44-47ca-acec-ecb93caf7b8a';
+    const boxes = planParts(synced, settings).filter(({ runId, kind }) => runId === run && kind === 'cabinet');
+    const spans = boxes.map(({ points }) => [points[0][1], points[1][1]]);
+    expect(spans).toEqual([[-54, -30], [-30, 6], [6, 31.5], [31.5, 57]]);
+    // The 36" box is centred on the window (jamb -36 to 12 in plan).
+    expect((spans[1][0] + spans[1][1]) / 2).toBe(-12);
+    const view = resolveWall(synced, synced.walls[0], 'front');
+    const layout = layoutRun(synced, view, view.runs.find(({ id }) => id === run), settings);
+    expect(layout.pieces.filter(({ kind }) => kind === 'cabinet').map(({ width }) => width))
+      .toEqual(spans.map(([start, end]) => end - start));
+  });
+});

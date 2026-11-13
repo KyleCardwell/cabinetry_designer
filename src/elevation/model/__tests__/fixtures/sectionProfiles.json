@@ -1,0 +1,343 @@
+{
+  "kind": "section-profiles",
+  "version": 1,
+  "profiles": [
+    {
+      "id": "sp-cove",
+      "name": "Cove 1/4",
+      "kind": "door_inside",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [0.5, 0], "c": [0.75, -0.25], "d": [0.75, -0.8125], "e": [0, -0.8125] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "line", "from": "a", "to": "b" },
+              { "type": "arc", "from": "b", "to": "c", "center": [0.5, -0.25], "ccw": false },
+              { "type": "line", "from": "c", "to": "d" },
+              { "type": "line", "from": "d", "to": "e" },
+              { "type": "line", "from": "e", "to": "a" }
+            ]
+          }
+        ]
+      },
+      "drawnPoints": { "elevation": ["b", "c"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "sp-bead",
+      "name": "Half bead",
+      "kind": "applied_molding",
+      "geometry": {
+        "units": "in",
+        "points": { "s": [0, 0], "t": [0.5, 0] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "arc", "from": "s", "to": "t", "center": [0.25, 0], "ccw": false },
+              { "type": "line", "from": "t", "to": "s" }
+            ]
+          }
+        ]
+      },
+      "drawnPoints": { "elevation": ["s", "t"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "sp-crown",
+      "name": "Crown 4 1/2",
+      "kind": "crown",
+      "geometry": {
+        "units": "in",
+        "points": { "c1": [0, 0], "c2": [0, 4.5], "c3": [3, 4.5], "c4": [3, 3.75], "c5": [0.5, 0] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "line", "from": "c1", "to": "c2" },
+              { "type": "line", "from": "c2", "to": "c3" },
+              { "type": "line", "from": "c3", "to": "c4" },
+              { "type": "line", "from": "c4", "to": "c5" },
+              { "type": "line", "from": "c5", "to": "c1" }
+            ]
+          }
+        ]
+      },
+      "drawnPoints": { "elevation": ["c3", "c4", "c5"], "plan": ["c3"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "tm3",
+      "name": "Top mold 3",
+      "kind": "top_mold",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [0, 0.75], "e": [-0.125, 0.75], "f": [-0.125, 3], "c": [-1.5, 3], "d": [-1.5, 0] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "e" },
+            { "type": "line", "from": "e", "to": "f" },
+            { "type": "line", "from": "f", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "a" }
+          ]
+        }]
+      },
+      "stretch": { "y": 1.5 },
+      "drawnPoints": { "elevation": ["b"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "cr45",
+      "name": "Crown 4 1/2",
+      "kind": "crown",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [3, 0], "c": [3, -1], "d": [0.5, -4], "e": [0.5, -4.5], "f": [0, -4.5] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "e" },
+            { "type": "line", "from": "e", "to": "f" },
+            { "type": "line", "from": "f", "to": "a" }
+          ]
+        }]
+      },
+      "drawnPoints": { "elevation": ["a", "c", "d"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "in58",
+      "name": "Ogee 5/8",
+      "kind": "door_inside",
+      "geometry": {
+        "units": "in",
+        "points": {"p": [-0.625, 0], "q": [0, -0.25], "s": [0, -0.5]},
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [
+            {"type": "line", "from": "p", "to": "q"},
+            {"type": "line", "from": "q", "to": "s"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["p"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "out38",
+      "name": "Round 3/8",
+      "kind": "door_outside",
+      "geometry": {
+        "units": "in",
+        "points": {"a": [0.375, 0], "b": [0, -0.375], "c": [0, -0.8125]},
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [
+            {"type": "line", "from": "a", "to": "b"},
+            {"type": "line", "from": "b", "to": "c"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["a"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "am1",
+      "name": "Applied 1",
+      "kind": "applied_molding",
+      "geometry": {
+        "units": "in",
+        "points": {"u": [-0.25, 0], "v": [0.75, 0], "w": [0.75, 0.375], "k": [-0.25, 0.375]},
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            {"type": "line", "from": "u", "to": "v"},
+            {"type": "line", "from": "v", "to": "w"},
+            {"type": "line", "from": "w", "to": "k"},
+            {"type": "line", "from": "k", "to": "u"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["v", "u"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "am2",
+      "name": "Applied 2",
+      "kind": "applied_molding",
+      "geometry": {
+        "units": "in",
+        "points": {"a": [1, 0], "b": [1.75, 0], "c": [1.75, 0.5], "d": [1, 0.5]},
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            {"type": "line", "from": "a", "to": "b"},
+            {"type": "line", "from": "b", "to": "c"},
+            {"type": "line", "from": "c", "to": "d"},
+            {"type": "line", "from": "d", "to": "a"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["a"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "fb4cut",
+      "name": "Furniture base chamfer (cut)",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "b": [-0.3125, 0], "c": [0, -0.3125] },
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [{ "type": "line", "from": "b", "to": "c" }]
+        }]
+      },
+      "drawnPoints": { "elevation": ["c"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "fbstep",
+      "name": "Furniture base step (cut)",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "p": [-0.5, -0.25], "q": [0, -0.75] },
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [{ "type": "line", "from": "p", "to": "q" }]
+        }]
+      },
+      "drawnPoints": { "elevation": ["q"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "fb4",
+      "name": "Furniture base 4",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [-0.8125, 0], "b": [-0.3125, 0], "c": [0, -0.3125], "d": [0, -4], "e": [-0.8125, -4] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "e" },
+            { "type": "line", "from": "e", "to": "a" }
+          ]
+        }]
+      },
+      "stretch": { "y": -2 },
+      "drawnPoints": { "elevation": ["c"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "bead5",
+      "name": "Flush bead 5/16",
+      "kind": "door_outside",
+      "stretch": {
+        "y": -0.25
+      },
+      "geometry": {
+        "units": "in",
+        "points": {
+          "a": [
+            -0.3125,
+            0
+          ],
+          "q": [
+            -0.0625,
+            0
+          ],
+          "b": [
+            0,
+            0
+          ],
+          "c": [
+            0,
+            -0.8125
+          ],
+          "d": [
+            -0.3125,
+            -0.8125
+          ]
+        },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              {
+                "type": "line",
+                "from": "a",
+                "to": "q"
+              },
+              {
+                "type": "line",
+                "from": "q",
+                "to": "b"
+              },
+              {
+                "type": "line",
+                "from": "b",
+                "to": "c"
+              },
+              {
+                "type": "line",
+                "from": "c",
+                "to": "d"
+              },
+              {
+                "type": "line",
+                "from": "d",
+                "to": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "drawnPoints": {
+        "elevation": [
+          "q",
+          "a"
+        ]
+      },
+      "version": 1,
+      "archived": false
+    }
+  ]
+}

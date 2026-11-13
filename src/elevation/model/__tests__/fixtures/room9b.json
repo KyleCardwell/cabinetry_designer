@@ -1,0 +1,792 @@
+{
+  "id": "80b0cd5c-41b0-4479-ab51-0b2b05e2d210",
+  "name": "Room 9",
+  "profile": {
+    "crownTop": 98,
+    "wallHeight": 98,
+    "baseKind": "furniture_base",
+    "furnitureBaseProfileId": "af0ac601-fd98-48a7-9e1f-ba3b41b40928",
+    "baseBoxHeight": 24.5
+  },
+  "partNumberStart": 1,
+  "partNumberOverrides": {},
+  "reportParts": {},
+  "reportNote": "",
+  "wallOrder": [
+    "4b29510c-5d9a-4220-9b6b-b8674738aafe",
+    "9f22dbe2-0d4f-45ab-8052-d7acdd326705",
+    "1c217065-5bed-4baa-ab06-6bf0490cbafb",
+    "39d3d505-3350-439c-89ed-fe3dc88d05f0"
+  ],
+  "walls": [
+    {
+      "id": "4b29510c-5d9a-4220-9b6b-b8674738aafe",
+      "name": "Wall 1",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": -81.5,
+      "y1": -9.5,
+      "x2": -81.5,
+      "y2": -39.5,
+      "height": 98,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": null,
+        "end": {
+          "wallId": "9f22dbe2-0d4f-45ab-8052-d7acdd326705",
+          "endpoint": "start"
+        }
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    },
+    {
+      "id": "9f22dbe2-0d4f-45ab-8052-d7acdd326705",
+      "name": "Wall 2",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": -81.5,
+      "y1": -39.5,
+      "x2": 82,
+      "y2": -39.5,
+      "height": 98,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": {
+          "wallId": "4b29510c-5d9a-4220-9b6b-b8674738aafe",
+          "endpoint": "end"
+        },
+        "end": {
+          "wallId": "1c217065-5bed-4baa-ab06-6bf0490cbafb",
+          "endpoint": "start"
+        }
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [
+        {
+          "id": "0cc425d0-8b87-4763-aedc-ea203f368453",
+          "cabinetTypeId": 3,
+          "x": 0,
+          "width": 163.5,
+          "z": 4,
+          "height": 88,
+          "depth": 18,
+          "ends": {
+            "left": {
+              "type": "filler",
+              "width": null
+            },
+            "right": {
+              "type": "filler",
+              "width": null
+            }
+          },
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "grid": {
+            "id": "0cc425d0-8b87-4763-aedc-ea203f368453:grid",
+            "cols": [
+              {
+                "id": "8de9f6f7-c1b6-453a-9577-9e70ef92ddfb:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "615024b3-af3b-473b-9425-1a16a7e174d6:col",
+                "size": null,
+                "sizeMode": "auto",
+                "pin": null
+              },
+              {
+                "id": "a897bd8e-9e38-434d-8196-24bfe01189b6:col",
+                "size": null,
+                "sizeMode": "auto",
+                "pin": {
+                  "anchor": "left",
+                  "from": "return",
+                  "openingId": null,
+                  "openingAnchor": "center",
+                  "value": 3,
+                  "wallId": "39d3d505-3350-439c-89ed-fe3dc88d05f0",
+                  "runId": "0f8a2992-b035-45af-9dcb-88e9196b28a8",
+                  "edge": "left"
+                }
+              },
+              {
+                "id": "afe6ab6c-9d62-4443-bf8b-41354396b0ba:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "2103dbf6-db87-4194-a052-1c9e382637be:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "0cc425d0-8b87-4763-aedc-ea203f368453:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "8de9f6f7-c1b6-453a-9577-9e70ef92ddfb",
+                  "cols": [
+                    {
+                      "id": "7e83abf4-ea79-4055-b997-77324bfd1053",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "id": "211188ae-061a-4e71-9874-8fe94f4f237f",
+                      "size": null,
+                      "sizeMode": "auto"
+                    },
+                    {
+                      "id": "d008accd-05e9-481b-8411-a4e73d479621",
+                      "size": 25.25,
+                      "sizeMode": "manual"
+                    }
+                  ],
+                  "cells": [
+                    {
+                      "col": 0,
+                      "row": 0,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "d5235ce3-42e5-48e2-a35d-ed84839413cc",
+                        "kind": "cabinet",
+                        "face": {
+                          "type": "open",
+                          "size": null
+                        }
+                      }
+                    },
+                    {
+                      "col": 0,
+                      "row": 1,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "5e3a9aac-4306-418b-8698-b8a74b00be00",
+                        "kind": "cabinet"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "615024b3-af3b-473b-9425-1a16a7e174d6",
+                  "cols": [
+                    {
+                      "id": "34b66a40-29a2-4c6d-bc29-cebfa1b76dc1",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "id": "40df04a3-7b5b-4081-a312-c39b2a5f5d9b",
+                      "size": null,
+                      "sizeMode": "auto"
+                    },
+                    {
+                      "id": "f86e28dc-5c03-4e84-9dac-8b536791cea6",
+                      "size": 25.25,
+                      "sizeMode": "manual"
+                    }
+                  ],
+                  "cells": [
+                    {
+                      "col": 0,
+                      "row": 0,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "fff7cd2c-efa0-4d58-8c5a-51c6afe8baa2",
+                        "kind": "cabinet",
+                        "face": {
+                          "type": "open",
+                          "size": null
+                        }
+                      }
+                    },
+                    {
+                      "col": 0,
+                      "row": 1,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "b124bbf6-8f1a-4fd4-ae20-804e0204eee5",
+                        "kind": "cabinet"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "col": 2,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "a897bd8e-9e38-434d-8196-24bfe01189b6",
+                  "kind": "cabinet",
+                  "face": {
+                    "type": "open",
+                    "size": null
+                  },
+                  "reveals": {
+                    "bottom": 26
+                  }
+                }
+              },
+              {
+                "col": 3,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "afe6ab6c-9d62-4443-bf8b-41354396b0ba",
+                  "cols": [
+                    {
+                      "id": "b28f0349-42b1-450c-95e7-f1231aeb5917",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "id": "e412ce40-1251-49e5-8c1a-8aa3a363e852",
+                      "size": null,
+                      "sizeMode": "auto"
+                    },
+                    {
+                      "id": "f16ec2f9-29f5-49b2-8b42-db054fdcd708",
+                      "size": 25.25,
+                      "sizeMode": "manual"
+                    }
+                  ],
+                  "cells": [
+                    {
+                      "col": 0,
+                      "row": 0,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "dc56154b-a3c6-402c-8601-6afe17cddf1a",
+                        "kind": "cabinet",
+                        "face": {
+                          "type": "open",
+                          "size": null
+                        }
+                      }
+                    },
+                    {
+                      "col": 0,
+                      "row": 1,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "6ec438d6-6319-4b61-8cf1-8f703ec11381",
+                        "kind": "cabinet"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "col": 4,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "2103dbf6-db87-4194-a052-1c9e382637be",
+                  "cols": [
+                    {
+                      "id": "42534965-e9a4-46c4-9bd2-96aaf7e564a9",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "id": "51e8d3d7-7e03-48db-ae37-b08bc114f3a0",
+                      "size": null,
+                      "sizeMode": "auto"
+                    },
+                    {
+                      "id": "f8052097-aecf-4939-b5bf-ac7dc4b52b04",
+                      "size": 25.25,
+                      "sizeMode": "manual"
+                    }
+                  ],
+                  "cells": [
+                    {
+                      "col": 0,
+                      "row": 0,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "71dd202f-64ce-40bd-af7a-0c37d9f316df",
+                        "kind": "cabinet",
+                        "face": {
+                          "type": "open",
+                          "size": null
+                        }
+                      }
+                    },
+                    {
+                      "col": 0,
+                      "row": 1,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "edab6428-262d-41b7-a235-253c0701c7e4",
+                        "kind": "cabinet"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "heightMode": "auto",
+          "overrides": {},
+          "anchors": {
+            "left": true,
+            "right": true
+          },
+          "wallSide": "front",
+          "_frame": {
+            "thickness": 0.8125,
+            "drop": 0,
+            "bead": 0
+          },
+          "_pinWidths": {
+            "a897bd8e-9e38-434d-8196-24bfe01189b6": 30.875
+          },
+          "_returnPins": {
+            "a897bd8e-9e38-434d-8196-24bfe01189b6": {
+              "target": 60.625
+            }
+          },
+          "flex": {
+            "left": 0,
+            "right": 0,
+            "x": 0,
+            "width": 163.5,
+            "boxes": {
+              "left": 29.5,
+              "right": 35.5
+            }
+          }
+        }
+      ],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    },
+    {
+      "id": "1c217065-5bed-4baa-ab06-6bf0490cbafb",
+      "name": "Wall 3",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": 82,
+      "y1": -39.5,
+      "x2": 82,
+      "y2": -9.5,
+      "height": 98,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": {
+          "wallId": "9f22dbe2-0d4f-45ab-8052-d7acdd326705",
+          "endpoint": "end"
+        },
+        "end": null
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    },
+    {
+      "id": "39d3d505-3350-439c-89ed-fe3dc88d05f0",
+      "name": "Wall 4",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": 7,
+      "y1": -39.5,
+      "x2": 7,
+      "y2": 39.5,
+      "height": 30,
+      "thickness": 0,
+      "thicknessOverride": 0,
+      "flipped": false,
+      "connections": {
+        "start": null,
+        "end": null
+      },
+      "endPanels": {
+        "start": null,
+        "end": {
+          "width": null
+        }
+      },
+      "landings": {
+        "start": {
+          "wallId": "9f22dbe2-0d4f-45ab-8052-d7acdd326705",
+          "side": "front",
+          "ref": "right",
+          "to": "near",
+          "offset": 75
+        },
+        "end": null
+      },
+      "profile": {
+        "wallHeight": 30
+      },
+      "runs": [
+        {
+          "id": "0f8a2992-b035-45af-9dcb-88e9196b28a8",
+          "cabinetTypeId": 1,
+          "x": 18.8125,
+          "width": 59.375,
+          "z": 4,
+          "height": 24.5,
+          "depth": 24,
+          "ends": {
+            "left": {
+              "type": "filler",
+              "width": null
+            },
+            "right": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            }
+          },
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "grid": {
+            "id": "0f8a2992-b035-45af-9dcb-88e9196b28a8:grid",
+            "cols": [
+              {
+                "id": "3964db0b-4156-4f3b-9033-9acfcd3987c0:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "3924953e-f0ab-4e7c-9e46-f60a0c3146ba:col",
+                "size": 0.75,
+                "sizeMode": "manual"
+              },
+              {
+                "id": "a1845569-2247-4c5b-bcb1-81e63d14d3c5:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "0f8a2992-b035-45af-9dcb-88e9196b28a8:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "3964db0b-4156-4f3b-9033-9acfcd3987c0",
+                  "cols": [
+                    {
+                      "id": "cdae75fe-f5c6-4879-8895-cdbcababdae3",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "id": "edc75bf2-4e48-4d35-9009-32833c9458c2",
+                      "size": null,
+                      "sizeMode": "auto"
+                    },
+                    {
+                      "id": "8d0685e9-3352-4492-9a52-488f8a6259c0",
+                      "size": null,
+                      "sizeMode": "auto"
+                    }
+                  ],
+                  "cells": [
+                    {
+                      "col": 0,
+                      "row": 0,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "a6e4e86e-1ebb-43b7-834c-aecfaaef03bd",
+                        "kind": "cabinet"
+                      }
+                    },
+                    {
+                      "col": 0,
+                      "row": 1,
+                      "colSpan": 1,
+                      "rowSpan": 1,
+                      "node": {
+                        "id": "f32bfd53-c776-445f-a6f8-85d537d338ac",
+                        "kind": "void"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "3924953e-f0ab-4e7c-9e46-f60a0c3146ba",
+                  "kind": "panel"
+                }
+              },
+              {
+                "col": 2,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "a1845569-2247-4c5b-bcb1-81e63d14d3c5",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "heightMode": "auto",
+          "overrides": {},
+          "anchors": {
+            "left": true,
+            "right": true
+          },
+          "wallSide": "front",
+          "style": {
+            "cabinetStyleId": 13
+          },
+          "top": "wood",
+          "flex": {
+            "left": 0,
+            "right": 0,
+            "x": 18.8125,
+            "width": 59.375,
+            "boxes": {
+              "run": 28.5
+            }
+          }
+        },
+        {
+          "id": "c3e90115-6035-4641-b50b-a0b5ba4079dc",
+          "cabinetTypeId": 1,
+          "x": 0.8125,
+          "width": 59.375,
+          "z": 4,
+          "height": 24.5,
+          "depth": 0.8125,
+          "ends": {
+            "left": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            },
+            "right": {
+              "type": "none",
+              "width": null
+            }
+          },
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "grid": {
+            "id": "c3e90115-6035-4641-b50b-a0b5ba4079dc:grid",
+            "cols": [
+              {
+                "id": "a23ef60a-20d0-4490-9598-768dcfd2c75d:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "e5806f5c-00bc-43f1-aab0-110d1f1f3ddd:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "c3e90115-6035-4641-b50b-a0b5ba4079dc:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "a23ef60a-20d0-4490-9598-768dcfd2c75d",
+                  "kind": "panel",
+                  "depth": 0.8125,
+                  "align": "back",
+                  "styleId": "default",
+                  "baseUnder": true
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "e5806f5c-00bc-43f1-aab0-110d1f1f3ddd",
+                  "kind": "panel",
+                  "depth": 0.8125,
+                  "align": "back",
+                  "baseUnder": true
+                }
+              }
+            ]
+          },
+          "heightMode": "auto",
+          "overrides": {},
+          "anchors": {
+            "left": true,
+            "right": true
+          },
+          "wallSide": "back",
+          "top": "wood",
+          "style": {
+            "cabinetStyleId": 13
+          }
+        }
+      ],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    }
+  ],
+  "style": {
+    "cabinetStyleId": 14
+  },
+  "settingsOverrides": {
+    "fillerMinWidth": 2,
+    "tallDepth": 18,
+    "cornerFillerMinWidth": 1.5
+  },
+  "elevationOptions": {
+    "9f22dbe2-0d4f-45ab-8052-d7acdd326705": {
+      "returns": "section"
+    },
+    "39d3d505-3350-439c-89ed-fe3dc88d05f0": {
+      "returns": "section"
+    }
+  },
+  "doorStyles": [
+    {
+      "id": "2c83cb27-c250-43cc-b9ac-42ad859a9522",
+      "label": "A",
+      "designId": "five-piece-square",
+      "thickness": 0.8125,
+      "stiles": {
+        "left": 3,
+        "right": 3
+      },
+      "rails": {
+        "top": 3,
+        "bottom": 3
+      },
+      "mid": {},
+      "panel": {
+        "type": "flat",
+        "thickness": 0.5
+      },
+      "profiles": {
+        "outside": "fae3bfc1-c6ae-4a30-9177-4fc77394dc5f",
+        "inside": null,
+        "panel": null
+      },
+      "arch": {
+        "rise": 2
+      },
+      "shortFace": {
+        "minPanel": 2.125,
+        "minRail": 1.625,
+        "slabBelow": 4.8125,
+        "step": 0.0625
+      },
+      "appliedMoldings": []
+    }
+  ],
+  "doorStyleId": "2c83cb27-c250-43cc-b9ac-42ad859a9522",
+  "combinedElevations": [
+    {
+      "id": "554c9416-b96f-4fc1-afc6-3ff82a670619",
+      "on": false,
+      "faces": [
+        "39d3d505-3350-439c-89ed-fe3dc88d05f0:back"
+      ]
+    }
+  ]
+}

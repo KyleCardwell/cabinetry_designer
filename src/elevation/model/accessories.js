@@ -1,0 +1,260 @@
+import { findEffect, isEffectList } from './accessoryEffects.js';
+import { roomCabinetLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
+import { findLeaf } from './cellTree.js';
+import { wallDrawerBoxes } from './drawerBoxes.js';
+import { getInteriorNode } from './interiorTree.js';
+import { wallInteriors } from './interiors.js';
+import { resolveWall } from './room.js';
+import { wallRollouts } from './rollouts.js';
+import { shelfZone } from './shelves.js';
+import { ACCESSORY_PLACES } from './constants.js';
+import { PRICING_UNITS, isLabor, isMoney } from './libraryPricing.js';
+import { placeShapeFront, resolveShape } from './libraryShapes.js';
+
+const ACCESSORY_KEYS = [
+  'id', 'name', 'brand', 'model', 'description', 'reportText', 'attachesTo', 'wholeSection',
+  'minOpening', 'ownSlides', 'effects', 'pricing', 'price', 'actualCost', 'labor', 'size', 'lengthDeduction',
+  'shapeId', 'depthAnchor',
+];
+const OPENING_KEYS = ['width', 'depth', 'height'];
+
+function hasKeys(value, keys) {
+  if (value === null || typeof value !== 'object') return false;
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === Object.prototype || prototype === null)
+    && Reflect.ownKeys(value).every((key) => keys.includes(key))
+    && keys.every((key) => Object.hasOwn(value, key));
+}
+
+const isText = (value) => typeof value === 'string' && value === value.trim() && value.length <= 120;
+
+export function isAccessory(accessory) {
+  return hasKeys(accessory, ACCESSORY_KEYS)
+    && typeof accessory.id === 'string' && accessory.id.length > 0
+    && typeof accessory.name === 'string' && accessory.name.length > 0 && accessory.name === accessory.name.trim()
+    && ['brand', 'model', 'description', 'reportText'].every((key) => isText(accessory[key]))
+    && ACCESSORY_PLACES.includes(accessory.attachesTo)
+    && typeof accessory.wholeSection === 'boolean'
+    && (accessory.attachesTo === 'section' || !accessory.wholeSection)
+    && hasKeys(accessory.minOpening, OPENING_KEYS)
+    && OPENING_KEYS.every((key) => accessory.minOpening[key] === null
+      || (Number.isFinite(accessory.minOpening[key]) && accessory.minOpening[key] > 0))
+    && hasKeys(accessory.size, OPENING_KEYS)
+    && OPENING_KEYS.every((key) => accessory.size[key] === null
+      || (Number.isFinite(accessory.size[key]) && accessory.size[key] > 0)
+      || (key === 'width' && accessory.size[key] === 'section' && accessory.attachesTo === 'section'))
+    && (accessory.lengthDeduction === null || (accessory.attachesTo === 'section'
+      && Number.isFinite(accessory.lengthDeduction) && accessory.lengthDeduction >= 0))
+    && (accessory.shapeId === null || (typeof accessory.shapeId === 'string' && accessory.shapeId.length > 0))
+    && hasKeys(accessory.depthAnchor, ['at', 'offset'])
+    && ['front', 'centre', 'back'].includes(accessory.depthAnchor.at)
+    && Number.isFinite(accessory.depthAnchor.offset)
+    && typeof accessory.ownSlides === 'boolean'
+    && isEffectList(accessory.effects, accessory.attachesTo)
+    && PRICING_UNITS.includes(accessory.pricing)
+    && isMoney(accessory.price) && isMoney(accessory.actualCost)
+    && isLabor(accessory.labor);
+}
+
+export function isAccessoryList(list) {
+  if (!Array.isArray(list)) return false;
+  const ids = new Set();
+  const names = new Set();
+  for (const accessory of list) {
+    if (!isAccessory(accessory) || ids.has(accessory.id) || names.has(accessory.name.toLowerCase())) return false;
+    ids.add(accessory.id);
+    names.add(accessory.name.toLowerCase());
+  }
+  return true;
+}
+
+function unusedName(list, base) {
+  const names = new Set(list.map((accessory) => accessory.name.toLowerCase()));
+  let name = base;
+  let number = 2;
+  while (names.has(name.toLowerCase())) {
+    name = `${base} ${number}`;
+    number += 1;
+  }
+  return name;
+}
+
+export function newAccessory(list, id) {
+  return {
+    id,
+    name: unusedName(list, 'New accessory'),
+    brand: '',
+    model: '',
+    description: '',
+    reportText: '',
+    attachesTo: 'section',
+    wholeSection: false,
+    minOpening: { width: null, depth: null, height: null },
+    size: { width: null, height: null, depth: null },
+    lengthDeduction: null,
+    shapeId: null,
+    depthAnchor: { at: 'front', offset: 0 },
+    ownSlides: false,
+    effects: [],
+    pricing: 'unit',
+    price: null,
+    actualCost: null,
+    labor: {},
+  };
+}
+
+/** Fill only missing fields on older stored accessories. */
+export function withAccessoryDefaults(accessory) {
+  if (!accessory || typeof accessory !== 'object' || Array.isArray(accessory)) return accessory;
+  return {
+    ...accessory,
+    ...(!Object.hasOwn(accessory, 'size') ? { size: { width: null, height: null, depth: null } } : {}),
+    ...(!Object.hasOwn(accessory, 'lengthDeduction') ? { lengthDeduction: null } : {}),
+    ...(!Object.hasOwn(accessory, 'shapeId') ? { shapeId: null } : {}),
+    ...(!Object.hasOwn(accessory, 'depthAnchor') ? { depthAnchor: { at: 'front', offset: 0 } } : {}),
+  };
+}
+
+export function copyAccessory(list, base, id) {
+  return { ...structuredClone(base), id, name: unusedName(list, `${base.name} copy`) };
+}
+
+export function findAccessory(id, list) {
+  return list.find((accessory) => accessory.id === id) ?? null;
+}
+
+export function accessoryText(accessory) {
+  return accessory.reportText || accessory.name;
+}
+
+/** Resolve stored references against the drawer-clear opening, retaining missing items for repair. */
+export function sectionAccessories({ interior, boxes = [], settings, rollouts = new Map() }) {
+  const result = new Map();
+  for (const section of interior.sections) {
+    const node = getInteriorNode(interior.tree, section.path) ?? {};
+    if (!node.accessories) continue;
+    const opening = { width: section.width, depth: section.depth, height: shelfZone(section, boxes).height };
+    const items = node.accessories.map(({ accessoryId, qty = 1, fromBottom: placed = null, mirror = false }, index) => {
+      const accessory = findAccessory(accessoryId, settings?.accessories ?? []);
+      const warnings = [];
+      let size = null;
+      let orderedLength = null;
+      let fromBottom = null;
+      let centerZ = null;
+      let rect = null;
+      let drawing;
+      if (!accessory) warnings.push({ code: 'accessory-missing' });
+      else if (accessory.attachesTo !== 'section') warnings.push({ code: 'accessory-wrong-place' });
+      else {
+        if (accessory.size?.width === 'section' && (section.edges?.left === 'zone' || section.edges?.right === 'zone')) {
+          warnings.push({ code: 'accessory-no-side' });
+        }
+        const sizes = OPENING_KEYS.filter((dim) => accessory.minOpening[dim] !== null
+          && accessory.minOpening[dim] > opening[dim] + 1e-9)
+          .map((dim) => ({ dim, needs: accessory.minOpening[dim], has: opening[dim] }));
+        if (sizes.length) warnings.push({ code: 'accessory-too-small', sizes });
+        size = {
+          width: accessory.size?.width === 'section' ? section.width : accessory.size?.width ?? null,
+          height: accessory.size?.height ?? null,
+          depth: accessory.size?.depth ?? null,
+        };
+        const shape = (settings?.shapes ?? []).find(({ id }) => id === accessory.shapeId);
+        if (accessory.shapeId != null && !shape) warnings.push({ code: 'accessory-shape-missing' });
+        if (accessory.lengthDeduction != null) {
+          orderedLength = section.width - accessory.lengthDeduction;
+          if (orderedLength <= 1e-9) {
+            orderedLength = null;
+            warnings.push({ code: 'accessory-length', deduction: accessory.lengthDeduction, has: section.width });
+          }
+        }
+        fromBottom = placed;
+        if (fromBottom !== null) {
+          centerZ = section.z + fromBottom;
+          if (shape) {
+            const resolved = resolveShape(shape, { w: size.width, h: size.height, d: size.depth });
+            const d = resolved.shape.box.d;
+            const { at, offset } = accessory.depthAnchor ?? { at: 'front', offset: 0 };
+            const depth = { front: 0, centre: (section.depth - d) / 2, back: section.depth - d }[at] + offset;
+            drawing = { ...placeShapeFront(resolved, { section, fromBottom, mirror }),
+              shapeId: shape.id, shapeName: shape.name, stretched: resolved.stretched, mirror, depth };
+            rect = drawing.bounds;
+            warnings.push(...resolved.warnings.map((warning) => ({ ...warning, code: 'accessory-shape-too-small' })));
+            if (depth < -1e-6) warnings.push({ code: 'accessory-outside-depth', side: 'front', by: -depth });
+            if (depth + d > section.depth + 1e-6) {
+              warnings.push({ code: 'accessory-outside-depth', side: 'back', by: depth + d - section.depth });
+            }
+          } else if (size.width !== null && size.height !== null) {
+            rect = { x: section.x + (section.width - size.width) / 2,
+              z: centerZ - size.height / 2, width: size.width, height: size.height };
+          }
+          if (centerZ < section.z - 1e-9 || centerZ > section.z + section.height + 1e-9
+            || (rect && (rect.x < section.x - 1e-9 || rect.x + rect.width > section.x + section.width + 1e-9
+              || rect.z < section.z - 1e-9 || rect.z + rect.height > section.z + section.height + 1e-9))) {
+            warnings.push({ code: 'accessory-outside', sectionHeight: section.height });
+          }
+        }
+      }
+      return { index, accessoryId, accessory, qty, warnings, size, orderedLength, fromBottom, centerZ, rect,
+        ...(drawing ? { drawing } : {}) };
+    });
+    const counted = items.filter(({ accessory }) => accessory?.attachesTo === 'section');
+    const whole = counted.find(({ accessory }) => accessory.wholeSection) ?? null;
+    const warnings = whole && (node.rollouts?.count > 0 || rollouts.get(section.path)?.rollouts.length > 0
+      || node.shelves?.count > 0 || node.shelves?.shoe > 0 || counted.length > 1)
+      ? [{ code: 'accessory-whole-section', name: whole.accessory.name }] : [];
+    const lineBoreRow = counted.some(({ accessory }) => findEffect(accessory, 'line_bore_row'));
+    result.set(section.path, { items, whole, warnings, lineBoreRow });
+  }
+  return result;
+}
+
+/** Share wall-coordinate interiors, boxes and roll-outs with the shelf pass. */
+export function wallAccessories(room, wall, side, settings, shared = {}) {
+  const faceLayoutsByRun = shared.faceLayoutsByRun ?? new Map();
+  const interiors = shared.interiors ?? wallInteriors(room, wall, side, settings, faceLayoutsByRun);
+  const boxes = shared.boxes ?? wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
+  const rollouts = shared.rollouts ?? wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
+  const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
+  return new Map(interiors.map((interior) => [interior.itemId, sectionAccessories({
+    interior, boxes: boxes.get(interior.itemId)?.boxes ?? [], rollouts: rollouts.get(interior.itemId),
+    leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId), settings,
+  })]));
+}
+
+/** Stored accessory picks by place, including nested grids, faces and interior groups. */
+export function* roomAccessoryUses(room) {
+  for (const { item } of roomCabinetLeaves(room)) {
+    for (const { node } of treeLeaves(item.interior)) {
+      for (const accessory of node.accessories ?? []) {
+        yield { node: accessory, key: 'accessoryId', place: 'section' };
+      }
+    }
+    for (const { node: face } of treeLeaves(item.face)) {
+      if (face.type === 'drawer_front') {
+        for (const accessory of face.drawerBox?.accessories ?? []) {
+          yield { node: accessory, key: 'accessoryId', place: 'drawer_box' };
+        }
+      }
+    }
+  }
+}
+
+export function missingAccessories(room, settings) {
+  const known = new Set((settings?.accessories ?? []).map(({ id }) => id));
+  const missing = new Map();
+  for (const { node, key, place } of roomAccessoryUses(room)) {
+    const accessoryId = node[key];
+    if (typeof accessoryId !== 'string' || !accessoryId || known.has(accessoryId)) continue;
+    const idAndPlace = JSON.stringify([accessoryId, place]);
+    if (!missing.has(idAndPlace)) missing.set(idAndPlace, { accessoryId, place, roomUses: 0 });
+    missing.get(idAndPlace).roomUses += 1;
+  }
+  return [...missing.values()].sort((a, b) => a.accessoryId.localeCompare(b.accessoryId)
+    || (a.place === b.place ? 0 : a.place === 'section' ? -1 : 1));
+}
+
+export function missingAccessoryName(accessoryId) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(accessoryId)
+    ? 'An archived accessory' : `Accessory \`${accessoryId}\``;
+}

@@ -1,0 +1,258 @@
+import { bandParts } from './bandParts.js';
+import { partPieces } from './cells.js';
+import { cornerReturnLegs } from './cornerLegs.js';
+import { frameBadgeAnchor, frameMembers, regionOpenings } from './frames.js';
+import { furnitureBaseGroups } from './furnitureBaseGroups.js';
+import { wallLength } from './geometry.js';
+import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
+import { resolveProfile } from './profile.js';
+import { runBands } from './runBands.js';
+import { runScene } from './runScene.js';
+import { teeFillers } from './tees.js';
+import { runTop } from './tops.js';
+import { wallEndPanels } from './wallEndPanels.js';
+import { woodTopGroups } from './woodTopGroups.js';
+import {
+  PART_MOLDINGS,
+  carriesMolding,
+  compareRuns,
+  moldingPartKey,
+  roomParts,
+  wallEndPanelPartKey,
+} from './parts.js';
+
+export { PART_MOLDINGS, moldingPartKey, wallEndPanelPartKey } from './parts.js';
+export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furniture_base: 'FB', wood_top: 'WT' };
+/** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
+export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
+
+export function partNumbers(room, settings) {
+  const ordered = roomParts(room, settings);
+  const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
+    ? room.partNumberStart
+    : 1;
+  const overrides = room?.partNumberOverrides ?? {};
+  const byKey = new Map();
+  const taken = new Set();
+  const overrideKeys = new Set();
+  const claims = new Map();
+  for (const part of ordered) {
+    const override = overrides[part.key];
+    if (!Number.isInteger(override) || override <= 0) continue;
+    byKey.set(part.key, override);
+    taken.add(override);
+    overrideKeys.add(part.key);
+    const keys = claims.get(override) ?? [];
+    keys.push(part.key);
+    claims.set(override, keys);
+  }
+  let next = start;
+  for (const part of ordered) {
+    if (byKey.has(part.key)) continue;
+    while (taken.has(next)) next += 1;
+    byKey.set(part.key, next);
+    taken.add(next);
+    next += 1;
+  }
+
+  const parts = ordered.map((part) => ({ ...part, number: byKey.get(part.key) }));
+  const warnings = [...claims.entries()]
+    .filter(([, keys]) => keys.length > 1)
+    .map(([number, keys]) => ({ code: 'duplicate-part-number', number, keys }));
+  return { parts, byKey, overrideKeys, warnings };
+}
+
+export function wallMoldingBadges(room, wall, settings, byKey) {
+  const profile = resolveProfile(settings, room, wall);
+  const runs = [...wall.runs].sort(compareRuns);
+  const badges = PART_MOLDINGS.flatMap((molding) => {
+    const key = moldingPartKey(molding);
+    const number = byKey.get(key);
+    const run = runs.find((candidate) => carriesMolding(wall, candidate, profile, molding, settings));
+    if (!run || number === undefined) return [];
+    const boxTop = run.z + run.height;
+    const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
+    const rect = molding === 'toeKick'
+      ? {
+        x: run.x + Math.min(3, run.width / 2),
+        z: 0,
+        width: Math.max(0, run.width - 6),
+        height: toeKickHeight,
+      }
+      : molding === 'topMold'
+        ? { x: run.x, z: boxTop, width: run.width, height: profile.topMoldHeight }
+        : {
+          x: run.x,
+          z: boxTop + profile.crownStackHeight - profile.crownHeight,
+          width: run.width,
+          height: profile.crownHeight,
+        };
+    return [{
+      molding,
+      slot: MOLDING_BADGE_SLOTS[molding],
+      key,
+      number,
+      label: MOLDING_LABELS[molding],
+      ...rect,
+    }];
+  });
+  for (const group of furnitureBaseGroups(room, settings)) {
+    const face = group.faces.find(({ wallId, side }) => wallId === wall.id && side === (wall.side ?? 'front'));
+    const number = byKey.get(group.key);
+    if (!face || number === undefined) continue;
+    const run = wall.runs.find(({ id }) => id === face.runIds[0]);
+    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBases
+      .find((candidate) => {
+        const center = candidate.x + candidate.width / 2;
+        const x = wall.side === 'back' ? wallLength(wall) - center : center;
+        return group.steps.some((step) => step.wallId === wall.id && step.side === (wall.side ?? 'front')
+          && x >= step.x1 && x <= step.x2);
+      });
+    if (!band) continue;
+    badges.push({
+      molding: 'furniture_base',
+      slot: 0,
+      key: group.key,
+      number,
+      label: MOLDING_LABELS.furniture_base,
+      x: band.x,
+      z: band.z,
+      width: band.width,
+      height: band.height,
+    });
+  }
+  let topBands;
+  for (const group of woodTopGroups(room, settings)) {
+    const face = group.faces.find(({ wallId, side }) => wallId === wall.id && side === (wall.side ?? 'front'));
+    const number = byKey.get(group.key);
+    if (!face || number === undefined) continue;
+    topBands ??= bandParts(room, wall.sideSource ?? wall, wall.side ?? 'front', settings)
+      .filter(({ kind }) => kind === 'countertop');
+    const band = topBands.filter((candidate) => {
+      if (!face.runIds.includes(candidate.runId)) return false;
+      if (group.segment) return group.key === `wood_top:${candidate.id}`;
+      if (candidate.id !== `${candidate.runId}:countertop`
+        && !candidate.id.startsWith(`${candidate.runId}:countertop:`)) return false;
+      const start = wall.side === 'back' ? wallLength(wall) - candidate.x - candidate.width : candidate.x;
+      return start >= face.x1 - 1e-6 && start + candidate.width <= face.x2 + 1e-6;
+    }).sort((a, b) => b.width - a.width)[0];
+    if (!band) continue;
+    const height = group.segment ? band.height
+      : runTop(wall, runs.find(({ id }) => id === band.runId), profile).height;
+    badges.push({
+      molding: 'wood_top',
+      slot: 0,
+      key: group.key,
+      number,
+      label: MOLDING_LABELS.wood_top,
+      x: band.x,
+      z: band.z + band.height - height,
+      width: band.width,
+      height,
+    });
+  }
+  return badges;
+}
+
+/**
+ * Every part-badge group on one elevation, in draw order.
+ * Each group lays out independently, exactly as RunGroup laid one run out.
+ * @returns {{key: string, lift: number, pieces: object[]}[]}
+ */
+export function wallBadgeGroups(room, wall, settings) {
+  const groups = wall.runs.flatMap((run) => {
+    const scene = runScene(room, wall, run, settings);
+    const { cells, frames, cornerFrames } = scene;
+    const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
+    const pieces = partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id));
+    const endPanels = frames.regions.length > 0
+      ? pieces.filter((piece) => piece.kind === 'end_panel')
+      : [];
+    const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
+    const fills = new Map(runLegFills(room, wall, run, settings).map((fill) => [fill.leg.id, fill]));
+    return [
+      {
+        key: `run:${run.id}`,
+        lift: 0,
+        pieces: frames.regions.length > 0
+          ? pieces.filter((piece) => piece.kind !== 'end_panel')
+          : pieces,
+      },
+      // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
+      {
+        key: `tees:${run.id}`,
+        lift: 1,
+        pieces: seamTees.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })),
+      },
+      // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
+      ...frames.regions.map((region) => {
+        const openings = regionOpenings(region, scene.faceLayouts);
+        return {
+          key: region.id,
+          lift: 2,
+          pieces: [{
+            id: region.id,
+            x: region.x,
+            z: region.z,
+            width: region.width,
+            height: region.height,
+            anchor: frameBadgeAnchor(region, frameMembers(region, openings)),
+          }],
+        };
+      }),
+      ...cornerFrames.map(({ columnId, owner }) => ({
+        key: `${columnId}:frame`, lift: 2,
+        pieces: [{ id: `${columnId}:frame`, ...owner, anchor: frameBadgeAnchor(owner, owner.members) }],
+      })),
+      {
+        key: `end-panels:${run.id}`,
+        lift: 3,
+        pieces: endPanels,
+      },
+      ...scene.cornerPanels.map(({ columnId, x, width }) => ({
+        key: `${columnId}:return`, lift: 3,
+        pieces: [{ id: `${columnId}:return`, x, width, z: run.z, height: run.height }],
+      })),
+      {
+        key: `legs:${run.id}`,
+        lift: 0,
+        pieces: runLegs(room, wall, run, settings)
+          .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
+          .flatMap(({ leg, bounds }) => [{ id: leg.id, ...bounds },
+            ...[fills.get(leg.id)].filter(Boolean).map((fill) => ({ id: fill.id, ...fill.bounds }))]),
+      },
+    ];
+  }).filter((group) => group.pieces.length > 0);
+
+  const returnLegs = cornerReturnLegs(room, wall, settings);
+  groups.push(...returnLegs.map((leg) => ({
+    key: leg.key, lift: 0, pieces: [{ id: leg.columnId, ...leg.rect }],
+  })));
+  groups.push(...returnLegs.filter(({ frame }) => frame).map(({ columnId, frame }) => ({
+    key: `${columnId}:frame`, lift: 2,
+    pieces: [{ id: `${columnId}:frame`, ...frame, anchor: frameBadgeAnchor(frame, frame.members) }],
+  })));
+  groups.push(...returnLegs.filter(({ returnPanel }) => returnPanel?.type === 'filler')
+    .map(({ columnId, returnPanel }) => ({
+      key: `${columnId}:return`, lift: 3,
+      pieces: [{ id: `${columnId}:return`, ...returnPanel }],
+    })));
+
+  for (const panel of wallEndPanels(room, wall, settings)) {
+    const side = panel[wall.side ?? 'front'];
+    groups.push({
+      key: `panel:${panel.endpoint}`,
+      lift: 1,
+      pieces: [{
+        id: wallEndPanelPartKey(wall.id, panel.endpoint),
+        x: side.x,
+        z: panel.bottom,
+        width: panel.width,
+        height: panel.top - panel.bottom,
+      }],
+    });
+  }
+
+  return groups;
+}

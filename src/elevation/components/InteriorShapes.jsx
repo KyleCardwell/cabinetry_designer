@@ -1,0 +1,382 @@
+import { Fragment, useRef } from 'react';
+import { Group, Line, Rect, Shape, Text } from 'react-konva';
+import { wallRectToScreen } from '../canvas/transform.js';
+import { formatDimension, formatInches } from '../model/units.js';
+import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
+import { rolloutSpacerSides } from '../model/rollouts.js';
+import { outlineGeometry } from './outlinePath.js';
+
+const SIZE_FONT = 10;
+const SIZE_INSET = 3;
+
+export function placedAccessoryShape({ shapeKey, box, line, rect, text, color, drawing, transform }) {
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = SIZE_FONT * labelScale;
+  if (drawing) box = wallRectToScreen(drawing.bounds, transform);
+  const labelWidth = text.length * 6 * labelScale + SIZE_INSET * 2;
+  const inside = box && box.height >= fontSize && box.width >= labelWidth;
+  const rightX = box && box.x + box.width + SIZE_INSET;
+  const beside = box && !inside && rect.height >= fontSize + SIZE_INSET * 2
+    && rect.x + rect.width - rightX >= labelWidth;
+  const top = box ?? line;
+  const above = top && rect.width >= labelWidth
+    && top.y - fontSize - SIZE_INSET >= rect.y + SIZE_INSET;
+  return (
+    <Group key={shapeKey} listening={false}>
+      {drawing ? drawing.outlines.map(({ closed, outline }, index) => (
+        <Shape key={index} {...outlineGeometry(outline, transform, { closed })}
+          stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
+      )) : box ? (
+        <Rect {...box} stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
+      ) : (
+        <Line points={[line.x, line.y, line.x + line.width, line.y]}
+          stroke={color} strokeWidth={1} listening={false} />
+      )}
+      {inside ? (
+        <Text {...box} text={text} fontSize={fontSize} fill={color}
+          align="center" verticalAlign="middle" listening={false} />
+      ) : beside ? (
+        <Text x={rightX} y={Math.max(rect.y + SIZE_INSET,
+          Math.min(box.y + (box.height - fontSize) / 2, rect.y + rect.height - fontSize - SIZE_INSET))}
+          text={text} fontSize={fontSize} fill={color} listening={false} />
+      ) : above ? (
+        <Text x={rect.x + SIZE_INSET} y={top.y - fontSize - SIZE_INSET}
+          text={text} fontSize={fontSize} fill={color} listening={false} />
+      ) : null}
+    </Group>
+  );
+}
+
+export default function InteriorShapes({
+  entries,
+  framedIds = null,
+  drawerBoxes = [],
+  shelves = new Map(),
+  rollouts = new Map(),
+  accessories = new Map(),
+  drawnPieces,
+  transform,
+  selectedPieceId,
+  interiorPath = null,
+  interiorDivider = null,
+  onSelectInterior,
+  draggable = false,
+  dragPreview,
+  onPreviewDivider,
+  onMoveDivider,
+}) {
+  const draggedRef = useRef(false);
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = SIZE_FONT * labelScale;
+  const selectedPath = interiorPath ?? 'r';
+  const click = (interior) => (event) => {
+    event.cancelBubble = true;
+    if (draggedRef.current) return;
+    onSelectInterior?.(interior);
+  };
+  return entries.map((entry) => {
+    const piece = drawnPieces.find(({ id }) => id === entry.itemId);
+    const clip = piece ? wallRectToScreen(piece, transform) : null;
+    const selectable = selectedPieceId === entry.itemId;
+    const dimensions = interiorDimensions(entry);
+    const zoneEdges = entry.dividers.filter(({ kind }) => kind === 'zone').flatMap((divider) => (
+      divider.dimFrom === 'bottom'
+        ? [{ ...divider, height: 0 }, { ...divider, z: divider.z + divider.height, height: 0 }]
+        : [{ ...divider, width: 0 }, { ...divider, x: divider.x + divider.width, width: 0 }]
+    ));
+    return (
+      <Group
+        key={entry.itemId}
+        clipX={clip?.x}
+        clipY={clip?.y}
+        clipWidth={clip?.width}
+        clipHeight={clip?.height}
+        onMouseDown={() => { draggedRef.current = false; }}
+        onTouchStart={() => { draggedRef.current = false; }}
+      >
+        {entry.sections.map((section) => {
+          const rect = wallRectToScreen(section, transform);
+          // Section outlines must not put a solid stroke underneath the dashed zone boundary.
+          const edges = [
+            { x: section.x, z: section.z, width: section.width, height: 0 },
+            { x: section.x, z: section.z + section.height, width: section.width, height: 0 },
+            { x: section.x, z: section.z, width: 0, height: section.height },
+            { x: section.x + section.width, z: section.z, width: 0, height: section.height },
+          ];
+          const solidEdges = edges.filter((edge) => !zoneEdges.some((divider) => (
+            edge.height === 0 && divider.height === 0
+              ? Math.abs(edge.z - divider.z) < 1e-6
+                && edge.x >= divider.x - 1e-6 && edge.x + edge.width <= divider.x + divider.width + 1e-6
+              : edge.width === 0 && divider.width === 0
+                && Math.abs(edge.x - divider.x) < 1e-6
+                && edge.z >= divider.z - 1e-6 && edge.z + edge.height <= divider.z + divider.height + 1e-6)));
+          const selected = selectable && (section.path === selectedPath
+            || section.path.startsWith(`${selectedPath}.`));
+          const text = `${formatDimension(section.width)} × ${formatDimension(section.height)}`;
+          const showSize = selectable
+            && rect.height >= fontSize + SIZE_INSET * 2
+            && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
+          const accessory = accessories.get(entry.itemId)?.get(section.path);
+          const items = (accessory?.items ?? []).filter(({ accessory }) => accessory?.attachesTo === 'section')
+            .map((item) => ({ ...item, text: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}` }));
+          const labels = items.filter(({ centerZ }) => centerZ == null);
+          const showAccessories = rect.height >= labels.length * fontSize + SIZE_INSET * 2
+            && labels.every(({ text }) => rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2);
+          return (
+            <Fragment key={section.path}>
+              <Rect
+                {...rect}
+                stroke={selected ? '#7dd3fc' : '#64748b'}
+                strokeWidth={selected ? 2 : 1}
+                strokeEnabled={solidEdges.length === edges.length}
+                fill={selectable ? 'rgba(0, 0, 0, 0.001)' : undefined}
+                listening={selectable}
+                onClick={selectable ? click({ path: section.path, divider: null }) : undefined}
+              />
+              {solidEdges.length < edges.length && solidEdges.map((edge, index) => {
+                const { x, y, width, height } = wallRectToScreen(edge, transform);
+                return <Line key={`section-edge:${section.path}:${index}`} points={[x, y, x + width, y + height]}
+                  stroke={selected ? '#7dd3fc' : '#64748b'} strokeWidth={selected ? 2 : 1} listening={false} />;
+              })}
+              {showAccessories && labels.map(({ index, text, warnings }, line) => (
+                <Text key={`accessory:${section.path}:${index}`}
+                  x={rect.x + SIZE_INSET} y={rect.y + SIZE_INSET + line * fontSize}
+                  text={text} fontSize={fontSize}
+                  fill={warnings.length || accessory.warnings.length ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b'}
+                  listening={false} />
+              ))}
+              {items.filter(({ centerZ }) => centerZ != null).map((item) => {
+                const color = item.warnings.length || accessory.warnings.length
+                  ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b';
+                const box = item.rect ? wallRectToScreen(item.rect, transform) : null;
+                const line = box ? null : wallRectToScreen({
+                  x: section.x, z: item.centerZ, width: section.width, height: 0,
+                }, transform);
+                return placedAccessoryShape({
+                  shapeKey: `placed-accessory:${section.path}:${item.index}`,
+                  box, line, rect, text: item.text, color, drawing: item.drawing, transform,
+                });
+              })}
+              {showSize && (
+                <Text
+                  x={rect.x + SIZE_INSET}
+                  y={rect.y + rect.height - fontSize - SIZE_INSET}
+                  text={text}
+                  fontSize={fontSize}
+                  fill={selected ? '#7dd3fc' : '#64748b'}
+                  listening={false}
+                />
+              )}
+            </Fragment>
+          );
+        })}
+        {entry.sections.flatMap((section) => {
+          const shelf = shelves.get(entry.itemId)?.get(section.path);
+          const visible = shelf?.nosing?.height ?? shelf?.thickness;
+          const rects = (shelf?.positions ?? []).map((z, index) => (
+            <Rect
+              key={`shelf:${section.path}:${index}`}
+              {...wallRectToScreen({
+                x: section.x + (section.width - shelf.width) / 2,
+                z, width: shelf.width, height: visible,
+              }, transform)}
+              stroke="#94a3b8"
+              strokeWidth={0.75}
+              fillEnabled={false}
+              listening={false}
+            />
+          ));
+          (shelf?.shoe?.positions ?? []).forEach((z, index) => {
+            const { shoe } = shelf;
+            const rect = wallRectToScreen({
+              x: section.x + (section.width - shoe.width) / 2,
+              z, width: shoe.width, height: shoe.frontHeight,
+            }, transform);
+            const label = 'shoe';
+            rects.push(
+              <Fragment key={`shoe-shelf:${section.path}:${index}`}>
+                <Rect {...rect} stroke="#94a3b8" strokeWidth={0.75} fillEnabled={false} listening={false} />
+                {rect.height >= fontSize && rect.width >= label.length * 6 * labelScale + SIZE_INSET * 2 && (
+                  <Text {...rect} text={label} fontSize={fontSize} fill="#94a3b8"
+                    align="center" verticalAlign="middle" listening={false} />
+                )}
+              </Fragment>,
+            );
+          });
+          // The selected cabinet labels the clear space below, between and above its shelves (information only).
+          if (!selectable || !shelf?.gap) return rects;
+          const label = formatDimension(shelf.gap);
+          const labels = [shelf.zone.z, ...shelf.positions.map((z) => z + visible)].map((z, index) => {
+            const rect = wallRectToScreen({ x: section.x, z, width: section.width, height: shelf.gap }, transform);
+            return rect.height < fontSize || rect.width < label.length * 6 * labelScale ? null : (
+              <Text
+                key={`shelf-gap:${section.path}:${index}`}
+                {...rect}
+                text={label}
+                fontSize={fontSize}
+                fill="#94a3b8"
+                align="center"
+                verticalAlign="middle"
+                listening={false}
+              />
+            );
+          });
+          return [...rects, ...labels];
+        })}
+        {entry.sections.flatMap((section) => {
+          const rollout = rollouts.get(entry.itemId)?.get(section.path);
+          return (rollout?.rollouts ?? []).map((box) => {
+            const rect = wallRectToScreen(box, transform);
+            const text = `RO ${formatInches(box.height).replace(/"$/, '')}`;
+            const color = box.warnings.length || rollout.warnings.some(({ index }) => index === undefined)
+              ? '#f59e0b' : '#e2e8f0';
+            const showHeight = rect.height >= fontSize + SIZE_INSET * 2
+              && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
+            return (
+              <Group key={`rollout:${section.path}:${box.index}`} listening={false}>
+                {rolloutSpacerSides(rollout, box).map((side) => (
+                  <Rect key={side} {...wallRectToScreen({
+                    x: side === 'left' ? box.column.x : box.column.x + box.column.width - box.spacers.right,
+                    z: rollout.zone.z, width: box.spacers[side], height: rollout.top - rollout.zone.z,
+                  }, transform)} fill="#cbd5e1" opacity={0.5} listening={false} />
+                ))}
+                <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
+                {showHeight && (
+                  <Text {...rect} text={text} fontSize={fontSize} fill={color}
+                    align="center" verticalAlign="middle" listening={false} />
+                )}
+              </Group>
+            );
+          });
+        })}
+        {/* A face frame box is hidden behind its frame normally (SPEC-36.1); with the doors off its outline shows. */}
+        {framedIds?.has(entry.itemId) && (
+          <Rect
+            key="box"
+            {...wallRectToScreen(entry.box, transform)}
+            stroke="#f8fafc"
+            strokeWidth={1}
+            fillEnabled={false}
+            listening={false}
+          />
+        )}
+        {(entry.partLines ?? []).map((line) => {
+          const { x, y, width, height } = wallRectToScreen(line, transform);
+          return (
+            <Line
+              key={`part:${line.part}`}
+              points={[x, y, x + width, y + height]}
+              stroke="#f8fafc"
+              strokeWidth={1}
+              listening={false}
+            />
+          );
+        })}
+        {entry.dividers.map((divider) => {
+          const selected = selectable && divider.path === selectedPath
+            && divider.index === interiorDivider;
+          const dimension = dimensions.find(({ path, index }) => path === divider.path && index === divider.index);
+          const rect = wallRectToScreen(divider, transform);
+          const zone = divider.kind === 'zone';
+          const gapped = zone && divider.gap > 0;
+          const DividerShape = gapped ? Group : zone ? Line : Rect;
+          const vertical = dimension.axis === 'vertical';
+          const stroke = selected ? '#7dd3fc' : zone ? '#f8fafc' : '#1e293b';
+          const strokeWidth = selected ? 2 : 1;
+          const preview = dragPreview?.itemId === entry.itemId && dragPreview.key === dimension.key
+            ? dragPreview.delta : { x: 0, z: 0 };
+          const deltaFrom = (event) => ({
+            x: vertical ? 0 : (event.target.x() - rect.x) / transform.scale,
+            z: vertical ? (rect.y - event.target.y()) / transform.scale : 0,
+          });
+          return (
+            <DividerShape
+              key={`${divider.path}:${divider.index}`}
+              {...rect}
+              x={rect.x + preview.x * transform.scale}
+              y={rect.y - preview.z * transform.scale}
+              points={zone && !gapped ? [0, 0, rect.width, rect.height] : undefined}
+              dash={zone && !gapped ? [6, 4] : undefined}
+              hitStrokeWidth={zone && !gapped ? 12 : undefined}
+              fill={zone ? undefined : '#cbd5e1'}
+              opacity={0.9}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              listening={selectable}
+              draggable={selectable && draggable}
+              dragDistance={3}
+              dragBoundFunc={(position) => vertical
+                ? { x: rect.x, y: position.y } : { x: position.x, y: rect.y }}
+              onDragStart={(event) => {
+                event.cancelBubble = true;
+                draggedRef.current = true;
+              }}
+              onDragMove={(event) => {
+                event.cancelBubble = true;
+                onPreviewDivider?.({ itemId: entry.itemId, key: dimension.key, delta: deltaFrom(event) });
+              }}
+              onDragEnd={(event) => {
+                event.cancelBubble = true;
+                const delta = deltaFrom(event);
+                event.target.position({ x: rect.x, y: rect.y });
+                onPreviewDivider?.(null);
+                if (Math.abs(vertical ? delta.z : delta.x) * transform.scale < 3) {
+                  onSelectInterior?.({ path: divider.path, divider: divider.index });
+                  return;
+                }
+                const position = dragDividerPosition(dimension, delta);
+                onMoveDivider?.({
+                  runId: entry.runId, itemId: entry.itemId,
+                  path: divider.path, index: divider.index, side: dimension.side,
+                }, position.at);
+              }}
+              onClick={selectable ? click({ path: divider.path, divider: divider.index }) : undefined}
+            >
+              {gapped && (
+                <>
+                  <Rect width={rect.width} height={rect.height} fill="rgba(0, 0, 0, 0)" strokeEnabled={false} />
+                  {(vertical
+                    ? [[0, 0, rect.width, 0], [0, rect.height, rect.width, rect.height]]
+                    : [[0, 0, 0, rect.height], [rect.width, 0, rect.width, rect.height]]
+                  ).map((points, index) => (
+                    <Line key={index} points={points} dash={[6, 4]} hitStrokeWidth={12}
+                      stroke={stroke} strokeWidth={strokeWidth} />
+                  ))}
+                </>
+              )}
+            </DividerShape>
+          );
+        })}
+        {(drawerBoxes.find(({ itemId }) => itemId === entry.itemId)?.boxes ?? [])
+          .filter((box) => box.height !== null).map((box) => {
+            const rect = wallRectToScreen(box, transform);
+            const label = box.kind === 'rot' ? 'ROT ' : box.kind === 'hamper' ? 'Hamper ' : '';
+            const heightText = `${label}${formatInches(box.height).replace(/"$/, '')}`;
+            const names = (box.accessories ?? []).filter(({ accessory }) => accessory?.attachesTo === 'drawer_box')
+              .map(({ accessory, qty }) => `${qty > 1 ? `${qty} × ` : ''}${accessory.name}`);
+            const fullText = names.length ? `${heightText} · ${names.join(', ')}` : heightText;
+            const text = rect.width >= fullText.length * 6 * labelScale + SIZE_INSET * 2 ? fullText : heightText;
+            const color = box.warnings.length ? '#f59e0b' : '#e2e8f0';
+            const showHeight = rect.height >= fontSize + SIZE_INSET * 2
+              && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
+            return (
+              <Group key={`drawer:${box.path}`} listening={false}>
+                <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
+                {showHeight && (
+                  <Text
+                    {...rect}
+                    text={text}
+                    fontSize={fontSize}
+                    fill={color}
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                  />
+                )}
+              </Group>
+            );
+          })}
+      </Group>
+    );
+  });
+}

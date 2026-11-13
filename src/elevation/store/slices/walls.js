@@ -1,0 +1,518 @@
+import { v4 as uuid } from 'uuid';
+import { isPlainObject } from '@reduxjs/toolkit';
+import { FRAME_JOINS } from '../../model/constants.js';
+import { isWallEndLegs } from '../../model/wallEndLegs.js';
+import { wallFrame } from '../../model/geometry.js';
+import { moveWallGroup as moveWallGroupPure } from '../../model/wallGroups.js';
+import {
+  LANDING_TO,
+  landEndpointOnFace,
+  landWallEnd,
+  landingEndpoint,
+  landingOffsetFor,
+  landingRefCreatesCycle,
+  releaseWall,
+} from '../../model/landings.js';
+import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
+import { flipRunsForWall } from '../../model/room.js';
+import { elevationKey, elevationLeadKey, faceKeyParts } from '../../model/topology.js';
+import { moveLandingDistance } from '../../plan/landingMoves.js';
+import {
+  extendPastCorner as extendPastCornerPure,
+  makeWallCorner as makeWallCornerPure,
+} from '../../plan/cornerLandings.js';
+import {
+  addWallWithConnections,
+  connectWallEndpoints,
+  disconnectWallEndpoint as disconnectWallEndpointPure,
+  moveConnectedEndpoint,
+  moveWallPerpendicular as moveWallPerpendicularPure,
+  setWallLength as setWallLengthPure,
+} from '../../plan/wallOps.js';
+import {
+  createWall,
+  roomIndexFor,
+  roomFor,
+  wallLocation,
+  syncRoomAt,
+  setCompensatedWalls,
+  clearTransientSelection,
+} from './helpers.js';
+
+export const wallReducers = {
+    addWall: {
+      reducer(state, action) {
+        const roomIndex = roomIndexFor(state, action.payload.roomId);
+        if (roomIndex === -1) return;
+        const room = state.rooms[roomIndex];
+        const y = action.payload.y ?? (room.walls.length === 0
+          ? 0
+          : Math.max(...room.walls.flatMap((wall) => [wall.y1, wall.y2])) + 60);
+        const wall = createWall(
+          action.payload.name ?? '',
+          y,
+          action.payload.length ?? 144,
+          {
+            ...action.payload,
+            profile: {
+              ...action.payload.profile,
+              ...(Number.isFinite(action.payload.height) ? { wallHeight: action.payload.height } : {}),
+            },
+          },
+        );
+        room.walls.push(wall);
+        if (wallFrame(room, wall).leftEndpoint !== 'start') wall.flipped = true;
+        state.activeWallId = wall.id;
+        clearTransientSelection(state);
+        syncRoomAt(state, roomIndex);
+      },
+      prepare(payload = {}) {
+        return { payload: { ...payload, id: payload.id ?? uuid() } };
+      },
+    },
+    addWallSegment: {
+      reducer(state, action) {
+        const roomIndex = roomIndexFor(state, action.payload.roomId);
+        if (roomIndex === -1) return;
+        const room = state.rooms[roomIndex];
+        const wall = createWall(
+          action.payload.name ?? '',
+          action.payload.y1,
+          0,
+          {
+            id: action.payload.id,
+            x1: action.payload.x1,
+            y1: action.payload.y1,
+            x2: action.payload.x2,
+            y2: action.payload.y2,
+            profile: Number.isFinite(action.payload.height) ? { wallHeight: action.payload.height } : {},
+            thickness: action.payload.thickness,
+            thicknessOverride: action.payload.thicknessOverride,
+          },
+        );
+        room.walls = addWallWithConnections(
+          room.walls,
+          wall,
+          action.payload.connectStart,
+          action.payload.connectEnd,
+        );
+        for (const [endpoint, land, connect] of [
+          ['start', action.payload.landStart, action.payload.connectStart],
+          ['end', action.payload.landEnd, action.payload.connectEnd],
+        ]) {
+          if (land && !connect) {
+            const landed = landWallEnd(
+              { ...room, walls: room.walls },
+              wall.id,
+              endpoint,
+              land,
+            );
+            if (landed) room.walls = landed.walls;
+          }
+        }
+        state.activeWallId = wall.id;
+        clearTransientSelection(state);
+        syncRoomAt(state, roomIndex);
+      },
+      prepare(payload = {}) {
+        return { payload: { ...payload, id: payload.id ?? uuid() } };
+      },
+    },
+    moveWallEndpoint(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const wallId = action.payload.wallId ?? action.payload.wall_id;
+      const room = state.rooms[roomIndex];
+      const walls = moveConnectedEndpoint(
+        room.walls,
+        wallId,
+        action.payload.endpoint,
+        { x: action.payload.x, y: action.payload.y },
+      );
+      setCompensatedWalls(state, roomIndex, walls);
+    },
+    connectWalls(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const room = state.rooms[roomIndex];
+      const walls = connectWallEndpoints(
+        room.walls,
+        action.payload.wallId1,
+        action.payload.endpoint1,
+        action.payload.wallId2,
+        action.payload.endpoint2,
+      );
+      for (const [wallId, endpoint] of [
+        [action.payload.wallId1, action.payload.endpoint1],
+        [action.payload.wallId2, action.payload.endpoint2],
+      ]) {
+        const wall = walls.find((candidate) => candidate.id === wallId);
+        if (wall?.landings) wall.landings[endpoint] = null;
+      }
+      setCompensatedWalls(state, roomIndex, walls);
+    },
+    disconnectWallEndpoint(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      state.rooms[roomIndex].walls = disconnectWallEndpointPure(
+        state.rooms[roomIndex].walls,
+        action.payload.wallId ?? action.payload.wall_id,
+        action.payload.endpoint,
+      );
+      syncRoomAt(state, roomIndex);
+    },
+    landWallEndpoint(state, action) {
+      const { wallId, endpoint, hostId, side, x, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !['start', 'end'].includes(endpoint)
+        || !['front', 'back'].includes(side) || !Number.isFinite(x)
+        || wallId === hostId) return;
+      const room = state.rooms[roomIndex];
+      if (!room.walls.some((wall) => wall.id === wallId)
+        || !room.walls.some((wall) => wall.id === hostId)) return;
+      const result = landEndpointOnFace(room, wallId, endpoint, { hostId, side, x });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
+    },
+    makeWallCorner(state, action) {
+      const { wallId, endpoint, move = 'landed', hostEndpoint = null, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !['start', 'end'].includes(endpoint)
+        || !['landed', 'host'].includes(move)
+        || ![null, 'start', 'end'].includes(hostEndpoint)) return;
+      const room = state.rooms[roomIndex];
+      if (!room.walls.find((wall) => wall.id === wallId)?.landings?.[endpoint]) return;
+      const result = makeWallCornerPure(room, wallId, endpoint, { move, hostEndpoint });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
+    },
+    extendPastCorner(state, action) {
+      const { wallId, endpoint, amount, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !Number.isFinite(amount) || amount < 0) return;
+      const result = extendPastCornerPure(state.rooms[roomIndex], wallId, endpoint, amount);
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
+    },
+    setWallLength(state, action) {
+      const location = wallLocation(state, action.payload);
+      const length = action.payload.length ?? action.payload.value;
+      if (!location || !Number.isFinite(length) || length <= 0) return;
+      const result = setWallLengthPure(
+        location.room,
+        location.wall.id,
+        length,
+        action.payload.growEnd ?? 'right',
+      );
+      if (!result.ok) {
+        state.message = result.reason;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, location.roomIndex, result.walls);
+    },
+    moveWallGroup(state, action) {
+      const { along = 0, across = 0 } = action.payload;
+      if (!Number.isFinite(along) || !Number.isFinite(across)) return;
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { r, n } = wallFrame(location.room, location.wall);
+      const result = moveWallGroupPure(location.room, location.wall.id, {
+        x: r.x * along + n.x * across,
+        y: r.y * along + n.y * across,
+      });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      // Group-relative contents ride along; do not compensate their run positions.
+      state.rooms[location.roomIndex] = result.room;
+      syncRoomAt(state, location.roomIndex);
+      state.message = result.notes.join(' ') || null;
+    },
+    moveWallPerpendicular(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const room = state.rooms[roomIndex];
+      const result = moveWallPerpendicularPure(
+        room,
+        action.payload.wallId,
+        action.payload.delta,
+      );
+      if (!result.ok) {
+        state.message = result.reason;
+        return;
+      }
+      state.message = null;
+      // A landed wall's position is stored as its landing offset; resolveLandings
+      // would snap it back, so re-measure the offset at the moved position.
+      const movedRoom = { ...room, walls: result.walls };
+      const walls = result.walls.map((wall) => {
+        if (wall.id !== action.payload.wallId || !wall.landings) return wall;
+        const landings = { ...wall.landings };
+        for (const endpoint of ['start', 'end']) {
+          const landing = landings[endpoint];
+          if (!landing) continue;
+          const offset = landingOffsetFor(movedRoom, wall, endpoint, landing.ref, landing.to);
+          if (Number.isFinite(offset)) landings[endpoint] = { ...landing, offset };
+        }
+        return { ...wall, landings };
+      });
+      setCompensatedWalls(state, roomIndex, walls);
+    },
+    setWallTFiller(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { value } = action.payload;
+      if (!location || (value !== null && !['none', 'seams', 'all'].includes(value))) return;
+      if (value === null) delete location.wall.tFiller;
+      else location.wall.tFiller = value;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setWallEndLegs(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint, endLegs } = action.payload;
+      if (!location || !['start', 'end'].includes(endpoint)
+        || location.wall.connections?.[endpoint] || location.wall.landings?.[endpoint]) return;
+      const next = { ...location.wall.endLegs };
+      if (endLegs == null) delete next[endpoint];
+      else {
+        if (!isPlainObject(endLegs) || !isPlainObject(endLegs.faces)) return;
+        const end = { ...endLegs, faces: { ...endLegs.faces } };
+        for (const face of ['front', 'back']) {
+          const specs = end.faces[face];
+          if (specs == null || (isPlainObject(specs) && !specs.legs)) delete end.faces[face];
+        }
+        const count = Object.values(end.faces).reduce((total, face) => total
+          + (face?.legs === 'both' ? 2 : ['front', 'back'].includes(face?.legs) ? 1 : 0), 0);
+        if (count !== 2) delete end.fit;
+        if (!end.fit) delete end.panel;
+        if (Object.keys(end.faces).length) next[endpoint] = end;
+        else delete next[endpoint];
+      }
+      const hasLegs = Object.keys(next).length > 0;
+      if (hasLegs && !isWallEndLegs(next)) return;
+      if (hasLegs) location.wall.endLegs = next;
+      else delete location.wall.endLegs;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setWallEndPanel(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint, panel } = action.payload;
+      const validPanel = panel === null || (
+        panel
+        && typeof panel === 'object'
+        && !Array.isArray(panel)
+        && (panel.width === null || (Number.isFinite(panel.width) && panel.width >= 0))
+        && (panel.frame === undefined || panel.frame === null || FRAME_JOINS.includes(panel.frame))
+      );
+      if (!location || !['start', 'end'].includes(endpoint) || !validPanel) return;
+      location.wall.endPanels ??= { start: null, end: null };
+      const stored = location.wall.endPanels[endpoint];
+      location.wall.endPanels[endpoint] = panel ? {
+        width: panel.width ?? null,
+        ...(panel.frame ? { frame: panel.frame } : {}),
+        ...(stored?.styleId !== undefined ? { styleId: stored.styleId } : {}),
+        ...(stored?.sizes !== undefined ? { sizes: stored.sizes } : {}),
+      } : null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setWallLanding(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint } = action.payload;
+      const landing = location?.wall.landings?.[endpoint];
+      if (!location || !landing) return;
+      const ref = action.payload.ref ?? landing.ref;
+      const to = action.payload.to ?? landing.to;
+      if (!LANDING_TO.includes(to)) return;
+      if (ref !== 'left' && ref !== 'right') {
+        const refWall = location.room.walls.find((wall) => wall.id === ref);
+        if (!refWall || !landingEndpoint(refWall, landing.wallId, landing.side)) return;
+        if (landingRefCreatesCycle(
+          location.room,
+          location.wall.id,
+          landing.wallId,
+          landing.side,
+          ref,
+        )) return;
+      }
+      const offset = action.payload.offset === undefined
+        ? landingOffsetFor(location.room, location.wall, endpoint, ref, to)
+        : action.payload.offset;
+      if (!Number.isFinite(offset)) return;
+      if (action.payload.offset !== undefined) {
+        const { move = 'landed' } = action.payload;
+        if (!['landed', 'host'].includes(move)) return;
+        const result = moveLandingDistance(location.room, location.wall.id, endpoint, {
+          ref, to, offset, move,
+        });
+        if (!result.ok) {
+          state.message = result.message;
+          return;
+        }
+        state.message = null;
+        setCompensatedWalls(state, location.roomIndex, result.walls);
+        return;
+      }
+      location.wall.landings[endpoint] = { ...landing, ref, to, offset };
+      syncRoomAt(state, location.roomIndex);
+    },
+    detachWallLanding(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint } = action.payload;
+      if (!location?.wall.landings?.[endpoint]) return;
+      state.rooms[location.roomIndex] = releaseWall(
+        location.room,
+        location.wall.id,
+        { deleting: false },
+      );
+      const wall = state.rooms[location.roomIndex].walls.find(
+        (candidate) => candidate.id === location.wall.id,
+      );
+      wall.landings[endpoint] = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    updateWall(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { wallId, roomId, id, changes, ...inlineChanges } = action.payload;
+      void wallId;
+      void roomId;
+      void id;
+      const allowedChanges = changes ?? inlineChanges;
+      if (allowedChanges.name !== undefined) location.wall.name = allowedChanges.name;
+      // FX1: a typed height is a wall override; null goes back to the room's wall height.
+      if (allowedChanges.height === null) delete location.wall.profile.wallHeight;
+      else if (Number.isFinite(allowedChanges.height) && allowedChanges.height > 0) {
+        location.wall.profile.wallHeight = allowedChanges.height;
+      }
+      const thickness = allowedChanges.thickness;
+      if (thickness === null) location.wall.thicknessOverride = null;
+      else if (Number.isFinite(thickness) && thickness >= 0) location.wall.thicknessOverride = thickness;
+      if (allowedChanges.numberOverride !== undefined) {
+        const value = allowedChanges.numberOverride;
+        if (value === null || (Number.isInteger(value) && value > 0)) {
+          location.wall.numberOverride = value;
+        }
+      }
+      if (typeof allowedChanges.elevationForced === 'boolean') location.wall.elevationForced = allowedChanges.elevationForced;
+      const profileChanges = allowedChanges.profile ?? allowedChanges.profileOverrides;
+      if (profileChanges) {
+        for (const [key, value] of Object.entries(profileChanges)) {
+          const isMoldingPick = key === 'topMoldProfileId' || key === 'crownProfileId'
+            || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId' || key === 'nosingProfileId';
+          if (value === undefined || (value === null && !isMoldingPick)) delete location.wall.profile[key];
+          else location.wall.profile[key] = value;
+        }
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    deleteWall(state, action) {
+      const location = wallLocation(state, typeof action.payload === 'string'
+        ? { wallId: action.payload }
+        : action.payload);
+      if (!location) return;
+      const wallId = location.wall.id;
+      location.room.walls = releaseWall(location.room, wallId).walls;
+      const wallIndex = location.room.walls.findIndex((wall) => wall.id === wallId);
+      location.room.walls.splice(wallIndex, 1);
+      for (const wall of location.room.walls) {
+        for (const endpoint of ['start', 'end']) {
+          if (wall.connections[endpoint]?.wallId === wallId) wall.connections[endpoint] = null;
+        }
+      }
+      const deletedActiveWall = state.activeWallId === wallId;
+      const deletedSelectedWall = state.selection.wallId === wallId;
+      if (deletedActiveWall) {
+        state.activeWallId = location.room.walls[0]?.id ?? null;
+        state.activeWallSide = 'front';
+      }
+      if (deletedActiveWall || deletedSelectedWall) {
+        clearTransientSelection(state);
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    setActiveWall(state, action) {
+      const wallId = action.payload.wallId ?? action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room?.walls.some((wall) => wall.id === wallId)) return;
+      state.activeWallId = wallId;
+      state.activeWallSide = 'front';
+      clearTransientSelection(state);
+      state.selection.wallId = wallId;
+    },
+    setElevationOption(state, action) {
+      const { key, returns: view } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room || typeof key !== 'string' || !['section', 'end'].includes(view)) return;
+      if (!room.walls.some((wall) => wall.id === faceKeyParts(key).wallId)) return;
+      const leadKey = elevationLeadKey(room, key);
+      room.elevationOptions ??= {};
+      room.elevationOptions[leadKey] = { ...room.elevationOptions[leadKey], returns: view };
+    },
+    /** Turn a face's combined elevation on or off (Kyle 2026-10-16); the first time on, it takes the auto group. */
+    setCombinedElevation(state, action) {
+      const { wallId, side = 'front', on } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room?.walls.some((wall) => wall.id === wallId) || typeof on !== 'boolean') return;
+      const key = elevationKey(wallId, side);
+      let group = (room.combinedElevations ?? []).find((candidate) => candidate.faces.includes(key));
+      if (!on) {
+        if (group) group.on = false;
+        return;
+      }
+      if (!group) {
+        group = { id: uuid(), on: true, faces: autoCombinedFaces(room, key) };
+        room.combinedElevations = [...(room.combinedElevations ?? []), group];
+      }
+      group.on = true;
+      claimCombinedFaces(room, group);
+    },
+    /** Check a face into, or out of, the combined elevation a face is seen in; it leaves any other one. */
+    setCombinedFace(state, action) {
+      const { wallId, side = 'front', face, included } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room || typeof face !== 'string' || typeof included !== 'boolean') return;
+      const key = elevationKey(wallId, side);
+      const group = (room.combinedElevations ?? []).find((candidate) => candidate.faces.includes(key));
+      if (!group || face === key) return;
+      if (!included) {
+        group.faces = group.faces.filter((candidate) => candidate !== face);
+        return;
+      }
+      if (!combinableFaces(room, key).includes(face) || group.faces.includes(face)) return;
+      group.faces.push(face);
+      claimCombinedFaces(room, group);
+    },
+    setActiveWallSide(state, action) {
+      const side = action.payload.side ?? action.payload;
+      if (side !== 'front' && side !== 'back') return;
+      state.activeWallSide = side;
+      clearTransientSelection(state);
+    },
+    flipWall(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      location.room.walls[location.wallIndex] = flipRunsForWall(location.wall);
+      syncRoomAt(state, location.roomIndex);
+    },
+};
+
+/** A face is in one combined elevation at a time: `group`'s faces leave the others, and empty ones go. */
+function claimCombinedFaces(room, group) {
+  for (const other of room.combinedElevations) {
+    if (other !== group) other.faces = other.faces.filter((key) => !group.faces.includes(key));
+  }
+  room.combinedElevations = room.combinedElevations.filter((other) => other === group || other.faces.length > 0);
+}

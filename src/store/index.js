@@ -1,18 +1,23 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
-import projectReducer from './slices/projectSlice';
-import roomReducer from './slices/roomSlice';
-import wallReducer from './slices/wallSlice';
-import objectReducer from './slices/objectSlice';
-import canvasReducer from './slices/canvasSlice';
+import elevationReducer from '../elevation/store/elevationSlice';
+import presenceReducer from '../elevation/store/presenceSlice';
+import { getPresenceService } from '../api/presence';
+import { setupElevationPersistence } from '../elevation/store/persistence';
+import { getDesignApi } from '../api/designApi';
+import { cloudSync, setupCloudSync } from '../elevation/store/cloudSync';
+import { getDraftStore } from '../elevation/store/roomDrafts';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    projects: projectReducer,
-    room: roomReducer,
-    walls: wallReducer,
-    objects: objectReducer,
-    canvas: canvasReducer,
+    elevation: elevationReducer,
+    presence: presenceReducer,
   },
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+    thunk: { extraArgument: { getDesignApi, drafts: getDraftStore(), getPresence: getPresenceService } },
+  }),
 });
+
+setupElevationPersistence(store);
+cloudSync.register(setupCloudSync(store, { getDesignApi, drafts: getDraftStore() }));

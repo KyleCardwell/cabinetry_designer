@@ -1,0 +1,469 @@
+import { Circle, Group, Line, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import { gappedLine } from '../canvas/gappedLine.js';
+import { wallFrame } from '../model/geometry.js';
+import { landingSpans } from '../model/landings.js';
+import { planThroughDimensions } from '../model/planDimensions.js';
+import { wallNumbers } from '../model/topology.js';
+import { wallOutline } from '../model/wallOutline.js';
+import { wallSideFrame } from '../model/wallSides.js';
+import { PLAN_DIM_FONT_SIZE } from './constants.js';
+import { canvasDimensionRows } from './elevationMarkers.js';
+import { readableRotation } from './textRotation.js';
+
+function wallDimensionLayout({ room, wall, settings, scale, text }) {
+  const frame = wallFrame(room, wall);
+  if (frame.length === 0) return null;
+
+  const outline = wallOutline(room, wall);
+  const faceEndpoints = outline.slice(0, 2);
+  const exterior = { x: -frame.n.x, y: -frame.n.y };
+  const midpoint = {
+    x: (faceEndpoints[0].x + faceEndpoints[1].x) / 2,
+    y: (faceEndpoints[0].y + faceEndpoints[1].y) / 2,
+  };
+  const factor = text?.dimension ?? 1;
+  const tickLength = 8 * factor / scale;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
+  const number = wallNumbers(room).get(wall.id);
+  const numberRadius = 9 * (text?.label ?? 1) / scale;
+  const rows = canvasDimensionRows(room, wall, settings, scale, factor);
+  const { innerRowOffset, dimensionOffset } = rows;
+  const faceRows = rows.segments;
+  const extensionEndOffset = dimensionOffset + 4 / scale;
+  const numberOffset = dimensionOffset + 24 * factor / scale;
+  const numberPoint = {
+    x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
+    y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
+  };
+  const extensionStartOffset = rows.outside + 2 / scale;
+  const dimensionEndpoints = faceEndpoints.map((point) => ({
+    x: point.x + exterior.x * dimensionOffset,
+    y: point.y + exterior.y * dimensionOffset,
+  }));
+  const tickDirection = {
+    x: (frame.d.x + exterior.x) / Math.SQRT2,
+    y: (frame.d.y + exterior.y) / Math.SQRT2,
+  };
+  const tickHalfLength = 4 * factor / scale;
+  const layout = rows.layouts.wall;
+  const dimensionLabel = layout.labels[0];
+  const labelDistance = (dimensionLabel.mode === 'popout'
+    ? 10 + 14 * dimensionLabel.level
+    : 0) * factor / scale;
+  const dimensionCenter = {
+    x: midpoint.x + exterior.x * dimensionOffset,
+    y: midpoint.y + exterior.y * dimensionOffset,
+  };
+  const labelPoint = {
+    x: dimensionCenter.x + exterior.x * labelDistance,
+    y: dimensionCenter.y + exterior.y * labelDistance,
+  };
+  const labelRotation = readableRotation(
+    Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI,
+  );
+  const landingRows = ['front', 'back'].flatMap((side) => {
+    const segments = faceRows[side];
+    if (segments.length === 0) return [];
+    const sideFrame = wallSideFrame(room, wall, side);
+    const outward = side === 'front' ? exterior : frame.n;
+    const offset = side === 'front' ? innerRowOffset : rows.backRowOffset;
+    const rowLayout = rows.layouts[side];
+    const rowStart = {
+      x: sideFrame.leftPoint.x + outward.x * offset,
+      y: sideFrame.leftPoint.y + outward.y * offset,
+    };
+    const rowTickDirection = {
+      x: (sideFrame.r.x + outward.x) / Math.SQRT2,
+      y: (sideFrame.r.y + outward.y) / Math.SQRT2,
+    };
+    const rowRotation = readableRotation(
+      Math.atan2(sideFrame.r.y, sideFrame.r.x) * 180 / Math.PI,
+    );
+    return [{
+      side,
+      sideFrame,
+      outward,
+      offset,
+      segments,
+      spans: landingSpans(room, wall, side, settings),
+      layout: rowLayout,
+      rowStart,
+      tickDirection: rowTickDirection,
+      rotation: rowRotation,
+    }];
+  });
+
+  return {
+    frame, outline, faceEndpoints, exterior, midpoint, factor, tickLength, fontSize,
+    number, numberRadius, numberPoint, extensionStartOffset, extensionEndOffset,
+    dimensionEndpoints, tickDirection, tickHalfLength, dimensionLabel, dimensionCenter,
+    labelPoint, labelRotation, landingRows,
+  };
+}
+
+export default function PlanWallShape({
+  room,
+  wall,
+  isSelected,
+  scale,
+  text,
+  onSelect,
+  onOpen,
+  onLandingSpan,
+  cursor,
+  settings,
+}) {
+  const cursorKeys = useCursorKeys(cursor);
+  const layout = wallDimensionLayout({ room, wall, settings, scale, text });
+  if (!layout) return null;
+  const {
+    frame, outline, faceEndpoints, midpoint, tickLength,
+    number, numberRadius, numberPoint, landingRows,
+  } = layout;
+
+  return (
+    <Group
+      onClick={onSelect}
+      onDblClick={onOpen}
+      onMouseEnter={() => cursorKeys.request(wall.id, CURSORS.select)}
+      onMouseLeave={() => cursorKeys.release(wall.id)}
+    >
+      <Line
+        points={outline.flatMap((point) => [point.x, point.y])}
+        closed
+        fill={isSelected ? '#60a5fa' : '#6b7280'}
+        opacity={0.85}
+        hitStrokeWidth={8 / scale}
+      />
+      <Line
+        points={faceEndpoints.flatMap((point) => [point.x, point.y])}
+        stroke={isSelected ? '#bfdbfe' : '#d1d5db'}
+        strokeWidth={(wall.thickness === 0 ? 2 : 1) / scale}
+        hitStrokeWidth={wall.thickness === 0 ? 8 / scale : undefined}
+        listening={wall.thickness === 0}
+      />
+      <Line
+        points={[
+          midpoint.x,
+          midpoint.y,
+          midpoint.x + frame.n.x * tickLength,
+          midpoint.y + frame.n.y * tickLength,
+        ]}
+        stroke="#22d3ee"
+        strokeWidth={1.5 / scale}
+        listening={false}
+      />
+      {landingRows.map((row) => (
+        <Group key={row.side}>
+          {row.segments.map((segment, index) => {
+            const span = row.spans.find((candidate) => (
+              Math.abs(candidate.start - segment.start) <= 1e-6
+              && Math.abs(candidate.end - segment.end) <= 1e-6
+            ));
+            if (!span) return null;
+            const cursorKey = `landing:${row.side}:${index}`;
+            return (
+              <Line
+                key={cursorKey}
+                points={[span.start, span.end].flatMap((x) => [
+                  row.rowStart.x + row.sideFrame.r.x * x,
+                  row.rowStart.y + row.sideFrame.r.y * x,
+                ])}
+                stroke="transparent"
+                strokeWidth={1 / scale}
+                hitStrokeWidth={10 / scale}
+                listening
+                onMouseEnter={() => cursorKeys.request(cursorKey, CURSORS.select)}
+                onMouseLeave={() => cursorKeys.release(cursorKey)}
+                onClick={(event) => {
+                  event.cancelBubble = true;
+                  onLandingSpan?.(span, event);
+                }}
+                onDblClick={(event) => { event.cancelBubble = true; }}
+              />
+            );
+          })}
+        </Group>
+      ))}
+      <Circle
+        x={numberPoint.x}
+        y={numberPoint.y}
+        radius={numberRadius}
+        fill="#111827"
+        stroke={isSelected ? '#93c5fd' : '#cbd5e1'}
+        strokeWidth={1 / scale}
+        listening={false}
+      />
+      <Text
+        x={numberPoint.x - numberRadius}
+        y={numberPoint.y - numberRadius}
+        width={numberRadius * 2}
+        height={numberRadius * 2}
+        text={String(number ?? '')}
+        align="center"
+        verticalAlign="middle"
+        fontSize={10 * (text?.label ?? 1) / scale}
+        fill="#f8fafc"
+        listening={false}
+      />
+    </Group>
+  );
+}
+
+export function PlanWallDimensions({ room, wall, settings, scale, text }) {
+  const layout = wallDimensionLayout({ room, wall, settings, scale, text });
+  if (!layout) return null;
+  const {
+    faceEndpoints, exterior, midpoint, factor, fontSize, extensionStartOffset, extensionEndOffset,
+    dimensionEndpoints, tickDirection, tickHalfLength, dimensionLabel, dimensionCenter,
+    labelPoint, labelRotation, landingRows,
+  } = layout;
+
+  return (
+    <Group listening={false}>
+      <Group listening={false}>
+        {(dimensionLabel.mode === 'inline'
+          ? gappedLine(...dimensionEndpoints, dimensionCenter, dimensionLabel.width / 2 / scale, 0.5 / scale)
+          : [dimensionEndpoints.flatMap((point) => [point.x, point.y])]
+        ).map((points, index) => (
+          <Line key={`overall:${index}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+        ))}
+        {faceEndpoints.map((point, index) => {
+          const extensionStart = {
+            x: point.x + exterior.x * extensionStartOffset,
+            y: point.y + exterior.y * extensionStartOffset,
+          };
+          const extensionEnd = {
+            x: point.x + exterior.x * extensionEndOffset,
+            y: point.y + exterior.y * extensionEndOffset,
+          };
+          const dimensionPoint = dimensionEndpoints[index];
+          return (
+            <Group key={index}>
+              <Line
+                points={[
+                  extensionStart.x,
+                  extensionStart.y,
+                  extensionEnd.x,
+                  extensionEnd.y,
+                ]}
+                stroke="#64748b"
+                strokeWidth={0.75 / scale}
+              />
+              <Line
+                points={[
+                  dimensionPoint.x - tickDirection.x * tickHalfLength,
+                  dimensionPoint.y - tickDirection.y * tickHalfLength,
+                  dimensionPoint.x + tickDirection.x * tickHalfLength,
+                  dimensionPoint.y + tickDirection.y * tickHalfLength,
+                ]}
+                stroke="#cbd5e1"
+                strokeWidth={1 / scale}
+              />
+            </Group>
+          );
+        })}
+        {dimensionLabel.mode === 'popout' && (
+          <Line
+            points={[
+              dimensionCenter.x,
+              dimensionCenter.y,
+              labelPoint.x,
+              labelPoint.y,
+            ]}
+            stroke="#64748b"
+            strokeWidth={0.75 / scale}
+          />
+        )}
+        <Text
+          x={labelPoint.x}
+          y={labelPoint.y}
+          width={dimensionLabel.width / scale}
+          offsetX={dimensionLabel.width / scale / 2}
+          offsetY={fontSize / 2}
+          rotation={labelRotation}
+          align="center"
+          text={dimensionLabel.text}
+          fontSize={fontSize}
+          fill="#e2e8f0"
+        />
+      </Group>
+      {landingRows.map((row) => {
+        const boundaries = [
+          row.segments[0].start,
+          ...row.segments.map((segment) => segment.end),
+        ];
+        return (
+          <Group key={row.side}>
+            <Group listening={false}>
+              {row.segments.flatMap((segment, index) => {
+                const rowPoint = (x) => ({
+                  x: row.rowStart.x + row.sideFrame.r.x * x,
+                  y: row.rowStart.y + row.sideFrame.r.y * x,
+                });
+                const start = rowPoint(segment.start);
+                const end = rowPoint(segment.end);
+                const rowLabel = row.layout.labels[index];
+                const linePieces = rowLabel.mode === 'inline'
+                  ? gappedLine(start, end, rowPoint((segment.start + segment.end) / 2), rowLabel.width / 2 / scale, 0.5 / scale)
+                  : [[start.x, start.y, end.x, end.y]];
+                return linePieces.map((points, piece) => (
+                  <Line key={`${index}:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+                ));
+              })}
+              {boundaries.map((boundary, index) => {
+                const facePoint = {
+                  x: row.sideFrame.leftPoint.x + row.sideFrame.r.x * boundary,
+                  y: row.sideFrame.leftPoint.y + row.sideFrame.r.y * boundary,
+                };
+                const extensionStart = {
+                  x: facePoint.x + row.outward.x * 2 / scale,
+                  y: facePoint.y + row.outward.y * 2 / scale,
+                };
+                const extensionEnd = {
+                  x: facePoint.x + row.outward.x * (row.offset + 4 / scale),
+                  y: facePoint.y + row.outward.y * (row.offset + 4 / scale),
+                };
+                const dimensionPoint = {
+                  x: facePoint.x + row.outward.x * row.offset,
+                  y: facePoint.y + row.outward.y * row.offset,
+                };
+                return (
+                  <Group key={`${row.side}:${boundary}:${index}`}>
+                    <Line
+                      points={[
+                        extensionStart.x,
+                        extensionStart.y,
+                        extensionEnd.x,
+                        extensionEnd.y,
+                      ]}
+                      stroke="#64748b"
+                      strokeWidth={0.75 / scale}
+                    />
+                    <Line
+                      points={[
+                        dimensionPoint.x - row.tickDirection.x * tickHalfLength,
+                        dimensionPoint.y - row.tickDirection.y * tickHalfLength,
+                        dimensionPoint.x + row.tickDirection.x * tickHalfLength,
+                        dimensionPoint.y + row.tickDirection.y * tickHalfLength,
+                      ]}
+                      stroke="#cbd5e1"
+                      strokeWidth={1 / scale}
+                    />
+                  </Group>
+                );
+              })}
+              {row.layout.labels.map((rowLabel, index) => {
+                if (rowLabel.mode === 'hidden') return null;
+                const segment = row.segments[index];
+                const centerX = (segment.start + segment.end) / 2;
+                const dimensionPoint = {
+                  x: row.sideFrame.leftPoint.x
+                    + row.sideFrame.r.x * centerX
+                    + row.outward.x * row.offset,
+                  y: row.sideFrame.leftPoint.y
+                    + row.sideFrame.r.y * centerX
+                    + row.outward.y * row.offset,
+                };
+                const rowLabelDistance = (rowLabel.mode === 'popout'
+                  ? 10 + 14 * rowLabel.level
+                  : 0) * factor / scale;
+                const rowLabelPoint = {
+                  x: dimensionPoint.x + row.outward.x * rowLabelDistance,
+                  y: dimensionPoint.y + row.outward.y * rowLabelDistance,
+                };
+                return (
+                  <Group key={`${row.side}:label:${index}`}>
+                    {rowLabel.mode === 'popout' && (
+                      <Line
+                        points={[
+                          dimensionPoint.x,
+                          dimensionPoint.y,
+                          rowLabelPoint.x,
+                          rowLabelPoint.y,
+                        ]}
+                        stroke="#64748b"
+                        strokeWidth={0.75 / scale}
+                      />
+                    )}
+                    <Text
+                      x={rowLabelPoint.x}
+                      y={rowLabelPoint.y}
+                      width={rowLabel.width / scale}
+                      offsetX={rowLabel.width / scale / 2}
+                      offsetY={fontSize / 2}
+                      rotation={row.rotation}
+                      align="center"
+                      text={rowLabel.text}
+                      fontSize={fontSize}
+                      fill="#e2e8f0"
+                    />
+                  </Group>
+                );
+              })}
+            </Group>
+          </Group>
+        );
+      })}
+      {planThroughDimensions(room, wall, settings).map((dimension, index) => {
+        const endpoints = [dimension.start, dimension.end].map(([x, y]) => ({ x, y: -y }));
+        const [start, end] = endpoints;
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = Math.hypot(dx, dy);
+        const tick = {
+          x: (dx - dy) / length / Math.SQRT2 * tickHalfLength,
+          y: (dy + dx) / length / Math.SQRT2 * tickHalfLength,
+        };
+        const width = (dimension.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+        const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+        const fits = width + 8 / scale <= length;
+        const normal = { x: dy / length, y: -dx / length };
+        const side = (center.x - midpoint.x) * normal.x + (center.y - midpoint.y) * normal.y >= 0 ? 1 : -1;
+        const distance = fits ? 0 : side * 10 * factor / scale;
+        const labelPoint = {
+          x: center.x + normal.x * distance,
+          y: center.y + normal.y * distance,
+        };
+        const linePieces = fits
+          ? gappedLine(start, end, center, width / 2, 0.5 / scale)
+          : [endpoints.flatMap((point) => [point.x, point.y])];
+        return (
+          <Group key={`through:${index}`} listening={false}>
+            {linePieces.map((points, piece) => (
+              <Line key={`line:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+            ))}
+            {endpoints.map((point, endpoint) => (
+              <Line
+                key={endpoint}
+                points={[point.x - tick.x, point.y - tick.y, point.x + tick.x, point.y + tick.y]}
+                stroke="#cbd5e1"
+                strokeWidth={1 / scale}
+              />
+            ))}
+            {!fits && (
+              <Line
+                points={[center.x, center.y, labelPoint.x, labelPoint.y]}
+                stroke="#64748b"
+                strokeWidth={0.75 / scale}
+              />
+            )}
+            <Text
+              x={labelPoint.x}
+              y={labelPoint.y}
+              width={width}
+              offsetX={width / 2}
+              offsetY={fontSize / 2}
+              rotation={readableRotation(Math.atan2(dy, dx) * 180 / Math.PI)}
+              align="center"
+              text={dimension.text}
+              fontSize={fontSize}
+              fill="#e2e8f0"
+            />
+          </Group>
+        );
+      })}
+    </Group>
+  );
+}
