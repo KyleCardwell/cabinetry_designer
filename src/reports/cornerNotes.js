@@ -6,7 +6,7 @@ const EPSILON = 1e-6;
 const facingOrder = (side, a, b) => side === 'right' ? [a, b] : [b, a];
 const degrees = (angle) => `${Number(angle.toFixed(1))}°`;
 
-/** Corner frames use true-size miters or the individual L-shaped legs' members. */
+/** Corner frames use true-size miters, or each Corner 90 leg's rails (two parts butting, not one L). */
 export function cornerFrameNotes(corner, returnSide) {
   const { side, diagonal, frame, members } = corner;
   if (diagonal) {
@@ -35,7 +35,7 @@ export function cornerFrameNotes(corner, returnSide) {
     }
     return `${index === 0 ? 'left' : 'right'} leg ${notes.join(', ')}`;
   });
-  return ['rails only, L-shape', ...legs];
+  return ['rails only', ...legs];
 }
 
 /** Corner dimensions and exterior faces, ordered as you face the cabinet. */

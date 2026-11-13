@@ -96,9 +96,9 @@ describe('corner face frame shipping rows', () => {
     { name: 'a true-size diagonal frame', key: `${BASE}:frame`, kind: 45,
       description: 'Corner 45 Face Frame', size: '16 5/16 x 30 1/2 x 13/16',
       notes: ['1 1/2" stiles mitered 22.5° (1 27/32" at back)'] },
-    { name: 'both L-shaped frame legs', key: `${BASE}:frame`, kind: 90,
+    { name: 'both corner 90 frame legs', key: `${BASE}:frame`, kind: 90,
       description: 'Corner 90 Face Frame', size: '',
-      notes: ['rails only, L-shape', 'left leg T & B rails 1 1/2 x 11 1/4', 'right leg T & B rails 1 1/2 x 10 7/16'] },
+      notes: ['rails only', 'left leg T & B rails 1 1/2 x 11 1/4', 'right leg T & B rails 1 1/2 x 10 7/16'] },
     { name: 'an end stile on the right leg', key: `${BASE}:frame`, kind: 90, emptyReturn: true,
       description: 'Corner 90 Face Frame', size: '' },
   ])('prints $name (CC9.1)', (anchor) => {
@@ -133,7 +133,7 @@ describe('corner face frame shipping rows', () => {
         return formatSize(rails[0].height, rails[0].length);
       });
       expect(row.notes).toEqual([
-        'rails only, L-shape',
+        'rails only',
         `left leg T & B rails ${railSizes[0]}`,
         `right leg T & B rails ${railSizes[1]}, stile 1 9/16 x 30 1/2 (mitered to 13/16" end panel)`,
       ]);
