@@ -123,6 +123,7 @@ export function frameReasons(room, wall, run, scene, region, entries, settings, 
       const side = member.role === 'left-stile' ? 'left' : 'right';
       if (atEdge(run, side) && cornerLap(room, wall, run, side, settings)?.laps) return 'corner lap';
       if (pieces.some((piece) => region.fillerIds.includes(piece.id) && atEdge(piece, side))) return 'filler';
+      if (region.legButts?.some((joint) => joint.side === side)) return 'butts end panel, no miter';
       if (pieces.some((piece) => piece.id === `${run.id}:${side}`
         && piece.kind === 'end_panel' && region.panelIds.includes(piece.id) && atEdge(piece, side))) {
         return `mitered to ${formatInch(runEndThickness(room, wall, run, settings)[side])} end panel`;

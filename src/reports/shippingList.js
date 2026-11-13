@@ -382,8 +382,14 @@ function shippingSize(room, settings, part, context) {
   const depth = rect.front - rect.back;
   switch (part.kind) {
     case 'cabinet': return formatSize(part.width, part.height, depth);
-    case 'end_panel': return formatSize(depth,
-      height, orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
+    case 'end_panel': {
+      const butted = scene.frames.regions.some((region) => region.legButts
+        ?.some((joint) => joint.panelId === part.key));
+      // A leg-covered butt keeps the mitered panel's ordered depth behind the frame.
+      const orderedDepth = butted ? depth - runFrame(room, run, settings).thickness : depth;
+      return formatSize(orderedDepth,
+        height, orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
+    }
     case 'panel': {
       const orientation = panelOrientation(piece);
       const sizes = orientation === 'side' ? [depth, part.height, part.width]
