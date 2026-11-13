@@ -1,6 +1,6 @@
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { gapReach } from '../elevation/model/cells.js';
-import { DEFAULT_SETTINGS, FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
+import { FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
 import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
 import { cornerLap } from '../elevation/model/cornerLaps.js';
 import { sideOf } from '../elevation/model/frames.js';
@@ -100,20 +100,7 @@ export function frameMemberRoles(region, members, boxes) {
   });
 }
 
-/** Shop standard member widths, including the bead on each exposed edge. */
-export function frameStandards(insetFrame, bead = 0) {
-  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...insetFrame };
-  return {
-    'left-stile': 2 * frame.stile + bead,
-    'right-stile': 2 * frame.stile + bead,
-    'top-rail': frame.rail + bead,
-    'bottom-rail': frame.rail + bead,
-    stile: 2 * frame.stile + 2 * bead,
-    rail: frame.rail + 2 * bead,
-    'mid-rail': frame.midRail + 2 * bead,
-    mullion: frame.mullion + 2 * bead,
-  };
-}
+export { frameStandards } from '../elevation/model/frameStandards.js';
 
 const NOTE_ORDER = ['left-stile', 'right-stile', 'top-rail', 'bottom-rail', 'stile', 'rail', 'mid-rail', 'mullion'];
 const STILE_ROLES = new Set(['left-stile', 'right-stile', 'stile', 'mullion']);

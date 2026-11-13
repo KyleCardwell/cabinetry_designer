@@ -130,7 +130,10 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       right: capturedByBox.right || tCovers?.right > 0,
     };
     const free = frames.freeSides.get(piece.id) ?? { left: false, right: false };
-    const ownOverhang = run._frame?.bead > 0 ? null : frames.overhangs.get(piece.id);
+    const ownOverhang = run._frame?.bead > 0
+      ? Object.fromEntries((frames.regions.find((region) => region.cabinetIds.includes(piece.id))?.legButts ?? [])
+        .map(({ side }) => [side, frames.overhangs.get(piece.id)?.[side]]))
+      : frames.overhangs.get(piece.id);
     const leftInset = free.left ? ownOverhang?.left ?? overhang : 0;
     const rightInset = free.right ? ownOverhang?.right ?? overhang : 0;
     const box = {

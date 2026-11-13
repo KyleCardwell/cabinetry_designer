@@ -61,7 +61,9 @@ export function runScene(room, wall, run, settings) {
   frames.cornerFrames = cornerFrames;
   const framedIds = new Set(frames.regions.flatMap((region) => region.cabinetIds));
   const hiddenIds = new Set(frames.regions.flatMap((region) => region.fillerIds));
-  const ghostIds = new Set(frames.regions.flatMap((region) => region.panelIds));
+  const ghostIds = new Set(frames.regions.flatMap((region) => [
+    ...region.panelIds, ...(region.legButts ?? []).flatMap((butt) => butt.panelId ?? []),
+  ]));
   const blind = blindEntries(room, wall, run, settings, result);
   const subLabels = new Map();
   for (const piece of cells.pieces) {

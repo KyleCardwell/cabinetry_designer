@@ -145,6 +145,7 @@ function isEnd(end) {
     && !Object.hasOwn(end, 'corner')
     && isPartPick(end)
     && END_TYPES.has(end.type)
+    && (end.frame === undefined || (end.type === 'end_panel' && FRAME_JOINS.includes(end.frame)))
     && (end.height === undefined || end.height === 'full' || end.height === 'cabinets')
     && (end.width === null || isFiniteNumber(end.width))
     && (end.auto === undefined || typeof end.auto === 'boolean')

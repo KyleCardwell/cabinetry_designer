@@ -1,4 +1,5 @@
 import { isPlainObject } from '@reduxjs/toolkit';
+import { FRAME_JOINS } from '../../model/constants.js';
 import { endFit, isEndLegs } from '../../model/endLegs.js';
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { isLegList } from '../../model/legs.js';
@@ -121,6 +122,11 @@ export const runReducers = {
       : end.type === 'none'
         ? { type: end.type, width: end.width }
         : { ...current, type: end.type, width: end.width };
+    if (end.type !== 'end_panel') delete location.run.ends[side].frame;
+    else if (Object.hasOwn(end, 'frame')) {
+      if (end.frame == null) delete location.run.ends[side].frame;
+      else if (FRAME_JOINS.includes(end.frame)) location.run.ends[side].frame = end.frame;
+    }
     if (end.type !== previous) delete location.run.ends[side].height;
     else if ((end.type === 'filler' || end.type === 'end_panel') && Object.hasOwn(end, 'height')) {
       if (end.height == null) delete location.run.ends[side].height;

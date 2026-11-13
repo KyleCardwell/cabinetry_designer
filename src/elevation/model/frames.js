@@ -6,9 +6,10 @@ import { cornerDepthBAuto, cornerEndActive, cornerLegs, cornerOwnersAt } from '.
 import { extendRunPieces } from './extensions.js';
 import { resolveFaces } from './faces.js';
 import { layoutFaces } from './faceLayouts.js';
+import { frameLegButts } from './frameLegButts.js';
 import { runItems } from './grid.js';
 import { frameDrop, isInsetStyle, resolveStyle } from './styles.js';
-import { wallViewForRun } from './wallSides.js';
+import { wallEndPanelAt, wallViewForRun } from './wallSides.js';
 
 const EPSILON = 1e-6;
 
@@ -216,11 +217,12 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
   // A wall end panel the frame is mitered over (SPEC-36.2) counts as a side panel at the run's edge.
   const wallPanels = ['left', 'right'].flatMap((edge) => {
     const panel = run._frame?.wallPanels?.[edge];
-    if (panel?.join !== 'miter') return [];
+    if (!panel) return [];
     return [{
       id: `${run.id}:wall-${edge}`,
       kind: 'end_panel',
       edge,
+      join: panel.join,
       x: edge === 'left' ? run.x - panel.width : run.x + run.width,
       z: 0,
       width: panel.width,
@@ -261,6 +263,7 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
     };
     const covered = [];
     for (const panel of panels) {
+      if (panel.edge && panel.join !== 'miter') continue;
       if (!overlaps(panel.z, panel.z + panel.height, bounds.z, bounds.z + bounds.height)) continue;
       // SPEC-38.3: a panel within the run's gap reach (the bead gap, plus any stile leftover) joins too.
       const gapBefore = bounds.x - (panel.x + panel.width);
@@ -347,6 +350,46 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
         right: !beside('right') && !atRunEnd.right(box),
       });
       seamSides.set(box.id, { left: besideCabinet('left'), right: besideCabinet('right') });
+    }
+
+    // SH7.7: only the outer run/wall end joints can butt under a covering leg.
+    const joints = {};
+    const jointPanels = {};
+    for (const side of ['left', 'right']) {
+      const endpoint = wall
+        ? wallEndPanelAt(room, wallViewForRun(wall, run), side, settings)?.endpoint : null;
+      const wallChoice = wall?.endPanels?.[endpoint]?.frame;
+      const edge = side === 'left' ? region.x : region.x + region.width;
+      const panel = covered.find((panel) => (panel.edge === side
+        || (run.ends[side].type === 'end_panel' && panel.id === `${run.id}:${side}`))
+        && Math.abs((side === 'left' ? panel.x : panel.x + panel.width) - edge) <= EPSILON)
+        ?? (wallChoice === 'butt' ? wallPanels.find((panel) => panel.edge === side
+          && sideOf(bounds, panel, wallReach) === side) : null);
+      if (!panel) continue;
+      const frame = panel.edge ? wallChoice : run.ends[side].frame;
+      joints[side] = { x: panel.x, width: panel.width, z: region.z, height: region.height, frame };
+      jointPanels[side] = panel;
+    }
+    const butts = frameLegButts(room, wall && wallViewForRun(wall, run), run, settings, joints);
+    for (const [side, butt] of Object.entries(butts)) {
+      const panel = jointPanels[side];
+      if (side === 'left') {
+        region.width -= butt.panelInside - region.x;
+        region.x = butt.panelInside;
+      } else region.width = butt.panelInside - region.x;
+      if (panel.edge) {
+        if (region.wallPanels) region.wallPanels = region.wallPanels.filter((entry) => entry.side !== side);
+      } else region.panelIds = region.panelIds.filter((id) => id !== panel.id);
+      (region.legButts ??= []).push({ side, ...(panel.edge ? { wall: true } : { panelId: panel.id }),
+        opening: butt.opening, panelInside: butt.panelInside, legId: butt.legId });
+      for (const box of boxes) {
+        if (sideOf(box, panel, panel.edge ? wallReach : reach) !== side) continue;
+        const slotEdge = side === 'left' ? box.x : box.x + box.width;
+        const outside = butt.opening + (side === 'left' ? -0.75 : 0.75);
+        const amount = side === 'left' ? outside - slotEdge : slotEdge - outside;
+        freeSides.get(box.id)[side] = true;
+        overhangs.set(box.id, { ...overhangs.get(box.id), [side]: amount });
+      }
     }
   }
   // SPEC-CC6: beside a Corner 45 the stile is mitered: the box is free, spaced off by lap + ft·tan(cut).
