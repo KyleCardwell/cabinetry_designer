@@ -5,6 +5,8 @@ import { formatPrice } from '../elevation/model/libraryPricing.js';
 import { formatInches } from '../elevation/model/units.js';
 import { addSlide, deleteSlide } from '../elevation/store/elevationSlice.js';
 import SlideEditor from './SlideEditor.jsx';
+import LibraryTransfer from './LibraryTransfer.jsx';
+import { LibrarySelectAll, LibrarySelectRow, useLibrarySelection } from './LibrarySelection.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const CELL_CLASS = 'px-3 py-3 align-top';
@@ -25,6 +27,7 @@ export default function SlidesPage() {
   const { settings, source, teamServices } = useSelector((state) => state.elevation);
   const shopData = source === 'cloud';
   const slides = settings.slides;
+  const selection = useLibrarySelection(slides);
   const [editingId, setEditingId] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const closeEditor = useCallback(() => setEditingId(null), []);
@@ -43,12 +46,16 @@ export default function SlidesPage() {
           <h1 className="text-xl font-semibold text-gray-100">Slides</h1>
           <p className="mt-1 text-sm text-gray-400">Drawer slides for drawer boxes and roll-outs. Sizes come from the slide.</p>
         </div>
-        <button type="button" className={`${BUTTON_CLASS} shrink-0`} onClick={add}>New slide</button>
+        <div className="flex shrink-0 flex-wrap items-start gap-2">
+          <button type="button" className={`${BUTTON_CLASS} shrink-0`} onClick={add}>New slide</button>
+          <LibraryTransfer listKey="slides" selectedIds={selection.selectedIds} />
+        </div>
       </div>
       <div className="overflow-x-auto rounded border border-gray-700">
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
+              <th scope="col" className="px-3 py-2"><LibrarySelectAll selection={selection} /></th>
               {['Name', 'Mount', 'Lengths', 'Clearances', 'Price', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
@@ -60,6 +67,7 @@ export default function SlidesPage() {
               const deletingThis = deleting === slide.id;
               return (
                 <tr key={slide.id}>
+                  <th scope="row" className={CELL_CLASS}><LibrarySelectRow row={slide} selection={selection} /></th>
                   <td className={CELL_CLASS}>
                     <span className="font-medium text-gray-100">{slide.name}</span>
                     {builtIn && <span className="ml-2 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">built-in</span>}

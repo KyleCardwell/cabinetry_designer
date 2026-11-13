@@ -44,7 +44,7 @@ const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && 
  * Every string in `value`, and the ones that name a door design, profile, pull, slide, accessory or shape by their key:
  * `designId`, `profileId` / `…ProfileId`, a door style's `profiles` slots, `pullId` / `…PullId`, `slideId` / `…SlideId`, `accessoryId`, `shapeId`.
  */
-function collectReferences(value, found, parentKey = null) {
+export function collectReferences(value, found, parentKey = null) {
   if (Array.isArray(value)) {
     for (const entry of value) collectReferences(entry, found, parentKey);
     return;

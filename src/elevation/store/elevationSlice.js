@@ -26,6 +26,7 @@ import { slideReducers } from './slices/slides.js';
 import { accessoryReducers } from './slices/accessories.js';
 import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { shapeReducers } from './slices/shapes.js';
+import { libraryReducers } from './slices/library.js';
 import { uiReducers } from './slices/ui.js';
 import { cloudReducers, registerInitialStateBuilder } from './slices/cloud.js';
 
@@ -108,6 +109,7 @@ const elevationSlice = createSlice({
     ...accessoryReducers,
     ...sectionProfileReducers,
     ...shapeReducers,
+    ...libraryReducers,
     ...uiReducers,
     ...cloudReducers,
   },
@@ -274,6 +276,7 @@ export const {
   updateDoorStyle,
   deleteDoorStyle,
   importDoorDesigns,
+  importLibrary,
   addDoorDesign,
   updateDoorDesign,
   deleteDoorDesign,

@@ -7,6 +7,8 @@ import { formatInches } from '../elevation/model/units.js';
 import { addShape, deleteShape, setShapeArchived } from '../elevation/store/elevationSlice.js';
 import ProfileThumbnail from './ProfileThumbnail.jsx';
 import { useShopReadOnly } from './WorkspaceSourceBar.jsx';
+import LibraryTransfer from './LibraryTransfer.jsx';
+import { LibrarySelectAll, LibrarySelectRow, useLibrarySelection } from './LibrarySelection.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50';
 const INPUT_CLASS = 'rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -27,6 +29,7 @@ export default function ShapesPage() {
   const filtered = shapes.filter((shape) => (showArchived || !shape.archived)
     && (kind === null || shape.kind === kind)
     && shape.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const selection = useLibrarySelection(filtered, JSON.stringify([search, kind, showArchived]));
 
   return (
     <div className="space-y-5">
@@ -44,6 +47,7 @@ export default function ShapesPage() {
               navigate(`/library/shapes/${shape.id}`);
             }}>{label}</button>
           ))}
+          <LibraryTransfer listKey="shapes" selectedIds={selection.selectedIds} />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -61,6 +65,7 @@ export default function ShapesPage() {
           Show archived
         </label>
       </div>
+      <label className="flex items-center gap-2 text-sm text-gray-300"><LibrarySelectAll selection={selection} /> Select all visible rows</label>
       {filtered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((shape) => (
@@ -69,6 +74,7 @@ export default function ShapesPage() {
                 <ProfileThumbnail profile={shapeViewProfile(shape, 'front')} className="h-full w-full" />
               </div>
               <div className="flex items-center gap-2">
+                <LibrarySelectRow row={shape} selection={selection} />
                 <span className="font-medium text-gray-100">{shape.name}</span>
                 {shape.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
               </div>

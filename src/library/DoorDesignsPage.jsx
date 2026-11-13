@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SEEDED_DESIGN_IDS } from '../elevation/model/doorDesigns.js';
 import { addDoorDesign, deleteDoorDesign } from '../elevation/store/elevationSlice.js';
 import DoorDesignEditor from './DoorDesignEditor.jsx';
+import LibraryTransfer from './LibraryTransfer.jsx';
+import { LibrarySelectAll, LibrarySelectRow, useLibrarySelection } from './LibrarySelection.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const CELL_CLASS = 'px-3 py-3 align-top';
@@ -24,6 +26,7 @@ export default function DoorDesignsPage() {
   // Shop data: library items are archived, never deleted (DB8).
   const shopData = source === 'cloud';
   const designs = settings.doorDesigns;
+  const selection = useLibrarySelection(designs);
   const [editingId, setEditingId] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const closeEditor = useCallback(() => setEditingId(null), []);
@@ -42,12 +45,16 @@ export default function DoorDesignsPage() {
           <h1 className="text-xl font-semibold text-gray-100">Door designs</h1>
           <p className="mt-1 text-sm text-gray-400">How doors are built — your vendor&apos;s codes. Each room&apos;s door styles pick one.</p>
         </div>
-        <button type="button" className={`${BUTTON_CLASS} shrink-0`} onClick={() => addDesign()}>New design</button>
+        <div className="flex shrink-0 flex-wrap items-start gap-2">
+          <button type="button" className={`${BUTTON_CLASS} shrink-0`} onClick={() => addDesign()}>New design</button>
+          <LibraryTransfer listKey="doorDesigns" selectedIds={selection.selectedIds} />
+        </div>
       </div>
       <div className="overflow-x-auto rounded border border-gray-700">
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
+              <th scope="col" className="px-3 py-2"><LibrarySelectAll selection={selection} /></th>
               {['Code', 'Vendor', 'Description', 'Construction', 'Rails', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
@@ -60,6 +67,7 @@ export default function DoorDesignsPage() {
               const deletingThis = deleting === design.id;
               return (
                 <tr key={design.id}>
+                  <th scope="row" className={CELL_CLASS}><LibrarySelectRow row={design} selection={selection} /></th>
                   <td className={CELL_CLASS}>
                     <span className="font-medium text-gray-100">{design.code}</span>
                     {seeded && <span className="ml-2 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">built-in</span>}
