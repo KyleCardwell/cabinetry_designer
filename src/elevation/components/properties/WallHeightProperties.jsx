@@ -554,6 +554,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
                 {panel && (
                   <div className="mt-2">
                     <WallEndPanelFields
+                      room={room}
                       wall={wall}
                       endpoint={endpoint}
                       panel={panel}

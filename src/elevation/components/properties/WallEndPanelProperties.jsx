@@ -42,6 +42,7 @@ export default function WallEndPanelProperties({
       </p>
       {fit.hi !== undefined && <p className="text-xs text-gray-300">Fitted between the legs</p>}
       <WallEndPanelFields
+        room={room}
         wall={wall}
         endpoint={panel.endpoint}
         panel={stored}

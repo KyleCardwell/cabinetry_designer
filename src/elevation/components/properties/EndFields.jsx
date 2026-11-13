@@ -9,6 +9,9 @@ import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
 import { isJoinedEnd } from '../../model/panelThickness.js';
+import { frameLegButts } from '../../model/frameLegButts.js';
+import { runScene } from '../../model/runScene.js';
+import { wallViewForRun } from '../../model/wallSides.js';
 import {
   setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller, setTrackSize,
 } from '../../store/elevationSlice.js';
@@ -49,6 +52,22 @@ export default function EndFields({
   const resolved = isCorner ? cornerEnd(room, wall, run, side, settings) : null;
   const returnWall = isCorner ? cornerReturnRuns(room, wall, run, side).returnWall : null;
   const owners = room && wall ? cornerOwnersAt(room, wall, run, side) : [];
+  const legCoversJoint = (() => {
+    if (!room || !wall || !run._frame || endType !== 'end_panel') return false;
+    const view = wallViewForRun(wall, run);
+    const scene = runScene(room, view, run, settings);
+    const panelId = `${run.id}:${side}`;
+    const panel = scene.cells.pieces.find((piece) => piece.id === panelId);
+    return scene.frames.regions.some((region) => {
+      if (region.legButts?.some((joint) => joint.panelId === panelId)) return true;
+      if (!panel || !region.panelIds.includes(panelId)) return false;
+      const edge = side === 'left' ? region.x : region.x + region.width;
+      const panelEdge = side === 'left' ? panel.x : panel.x + panel.width;
+      return Math.abs(edge - panelEdge) <= 1e-6 && Boolean(frameLegButts(room, view, run, settings, {
+        [side]: { x: panel.x, width: panel.width, z: region.z, height: region.height },
+      })[side]);
+    });
+  })();
   const updateCorner = (patch) => dispatch(setRunEnd({
     ...actionBase, side,
     end: { type: 'corner', width: null, corner: { ...end.corner, ...patch } },
@@ -88,6 +107,26 @@ export default function EndFields({
       {note && (
         <p className="mt-1.5 text-xs text-gray-500">{note}</p>
       )}
+      {legCoversJoint && <>
+        <Field label="Joint">
+          <select
+            value={end.frame ?? 'auto'}
+            onChange={(event) => dispatch(setRunEnd({
+              ...actionBase, side,
+              end: { ...end, frame: event.target.value === 'auto' ? null : event.target.value },
+            }))}
+            aria-label={`${side} end panel joint`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="auto">Auto</option>
+            <option value="miter">Miter</option>
+            <option value="butt">Butt</option>
+          </select>
+        </Field>
+        <p className="mt-1.5 text-xs text-gray-500">
+          A leg covers this joint: Auto butts the stile into the end panel.
+        </p>
+      </>}
       {isCorner ? <>
         <Field label="Leg A">
           <InchInput

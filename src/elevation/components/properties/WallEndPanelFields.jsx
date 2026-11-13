@@ -1,5 +1,9 @@
+import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { teamDoorStyle } from '../../model/doorStyles.js';
+import { frameLegButts } from '../../model/frameLegButts.js';
+import { runScene } from '../../model/runScene.js';
+import { wallEndPanelAt, wallViewForRun } from '../../model/wallSides.js';
 import { setWallEndPanel } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
@@ -11,9 +15,27 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
  * A wall end panel's width and, beside a face frame run (SPEC-36.2.1) or a back panel run (SPEC-43), how that run meets it.
  */
 export default function WallEndPanelFields({
-  wall, endpoint, panel, label, framed, settings,
+  room, wall, endpoint, panel, label, framed, settings,
 }) {
   const dispatch = useDispatch();
+  const legCoversJoint = useMemo(() => {
+    if (!room || !framed) return false;
+    return wall.runs.some((run) => {
+      if (!run._frame) return false;
+      const view = wallViewForRun(wall, run);
+      const side = ['left', 'right'].find((edge) =>
+        run._frame.wallPanels?.[edge]
+        && wallEndPanelAt(room, view, edge, settings)?.endpoint === endpoint);
+      if (!side) return false;
+      return runScene(room, view, run, settings).frames.regions.some((region) => {
+        if (region.legButts?.some((joint) => joint.wall && joint.side === side)) return true;
+        const covered = region.wallPanels?.find((joint) => joint.side === side);
+        return covered && Boolean(frameLegButts(room, view, run, settings, {
+          [side]: { x: covered.x, width: covered.width, z: region.z, height: region.height },
+        })[side]);
+      });
+    });
+  }, [room, wall, endpoint, framed, settings]);
   const update = (changes) => dispatch(setWallEndPanel({
     wallId: wall.id,
     endpoint,
@@ -31,7 +53,7 @@ export default function WallEndPanelFields({
           aria-label={`${label} panel width`}
         />
       </Field>
-      {framed && (
+      {framed && <>
         <Field label="Joint">
           <select
             value={panel.frame ?? 'auto'}
@@ -44,7 +66,10 @@ export default function WallEndPanelFields({
             <option value="butt">Butted (dies into the panel)</option>
           </select>
         </Field>
-      )}
+        {legCoversJoint && <p className="mt-1.5 text-xs text-gray-500">
+          A leg covers this joint: Auto butts the stile into the end panel.
+        </p>}
+      </>}
     </div>
   );
 }
