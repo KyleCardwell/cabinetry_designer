@@ -1,3 +1,4 @@
+import { activeBuildCache } from './buildCache.js';
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
@@ -94,7 +95,13 @@ export function landedReturns(room, view) {
  * A run's toe kick, countertop, top mold and crown keep their band kinds. Each shape is
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
-export function cornerShapes(room, wall, side, settings,
+export function cornerShapes(room, wall, side, settings, options) {
+  if (!activeBuildCache) return buildCornerShapes(room, wall, side, settings, options);
+  return activeBuildCache.cornerShapes(room, wall, side, settings, options,
+    () => buildCornerShapes(room, wall, side, settings, options));
+}
+
+function buildCornerShapes(room, wall, side, settings,
   { profiles: includeProfiles = true, throughBands = false, returns: returnMode, combined } = {}) {
   const view = resolveWall(room, wall, side);
   const endView = (returnMode ?? returnsView(room, elevationKey(view.id, view.side))) === 'end';

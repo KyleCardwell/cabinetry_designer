@@ -1,3 +1,4 @@
+import { withBuildCache } from './buildCache.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import { blindPartWidths } from './blind.js';
 import { blindCellWidths, partPieces } from './cells.js';
@@ -259,86 +260,88 @@ function wallPanelPart(wall, panel) {
  * the estimator and the AI layer read.
  */
 export function roomParts(room, settings) {
-  const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
-  const walls = [...wallNumbers(room).entries()]
-    .sort((a, b) => a[1] - b[1])
-    .map(([wallId]) => wallById.get(wallId))
-    .filter(Boolean);
+  return withBuildCache(() => {
+    const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
+    const walls = [...wallNumbers(room).entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([wallId]) => wallById.get(wallId))
+      .filter(Boolean);
 
-  const wallParts = walls.flatMap((wall) => {
-    const panels = wallEndPanels(room, wall, settings);
-    const left = panels.filter((panel) => panel.front.side === 'left');
-    const right = panels.filter((panel) => panel.front.side === 'right');
-    return [
-      ...left.map((panel) => wallPanelPart(wall, panel)),
-      ...WALL_SIDES.flatMap((side) => runParts(room, wall, side, settings)),
-      ...right.map((panel) => wallPanelPart(wall, panel)),
-    ];
-  });
-
-  const firstPartByRun = new Map();
-  wallParts.forEach((part, index) => {
-    if (part.runId && !firstPartByRun.has(part.runId)) firstPartByRun.set(part.runId, { part, index });
-  });
-  const basesByIndex = new Map();
-  for (const group of furnitureBaseGroups(room, settings)) {
-    const first = group.runIds.map((id) => firstPartByRun.get(id)).filter(Boolean)
-      .sort((a, b) => a.index - b.index)[0];
-    const index = first?.index ?? wallParts.length;
-    const x = first ? Math.min(...group.steps
-      .filter((step) => step.wallId === first.part.wallId && step.side === first.part.side)
-      .map((step) => first.part.side === 'back'
-        ? wallLength(wallById.get(step.wallId)) - step.x2 : step.x1)) : 0;
-    const bases = basesByIndex.get(index) ?? [];
-    bases.push({ x, part: { key: group.key, kind: 'furniture_base', runIds: group.runIds } });
-    basesByIndex.set(index, bases);
-  }
-  const basesAt = (index) => (basesByIndex.get(index) ?? [])
-    .sort((a, b) => a.x - b.x).map(({ part }) => part);
-  const parts = wallParts.flatMap((part, index) => [...basesAt(index), part]);
-  // Retain a base even when its member runs have no numbered parts, ahead of the moldings.
-  parts.push(...basesAt(wallParts.length));
-
-  const lastPartByRun = new Map();
-  parts.forEach((part, index) => {
-    if (part.runId) lastPartByRun.set(part.runId, index);
-  });
-  const topsByIndex = new Map();
-  for (const group of woodTopGroups(room, settings)) {
-    const indexes = group.runIds.map((id) => lastPartByRun.get(id)).filter((index) => index !== undefined);
-    const index = indexes.length ? Math.max(...indexes) + 1 : parts.length;
-    const tops = topsByIndex.get(index) ?? [];
-    tops.push({ key: group.key, kind: 'wood_top', runIds: group.runIds,
-      wallId: null, side: null, runId: null, pieceId: null });
-    topsByIndex.set(index, tops);
-  }
-  // Insert against the original indexes so connected groups and inserts retain their walk order.
-  for (let index = parts.length; index >= 0; index -= 1) {
-    const tops = topsByIndex.get(index);
-    if (tops) parts.splice(index, 0, ...tops);
-  }
-
-  for (const molding of PART_MOLDINGS) {
-    const present = walls.some((wall) => {
-      const profile = resolveProfile(settings, room, wall);
-      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding, settings));
+    const wallParts = walls.flatMap((wall) => {
+      const panels = wallEndPanels(room, wall, settings);
+      const left = panels.filter((panel) => panel.front.side === 'left');
+      const right = panels.filter((panel) => panel.front.side === 'right');
+      return [
+        ...left.map((panel) => wallPanelPart(wall, panel)),
+        ...WALL_SIDES.flatMap((side) => runParts(room, wall, side, settings)),
+        ...right.map((panel) => wallPanelPart(wall, panel)),
+      ];
     });
-    if (present) {
-      parts.push({
-        key: moldingPartKey(molding),
-        kind: 'molding',
-        wallId: null,
-        side: null,
-        runId: null,
-        pieceId: null,
-        molding,
-        width: null,
-        x: null,
-        z: null,
-        height: null,
-        source: 'molding',
-      });
+
+    const firstPartByRun = new Map();
+    wallParts.forEach((part, index) => {
+      if (part.runId && !firstPartByRun.has(part.runId)) firstPartByRun.set(part.runId, { part, index });
+    });
+    const basesByIndex = new Map();
+    for (const group of furnitureBaseGroups(room, settings)) {
+      const first = group.runIds.map((id) => firstPartByRun.get(id)).filter(Boolean)
+        .sort((a, b) => a.index - b.index)[0];
+      const index = first?.index ?? wallParts.length;
+      const x = first ? Math.min(...group.steps
+        .filter((step) => step.wallId === first.part.wallId && step.side === first.part.side)
+        .map((step) => first.part.side === 'back'
+          ? wallLength(wallById.get(step.wallId)) - step.x2 : step.x1)) : 0;
+      const bases = basesByIndex.get(index) ?? [];
+      bases.push({ x, part: { key: group.key, kind: 'furniture_base', runIds: group.runIds } });
+      basesByIndex.set(index, bases);
     }
-  }
-  return parts;
+    const basesAt = (index) => (basesByIndex.get(index) ?? [])
+      .sort((a, b) => a.x - b.x).map(({ part }) => part);
+    const parts = wallParts.flatMap((part, index) => [...basesAt(index), part]);
+    // Retain a base even when its member runs have no numbered parts, ahead of the moldings.
+    parts.push(...basesAt(wallParts.length));
+
+    const lastPartByRun = new Map();
+    parts.forEach((part, index) => {
+      if (part.runId) lastPartByRun.set(part.runId, index);
+    });
+    const topsByIndex = new Map();
+    for (const group of woodTopGroups(room, settings)) {
+      const indexes = group.runIds.map((id) => lastPartByRun.get(id)).filter((index) => index !== undefined);
+      const index = indexes.length ? Math.max(...indexes) + 1 : parts.length;
+      const tops = topsByIndex.get(index) ?? [];
+      tops.push({ key: group.key, kind: 'wood_top', runIds: group.runIds,
+        wallId: null, side: null, runId: null, pieceId: null });
+      topsByIndex.set(index, tops);
+    }
+    // Insert against the original indexes so connected groups and inserts retain their walk order.
+    for (let index = parts.length; index >= 0; index -= 1) {
+      const tops = topsByIndex.get(index);
+      if (tops) parts.splice(index, 0, ...tops);
+    }
+
+    for (const molding of PART_MOLDINGS) {
+      const present = walls.some((wall) => {
+        const profile = resolveProfile(settings, room, wall);
+        return wall.runs.some((run) => carriesMolding(wall, run, profile, molding, settings));
+      });
+      if (present) {
+        parts.push({
+          key: moldingPartKey(molding),
+          kind: 'molding',
+          wallId: null,
+          side: null,
+          runId: null,
+          pieceId: null,
+          molding,
+          width: null,
+          x: null,
+          z: null,
+          height: null,
+          source: 'molding',
+        });
+      }
+    }
+    return parts;
+  });
 }

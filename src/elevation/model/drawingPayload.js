@@ -1,3 +1,4 @@
+import { withBuildCache } from './buildCache.js';
 import { elevationKey, elevationLetters, wallLabel } from './topology.js';
 import { resolveWall } from './room.js';
 import { WALL_SIDES } from './wallSides.js';
@@ -203,38 +204,40 @@ function facePayload(room, wall, side, key, letter, settings, options) {
  * HP5 its pulls; CE combines every saved group into one elevation; IN14 its visible interiors and glass.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
-  const shapes = planShapes(room, settings);
-  const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
-    const wall = room.walls.find((candidate) => WALL_SIDES.some(
-      (side) => elevationKey(candidate.id, side) === key,
-    ));
-    const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
-    const combined = combinedViewOf(room, wall.id, side);
-    if (combined) {
-      return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
-        facePayload(room, faceWall, faceSide, key, letter, settings, options));
-    }
-    return facePayload(room, wall, side, key, letter, settings);
-  });
+  return withBuildCache(() => {
+    const shapes = planShapes(room, settings);
+    const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
+      const wall = room.walls.find((candidate) => WALL_SIDES.some(
+        (side) => elevationKey(candidate.id, side) === key,
+      ));
+      const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
+      const combined = combinedViewOf(room, wall.id, side);
+      if (combined) {
+        return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
+          facePayload(room, faceWall, faceSide, key, letter, settings, options));
+      }
+      return facePayload(room, wall, side, key, letter, settings);
+    });
 
-  return {
-    payloadVersion: DRAWING_PAYLOAD_VERSION,
-    units: 'in',
-    room: {
-      id: room.id,
-      name: room.name,
-      ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
-    },
-    elevations,
-    plotScale: plotScale(settings),
-    paperSize: paperSize(settings),
-    plan: {
-      parts: planParts(room, settings),
-      dimensions: planDimensions(room, settings),
-      marks: planMarks(room, settings),
-      ...(shapes.length ? { shapes } : {}),
-    },
-  };
+    return {
+      payloadVersion: DRAWING_PAYLOAD_VERSION,
+      units: 'in',
+      room: {
+        id: room.id,
+        name: room.name,
+        ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
+      },
+      elevations,
+      plotScale: plotScale(settings),
+      paperSize: paperSize(settings),
+      plan: {
+        parts: planParts(room, settings),
+        dimensions: planDimensions(room, settings),
+        marks: planMarks(room, settings),
+        ...(shapes.length ? { shapes } : {}),
+      },
+    };
+  });
 }
 
 /** "G1 Euro kitchen" → "g1-euro-kitchen.zip" (SPEC-40); the API uses the same rule. */

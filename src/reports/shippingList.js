@@ -1,3 +1,4 @@
+import { withBuildCache } from '../elevation/model/buildCache.js';
 import { accessoryText } from '../elevation/model/accessories.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
@@ -625,24 +626,26 @@ function wallLengthNotes(room, settings) {
 }
 
 export function shippingList(room, settings, shop = settings) {
-  const { parts, warnings } = partNumbers(room, settings);
-  const numbers = new Map(parts.map(({ key, number }) => [key, number]));
-  const numberOf = (id) => numbers.get(id);
-  const getContext = shippingContext(room, settings);
-  const doorItems = new Map(doorOrderItems(room, settings).items
-    .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
-  const rows = parts
-    .sort((a, b) => a.number - b.number).map((part) => {
-      const context = getContext(part);
-      return {
-        number: part.number, key: part.key, kind: part.kind,
-        description: describePart(room, settings, part, context),
-        notes: orderedNotes({ ...cabinetNotes(room, settings, part, context),
-          ...partNotes(room, settings, part, context, doorItems, shop, numberOf), 14: [room.reportParts?.[part.key]?.note] }),
-        size: shippingSize(room, settings, part, context),
-      };
-    });
-  rows.push({ number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
-    description: 'Adjustable Shelves', notes: [], size: '' });
-  return { rows, wallNotes: wallLengthNotes(room, settings), roomNote: room.reportNote?.trim() || null, warnings };
+  return withBuildCache(() => {
+    const { parts, warnings } = partNumbers(room, settings);
+    const numbers = new Map(parts.map(({ key, number }) => [key, number]));
+    const numberOf = (id) => numbers.get(id);
+    const getContext = shippingContext(room, settings);
+    const doorItems = new Map(doorOrderItems(room, settings).items
+      .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
+    const rows = parts
+      .sort((a, b) => a.number - b.number).map((part) => {
+        const context = getContext(part);
+        return {
+          number: part.number, key: part.key, kind: part.kind,
+          description: describePart(room, settings, part, context),
+          notes: orderedNotes({ ...cabinetNotes(room, settings, part, context),
+            ...partNotes(room, settings, part, context, doorItems, shop, numberOf), 14: [room.reportParts?.[part.key]?.note] }),
+          size: shippingSize(room, settings, part, context),
+        };
+      });
+    rows.push({ number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
+      description: 'Adjustable Shelves', notes: [], size: '' });
+    return { rows, wallNotes: wallLengthNotes(room, settings), roomNote: room.reportNote?.trim() || null, warnings };
+  });
 }

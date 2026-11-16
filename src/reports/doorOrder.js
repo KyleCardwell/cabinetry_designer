@@ -1,3 +1,4 @@
+import { withBuildCache } from '../elevation/model/buildCache.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { panelMaterial } from '../elevation/model/constants.js';
@@ -193,43 +194,45 @@ export function doorOrderItems(room, settings) {
 
 /** Installed door order pages, preserving vendor grouping and line merging. */
 export function doorOrder(room, settings) {
-  const { byKey } = partNumbers(room, settings);
-  const { items, warnings } = doorOrderItems(room, settings);
-  const pages = new Map();
-  const styles = new Map();
+  return withBuildCache(() => {
+    const { byKey } = partNumbers(room, settings);
+    const { items, warnings } = doorOrderItems(room, settings);
+    const pages = new Map();
+    const styles = new Map();
 
-  function add(part) {
-    const { style, design, pieceId, width, height, type } = part;
-    let number = byKey.get(pieceId);
-    if (number === undefined) {
-      number = '?';
-      warnings.push({ code: 'report-part-unnumbered', pieceId, key: part.sourceKey });
+    function add(part) {
+      const { style, design, pieceId, width, height, type } = part;
+      let number = byKey.get(pieceId);
+      if (number === undefined) {
+        number = '?';
+        warnings.push({ code: 'report-part-unnumbered', pieceId, key: part.sourceKey });
+      }
+      if (!styles.has(style.id)) styles.set(style.id, {
+        header: pageHeader(style, design, settings, warnings), firstNumber: Infinity,
+      });
+      const styleData = styles.get(style.id);
+      styleData.firstNumber = Math.min(styleData.firstNumber, numberOrder(number));
+      const key = `${style.id}:${type}`;
+      if (!pages.has(key)) pages.set(key, {
+        styleId: style.id, type,
+        header: type === 'slab' ? {
+          ...styleData.header, insideProfile: null, panelProfile: null,
+          notes: settings.report?.doorFormNote || null,
+        } : styleData.header,
+        items: [],
+      });
+      const page = pages.get(key);
+      page.items.push({ number, width, height, notes: part.notes.join(' - ') });
     }
-    if (!styles.has(style.id)) styles.set(style.id, {
-      header: pageHeader(style, design, settings, warnings), firstNumber: Infinity,
-    });
-    const styleData = styles.get(style.id);
-    styleData.firstNumber = Math.min(styleData.firstNumber, numberOrder(number));
-    const key = `${style.id}:${type}`;
-    if (!pages.has(key)) pages.set(key, {
-      styleId: style.id, type,
-      header: type === 'slab' ? {
-        ...styleData.header, insideProfile: null, panelProfile: null,
-        notes: settings.report?.doorFormNote || null,
-      } : styleData.header,
-      items: [],
-    });
-    const page = pages.get(key);
-    page.items.push({ number, width, height, notes: part.notes.join(' - ') });
-  }
 
-  for (const item of items) add(item);
+    for (const item of items) add(item);
 
-  const result = [...styles.entries()].sort(([, a], [, b]) => a.firstNumber - b.firstNumber)
-    .flatMap(([styleId]) => SECTIONS.filter(([type]) => pages.has(`${styleId}:${type}`))
-      .map(([id, title]) => {
-        const { items, ...page } = pages.get(`${styleId}:${id}`);
-        return { ...page, sections: [{ id, title, lines: mergeLines(items) }] };
-      }));
-  return { pages: result, warnings };
+    const result = [...styles.entries()].sort(([, a], [, b]) => a.firstNumber - b.firstNumber)
+      .flatMap(([styleId]) => SECTIONS.filter(([type]) => pages.has(`${styleId}:${type}`))
+        .map(([id, title]) => {
+          const { items, ...page } = pages.get(`${styleId}:${id}`);
+          return { ...page, sections: [{ id, title, lines: mergeLines(items) }] };
+        }));
+    return { pages: result, warnings };
+  });
 }
