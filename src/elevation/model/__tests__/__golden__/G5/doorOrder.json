@@ -1,0 +1,84 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails",
+        "panelProfile": "FLAT",
+        "style": "5PC",
+        "thickness": "13/16\"",
+        "vendor": null,
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 2,
+              "qty": 1,
+              "size": "19 7/8 x 30 1/8",
+              "width": 19.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 3,
+              "qty": 1,
+              "size": "19 7/8 x 30 1/8",
+              "width": 19.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 5,
+              "qty": 1,
+              "size": "18 3/8 x 30 1/8",
+              "width": 18.375
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 6,
+              "qty": 1,
+              "size": "18 5/16 x 30 1/8",
+              "width": 18.3125
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 7,
+              "qty": 1,
+              "size": "24 7/8 x 30 1/2",
+              "width": 24.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 9,
+              "qty": 1,
+              "size": "22 3/8 x 30 1/8",
+              "width": 22.375
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 10,
+              "qty": 1,
+              "size": "22 3/8 x 30 1/8",
+              "width": 22.375
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

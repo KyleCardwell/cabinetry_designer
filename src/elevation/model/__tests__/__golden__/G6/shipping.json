@@ -1,0 +1,211 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Base Filler",
+      "key": "677ec7a5-d97a-4cfd-8843-f960e3334ea2:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 1,
+      "size": "2 11/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "4217b8dc-e0af-4e39-8f3e-efb6ec6b09c4",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 2,
+      "size": "32 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "df94cbbf-e4b8-49b0-af9e-5e9bf67f1e6a",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 3,
+      "size": "32 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "f381f1db-bf19-4798-8cc2-2fd9f5f4f183",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 4,
+      "size": "32 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "677ec7a5-d97a-4cfd-8843-f960e3334ea2:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 5,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 6,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "469691e9-01dc-4fbd-9f9f-e401c3b522ad",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 7,
+      "size": "34 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "50ad8d76-142d-4f34-aad2-18c08f951f7c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 8,
+      "size": "34 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 9,
+      "size": "1 11/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54",
+      "kind": "wood_top",
+      "notes": [],
+      "number": 10,
+      "size": "72 3/4 x 26 1/8 x 1 1/2"
+    },
+    {
+      "description": "Upper Back Panel",
+      "key": "c3ac82af-6d34-4142-b7be-de449f337e87",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 11,
+      "size": "101 x 18 x 3/4"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "ea4373b3-87f2-4f39-a7cc-2c829c839832:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 12,
+      "size": "2 11/16 x 34 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "34113be7-b355-4f9a-bd22-f13c3c4060d8",
+      "kind": "cabinet",
+      "notes": [
+        "1 as"
+      ],
+      "number": 13,
+      "size": "32 1/2 x 34 1/2 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "4db7fb15-0a48-43cb-8eae-15be43eefe76",
+      "kind": "cabinet",
+      "notes": [
+        "1 as"
+      ],
+      "number": 14,
+      "size": "32 1/2 x 34 1/2 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "279afee1-22a9-4ca2-ac33-14bf1b1e9ffb",
+      "kind": "cabinet",
+      "notes": [
+        "1 as"
+      ],
+      "number": 15,
+      "size": "32 1/2 x 34 1/2 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "ea4373b3-87f2-4f39-a7cc-2c829c839832:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 16,
+      "size": "12 7/8 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 17,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 18,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 19,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

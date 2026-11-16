@@ -1,0 +1,499 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Tall Filler",
+      "key": "9cf5ff3d-594a-4cfa-b743-e9b86f1eae25:left",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" right offset"
+      ],
+      "number": 1,
+      "size": "1 7/8 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "7006ff17-0b8c-4483-81fb-5fb2e815bf6f",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 27/32\" L & R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet sides and top for T-filler"
+      ],
+      "number": 2,
+      "size": "30 1/2 x 84 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:ac5cab39-64c5-4d3a-b023-504c813e21c4|7006ff17-0b8c-4483-81fb-5fb2e815bf6f",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 3,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "ac5cab39-64c5-4d3a-b023-504c813e21c4",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 27/32\" L & R)",
+        "NLB, NPH (No Doors)",
+        "FF to rabbet sides and bottom for T-filler"
+      ],
+      "number": 4,
+      "size": "30 1/2 x 2 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:7006ff17-0b8c-4483-81fb-5fb2e815bf6f|eb09cc0a-1a7a-47ca-85c0-88faa106f7df",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 5,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "eb09cc0a-1a7a-47ca-85c0-88faa106f7df",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 27/32\" L, 3/32\" R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet left side and top for T-filler"
+      ],
+      "number": 6,
+      "size": "42 x 84 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:bf4641a7-82cb-49c0-987a-1851377b8de8|eb09cc0a-1a7a-47ca-85c0-88faa106f7df",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 7,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "bf4641a7-82cb-49c0-987a-1851377b8de8",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 27/32\" L, 3/32\" R)",
+        "NLB, NPH (No Doors)",
+        "FF to rabbet left side and bottom for T-filler"
+      ],
+      "number": 8,
+      "size": "42 x 2 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "9cf5ff3d-594a-4cfa-b743-e9b86f1eae25:right",
+      "kind": "filler",
+      "notes": [],
+      "number": 9,
+      "size": "6 x 86 x 13/16"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "19f01d1c-92a2-4615-a2f6-e8e7edd2b3b1:left",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" right offset"
+      ],
+      "number": 10,
+      "size": "1 11/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "03977e7a-ff2f-47f1-8997-3e22e1aa1ec2",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 27/32\" L & R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet sides and top for T-filler"
+      ],
+      "number": 11,
+      "size": "36 1/2 x 84 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:4b6f9a4f-a32d-46e2-8c27-b13ae24d5a70|03977e7a-ff2f-47f1-8997-3e22e1aa1ec2",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 12,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "4b6f9a4f-a32d-46e2-8c27-b13ae24d5a70",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 27/32\" L & R)",
+        "NLB, NPH (No Doors)",
+        "FF to rabbet sides and bottom for T-filler"
+      ],
+      "number": 13,
+      "size": "36 1/2 x 2 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:03977e7a-ff2f-47f1-8997-3e22e1aa1ec2|3b5e5192-861c-41f2-9dfb-3979a74a1485",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 14,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "3b5e5192-861c-41f2-9dfb-3979a74a1485",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 27/32\" L & R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet sides and top for T-filler"
+      ],
+      "number": 15,
+      "size": "36 1/2 x 84 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:7a141f1c-5383-4fac-8540-814149d680f1|3b5e5192-861c-41f2-9dfb-3979a74a1485",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 16,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "7a141f1c-5383-4fac-8540-814149d680f1",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 27/32\" L & R)",
+        "NLB, NPH (No Doors)",
+        "FF to rabbet sides and bottom for T-filler"
+      ],
+      "number": 17,
+      "size": "36 1/2 x 2 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:3b5e5192-861c-41f2-9dfb-3979a74a1485|f38ba61c-cce4-4d66-9d0a-89ec43df07a9",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 18,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "f38ba61c-cce4-4d66-9d0a-89ec43df07a9",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 27/32\" L & R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet sides and top for T-filler"
+      ],
+      "number": 19,
+      "size": "36 1/2 x 84 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:012858ad-7b7a-4624-9b2b-b2782286911f|f38ba61c-cce4-4d66-9d0a-89ec43df07a9",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 20,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "012858ad-7b7a-4624-9b2b-b2782286911f",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 27/32\" L & R)",
+        "NLB, NPH (No Doors)",
+        "FF to rabbet sides and bottom for T-filler"
+      ],
+      "number": 21,
+      "size": "36 1/2 x 2 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "19f01d1c-92a2-4615-a2f6-e8e7edd2b3b1:right",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" left offset"
+      ],
+      "number": 22,
+      "size": "1 5/8 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "15ece89c-d986-45fa-acf2-cc9dc131c305:left",
+      "kind": "filler",
+      "notes": [],
+      "number": 23,
+      "size": "6 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "9c44d7d5-36ef-4e73-9119-73688ff5b788",
+      "kind": "cabinet",
+      "notes": [
+        "Door x 26 1/2\", Blind x 15 1/2\"",
+        "pt 13 1/4\" oc from R",
+        "Left Sec (6 as)",
+        "Right Sec (6 as)"
+      ],
+      "number": 24,
+      "size": "42 x 86 x 24"
+    },
+    {
+      "description": "Tall End Panel",
+      "key": "15ece89c-d986-45fa-acf2-cc9dc131c305:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 25,
+      "size": "24 7/8 x 86 x 13/16"
+    },
+    {
+      "description": "Base 1 Drawer",
+      "key": "638f0712-ab48-4e47-8b07-0e9e19fbd0be",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 12 1/8\", 21\" drw)"
+      ],
+      "number": 26,
+      "size": "27 x 12 1/2 x 23"
+    },
+    {
+      "description": "Base 1 Drawer",
+      "key": "4fc8f531-b526-46bc-a9e9-eb8b1c50d662",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 12 1/8\", 21\" drw)"
+      ],
+      "number": 27,
+      "size": "27 x 12 1/2 x 23"
+    },
+    {
+      "description": "Tall End Panel",
+      "key": "32064fcd-99dc-4edc-8b34-7e467bf6ce06:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 28,
+      "size": "24 7/8 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "71803094-61fe-4e07-9b37-367392c8b226",
+      "kind": "cabinet",
+      "notes": [
+        "Door x 26 1/2\", Blind x 15 1/2\"",
+        "pt 13 1/4\" oc from L",
+        "Left Sec (6 as)",
+        "Right Sec (6 as)"
+      ],
+      "number": 29,
+      "size": "42 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "32064fcd-99dc-4edc-8b34-7e467bf6ce06:right",
+      "kind": "filler",
+      "notes": [],
+      "number": 30,
+      "size": "6 x 86 x 13/16"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "5003c53c-83ab-4f6e-9e6f-39eef61f0f1b:left",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" right offset"
+      ],
+      "number": 31,
+      "size": "1 9/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Open",
+      "key": "80d2c934-2201-4c9c-bdeb-0433f5d15d53",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (27/32\" L & R)",
+        "NPH (No Doors)",
+        "6 as",
+        "FF to rabbet sides for T-filler"
+      ],
+      "number": 32,
+      "size": "43 1/2 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "5003c53c-83ab-4f6e-9e6f-39eef61f0f1b:right",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" left offset"
+      ],
+      "number": 33,
+      "size": "1 9/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "71ee242a-3872-4c8e-98a7-1fbf67df6828:left",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" right offset"
+      ],
+      "number": 34,
+      "size": "1 13/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "e1f59042-0e9a-4984-abee-47af5ac35777",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" L & R)",
+        "6 as",
+        "FF to rabbet sides for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 35,
+      "size": "31 1/2 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:e1f59042-0e9a-4984-abee-47af5ac35777|89b1e047-537a-4e18-a9ec-41fde78cb88f",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 36,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "89b1e047-537a-4e18-a9ec-41fde78cb88f",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" L & R)",
+        "6 as",
+        "FF to rabbet sides for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 37,
+      "size": "31 1/2 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "71ee242a-3872-4c8e-98a7-1fbf67df6828:right",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" left offset"
+      ],
+      "number": 38,
+      "size": "1 13/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "a00760c5-47f5-450a-a832-47ef819890fb:left",
+      "kind": "filler",
+      "notes": [],
+      "number": 39,
+      "size": "6 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "5155bf63-5555-4da3-b0bd-e03f1e4aaa10",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "Door x 17 13/16\", Blind x 18\"",
+        "6 as",
+        "hl"
+      ],
+      "number": 40,
+      "size": "36 x 86 x 24"
+    },
+    {
+      "description": "Shop-built Tall End Panel",
+      "key": "a00760c5-47f5-450a-a832-47ef819890fb:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 41,
+      "size": "24 7/8 x 86 x 3/4"
+    },
+    {
+      "description": "Shop-built Upper End Panel",
+      "key": "4d5eff2e-5373-49ce-9909-88313fe48fb6:left",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 42,
+      "size": "33 7/8 x 60 x 3/4"
+    },
+    {
+      "description": "Upper",
+      "key": "cbc8722e-33ba-4a10-8758-185ad2bbfea4",
+      "kind": "cabinet",
+      "notes": [
+        "4 as"
+      ],
+      "number": 43,
+      "size": "29 x 60 x 33"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "4d5eff2e-5373-49ce-9909-88313fe48fb6:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 44,
+      "size": "2 x 60 x 3 3/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 45,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

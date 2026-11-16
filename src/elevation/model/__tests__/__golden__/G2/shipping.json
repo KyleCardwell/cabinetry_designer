@@ -1,0 +1,243 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Tall End Panel",
+      "key": "a42e9a57-a98f-47f0-b6b4-9076b513db6e:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 1,
+      "size": "25 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "352bd8c0-79a1-4210-a428-cfe95038118f",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 1 3/8\" (with supports)",
+        "RV's (1\" T)",
+        "4 as"
+      ],
+      "number": 2,
+      "size": "24 1/2 x 64 x 25"
+    },
+    {
+      "description": "Tall",
+      "key": "3e5f512e-1e43-4f30-85c4-b74b1936fb7d",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 5/8\" (with supports)",
+        "RV's (1\" B)",
+        "NLB"
+      ],
+      "number": 3,
+      "size": "24 1/2 x 22 x 25"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:352bd8c0-79a1-4210-a428-cfe95038118f",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "1 13/16\" left stile (mitered to 13/16\" end panel)"
+      ],
+      "number": 4,
+      "size": "26 9/16 x 86 x 13/16"
+    },
+    {
+      "description": "Shop-built Tall End Panel",
+      "key": "a42e9a57-a98f-47f0-b6b4-9076b513db6e:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 5,
+      "size": "25 x 86 x 3/4"
+    },
+    {
+      "description": "Shop-built Base End Panel",
+      "key": "860a1197-d14f-4fc2-9499-2d44cd1d8fa3:left",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 6,
+      "size": "24 x 30 1/2 x 3/4"
+    },
+    {
+      "description": "Base",
+      "key": "b736ca24-6df8-41d5-88bc-416dbd85eab3",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 7,
+      "size": "34 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "50803545-180e-4af0-b612-1a8922d48d09",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 8,
+      "size": "34 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:b736ca24-6df8-41d5-88bc-416dbd85eab3",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "1 15/16\" right stile (filler)"
+      ],
+      "number": 9,
+      "size": "70 11/16 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Upper",
+      "key": "2db19921-bc7f-4f28-9610-0d0f46729a46",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 5/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 10,
+      "size": "30 1/2 x 35 1/4 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "e69051ee-c269-47b0-922b-a5002e6a5faf",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 5/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 11,
+      "size": "30 1/2 x 35 1/4 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "81539d21-3eb7-4559-9470-c041ff1f5812",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 5/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 12,
+      "size": "30 1/2 x 35 1/4 x 12"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:2db19921-bc7f-4f28-9610-0d0f46729a46",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "2 3/4\" right stile (filler)"
+      ],
+      "number": 13,
+      "size": "95 1/2 x 36 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "752f94f7-6834-4231-b33c-3bd0c8ce3b2d",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 14,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "c2ea1db1-c507-4093-b962-3cbbc6769df7",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 15,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:752f94f7-6834-4231-b33c-3bd0c8ce3b2d",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "2 11/16\" left stile (corner lap)",
+        "1 13/16\" right stile (mitered to 13/16\" end panel)"
+      ],
+      "number": 16,
+      "size": "54 1/2 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base Back Panel",
+      "key": "ec0ad482-c6b9-4d8a-9d94-4e785ade9129",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 17,
+      "size": "78 1/2 x 30 1/2 x 3/4"
+    },
+    {
+      "description": "Wall End Panel",
+      "key": "64da569f-6c94-408d-809a-37c6e1f9755f:endPanel:end",
+      "kind": "wall_end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 18,
+      "size": "13/16 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 19,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 20,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 21,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

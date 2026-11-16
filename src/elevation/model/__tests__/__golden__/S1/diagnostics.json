@@ -1,0 +1,48 @@
+{
+  "30580003-5747-40b6-8495-50e172644bbb": {
+    "errors": [
+      {
+        "code": "does-not-fill"
+      }
+    ],
+    "warnings": []
+  },
+  "40329765-e7e2-4751-8978-62a487f05657": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "widths-not-rounded",
+        "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+        "pieceId": "c16de5d5-e162-46ce-973d-e1d705fe71c3"
+      }
+    ]
+  },
+  "4254454f-e4a3-47e8-8ef4-ac465099a094": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "corner-return-end",
+        "message": "A run dying into a corner cabinet takes a filler or nothing at that end.",
+        "side": "right"
+      }
+    ]
+  },
+  "a144cea9-3851-4828-97fe-0e93bfe62a08": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "7881344d-63bd-4029-ad44-a71a9d72578a"
+      }
+    ]
+  },
+  "ccaa9395-f3d3-4076-b1e6-ac5ec8d86a5a": {
+    "errors": [],
+    "warnings": []
+  },
+  "fa801266-189a-4f40-a1fa-10cb1a24f6c5": {
+    "errors": [],
+    "warnings": []
+  }
+}

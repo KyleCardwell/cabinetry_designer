@@ -1,0 +1,227 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Tall Filler",
+      "key": "4254454f-e4a3-47e8-8ef4-ac465099a094:left",
+      "kind": "filler",
+      "notes": [],
+      "number": 1,
+      "size": "4 x 102 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "def96f42-4938-4201-8bb0-2b15e034abcc",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (1/8\" OH B)",
+        "1 as"
+      ],
+      "number": 2,
+      "size": "36 x 30 x 26"
+    },
+    {
+      "description": "Shop-built Tall End Panel",
+      "key": "4254454f-e4a3-47e8-8ef4-ac465099a094:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 3,
+      "size": "26 7/8 x 98 x 3/4"
+    },
+    {
+      "description": "Base",
+      "key": "5a5fb61b-8fef-4756-8272-830d61b6439d",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 4,
+      "size": "35 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "ccaa9395-f3d3-4076-b1e6-ac5ec8d86a5a:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 5,
+      "size": "2 11/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "c16de5d5-e162-46ce-973d-e1d705fe71c3",
+      "kind": "cabinet",
+      "notes": [
+        "3 as",
+        "hl"
+      ],
+      "number": 6,
+      "size": "18 7/8 x 48 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "0ae7b290-8bf2-45c5-ae30-a477b318e35f",
+      "kind": "cabinet",
+      "notes": [
+        "3 as",
+        "hr"
+      ],
+      "number": 7,
+      "size": "18 7/8 x 48 x 12"
+    },
+    {
+      "description": "Base Filler",
+      "key": "a144cea9-3851-4828-97fe-0e93bfe62a08:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 8,
+      "size": "2 1/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "91b7e4ee-77f6-4244-8103-ce7eac75f8f0",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 2 - 12\", 21\" drws)"
+      ],
+      "number": 9,
+      "size": "17 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "7881344d-63bd-4029-ad44-a71a9d72578a",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 2 - 12\", 21\" drws)",
+        "drawer stabilizers"
+      ],
+      "number": 10,
+      "size": "53 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Corner 45",
+      "key": "b0505231-35e6-4630-8a1e-e9b2181d443c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "24\" L & R sides",
+        "RV's (1/8\" L & R)",
+        "door x 15 9/16\" wide",
+        "1 as",
+        "hl"
+      ],
+      "number": 11,
+      "size": "36 x 30 1/2 x 36"
+    },
+    {
+      "description": "Upper Corner 45",
+      "key": "a72f41f6-a4ab-4c0e-a91f-8b9d98590429",
+      "kind": "cabinet",
+      "notes": [
+        "12\" L & R sides",
+        "RV's (1/8\" L & R)",
+        "door x 15 9/16\" wide",
+        "3 as",
+        "hr"
+      ],
+      "number": 12,
+      "size": "24 x 48 x 24"
+    },
+    {
+      "description": "Shop-built Upper Side Panel",
+      "key": "9cac2af0-d263-418c-af07-bffe64548bd6",
+      "kind": "panel",
+      "notes": [],
+      "number": 13,
+      "size": "12 7/8 x 48 x 3/4"
+    },
+    {
+      "description": "Upper Back Panel",
+      "key": "de8680d7-d74c-4c0c-bbfa-aed5a21bbc3a",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 14,
+      "size": "42 x 24 x 13/16"
+    },
+    {
+      "description": "Shop-built Upper Side Panel",
+      "key": "e840f92e-041d-49fe-b378-f3809f3b7a43",
+      "kind": "panel",
+      "notes": [],
+      "number": 15,
+      "size": "12 7/8 x 48 x 3/4"
+    },
+    {
+      "description": "Upper",
+      "key": "24bd1619-02e7-4f10-8723-e3f078669ec0",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "3 as",
+        "hr"
+      ],
+      "number": 16,
+      "size": "9 1/2 x 48 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "30580003-5747-40b6-8495-50e172644bbb:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 17,
+      "size": "12 7/8 x 48 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "251df567-cf33-45f3-bf83-b8f66e2a8536",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hr"
+      ],
+      "number": 18,
+      "size": "12 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "fa801266-189a-4f40-a1fa-10cb1a24f6c5:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 19,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 20,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

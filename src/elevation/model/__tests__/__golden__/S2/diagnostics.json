@@ -1,0 +1,64 @@
+{
+  "15ece89c-d986-45fa-acf2-cc9dc131c305": {
+    "errors": [],
+    "warnings": []
+  },
+  "19f01d1c-92a2-4615-a2f6-e8e7edd2b3b1": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "93f2fe1c-99b5-48ec-ad3f-d05425e4f8d7"
+      },
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "891a23fb-f1a5-498e-9bde-adf8d7030ca5"
+      },
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "638d1749-44b7-4b06-9512-705f003f4b75"
+      }
+    ]
+  },
+  "32064fcd-99dc-4edc-8b34-7e467bf6ce06": {
+    "errors": [],
+    "warnings": []
+  },
+  "4d5eff2e-5373-49ce-9909-88313fe48fb6": {
+    "errors": [
+      {
+        "code": "out-of-bounds"
+      }
+    ],
+    "warnings": []
+  },
+  "5003c53c-83ab-4f6e-9e6f-39eef61f0f1b": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "80d2c934-2201-4c9c-bdeb-0433f5d15d53"
+      }
+    ]
+  },
+  "71ee242a-3872-4c8e-98a7-1fbf67df6828": {
+    "errors": [],
+    "warnings": []
+  },
+  "9cf5ff3d-594a-4cfa-b743-e9b86f1eae25": {
+    "errors": [],
+    "warnings": []
+  },
+  "a00760c5-47f5-450a-a832-47ef819890fb": {
+    "errors": [],
+    "warnings": []
+  },
+  "d86cf4c8-f075-4d1f-85b5-7d27c7c5953f": {
+    "errors": [],
+    "warnings": []
+  }
+}

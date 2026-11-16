@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "doorOrderLines": 5,
+    "errors": 0,
+    "parts": 12,
+    "proBoxLines": 0,
+    "shippingRows": 13,
+    "warnings": 0
+  },
+  "elevations": [
+    {
+      "partKinds": {
+        "cabinet": 4,
+        "crown": 1,
+        "end_panel": 1,
+        "face": 8,
+        "filler": 4,
+        "toe_kick": 1,
+        "top_mold": 1
+      },
+      "side": "front",
+      "wallId": "4ccc3115-c472-46c3-a85d-e6ef528b0533"
+    }
+  ],
+  "planPartKinds": {
+    "cabinet": 4,
+    "end_panel": 2,
+    "face": 6,
+    "filler": 6,
+    "wall": 2
+  }
+}
