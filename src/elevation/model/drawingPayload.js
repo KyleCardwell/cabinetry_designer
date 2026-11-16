@@ -194,6 +194,18 @@ function facePayload(room, wall, side, key, letter, settings, options) {
   };
 }
 
+/** Letter-ordered faces shared by the drawing payload and room part list. */
+export function* drawingElevationFaces(room) {
+  for (const [key, letter] of elevationLetters(room)) {
+    const wall = room.walls.find((candidate) => WALL_SIDES.some(
+      (side) => elevationKey(candidate.id, side) === key,
+    ));
+    const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
+    const combined = combinedViewOf(room, wall.id, side);
+    yield { key, letter, wall, side, combined };
+  }
+}
+
 /**
  * What geometry draws for one room (SPEC-40, payload v1): one elevation per lettered wall face, in
  * letter order. Takes a synced room (every room in the store is). Round 40 carries each face's
@@ -206,12 +218,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
 export function toDrawingPayload(room, settings, { revision } = {}) {
   return withBuildCache(() => {
     const shapes = planShapes(room, settings);
-    const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
-      const wall = room.walls.find((candidate) => WALL_SIDES.some(
-        (side) => elevationKey(candidate.id, side) === key,
-      ));
-      const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
-      const combined = combinedViewOf(room, wall.id, side);
+    const elevations = Array.from(drawingElevationFaces(room), ({ key, letter, wall, side, combined }) => {
       if (combined) {
         return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
           facePayload(room, faceWall, faceSide, key, letter, settings, options));
