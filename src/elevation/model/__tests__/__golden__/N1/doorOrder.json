@@ -1,0 +1,355 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails - No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "panelProfile": "FLAT",
+        "style": "110",
+        "thickness": "13/16\"",
+        "vendor": "STILLWATER",
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "drawer_fronts",
+          "lines": [
+            {
+              "height": 12,
+              "notes": "",
+              "number": 7,
+              "qty": 2,
+              "size": "14 7/8 x 12",
+              "width": 14.875
+            },
+            {
+              "height": 5.875,
+              "notes": "1 7/8\" TR & BR",
+              "number": 7,
+              "qty": 1,
+              "size": "14 7/8 x 5 7/8",
+              "width": 14.875
+            },
+            {
+              "height": 12,
+              "notes": "",
+              "number": 18,
+              "qty": 2,
+              "size": "23 7/8 x 12",
+              "width": 23.875
+            },
+            {
+              "height": 5.875,
+              "notes": "1 7/8\" TR & BR",
+              "number": 18,
+              "qty": 1,
+              "size": "23 7/8 x 5 7/8",
+              "width": 23.875
+            },
+            {
+              "height": 12,
+              "notes": "",
+              "number": 30,
+              "qty": 1,
+              "size": "29 7/8 x 12",
+              "width": 29.875
+            },
+            {
+              "height": 12,
+              "notes": "",
+              "number": 36,
+              "qty": 2,
+              "size": "22 3/8 x 12",
+              "width": 22.375
+            },
+            {
+              "height": 6,
+              "notes": "1 15/16\" TR & BR",
+              "number": 36,
+              "qty": 1,
+              "size": "22 3/8 x 6",
+              "width": 22.375
+            },
+            {
+              "height": 12,
+              "notes": "",
+              "number": 37,
+              "qty": 2,
+              "size": "22 3/8 x 12",
+              "width": 22.375
+            },
+            {
+              "height": 6,
+              "notes": "1 15/16\" TR & BR",
+              "number": 37,
+              "qty": 1,
+              "size": "22 3/8 x 6",
+              "width": 22.375
+            }
+          ],
+          "title": "Drawer Fronts"
+        }
+      ],
+      "styleId": "default",
+      "type": "drawer_fronts"
+    },
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails - No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "panelProfile": "FLAT",
+        "style": "110",
+        "thickness": "13/16\"",
+        "vendor": "STILLWATER",
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 1,
+              "qty": 2,
+              "size": "10 15/16 x 30 1/8",
+              "width": 10.9375
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 2,
+              "qty": 1,
+              "size": "8 7/8 x 30 1/8",
+              "width": 8.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 3,
+              "qty": 2,
+              "size": "14 7/8 x 30 1/8",
+              "width": 14.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 4,
+              "qty": 1,
+              "size": "17 7/8 x 30 1/8",
+              "width": 17.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 8,
+              "qty": 1,
+              "size": "15 9/16 x 30 1/8",
+              "width": 15.5625
+            },
+            {
+              "height": 34.5,
+              "notes": "",
+              "number": 10,
+              "qty": 2,
+              "size": "13 3/8 x 34 1/2",
+              "width": 13.375
+            },
+            {
+              "height": 34.5,
+              "notes": "",
+              "number": 11,
+              "qty": 2,
+              "size": "13 3/8 x 34 1/2",
+              "width": 13.375
+            },
+            {
+              "height": 34.625,
+              "notes": "do not sand edges",
+              "number": 12,
+              "qty": 1,
+              "size": "12 7/8 x 34 5/8",
+              "width": 12.875
+            },
+            {
+              "height": 36.125,
+              "notes": "do not sand edges",
+              "number": 13,
+              "qty": 1,
+              "size": "12 7/8 x 36 1/8",
+              "width": 12.875
+            },
+            {
+              "height": 36,
+              "notes": "sash panel (glass)",
+              "number": 14,
+              "qty": 2,
+              "size": "15 7/8 x 36",
+              "width": 15.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 15,
+              "qty": 1,
+              "size": "15 9/16 x 36",
+              "width": 15.5625
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 16,
+              "qty": 1,
+              "size": "23 15/16 x 30 1/8",
+              "width": 23.9375
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 17,
+              "qty": 1,
+              "size": "24 7/8 x 30 1/2",
+              "width": 24.875
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 19,
+              "qty": 1,
+              "size": "24 7/8 x 30 1/2",
+              "width": 24.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 21,
+              "qty": 2,
+              "size": "14 7/8 x 36",
+              "width": 14.875
+            },
+            {
+              "height": 36.125,
+              "notes": "do not sand edges",
+              "number": 22,
+              "qty": 1,
+              "size": "12 7/8 x 36 1/8",
+              "width": 12.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 23,
+              "qty": 1,
+              "size": "17 13/16 x 36",
+              "width": 17.8125
+            },
+            {
+              "height": 36.125,
+              "notes": "do not sand edges",
+              "number": 24,
+              "qty": 1,
+              "size": "12 7/8 x 36 1/8",
+              "width": 12.875
+            },
+            {
+              "height": 85.75,
+              "notes": "",
+              "number": 27,
+              "qty": 1,
+              "size": "23 7/8 x 85 3/4",
+              "width": 23.875
+            },
+            {
+              "height": 85.75,
+              "notes": "",
+              "number": 28,
+              "qty": 1,
+              "size": "23 7/8 x 85 3/4",
+              "width": 23.875
+            },
+            {
+              "height": 18,
+              "notes": "",
+              "number": 29,
+              "qty": 2,
+              "size": "14 7/8 x 18",
+              "width": 14.875
+            },
+            {
+              "height": 36.75,
+              "notes": "",
+              "number": 30,
+              "qty": 2,
+              "size": "14 7/8 x 36 3/4",
+              "width": 14.875
+            },
+            {
+              "height": 86,
+              "notes": "do not sand edges",
+              "number": 31,
+              "qty": 1,
+              "size": "25 7/8 x 86",
+              "width": 25.875
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 32,
+              "qty": 1,
+              "size": "24 7/8 x 30 1/2",
+              "width": 24.875
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 33,
+              "qty": 2,
+              "size": "15 3/8 x 30 1/8",
+              "width": 15.375
+            },
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 34,
+              "qty": 2,
+              "size": "15 3/8 x 30 1/8",
+              "width": 15.375
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 35,
+              "qty": 1,
+              "size": "24 7/8 x 30 1/2",
+              "width": 24.875
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges - 3\" MS 13 1/2\" oc from left - 3\" MS 33 1/8\" oc from left",
+              "number": 38,
+              "qty": 1,
+              "size": "46 5/8 x 30 1/2",
+              "width": 46.625
+            },
+            {
+              "height": 34.5,
+              "notes": "do not sand edges",
+              "number": 40,
+              "qty": 1,
+              "size": "13/16 x 34 1/2",
+              "width": 0.8125
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

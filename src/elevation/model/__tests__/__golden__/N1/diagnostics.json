@@ -1,0 +1,61 @@
+{
+  "1dd86015-ceda-42cd-b1bc-15da5a7d7389": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "overhang",
+        "left": 0.1875,
+        "right": 0
+      }
+    ]
+  },
+  "383587d4-58b4-48b8-a7c5-86ceff8994e7": {
+    "errors": [],
+    "warnings": []
+  },
+  "64def3b8-625b-4db9-a040-f11e407a36bd": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "widths-not-rounded",
+        "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+        "pieceId": "8153f75d-cec6-4810-8399-b87b67672212"
+      },
+      {
+        "code": "widths-not-rounded",
+        "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+        "pieceId": "9c55a7f8-ec7e-4ab7-89b7-c8dca90554a2"
+      }
+    ]
+  },
+  "797570c3-51df-4e5e-8918-b23f16e5bc86": {
+    "errors": [],
+    "warnings": []
+  },
+  "9f141e5b-1477-49d2-a43a-c98453942f76": {
+    "errors": [],
+    "warnings": []
+  },
+  "b08bce23-683d-4603-b4d6-1a2ef05548f0": {
+    "errors": [],
+    "warnings": []
+  },
+  "b8ef9fc0-298f-4d36-a109-8a0f8f0d5cb0": {
+    "errors": [],
+    "warnings": []
+  },
+  "c563f110-7776-4741-ae87-8ed9ad0fccc0": {
+    "errors": [],
+    "warnings": []
+  },
+  "eb5f40b0-cf2c-4167-91bf-6be8041d66d2": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "overhang",
+        "left": 0,
+        "right": 0.1875
+      }
+    ]
+  }
+}

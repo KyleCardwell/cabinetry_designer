@@ -1,0 +1,76 @@
+{
+  "counts": {
+    "doorOrderLines": 20,
+    "errors": 0,
+    "parts": 24,
+    "proBoxLines": 5,
+    "shippingRows": 25,
+    "warnings": 1
+  },
+  "elevations": [
+    {
+      "partKinds": {
+        "cabinet": 6,
+        "countertop": 2,
+        "end_panel": 5,
+        "face": 8,
+        "light_rail": 1,
+        "profile": 2,
+        "soffit": 1,
+        "toe_kick": 2
+      },
+      "side": "front",
+      "wallId": "d4b68f80-997b-473f-80d9-82c8ec473916"
+    },
+    {
+      "partKinds": {
+        "cabinet": 1,
+        "countertop": 3,
+        "end_panel": 4,
+        "face": 2,
+        "profile": 6,
+        "section": 1,
+        "toe_kick": 3
+      },
+      "side": "front",
+      "wallId": "1ef55b05-c89b-4e88-b464-70f2c010b693"
+    },
+    {
+      "partKinds": {
+        "cabinet": 4,
+        "countertop": 3,
+        "end_panel": 3,
+        "face": 6,
+        "filler": 2,
+        "panel": 1,
+        "profile": 2,
+        "toe_kick": 3,
+        "wing_wall": 1
+      },
+      "side": "front",
+      "wallId": "c97e638b-c2fe-40af-adeb-74d65b73cfd5"
+    },
+    {
+      "partKinds": {
+        "cabinet": 1,
+        "face": 1,
+        "frame": 1,
+        "recess": 1,
+        "section": 1
+      },
+      "side": "front",
+      "wallId": "153da662-d09f-4000-a5dd-bf3447cc2aa8"
+    }
+  ],
+  "planPartKinds": {
+    "cabinet": 12,
+    "countertop": 4,
+    "end_panel": 8,
+    "face": 13,
+    "filler": 4,
+    "frame": 1,
+    "recess": 3,
+    "soffit": 1,
+    "wall": 9
+  }
+}

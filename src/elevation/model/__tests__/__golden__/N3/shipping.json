@@ -1,0 +1,271 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Base End Panel",
+      "key": "18987cbe-0019-4d91-a3c2-b027e2bebfb0:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 1,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base 2 Drawers",
+      "key": "7db46102-9f69-446f-9002-4553a28de95e",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (2 - 15\" (Accuride 3832), 22\" drws)"
+      ],
+      "number": 2,
+      "size": "19 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "ec63139d-0099-412e-8a36-2b122087a2e0",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "pull-out"
+      ],
+      "number": 3,
+      "size": "19 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "c4a645e5-7a0c-497b-ace8-f0ecf926e916",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 1 - 12\" (Accuride 3832, 22\" deep), 1 - 12\", 21\" drws)"
+      ],
+      "number": 4,
+      "size": "19 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "18987cbe-0019-4d91-a3c2-b027e2bebfb0:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 5,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "43e9e27f-b268-4466-83c5-b8889c54f6c3:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 6,
+      "size": "12 7/8 x 28 1/2 x 13/16"
+    },
+    {
+      "description": "Upper",
+      "key": "bfbac5fe-c42c-48fa-81ac-70a18a20703a",
+      "kind": "cabinet",
+      "notes": [
+        "1 as",
+        "hl"
+      ],
+      "number": 7,
+      "size": "17 x 28 1/2 x 12"
+    },
+    {
+      "description": "Upper Open",
+      "key": "f0fcc5b7-54ec-4d7d-8788-9af8fe6a2b60",
+      "kind": "cabinet",
+      "notes": [
+        "NPH (No Doors)",
+        "2 as"
+      ],
+      "number": 8,
+      "size": "24 x 28 1/2 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "e61ed4f6-7591-4055-9a32-12ff305c552b",
+      "kind": "cabinet",
+      "notes": [
+        "1 as",
+        "hr"
+      ],
+      "number": 9,
+      "size": "17 x 28 1/2 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "43e9e27f-b268-4466-83c5-b8889c54f6c3:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 10,
+      "size": "12 7/8 x 28 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "ee8399d7-7942-4e91-83b4-77e0d74e4ff5:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 11,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "ed81c0b1-bafa-441d-a58c-d5ee1f7b7484",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 12,
+      "size": "34 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "ee8399d7-7942-4e91-83b4-77e0d74e4ff5:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 13,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "1ef964a5-fda0-4930-a5ad-7d228434674a:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 14,
+      "size": "24 7/8 x 21 3/4 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "5168a9a1-d296-456c-9b9b-4b8738522b6c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (7/8\" OH B)",
+        "NLB"
+      ],
+      "number": 15,
+      "size": "29 x 21 3/4 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "2f8234b2-f574-4a0b-bbc6-65d7c03066ee",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (7/8\" OH B)",
+        "NLB"
+      ],
+      "number": 16,
+      "size": "29 x 21 3/4 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "1ef964a5-fda0-4930-a5ad-7d228434674a:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 7/8\""
+      ],
+      "number": 17,
+      "size": "2 3/16 x 21 3/4 x 3 3/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "c59714dd-8db1-4fe5-b3d6-0387ca3caf20:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 18,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "a7207a24-3c1f-4ab2-a467-546079bb5075",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hl"
+      ],
+      "number": 19,
+      "size": "20 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "f3dfd241-110c-4e03-a0d1-309fbb742a50",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hr"
+      ],
+      "number": 20,
+      "size": "20 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "c59714dd-8db1-4fe5-b3d6-0387ca3caf20:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 21,
+      "size": "2 3/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "4ac8d3b7-44f9-42ca-a1bc-4257b2297aab",
+      "kind": "cabinet",
+      "notes": [
+        "INSET FACE FRAME BOX",
+        "3 as",
+        "hl"
+      ],
+      "number": 22,
+      "size": "17 1/2 x 48 1/2 x 5"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:4ac8d3b7-44f9-42ca-a1bc-4257b2297aab",
+      "kind": "frame",
+      "notes": [],
+      "number": 23,
+      "size": "19 x 49 1/4 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 24,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}
