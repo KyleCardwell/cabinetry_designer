@@ -20,7 +20,8 @@ const EPSILON = 1e-6;
 /**
  * The wall's own things on one face as geometry draws them (SPEC-42.1): wall end panels, then each door
  * or window (its casing, then its opening), then soffits, recesses and projections, then wing walls.
- * Only wall end panels hide what's behind them; the rest are outlines (`opaque: false`). None has a run.
+ * Wall end panels, soffits, projections and wing walls hide what's behind them; casings, openings,
+ * recesses and panel returns are outlines (`opaque: false`, GC4). None has a run.
  * `soffitJoins` adds a combined elevation's soffit joins on this face (Kyle 2026-10-23).
  */
 export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {}) {
@@ -83,10 +84,13 @@ export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {})
   for (const soffit of soffitsOn(view)) {
     const flush = soffitFlushSides(room, view, soffit);
     const rect = { x: soffit.x, z: soffit.bottom, width: soffit.width, height: view.height - soffit.bottom };
-    outline(soffit.id, 'soffit', rect, 0, soffit.depth, openSides(
-      joinedSides(rect, soffitJoinsBySide(joins, soffit, flush)),
-      ['left', 'right'].filter((edge) => flush[edge]),
-    ));
+    outline(soffit.id, 'soffit', rect, 0, soffit.depth, {
+      opaque: true,
+      ...openSides(
+        joinedSides(rect, soffitJoinsBySide(joins, soffit, flush)),
+        ['left', 'right'].filter((edge) => flush[edge]),
+      ),
+    });
   }
 
   for (const recess of recessesOn(view)) {
@@ -95,7 +99,7 @@ export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {})
     if (geometry.plane < 0) outline(recess.id, 'recess', rect, geometry.plane, 0);
     else {
       outline(recess.id, 'projection', rect, 0, geometry.plane,
-        openSides(joinedSides(rect, projectionJoinsBySide(joins, recess.id))));
+        { opaque: true, ...openSides(joinedSides(rect, projectionJoinsBySide(joins, recess.id))) });
     }
   }
 
@@ -108,6 +112,7 @@ export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {})
       ?.bottom ?? landed.height;
     outline(wallId, 'wing_wall', { x: a, z: 0, width: b - a, height: landed.height },
       0, landingProjection(room, view, wallId) ?? 0, {
+        opaque: true,
         openEdges: ['left', 'right'],
         lines: [a, b].map((x) => ({ x1: x, z1: 0, x2: x, z2: sideTop(x) })),
       });

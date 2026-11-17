@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { wallParts } from '../wallParts.js';
 import { syncRoom } from '../room.js';
+import { landWallEnd } from '../landings.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
+import { wall as buildWall, room as buildRoom, opening } from '../../../test/builders.js';
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
@@ -18,6 +20,36 @@ const ISLAND = '84063fed-ab0d-4a1d-ae05-ffe67decad5e';
 const PENINSULA = '64da569f-6c94-408d-809a-37c6e1f9755f';
 
 describe('SPEC-42.1 wall parts', () => {
+  it.each([
+    ['soffit', true],
+    ['projection', true],
+    ['wing_wall', true],
+    ['recess', false],
+    ['opening', false],
+    ['casing', false],
+  ])('sets %s opacity to %s (GC4)', (kind, opaque) => {
+    const built = buildRoom({ walls: [
+      buildWall({
+        soffits: [{ id: 'soffit', wallSide: 'front', x: 0, width: 24, bottom: 84, depth: 12 }],
+        recesses: [
+          {
+            id: 'projection', kind: 'projection', wallSide: 'front',
+            offset: 24, width: 12, bottom: 0, height: null, depth: 12,
+          },
+          {
+            id: 'recess', kind: 'recess', wallSide: 'front',
+            offset: 42, width: 12, bottom: 0, height: null, depth: 12,
+          },
+        ],
+        openings: [opening({ kind: 'window', offset: 66, width: 24, height: 36, sillZ: 42 })],
+      }),
+      buildWall({ id: 'wing', x1: 120, y1: 0, x2: 120, y2: 30 }),
+    ] });
+    const landed = landWallEnd(built, 'wing', 'start', { wallId: 'wall-1', side: 'front', x: 120 });
+    const parts = partsOf(syncRoom(landed, settings), 0);
+    expect(parts.filter((part) => part.kind === kind).map((part) => part.opaque)).toEqual([opaque]);
+  });
+
   it('draws an island\'s wall end panels through the wall, as deep as the runs on this side', () => {
     const g1 = room('G1 Euro kitchen');
     expect(partsOf(g1, 3).map(row)).toEqual([
@@ -68,11 +100,11 @@ describe('SPEC-42.1 wall parts', () => {
     expect(partsOf(room('G3 Bath alcove'), 1)).toEqual([
       {
         id: soffit, kind: 'soffit', x: 0, z: 84, width: 72, height: 12,
-        back: 0, front: 14, coversBoxEdges: false, opaque: false,
+        back: 0, front: 14, coversBoxEdges: false, opaque: true,
       },
       {
         id: wing, kind: 'wing_wall', x: 72, z: 0, width: 4.5, height: 96,
-        back: 0, front: 30, coversBoxEdges: false, opaque: false,
+        back: 0, front: 30, coversBoxEdges: false, opaque: true,
         openEdges: ['left', 'right'],
         lines: [{ x1: 72, z1: 0, x2: 72, z2: 96 }, { x1: 76.5, z1: 0, x2: 76.5, z2: 96 }],
       },
