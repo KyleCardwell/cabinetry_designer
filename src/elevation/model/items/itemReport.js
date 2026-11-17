@@ -1,7 +1,10 @@
 import { bandItems } from './bandItems.js';
+import { drawerItems } from './drawerItems.js';
+import { legItems } from './legItems.js';
+import { wallPanelItems } from './wallPanelItems.js';
 
 const producers = new Map();
-for (const producer of [bandItems]) {
+for (const producer of [bandItems, legItems, wallPanelItems, drawerItems]) {
   for (const kind of producer.kinds) {
     if (producers.has(kind)) throw new Error(`Duplicate item producer kind: ${kind}`);
     producers.set(kind, producer);

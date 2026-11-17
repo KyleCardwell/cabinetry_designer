@@ -14,7 +14,7 @@ import { wallLength } from '../elevation/model/geometry.js';
 import { runLegs } from '../elevation/model/legs.js';
 import { runLegFills } from '../elevation/model/legFills.js';
 import {
-  isJoinedEnd, isSheetCell, runEndThickness, wallPanelThickness,
+  isJoinedEnd, isSheetCell, runEndThickness,
 } from '../elevation/model/panelThickness.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
 import { fillerOrderedDepth, fillerReturnDepth, runFillerThickness } from '../elevation/model/planPieces.js';
@@ -212,13 +212,7 @@ function describePart(part, context) {
       break;
     }
     case 'shelf': description = 'Floating Shelf'; break;
-    case 'leg': description = context.leg.leg.height === 'feet' ? 'Foot' : 'Leg'; break;
-    case 'leg_panel': description = `${type} End Panel`; break;
-    case 'leg_filler': description = `${type} Filler`; break;
-    case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = context.cornerFrame ? `Corner ${context.cornerFrame.kind} Face Frame` : 'Face Frame'; break;
-    case 'rot': description = 'ROT Drawer Box'; break;
-    case 'trash_lid': description = 'Trash Lid'; break;
   }
   return description;
 }
@@ -238,27 +232,7 @@ function shippingSize(part, context, { room, settings }) {
     const { diagonal, frame } = context.cornerFrame;
     return diagonal ? formatSize(diagonal.frontWidth, frame.height, frame.thickness) : '';
   }
-  if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
-    const { depth, bounds, thickness, orderedDepth, returns, returnDepth } = context.fill;
-    return part.kind === 'leg_filler' ? formatSize(bounds.width, bounds.height, orderedDepth)
-      : formatSize(depth, bounds.height, returns?.length ? returnDepth : thickness);
-  }
-  if (part.kind === 'leg') {
-    const { w, h, d } = context.leg.size;
-    return formatSize(w, h, d);
-  }
-  if (part.kind === 'rot' || part.kind === 'trash_lid') {
-    const box = context.drawerBox?.();
-    if (!box || ![box.width, box.height, box.depth].every(Number.isFinite)) return '';
-    return part.kind === 'rot' ? formatSize(box.width, box.height, box.depth)
-      : formatSize(box.width, box.depth, sheetThickness(settings));
-  }
-  const { wall, run, scene, piece, end, blindPanel, style, endpoint } = context;
-  if (part.kind === 'wall_end_panel') {
-    const width = context.fit.hi === undefined ? part.width : context.fit.hi - context.fit.lo;
-    return formatSize(width, part.height, context.fit.returns?.length ? context.fit.returnDepth
-      : orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
-  }
+  const { wall, run, scene, piece, end, blindPanel, style } = context;
   // End parts retain box heights in the numbered list; order the extra open-below overhang too.
   const openDrop = piece && end && !piece.inside && ['filler', 'end_panel'].includes(part.kind)
     ? openBelowDrops(room, run, scene.cells, settings)(piece) : 0;
@@ -415,22 +389,11 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     const { returnSide } = cornerEnd(room, wall, run, cornerFrame.side, settings, scene.result);
     return { 10: cornerFrameNotes(cornerFrame, returnSide) };
   }
-  const { run, scene, piece, shapeNotes, style, wall, end, endpoint } = context;
+  const { run, scene, piece, shapeNotes, style, wall, end } = context;
   const groups = {};
-  if (part.kind === 'rot') {
-    const box = context.drawerBox?.();
-    if (box) groups[4.5] = [...box.notes,
-      box.slideId !== resolveSlide(settings).id ? box.slide.name : null];
-  }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
   if (part.source === 'corner_return') {
     groups[9] = endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
-  } else if (part.kind === 'leg_panel' || part.kind === 'wall_end_panel') {
-    const count = (part.kind === 'leg_panel' ? context.fill.returns : context.fit.returns)?.length ?? 0;
-    groups[8] = count === 2 ? 'C-shape' : count === 1 ? 'L-shape' : null;
-  } else if (part.kind === 'leg_filler') {
-    const { orderedDepth, thickness } = context.fill;
-    groups[8] = orderedDepth > thickness ? 'L-shape' : null;
   } else if (['filler', 'end_panel'].includes(part.kind)) {
     const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
     const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];
@@ -466,7 +429,6 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   if (style && style.id !== 'sheet') {
     let drawn;
     if (part.source === 'corner_return') drawn = context.corner.returnSide.width;
-    else if (part.kind === 'wall_end_panel') drawn = wallPanelThickness(room, wall, settings)[endpoint];
     else if (part.kind === 'end_panel' || context.blindPanel) drawn = runEndThickness(room, wall, run, settings)[end];
     else if (part.kind === 'panel') {
       const orientation = panelOrientation(piece);
