@@ -10,6 +10,7 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { followInset } from './extensions.js';
+import { frameStandards } from './frameStandards.js';
 import { runBlind } from './grid.js';
 import {
   isFollowAnchor,
@@ -52,6 +53,10 @@ export function endMinWidthsForRun(room, wall, run, settings) {
   const inset = isInsetStyle(style);
   // A face frame's whole stile clears the corner, box-to-opening included (SPEC-36.1).
   const frameReveal = inset ? styleReveals(style, run.cabinetTypeId, settings).left + (run._frame?.bead ?? 0) : 0;
+  // Kyle (N2): an inset end stile is never under its standard (1 3/4" beaded), even when the corner allows less.
+  const standardFiller = inset
+    ? frameStandards(settings.insetFrame, run._frame?.bead ?? 0)['left-stile'] - frameReveal
+    : 0;
   // So does a Euro T end's flat: the filler is the cover narrower (SPEC-37.1).
   const teeCover = (side) => (!inset && run.ends?.[side]?.type === 'filler' && endCoverOn(run, side)
     ? settings.teeCover
@@ -62,7 +67,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
     return [
       side,
       corner.anchored && corner.type === 'inside'
-        ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal - teeCover(side))
+        ? Math.max(0, standardFiller, cornerFillerMin(settings, corner.angle) - frameReveal - teeCover(side))
           + cornerReserveParts(room, wall, side, run, settings).lap
         : settings.fillerMinWidth,
     ];

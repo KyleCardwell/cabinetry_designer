@@ -109,7 +109,13 @@ function endGaps(run, items, settings) {
     const free = run.ends[side].type === 'none' && !run._frame.cornerDieIn?.[side] && (wallPanel
       ? wallPanel.join === 'butt'
       : !joined || run._frame.dieIn?.[side] === true);
-    return bead + (free ? overhang : 0);
+    if (free) return bead + overhang;
+    // Kyle (N2): a mitered panel thicker than the stile's 3/4" over the panel eats into the bead gap, so the
+    // end stile keeps its standard width (1 3/4" beaded); the gap never goes below 0 (1 9/16" plain, 13/16 panel).
+    const thickness = run.ends[side].type === 'end_panel'
+      ? endWidth(run.ends[side], settings, run._endThickness?.[side])
+      : wallPanel?.join === 'miter' ? wallPanel.width : null;
+    return thickness ? Math.max(0, bead - Math.max(0, thickness - overhang)) : bead;
   };
   return { left: at('left'), right: at('right') };
 }
