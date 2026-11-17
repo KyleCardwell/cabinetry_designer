@@ -3,7 +3,6 @@ import { accessoryText } from '../elevation/model/accessories.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
 import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
-import { panelOrientation } from '../elevation/model/cells.js';
 import { cornerEnd } from '../elevation/model/cornerEnd.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
@@ -14,25 +13,24 @@ import { wallLength } from '../elevation/model/geometry.js';
 import { runLegs } from '../elevation/model/legs.js';
 import { runLegFills } from '../elevation/model/legFills.js';
 import {
-  isJoinedEnd, isSheetCell, runEndThickness,
+  isJoinedEnd, isSheetCell,
 } from '../elevation/model/panelThickness.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
-import { fillerOrderedDepth, fillerReturnDepth, runFillerThickness } from '../elevation/model/planPieces.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runScene } from '../elevation/model/runScene.js';
 import { wallInteriorData } from '../elevation/model/shelves.js';
 import { resolveSlide } from '../elevation/model/slides.js';
 import {
-  CABINET_STYLE_LABELS, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
+  CABINET_STYLE_LABELS, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
-import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
+import { teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { wallEndFit } from '../elevation/model/wallEndFit.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorLines } from '../elevation/model/items/doorLines.js';
 import { shippingMoldings } from '../elevation/model/items/bandItems.js';
 import { itemDescription, itemReport, itemReportContext } from '../elevation/model/items/itemReport.js';
-import { EPSILON, nosingNote, orderedThickness, TYPE_LABELS } from '../elevation/model/items/shared.js';
+import { EPSILON, TYPE_LABELS } from '../elevation/model/items/shared.js';
 import { cornerFrameNotes, cornerReportNotes } from './cornerNotes.js';
 import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from '../elevation/model/items/format.js';
@@ -189,29 +187,15 @@ function listedTypeId(run, piece) {
 }
 
 function describePart(part, context) {
-  const { run, scene, piece, blindPanel, shelfBack } = context;
-  const type = TYPE_LABELS[run?.cabinetTypeId];
+  const { run, scene, piece } = context;
   let description;
-  if (part.source === 'corner_return') {
-    description = `${type} ${part.kind === 'end_panel' ? 'End Panel' : 'Filler'}`;
-  } else switch (part.kind) {
+  switch (part.kind) {
     case 'cabinet': {
       const layout = scene.faceLayouts.get(part.key);
       description = layout?.corner ? `${TYPE_LABELS[listedTypeId(run, piece)]} Corner ${layout.corner.kind}`
         : cabinetDescription(listedTypeId(run, piece), layout?.faces);
       break;
     }
-    case 'filler': description = `${type} ${blindPanel ? 'Blind Panel' : 'Filler'}`; break;
-    case 'end_panel': description = `${type} ${scene.panelPieceIds.has(part.key) ? 'Blind' : 'End'} Panel`; break;
-    case 'panel': {
-      const orientation = panelOrientation(piece);
-      const position = piece?.z + piece?.height / 2 > run.z + run.height / 2 ? 'Top' : 'Bottom';
-      description = shelfBack ? 'Shelf Back Panel' : `${type} ${
-        orientation === 'side' ? 'Side' : orientation === 'back' ? 'Back' : position
-      } Panel`;
-      break;
-    }
-    case 'shelf': description = 'Floating Shelf'; break;
     case 'frame': description = context.cornerFrame ? `Corner ${context.cornerFrame.kind} Face Frame` : 'Face Frame'; break;
   }
   return description;
@@ -222,55 +206,22 @@ export function shippingDescription(room, settings, part) {
 }
 
 function shippingSize(part, context, { room, settings }) {
-  if (part.source === 'corner_return') {
-    const { wall, run, corner, style } = context;
-    return part.kind === 'end_panel'
-      ? formatSize(corner.depthB, run.height, orderedThickness(corner.returnSide.width, style))
-      : formatSize(corner.returnSide.width, run.height, runFillerThickness(room, wall, run, settings));
-  }
   if (context.cornerFrame) {
     const { diagonal, frame } = context.cornerFrame;
     return diagonal ? formatSize(diagonal.frontWidth, frame.height, frame.thickness) : '';
   }
-  const { wall, run, scene, piece, end, blindPanel, style } = context;
-  // End parts retain box heights in the numbered list; order the extra open-below overhang too.
-  const openDrop = piece && end && !piece.inside && ['filler', 'end_panel'].includes(part.kind)
-    ? openBelowDrops(room, run, scene.cells, settings)(piece) : 0;
-  const height = openDrop > 0
-    ? scene.drawnPieces.find(({ id }) => id === piece.id).height : part.height;
-  if (blindPanel) return formatSize(part.width, height,
-    orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
-  if (part.kind === 'filler') {
-    const tee = scene.tees.some((tee) => tee.id === part.key || tee.pieceId === part.key);
-    const thickness = tee ? settings.teeThickness + settings.fillerReturnDepth - settings.fillerReturnTongue
-      : fillerOrderedDepth(room, wall, run, piece, settings);
-    return formatSize(part.width, height, thickness);
-  }
+  const { wall, run, scene } = context;
   const corner = part.kind === 'cabinet' && scene.faceLayouts.get(part.key)?.corner;
   if (corner) {
     const { legA, legB } = cornerEnd(room, wall, run, corner.side, settings, scene.result);
     return formatSize(legA, part.height, legB);
   }
-  const rect = context.rectangle();
-  const depth = rect.front - rect.back;
   switch (part.kind) {
-    case 'cabinet': return formatSize(part.width, part.height, depth);
-    case 'end_panel': {
-      const butted = scene.frames.regions.some((region) => region.legButts
-        ?.some((joint) => joint.panelId === part.key));
-      // A leg-covered butt keeps the mitered panel's ordered depth behind the frame.
-      const orderedDepth = butted ? depth - runFrame(room, run, settings).thickness : depth;
-      return formatSize(orderedDepth,
-        height, orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
+    case 'cabinet': {
+      const rect = context.rectangle();
+      const depth = rect.front - rect.back;
+      return formatSize(part.width, part.height, depth);
     }
-    case 'panel': {
-      const orientation = panelOrientation(piece);
-      const sizes = orientation === 'side' ? [depth, part.height, part.width]
-        : orientation === 'top' ? [part.width, depth, part.height] : [part.width, part.height, depth];
-      sizes[2] = orderedThickness(sizes[2], style);
-      return formatSize(...sizes);
-    }
-    case 'shelf': return formatSize(part.width, depth, part.height);
     case 'frame': return formatSize(part.width, part.height, runFrame(room, run, settings).thickness);
   }
 }
@@ -389,28 +340,8 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     const { returnSide } = cornerEnd(room, wall, run, cornerFrame.side, settings, scene.result);
     return { 10: cornerFrameNotes(cornerFrame, returnSide) };
   }
-  const { run, scene, piece, shapeNotes, style, wall, end } = context;
+  const { run, scene, wall } = context;
   const groups = {};
-  // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
-  if (part.source === 'corner_return') {
-    groups[9] = endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
-  } else if (['filler', 'end_panel'].includes(part.kind)) {
-    const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
-    const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];
-    groups[8] = notes.filter((note) => note.startsWith('T-shape') || note === 'L-shape');
-    if (!groups[8].length && part.kind === 'filler' && fillerReturnDepth(run, piece, settings) > 0) {
-      const index = scene.cells.pieces.indexOf(piece);
-      const returns = [-1, 1].filter((offset) => scene.cells.pieces[index + offset]?.kind === 'cabinet').length;
-      groups[8] = returns === 2 ? ['U-shape'] : returns === 1 ? ['L-shape'] : [];
-    }
-    if (!piece?.extend?.down) {
-      groups[9] = tee ? notes.filter((note) => !note.startsWith('T-shape'))
-        : endPieceNotes(part.kind, {
-          ...endPieceBottom(run, resolveStyle(settings, room, run), settings),
-          drop: piece ? piece.z - (scene.drawnPieces.find(({ id }) => id === piece.id)?.z ?? piece.z) : 0,
-        });
-    }
-  }
   groups[10] = doorItems.get(part.key)?.notes;
   if (part.kind === 'frame') {
     const region = scene.frames.regions.find(({ id }) => id === part.key);
@@ -425,17 +356,6 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     groups[10] = [...(groups[10] ?? []), ...frameReturnNotes(run, region),
       ...frameNotchNotes(region, scene.cells.pieces, numberOf),
       ...frameStepReturnNotes(run, region, scene.cells, numberOf)];
-  }
-  if (style && style.id !== 'sheet') {
-    let drawn;
-    if (part.source === 'corner_return') drawn = context.corner.returnSide.width;
-    else if (part.kind === 'end_panel' || context.blindPanel) drawn = runEndThickness(room, wall, run, settings)[end];
-    else if (part.kind === 'panel') {
-      const orientation = panelOrientation(piece);
-      drawn = orientation === 'side' ? part.width : orientation === 'top' ? part.height
-        : context.rectangle().front - context.rectangle().back;
-    }
-    groups[11] = nosingNote(drawn, style);
   }
   return groups;
 }
