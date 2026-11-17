@@ -1,9 +1,11 @@
+import { withBuildCache } from '../buildCache.js';
 import { bandItems } from './bandItems.js';
 import { cabinetItems } from './cabinetItems.js';
 import { drawerItems } from './drawerItems.js';
 import { endPieceItems } from './endPieceItems.js';
 import { frameItems } from './frameItems.js';
 import { formatSize } from './format.js';
+import { itemFacts } from './itemFacts.js';
 import { legItems } from './legItems.js';
 import { wallPanelItems } from './wallPanelItems.js';
 
@@ -35,13 +37,17 @@ export function itemReportContext(room, settings, { shop, numberOf, doorItems })
   return { room, settings, shop, numberOf, doorNotes: (key) => doorItems.get(key)?.notes };
 }
 
-export function itemDescription(item, facts, ctx) {
+function describeItem(item, facts, ctx) {
   const entry = ctx.room.reportParts?.[item.key];
   const name = entry?.name?.trim();
   if (name) return name;
   const description = (producerFor(item) ?? GENERIC).description(item, facts, ctx);
   if (item.kind === 'molding') return description;
   return entry?.shopBuilt || facts.style?.id === 'sheet' ? `Shop-built ${description}` : description;
+}
+
+export function itemDescription(room, settings, item) {
+  return withBuildCache(() => describeItem(item, itemFacts(room, settings)(item), { room, settings }), room);
 }
 
 /** Keep the specified note order, with free text last (#14). */
@@ -53,7 +59,7 @@ export function orderedNotes(groups) {
 export function itemReport(item, facts, ctx) {
   const producer = producerFor(item) ?? GENERIC;
   return {
-    description: itemDescription(item, facts, ctx),
+    description: describeItem(item, facts, ctx),
     size: producer.size(item, facts, ctx),
     notes: orderedNotes({ 10: ctx.doorNotes(item.key), ...producer.notes?.(item, facts, ctx),
       14: [ctx.room.reportParts?.[item.key]?.note] }),

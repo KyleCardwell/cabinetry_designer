@@ -6,7 +6,8 @@ import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { roomParts } from '../../elevation/model/parts.js';
 import { buildShape } from '../../elevation/model/shapeBuilders.js';
 import { legShape } from '../../elevation/model/__tests__/fixtures/legs.js';
-import { shippingDescription, shippingList } from '../shippingList.js';
+import { shippingList } from '../shippingList.js';
+import { itemDescription as shippingDescription } from '../../elevation/model/items/itemReport.js';
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape(), buildShape({
   id: 'foot', name: 'Foot', kind: 'leg', version: 1, archived: false, views: {},
