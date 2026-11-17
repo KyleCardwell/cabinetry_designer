@@ -1,9 +1,9 @@
-import { accessoryText } from '../elevation/model/accessories.js';
-import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
-import { sheetThickness } from '../elevation/model/doorStyles.js';
-import { getInteriorNode } from '../elevation/model/interiorTree.js';
-import { roundTo } from '../elevation/model/units.js';
-import { formatInch } from '../elevation/model/items/format.js';
+import { accessoryText } from '../accessories.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { sheetThickness } from '../doorStyles.js';
+import { getInteriorNode } from '../interiorTree.js';
+import { roundTo } from '../units.js';
+import { formatInch } from './format.js';
 
 export function faceOrder(a, b) {
   const topA = a.z == null ? 0 : a.z + (a.height ?? 0);

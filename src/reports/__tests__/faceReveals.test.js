@@ -4,7 +4,7 @@ import { fixed, room, run, wall } from '../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import { syncRoom } from '../../elevation/model/room.js';
-import { formatRevealParts, profiledFaceReveals } from '../faceReveals.js';
+import { formatRevealParts, profiledFaceReveals } from '../../elevation/model/items/faceReveals.js';
 import { shippingList } from '../shippingList.js';
 
 const stored = JSON.parse(readFileSync(new URL('./fixtures/room10ff.json', import.meta.url), 'utf8'));

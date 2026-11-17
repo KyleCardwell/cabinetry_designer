@@ -10,7 +10,7 @@ import { syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
 import { doorOrder } from '../doorOrder.js';
 import { doorLines } from '../../elevation/model/items/doorLines.js';
-import { formatRevealParts } from '../faceReveals.js';
+import { formatRevealParts } from '../../elevation/model/items/faceReveals.js';
 import { formatInch, formatSize } from '../../elevation/model/items/format.js';
 import { shippingList } from '../shippingList.js';
 

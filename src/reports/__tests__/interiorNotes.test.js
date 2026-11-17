@@ -5,7 +5,7 @@ import { resolveInterior } from '../../elevation/model/interiors.js';
 import { sectionRollouts } from '../../elevation/model/rollouts.js';
 import { sectionShelves } from '../../elevation/model/shelves.js';
 import { BUILT_IN_SLIDES } from '../../elevation/model/slides.js';
-import { interiorNotes } from '../interiorNotes.js';
+import { interiorNotes } from '../../elevation/model/items/interiorNotes.js';
 
 const S = (count, rest = {}) => ({ count, lineBore: true, hinges: true, ...rest });
 const group = (direction, children) => ({ direction, children, dividers: children.slice(1).map(() => ({})) });

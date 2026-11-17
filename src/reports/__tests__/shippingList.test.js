@@ -21,7 +21,9 @@ import { doorLines } from '../../elevation/model/items/doorLines.js';
 import { formatInch, formatSize } from '../../elevation/model/items/format.js';
 import { reportHeader } from '../header.js';
 import { proBoxOrder } from '../proBoxOrder.js';
-import { cabinetDescription, drawerFrontNote, hingeNote, shippingDescription, shippingList } from '../shippingList.js';
+import { shippingDescription, shippingList } from '../shippingList.js';
+import { cabinetDescription, hingeNote } from '../../elevation/model/items/cabinetItems.js';
+import { drawerFrontNote } from '../../elevation/model/items/interiorNotes.js';
 import { linealFeet } from '../../elevation/model/items/bandItems.js';
 
 const settings = pickedMoldings(DEFAULT_SETTINGS);
