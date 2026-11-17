@@ -38,6 +38,8 @@ function baseEntries(room, wall, run, settings) {
     const mapX = (x) => wall.side === 'back' ? wall.length - x : x;
     const [left, right] = wall.side === 'back' ? bandEnds.toReversed() : bandEnds;
     return { run, wall, key: `furniture_base:${run.id}${index ? `:${index + 1}` : ''}`,
+      // The bandParts id of this segment, so a drawn band finds its ordered group (GC1).
+      bandId: `${run.id}:furniture_base${index ? `:${index + 1}` : ''}`,
       height: base.height, depth: frontDepth(run, settings) + base.proud,
       start: mapX(left.x), end: mapX(right.x), leftScribe: left.scribe, rightScribe: right.scribe,
       runStart: mapX(wall.side === 'back' ? segmentEnd : start),
@@ -82,6 +84,7 @@ function groupSize(entries, settings) {
   const depths = faces.map(({ side }) => Math.max(...entries
     .filter((entry) => entry.wall.side === side).map((entry) => entry.depth)));
   return { key: first.key, runIds: [...new Set(entries.map(({ run }) => run.id))],
+    bandIds: entries.map(({ bandId }) => bandId),
     height: first.height, orderedHeight: first.height + scribe, width: end - start,
     orderedWidth: end - start + scribe * (Number(entries.some((entry) => same(entry.start, start) && entry.leftScribe))
       + Number(entries.some((entry) => same(entry.end, end) && entry.rightScribe))),

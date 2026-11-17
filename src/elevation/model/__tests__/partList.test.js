@@ -65,6 +65,14 @@ it.each([
   }
 });
 
+it('tags a run\'s second furniture base and extra wood tops with their own items (GC1)', () => {
+  const { room: source, settings } = rooms.find((room) => room.key === 'N2').load();
+  const list = roomPartList(syncRoom(source, settings), settings);
+  const tagged = new Set(list.elevations.flatMap(({ pieces }) => pieces).map(({ itemKey }) => itemKey));
+  const owned = list.items.filter(({ kind }) => kind === 'furniture_base' || kind === 'wood_top');
+  expect(owned.filter(({ key }) => !tagged.has(key))).toEqual([]);
+});
+
 function medianTime(build) {
   build();
   const times = Array.from({ length: 5 }, () => {
