@@ -8,9 +8,10 @@ import { effectiveSettings } from '../../elevation/model/effectiveSettings.js';
 import { partNumbers, wallBadgeGroups } from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
-import { doorOrder, doorOrderItems } from '../doorOrder.js';
+import { doorOrder } from '../doorOrder.js';
+import { doorLines } from '../../elevation/model/items/doorLines.js';
 import { formatRevealParts } from '../faceReveals.js';
-import { formatInch, formatSize } from '../format.js';
+import { formatInch, formatSize } from '../../elevation/model/items/format.js';
 import { shippingList } from '../shippingList.js';
 
 const BASE = 'b0505231-35e6-4630-8a1e-e9b2181d443c';
@@ -37,7 +38,7 @@ describe('corner return-side parts', () => {
     const part = parts.find((part) => part.key === key);
     const row = shippingList(room, settings).rows.find((row) => row.key === key);
     const order = doorOrder(room, settings);
-    const { items } = doorOrderItems(room, settings);
+    const { items } = doorLines(room, settings);
     if (!anchor.kind) {
       expect(parts.filter(({ source }) => source === 'corner_return')).toEqual([]);
       expect(row).toBeUndefined();
@@ -235,7 +236,7 @@ describe('corner cabinet door orders', () => {
     const room = syncRoom(source, settings);
     const wall = room.walls.find(({ name }) => name === 'Wall 3');
     const rows = shippingList(room, settings).rows;
-    const { items } = doorOrderItems(room, settings);
+    const { items } = doorLines(room, settings);
     const order = doorOrder(room, settings);
     for (const key of anchor.keys) {
       const run = wall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === key));

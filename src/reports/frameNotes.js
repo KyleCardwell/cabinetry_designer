@@ -9,7 +9,7 @@ import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThi
 import { runSeamGap } from '../elevation/model/styles.js';
 import { resolveTopSegments } from '../elevation/model/topSegments.js';
 import { wallEndPanelAt } from '../elevation/model/wallSides.js';
-import { formatInch } from './format.js';
+import { formatInch } from '../elevation/model/items/format.js';
 
 const EPSILON = 1e-6;
 

@@ -1,5 +1,5 @@
 import { REVEAL_KEYS } from '../elevation/model/styles.js';
-import { formatInch } from './format.js';
+import { formatInch } from '../elevation/model/items/format.js';
 
 const EPSILON = 1e-6;
 const ORDER = [...REVEAL_KEYS.slice(0, 4), 'pair', ...REVEAL_KEYS.slice(4)];

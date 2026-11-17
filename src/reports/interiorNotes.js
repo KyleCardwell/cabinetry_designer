@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { getInteriorNode } from '../elevation/model/interiorTree.js';
 import { roundTo } from '../elevation/model/units.js';
-import { formatInch } from './format.js';
+import { formatInch } from '../elevation/model/items/format.js';
 
 export function faceOrder(a, b) {
   const topA = a.z == null ? 0 : a.z + (a.height ?? 0);

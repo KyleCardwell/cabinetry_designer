@@ -8,7 +8,8 @@ import { partNumbers } from '../../elevation/model/partNumbers.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { room8Upper, settings as insideSettings } from '../../elevation/model/__tests__/helpers/room8Upper.js';
-import { doorOrder, doorOrderItems, mergeLines, stileRailNotes } from '../doorOrder.js';
+import { doorOrder, mergeLines } from '../doorOrder.js';
+import { doorLines, stileRailNotes } from '../../elevation/model/items/doorLines.js';
 
 const style = DEFAULT_DOOR_STYLE;
 
@@ -17,7 +18,7 @@ describe('inside panel door orders (IE1)', () => {
     const { room } = room8Upper();
     const before = structuredClone(room);
     const result = doorOrder(room, insideSettings);
-    const panels = doorOrderItems(room, insideSettings).items.filter(({ kind }) => kind === 'endPanel');
+    const panels = doorLines(room, insideSettings).items.filter(({ kind }) => kind === 'endPanel');
     expect(panels.map(({ pieceId }) => pieceId)).toEqual([
       'r:left', 'a:inside-right', 'c:inside-left', 'r:right',
     ]);
@@ -34,7 +35,7 @@ describe('inside panel door orders (IE1)', () => {
     expect(room).toEqual(before);
     room.reportParts = { 'a:inside-right': { shopBuilt: true } };
     room.walls[0].runs[0].ends.left.styleId = 'sheet';
-    const excluded = doorOrderItems(syncRoom(room, insideSettings), insideSettings).items;
+    const excluded = doorLines(syncRoom(room, insideSettings), insideSettings).items;
     expect(excluded.some(({ pieceId }) => pieceId === 'a:inside-right' || pieceId === 'c:inside-left')).toBe(false);
   });
 });
@@ -111,7 +112,7 @@ describe('door order form data', () => {
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null, sizes } },
     })], {}, {}, s);
     const before = structuredClone(r);
-    const items = doorOrderItems(r, s).items;
+    const items = doorLines(r, s).items;
     expect(items.map(({ kind }) => kind)).toEqual(['face', 'endPanel']);
     for (const item of items) {
       expect(item.sizes.midRails).toMatchObject([{ at: 15, width: 3.25, source: 'flat', overall: 4.25 }]);
@@ -134,7 +135,7 @@ describe('door order form data', () => {
         face('door'),
       ],
     } }, { width: 36 })]);
-    const items = doorOrderItems(r, settings).items;
+    const items = doorLines(r, settings).items;
     expect(items.map(({ notes }) => notes)).toEqual([
       ['sash panel (glass)', '3 1/2" LS'], [],
     ]);
@@ -408,7 +409,7 @@ describe('vendor items (RP2)', () => {
         sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' } } } },
     })]);
     const before = structuredClone(r);
-    const result = doorOrderItems(r, settings);
+    const result = doorLines(r, settings);
     expect(result.warnings).toEqual([]);
     expect(result.items.filter(({ kind }) => kind === 'face')).toHaveLength(3);
     expect(result.items.filter(({ kind }) => kind === 'face').every(({ key, pieceId }) => key === 'cab' && pieceId === 'cab')).toBe(true);
@@ -424,7 +425,7 @@ describe('vendor items (RP2)', () => {
     expect(lines(doorOrder(r, settings))).toEqual([
       expect.objectContaining({ size: '24 7/8 x 30 1/2', notes: 'do not sand edges' }),
     ]);
-    expect(doorOrderItems(r, settings).items[0].sizes.opening).toEqual({ width: 18.875, height: 24.5 });
+    expect(doorLines(r, settings).items[0].sizes.opening).toEqual({ width: 18.875, height: 24.5 });
   });
 
   it('orders a top panel cell width by depth and sizes its rails from the face', () => {
@@ -432,7 +433,7 @@ describe('vendor items (RP2)', () => {
     expect(lines(doorOrder(r, settings))).toEqual([
       expect.objectContaining({ size: '18 x 24', notes: 'do not sand edges' }),
     ]);
-    expect(doorOrderItems(r, settings).items[0]).toMatchObject({
+    expect(doorLines(r, settings).items[0]).toMatchObject({
       type: 'doors', sizes: { construction: 'five_piece', opening: { width: 12, height: 18 } },
     });
   });
@@ -441,7 +442,7 @@ describe('vendor items (RP2)', () => {
     const r = room([run('run', { id: 'cab', kind: 'cabinet', face: face('open') }, {
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
     })], { reportParts: { 'run:right': { shopBuilt: true } } });
-    expect(doorOrderItems(r, settings)).toEqual({ items: [], warnings: [] });
+    expect(doorLines(r, settings)).toEqual({ items: [], warnings: [] });
     expect(doorOrder(r, settings)).toEqual({ pages: [], warnings: [] });
   });
 
@@ -449,7 +450,7 @@ describe('vendor items (RP2)', () => {
     const r = room([run(), run('other', { id: 'other', kind: 'cabinet', face: face('door') }, { x: 60 })], {
       reportParts: { cab: { shopBuilt: true } },
     });
-    expect(doorOrderItems(r, settings).items.map(({ key }) => key)).toEqual(['other']);
+    expect(doorLines(r, settings).items.map(({ key }) => key)).toEqual(['other']);
     expect(lines(doorOrder(r, settings))).toEqual([
       expect.objectContaining({ number: partNumbers(r, settings).byKey.get('other'), qty: 1 }),
     ]);
@@ -487,7 +488,7 @@ describe('layout order notes and paired doors (MR2c)', () => {
   it('mirrors the right half openings and gives asymmetric halves distinct order lines', () => {
     const r = pairRoom(cols([{ size: 8 }, {}]));
     const before = structuredClone(r);
-    const items = doorOrderItems(r, settings).items;
+    const items = doorLines(r, settings).items;
     expect(items.map(({ width, height, notes }) => ({ width, height, notes }))).toEqual([
       { width: 30, height: 39, notes: ['3" MS 12 1/2" oc from left'] },
       { width: 30, height: 39, notes: ['3" MS 17 1/2" oc from left'] },
@@ -508,7 +509,7 @@ describe('layout order notes and paired doors (MR2c)', () => {
 
   it('keeps symmetric pair notes identical and merges the order lines', () => {
     const r = pairRoom(cols([{}, {}]));
-    expect(doorOrderItems(r, settings).items.map(({ notes }) => notes)).toEqual([
+    expect(doorLines(r, settings).items.map(({ notes }) => notes)).toEqual([
       ['3" MS 15" oc from left'], ['3" MS 15" oc from left'],
     ]);
     expect(lines(doorOrder(r, settings))).toEqual([{

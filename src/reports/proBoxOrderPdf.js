@@ -1,5 +1,5 @@
 import { COPIES } from './copies.js';
-import { formatSize } from './format.js';
+import { formatSize } from '../elevation/model/items/format.js';
 import { BORDER_LAYOUT, PAGE_MARGINS, reportFileName, reportFooter } from './pdfParts.js';
 
 const underline = (text = '') => ({ text: text || ' ', border: [false, false, false, true] });

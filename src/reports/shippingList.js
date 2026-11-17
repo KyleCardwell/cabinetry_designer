@@ -37,10 +37,10 @@ import { isShelvesOnlyRun, wallBuiltEnds } from '../elevation/model/wallEndPanel
 import { wallEndFit } from '../elevation/model/wallEndFit.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
-import { doorOrderItems } from './doorOrder.js';
+import { doorLines } from '../elevation/model/items/doorLines.js';
 import { cornerFrameNotes, cornerReportNotes } from './cornerNotes.js';
 import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
-import { formatInch, formatSize } from './format.js';
+import { formatInch, formatSize } from '../elevation/model/items/format.js';
 import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
 import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
 
@@ -631,7 +631,7 @@ export function shippingList(room, settings, shop = settings) {
     const numbers = new Map(parts.map(({ key, number }) => [key, number]));
     const numberOf = (id) => numbers.get(id);
     const getContext = shippingContext(room, settings);
-    const doorItems = new Map(doorOrderItems(room, settings).items
+    const doorItems = new Map(doorLines(room, settings).items
       .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
     const rows = parts
       .sort((a, b) => a.number - b.number).map((part) => {

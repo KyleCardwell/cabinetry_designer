@@ -7,6 +7,7 @@ import { syncRoom } from '../roomSync.js';
 import { runScene } from '../runScene.js';
 import { roomParts } from '../parts.js';
 import { woodTopGroups } from '../woodTopGroups.js';
+import { doorLines } from '../items/doorLines.js';
 
 it.each([
   ['shares a scene within a build', 'hit'],
@@ -14,6 +15,7 @@ it.each([
   ['builds separate scenes outside a build', 'uncached'],
   ['caches room items by room and settings', roomParts],
   ['caches wood top groups by room and settings', woodTopGroups],
+  ['caches door lines by room and settings', doorLines],
 ])('%s (GC2)', (_name, mode) => {
   const settings = { ...DEFAULT_SETTINGS };
   const source = syncRoom(room({ walls: [wall({ runs: [run({ items: [auto('cabinet')] })] })] }), settings);

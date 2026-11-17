@@ -1,4 +1,4 @@
-import { formatInches } from '../elevation/model/units.js';
+import { formatInches } from '../units.js';
 
 /** Report dimensions retain every thirty-second of an inch. */
 export function formatInch(n) {

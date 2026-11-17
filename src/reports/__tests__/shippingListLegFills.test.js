@@ -3,7 +3,7 @@ import { room, run, wall } from '../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { roomParts } from '../../elevation/model/parts.js';
 import { E, Sf, fourEndLegs, legShape, noEnds } from '../../elevation/model/__tests__/fixtures/legs.js';
-import { formatSize } from '../format.js';
+import { formatSize } from '../../elevation/model/items/format.js';
 import { shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };

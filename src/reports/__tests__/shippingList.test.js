@@ -17,8 +17,8 @@ import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
 import * as sceneModel from '../../elevation/model/runScene.js';
 import * as shelfModel from '../../elevation/model/shelves.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
-import { doorOrderItems } from '../doorOrder.js';
-import { formatInch, formatSize } from '../format.js';
+import { doorLines } from '../../elevation/model/items/doorLines.js';
+import { formatInch, formatSize } from '../../elevation/model/items/format.js';
 import { reportHeader } from '../header.js';
 import { proBoxOrder } from '../proBoxOrder.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
@@ -1530,7 +1530,7 @@ describe('panel, filler and base notes (RP2)', () => {
       type: 'end_panel', width: null, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' } },
     } } })], { reportParts: { 'run:right': { note: 'last' } } });
     const notes = ['do not sand edges', '3 1/2" LS (scribe)'];
-    expect(doorOrderItems(r, settings).items.find(({ key }) => key === 'run:right').notes).toEqual(notes);
+    expect(doorLines(r, settings).items.find(({ key }) => key === 'run:right').notes).toEqual(notes);
     expect(row(r, 'run:right').notes).toEqual([...notes, 'last']);
     // A cabinet's vendor face notes never leak into its shipping row.
     expect(row(r).notes).not.toContain('1 7/8" TR & BR');
