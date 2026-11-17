@@ -23,6 +23,7 @@ import FaceProperties from './FaceProperties.jsx';
 import ColumnLineSection from './ColumnLineSection.jsx';
 import PinSection from './PinSection.jsx';
 import GapField from './GapField.jsx';
+import RunEndGapField from './RunEndGapField.jsx';
 import { RUN_TYPES } from './constants.js';
 
 const NO_INSET = { left: 0, right: 0 };
@@ -91,6 +92,12 @@ export default function CabinetProperties({
                         ariaLabel="Gap right"
                       />
                     </div>
+                  )}
+                  {itemIndex === 0 && (
+                    <RunEndGapField wall={wall} run={run} settings={settings} side="left" />
+                  )}
+                  {itemIndex === items.length - 1 && (
+                    <RunEndGapField wall={wall} run={run} settings={settings} side="right" />
                   )}
                 </PanelSection>
 

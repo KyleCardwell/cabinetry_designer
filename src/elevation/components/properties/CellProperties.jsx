@@ -34,6 +34,7 @@ import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
+import RunEndGapField from './RunEndGapField.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const NO_INSET = { left: 0, right: 0 };
@@ -171,6 +172,12 @@ export default function CellProperties({
                     </div>
                   )}
 
+                  {column && columnItem?.kind === 'cabinet' && columnIndex === 0 && (
+                    <RunEndGapField wall={wall} run={run} settings={settings} side="left" />
+                  )}
+                  {column && columnItem?.kind === 'cabinet' && columnIndex === runItems(run).length - 1 && (
+                    <RunEndGapField wall={wall} run={run} settings={settings} side="right" />
+                  )}
                   {column && hasColumnAfter && (
                     <div className="mt-2">
                       {(

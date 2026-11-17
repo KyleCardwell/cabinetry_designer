@@ -724,8 +724,7 @@ describe('face frame reasons (RP2.4)', () => {
 
   it.each([
     ['D1', 14, ['1 9/16" left stile (mitered to 13/16" end panel)']],
-    ['D2', 15, ['beaded face frame - 1 3/4" stiles & rails',
-      '1 13/16" left stile (mitered to 13/16" end panel)']],
+    ['D2', 15, ['beaded face frame - 1 3/4" stiles & rails']],
   ])('explains a mitered run end panel (%s)', (_anchor, cabinetStyleId, expected) => {
     const s = { ...flat,
       defaultStyle: { ...flat.defaultStyle, cabinetStyleId } };

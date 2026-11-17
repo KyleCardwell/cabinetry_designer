@@ -7,7 +7,7 @@
       "kind": "furniture_base",
       "notes": [],
       "number": 1,
-      "size": "55 1/4 x 4 1/2 x 25 5/8"
+      "size": "55 1/8 x 4 1/2 x 25 5/8"
     },
     {
       "description": "Base End Panel",
@@ -48,12 +48,10 @@
       "key": "frame:da7ee479-a96e-4118-84b0-e8328902c9a2",
       "kind": "frame",
       "notes": [
-        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
-        "1 13/16\" left stile (mitered to 13/16\" end panel)",
-        "1 13/16\" right stile (mitered to 13/16\" end panel)"
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails"
       ],
       "number": 5,
-      "size": "53 5/8 x 30 1/2 x 13/16"
+      "size": "53 1/2 x 30 1/2 x 13/16"
     },
     {
       "description": "Base End Panel",
@@ -71,7 +69,7 @@
       "kind": "wood_top",
       "notes": [],
       "number": 7,
-      "size": "56 3/8 x 26 5/16 x 1 1/2"
+      "size": "56 1/4 x 26 5/16 x 1 1/2"
     },
     {
       "description": "Furniture Base",
@@ -121,8 +119,7 @@
       "kind": "frame",
       "notes": [
         "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
-        "1 13/16\" left stile (mitered to 13/16\" end panel)",
-        "2 3/16\" right stile (filler)"
+        "2 1/4\" right stile (filler)"
       ],
       "number": 12,
       "size": "60 x 30 1/2 x 13/16"
@@ -161,7 +158,7 @@
         "2 as"
       ],
       "number": 16,
-      "size": "29 x 47 1/4 x 12"
+      "size": "28 1/2 x 47 1/4 x 12"
     },
     {
       "description": "Upper Open",
@@ -173,7 +170,7 @@
         "2 as, no banding - add 1 1/2\" nosing"
       ],
       "number": 17,
-      "size": "29 x 47 1/4 x 12"
+      "size": "28 1/2 x 47 1/4 x 12"
     },
     {
       "description": "Face Frame",
@@ -181,8 +178,8 @@
       "kind": "frame",
       "notes": [
         "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
-        "1 1/2\" left stile (filler)",
-        "1 1/2\" right stile (filler)"
+        "2\" left stile (filler)",
+        "2\" right stile (filler)"
       ],
       "number": 18,
       "size": "60 x 48 x 13/16"
@@ -193,7 +190,7 @@
       "kind": "furniture_base",
       "notes": [],
       "number": 19,
-      "size": "27 11/16 x 4 1/2 x 25 5/8"
+      "size": "27 5/8 x 4 1/2 x 25 5/8"
     },
     {
       "description": "Furniture Base",
@@ -201,7 +198,7 @@
       "kind": "furniture_base",
       "notes": [],
       "number": 20,
-      "size": "27 11/16 x 4 1/2 x 25 5/8"
+      "size": "27 5/8 x 4 1/2 x 25 5/8"
     },
     {
       "description": "Base End Panel",
@@ -231,11 +228,10 @@
       "kind": "frame",
       "notes": [
         "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
-        "1 13/16\" left stile (mitered to 13/16\" end panel)",
         "1 1/2\" right stile"
       ],
       "number": 23,
-      "size": "25 9/16 x 30 1/2 x 13/16"
+      "size": "25 1/2 x 30 1/2 x 13/16"
     },
     {
       "description": "Base 1 Drawer",
@@ -273,11 +269,10 @@
       "notes": [
         "beaded face frame - 1 3/4\" stiles & rails",
         "1 1/2\" left stile",
-        "1 13/16\" right stile (mitered to 13/16\" end panel)",
         "6 3/4\" top rail (wood overlap)"
       ],
       "number": 26,
-      "size": "25 9/16 x 30 1/2 x 13/16"
+      "size": "25 1/2 x 30 1/2 x 13/16"
     },
     {
       "description": "Base End Panel",
@@ -297,7 +292,7 @@
         "Nosing 3"
       ],
       "number": 28,
-      "size": "59 1/16 x 26 5/16 x 1 1/2"
+      "size": "59 x 26 5/16 x 1 1/2"
     },
     {
       "description": "Wood Top",
@@ -307,7 +302,7 @@
         "Nosing 3"
       ],
       "number": 29,
-      "size": "2 1/16 x 26 5/16 x 1 1/2"
+      "size": "2 x 26 5/16 x 1 1/2"
     },
     {
       "description": "Wood Top",
@@ -369,7 +364,7 @@
       "kind": "frame",
       "notes": [
         "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
-        "4 11/16\" left stile",
+        "4 3/4\" left stile",
         "2 3/16\" right stile (butts end panel, no miter)"
       ],
       "number": 35,

@@ -185,9 +185,10 @@ describe('DM8 step b end-view panel payload', () => {
 // FX9 a moves only G4's Euro T faces and their dependent front projections in by 1/16".
 // PT2 c: plan countertop parts are exposed-edge chains now; every other payload byte is unchanged.
 // CC9.1: G2’s frame follows its cabinet, swapping only its and the end panel’s badge numbers (4 / 5).
+// End stile fix (5312f37): G2 panel gaps shrink and corner filler minimums retain standard stiles.
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': '7f4603a200272406108c3943cf85a6f347afd8942194a0bcc7c3b05fcb794890',
-  'G2 Face frame kitchen': '680ed20e27bd0e116360b6c47c6ba62b770c873edb9a97301fa3afd24d4a7913',
+  'G2 Face frame kitchen': 'fc6836b74c054920e6106b9c381d5d664ec520f636eede588d778908cd13d9ce',
   'G3 Bath alcove': '3e631443a6bfed8193f627d26d2090c8f232b84559118aee711cefc0999ccf52',
   'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
   'G5 Recess room': '3ca4f370bfb3aa4ea609bab3769cb7abcc6213dcf96847d02d345823d1d76cd8',

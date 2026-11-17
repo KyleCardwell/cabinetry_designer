@@ -79,7 +79,7 @@
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 25.5,
-      "x": 7.3125,
+      "x": 7.25,
       "z": 4
     },
     {
@@ -94,7 +94,7 @@
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 25.5,
-      "x": 33.3125,
+      "x": 33.25,
       "z": 4
     },
     {
@@ -108,7 +108,7 @@
       "side": "front",
       "source": "frame",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
-      "width": 53.625,
+      "width": 53.5,
       "x": 6.25,
       "z": 4
     },
@@ -124,7 +124,7 @@
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 0.8125,
-      "x": 59.0625,
+      "x": 58.9375,
       "z": 4
     },
     {
@@ -174,7 +174,7 @@
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 28.5,
-      "x": 121.0625,
+      "x": 121,
       "z": 4
     },
     {
@@ -189,7 +189,7 @@
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 28.5,
-      "x": 150.0625,
+      "x": 150,
       "z": 4
     },
     {
@@ -263,8 +263,8 @@
       "side": "front",
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
-      "width": 29,
-      "x": 120.75,
+      "width": 28.5,
+      "x": 121.25,
       "z": 54.75
     },
     {
@@ -278,7 +278,7 @@
       "side": "front",
       "source": "piece",
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
-      "width": 29,
+      "width": 28.5,
       "x": 150.25,
       "z": 54.75
     },
@@ -325,7 +325,7 @@
       "source": "piece",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
       "width": 0.8125,
-      "x": 47.4375,
+      "x": 47.5,
       "z": 4
     },
     {
@@ -354,8 +354,8 @@
       "side": "front",
       "source": "frame",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 25.5625,
-      "x": 47.4375,
+      "width": 25.5,
+      "x": 47.5,
       "z": 4
     },
     {
@@ -399,7 +399,7 @@
       "side": "front",
       "source": "frame",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 25.5625,
+      "width": 25.5,
       "x": 105.5,
       "z": 4
     },
@@ -415,7 +415,7 @@
       "source": "piece",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
       "width": 0.8125,
-      "x": 130.25,
+      "x": 130.1875,
       "z": 4
     },
     {
@@ -474,7 +474,7 @@
       "source": "piece",
       "wallId": "93c425cf-96d1-4abd-93e7-be514d804f33",
       "width": 30.5,
-      "x": 3.9375,
+      "x": 4,
       "z": 4
     },
     {
@@ -489,7 +489,7 @@
       "source": "piece",
       "wallId": "93c425cf-96d1-4abd-93e7-be514d804f33",
       "width": 30.5,
-      "x": 34.9375,
+      "x": 35,
       "z": 4
     },
     {
@@ -504,7 +504,7 @@
       "source": "piece",
       "wallId": "93c425cf-96d1-4abd-93e7-be514d804f33",
       "width": 30.5,
-      "x": 65.9375,
+      "x": 66,
       "z": 4
     },
     {

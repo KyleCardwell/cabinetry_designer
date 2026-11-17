@@ -175,6 +175,7 @@ export const {
   updateRun,
   deleteRun,
   setRunEnd,
+  setRunEndGap,
   setRunType,
   setRunHeightMode,
   setRunOverride,

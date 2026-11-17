@@ -5,7 +5,8 @@ import {
 import { runItems } from '../grid.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { syncRoom } from '../room.js';
-import { splitRun, syncAutoItems } from '../splitRun.js';
+import { endMinWidthsForRun } from '../runAnchors.js';
+import { ruleEndGap, splitRun, syncAutoItems } from '../splitRun.js';
 
 function widths(result) {
   return result.pieces.map((piece) => piece.width);
@@ -16,6 +17,57 @@ function codes(entries) {
 }
 
 describe('splitRun', () => {
+  it.each([
+    { name: 'leaves 3/16 beside beaded end panels', style: 15, endType: 'end_panel', gap: undefined, expected: 3 / 16 },
+    { name: 'keeps 3/4 minimum fillers at inside corners', style: 15, endType: 'filler', corner: true },
+    { name: 'uses a typed gap beside a beaded panel', style: 15, endType: 'end_panel', gap: 7 / 16, expected: 7 / 16 },
+    { name: 'takes a typed Euro panel gap from the auto filler', style: 13, endType: 'end_panel', gap: 1 / 4, expected: 1 / 4 },
+  ])('$name (Run end gap)', ({ style, endType, gap, expected, corner = false }) => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const source = buildRun({
+      width: 60,
+      autoCount: false,
+      items: [style === 13 ? fixed('a', 24) : auto('a')],
+      ends: {
+        left: { type: endType, ...(endType === 'end_panel' ? { width: 13 / 16 } : {}), ...(gap === undefined ? {} : { gap }) },
+        right: { type: style === 13 ? 'filler' : endType, ...(endType === 'end_panel' && style !== 13 ? { width: 13 / 16 } : {}) },
+      },
+      anchors: { left: corner, right: corner },
+    });
+    const wall = buildWall({
+      runs: [source],
+      ...(corner ? { connections: {
+        start: { wallId: 'left', endpoint: 'end' },
+        end: { wallId: 'right', endpoint: 'start' },
+      } } : {}),
+    });
+    const room = syncRoom(buildRoom({
+      style: { cabinetStyleId: style },
+      walls: [wall, ...(corner ? [
+        buildWall({ id: 'left', x1: 0, y1: 96, x2: 0, y2: 0,
+          connections: { start: null, end: { wallId: wall.id, endpoint: 'start' } } }),
+        buildWall({ id: 'right', x1: 144, y1: 0, x2: 144, y2: 96,
+          connections: { start: { wallId: wall.id, endpoint: 'end' }, end: null } }),
+      ] : [])],
+    }), settings);
+    const syncedWall = room.walls[0];
+    const run = syncedWall.runs[0];
+    if (corner) {
+      expect(endMinWidthsForRun(room, syncedWall, run, settings)).toEqual({ left: 0.75, right: 0.75 });
+      return;
+    }
+    const { pieces } = splitRun(run, settings);
+    const panel = pieces.find((piece) => piece.kind === 'end_panel');
+    const box = pieces.find((piece) => piece.id === 'a');
+    expect(box.x - panel.x - panel.width).toBe(expected);
+    if (style === 15 && gap !== undefined) expect(ruleEndGap(run, settings, 'left')).toBe(3 / 16);
+    if (style === 13) {
+      const withoutGap = { ...run, ends: { ...run.ends, left: { type: 'end_panel', width: 13 / 16 } } };
+      const before = splitRun(withoutGap, settings).pieces.find((piece) => piece.kind === 'filler');
+      expect(before.width - pieces.find((piece) => piece.kind === 'filler').width).toBe(1 / 4);
+    }
+  });
+
   it('solves the one-pin worked example without a rounding warning', () => {
     const run = buildRun({ autoCount: false, items: [auto('a'), { ...auto('b'), attach: attach('P', 'center') }, auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 48 } });

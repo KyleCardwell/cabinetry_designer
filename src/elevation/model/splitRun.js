@@ -89,35 +89,61 @@ function autoRounding(run, settings, items) {
 
 const JOINED = new Set(['joint', 'follow']);
 
+/** End types where a typed end gap applies: any end of a face frame run, else beside a panel or filler. */
+const GAP_END_TYPES = new Set(['end_panel', 'filler']);
+
+/** A run end's typed gap beside its end box (Kyle 2026-11-17), or null when it has none or can't take one. */
+export function typedEndGap(run, side) {
+  const end = run.ends?.[side];
+  const gap = end?.gap;
+  if (!Number.isFinite(gap) || gap < 0) return null;
+  return GAP_END_TYPES.has(end.type) || (run._frame && end.type === 'none') ? gap : null;
+}
+
 /**
- * The gap at each real end of a face frame run (SPEC-38.3), beside a cabinet only: a beaded run's bead,
- * plus, at a free end, the stile's overhang. A None end is free unless a run of the same depth is joined
- * there or a wall end panel is mitered there; one that dies into a deeper run (`_frame.dieIn`) or into
- * a wall end panel (`join: 'butt'`) is free (SPEC-38.4); one that dies into a framed corner cabinet
- * (`_frame.cornerDieIn`, SPEC-CC6) is joined. A pinned run's split points (`_pinSplit`) aren't ends.
+ * The gap at each real end of a run, beside a cabinet only, as `{ gap, overhang }`. A typed end gap
+ * (`ends[side].gap`, Kyle 2026-11-17) replaces the rule's gap on any run; the rule only applies to face
+ * frames (SPEC-38.3): a beaded run's bead, plus, at a free end, the stile's overhang. A None end is free
+ * unless a run of the same depth is joined there or a wall end panel is mitered there; one that dies into
+ * a deeper run (`_frame.dieIn`) or into a wall end panel (`join: 'butt'`) is free (SPEC-38.4); one that
+ * dies into a framed corner cabinet (`_frame.cornerDieIn`, SPEC-CC6) is joined. A pinned run's split
+ * points (`_pinSplit`) aren't ends.
  */
-function endGaps(run, items, settings) {
-  if (!run._frame) return { left: 0, right: 0 };
+function endGapParts(run, items, settings, side, typed = true) {
+  const none = { gap: 0, overhang: 0 };
+  if (run._pinSplit?.[side]) return none;
+  const item = side === 'left' ? items[0] : items[items.length - 1];
+  if (item?.kind !== 'cabinet') return none;
+  const own = typed ? typedEndGap(run, side) : null;
+  if (!run._frame) return { gap: own ?? 0, overhang: 0 };
   const bead = run._frame.bead ?? 0;
   const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
-  const at = (side) => {
-    if (run._pinSplit?.[side]) return 0;
-    const item = side === 'left' ? items[0] : items[items.length - 1];
-    if (item?.kind !== 'cabinet') return 0;
-    const wallPanel = run._frame.wallPanels?.[side];
-    const joined = JOINED.has(run.anchors?.[side]?.to);
-    const free = run.ends[side].type === 'none' && !run._frame.cornerDieIn?.[side] && (wallPanel
-      ? wallPanel.join === 'butt'
-      : !joined || run._frame.dieIn?.[side] === true);
-    if (free) return bead + overhang;
-    // Kyle (N2): a mitered panel thicker than the stile's 3/4" over the panel eats into the bead gap, so the
-    // end stile keeps its standard width (1 3/4" beaded); the gap never goes below 0 (1 9/16" plain, 13/16 panel).
-    const thickness = run.ends[side].type === 'end_panel'
-      ? endWidth(run.ends[side], settings, run._endThickness?.[side])
-      : wallPanel?.join === 'miter' ? wallPanel.width : null;
-    return thickness ? Math.max(0, bead - Math.max(0, thickness - overhang)) : bead;
+  const wallPanel = run._frame.wallPanels?.[side];
+  const joined = JOINED.has(run.anchors?.[side]?.to);
+  const free = run.ends[side].type === 'none' && !run._frame.cornerDieIn?.[side] && (wallPanel
+    ? wallPanel.join === 'butt'
+    : !joined || run._frame.dieIn?.[side] === true);
+  if (free) return { gap: own ?? bead, overhang };
+  if (own !== null) return { gap: own, overhang: 0 };
+  // Kyle (N2): a mitered panel thicker than the stile's 3/4" over the panel eats into the bead gap, so the
+  // end stile keeps its standard width (1 3/4" beaded); the gap never goes below 0 (1 9/16" plain, 13/16 panel).
+  const thickness = run.ends[side].type === 'end_panel'
+    ? endWidth(run.ends[side], settings, run._endThickness?.[side])
+    : wallPanel?.join === 'miter' ? wallPanel.width : null;
+  return { gap: thickness ? Math.max(0, bead - Math.max(0, thickness - overhang)) : bead, overhang: 0 };
+}
+
+function endGaps(run, items, settings) {
+  const total = (side) => {
+    const { gap, overhang } = endGapParts(run, items, settings, side);
+    return gap + overhang;
   };
-  return { left: at('left'), right: at('right') };
+  return { left: total('left'), right: total('right') };
+}
+
+/** The gap a run end leaves beside its end box by rule, ignoring any typed gap (the field's blank value). */
+export function ruleEndGap(run, settings, side) {
+  return endGapParts(run, itemsWithGaps(run, settings), settings, side, false).gap;
 }
 
 /** A top-level cell's own settings, copied onto its piece. */

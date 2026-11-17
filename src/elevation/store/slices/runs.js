@@ -105,6 +105,21 @@ export const runReducers = {
     if (state.selection.runId === action.payload.runId) clearTransientSelection(state);
     syncRoomAt(state, location.roomIndex);
   },
+  /** A typed gap between a run end and its end box (Kyle 2026-11-17); null clears it back to the rule. */
+  setRunEndGap(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, gap = null } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right') || !location.run.ends[side]) return;
+    const end = location.run.ends[side];
+    if (gap === null) {
+      if (end.gap === undefined) return;
+      delete end.gap;
+    } else {
+      if (!Number.isFinite(gap) || gap < 0 || end.gap === gap) return;
+      end.gap = gap;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   setRunEnd(state, action) {
     const location = runLocation(state, action.payload);
     const { side } = action.payload;
