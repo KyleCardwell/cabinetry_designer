@@ -1,4 +1,5 @@
 import { wallAccessories } from './accessories.js';
+import { activeBuildCache, withBuildCache } from './buildCache.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { sheetThickness } from './doorStyles.js';
@@ -144,7 +145,7 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
 }
 
 /** Share all interior passes across every cabinet on the wall face. */
-export function wallInteriorData(room, wall, side, settings) {
+function buildWallInteriorData(room, wall, side, settings) {
   const faceLayoutsByRun = new Map();
   const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
   const boxes = wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
@@ -161,6 +162,13 @@ export function wallInteriorData(room, wall, side, settings) {
     settings,
   })]));
   return { interiors: new Map(interiors.map((interior) => [interior.itemId, interior])), boxes, rollouts, accessories, shelves };
+}
+
+/** Cache the shared interior passes only for a stored wall face. */
+export function wallInteriorData(room, wall, side, settings) {
+  if (!room?.walls?.includes(wall)) return buildWallInteriorData(room, wall, side, settings);
+  return withBuildCache(() => activeBuildCache.byRoom(`wallInteriorData:${wall.id}:${side}`, room, settings,
+    () => buildWallInteriorData(room, wall, side, settings)), room);
 }
 
 /** Adjustable shelves retain the same wall-coordinate results as the shared interior data. */

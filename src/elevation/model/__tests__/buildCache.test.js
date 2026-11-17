@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { resolveWall } from '../room.js';
 import { syncRoom } from '../roomSync.js';
 import { runScene } from '../runScene.js';
+import { wallInteriorData } from '../shelves.js';
 import { roomParts } from '../parts.js';
 import { woodTopGroups } from '../woodTopGroups.js';
 import { doorLines } from '../items/doorLines.js';
@@ -16,7 +17,9 @@ it.each([
   ['caches room items by room and settings', roomParts],
   ['caches wood top groups by room and settings', woodTopGroups],
   ['caches door lines by room and settings', doorLines],
-])('%s (GC2)', (_name, mode) => {
+  ['caches wall interior data per wall face',
+    (room, s) => wallInteriorData(room, room.walls[0], 'front', s), 'GC3.1'],
+].map(([name, mode, round = 'GC2']) => [`${name} (${round})`, mode]))('%s', (_name, mode) => {
   const settings = { ...DEFAULT_SETTINGS };
   const source = syncRoom(room({ walls: [wall({ runs: [run({ items: [auto('cabinet')] })] })] }), settings);
   if (typeof mode === 'function') {

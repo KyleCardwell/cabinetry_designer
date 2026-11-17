@@ -1,9 +1,8 @@
 import { withBuildCache } from '../elevation/model/buildCache.js';
 import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
-import { wallInteriorData } from '../elevation/model/shelves.js';
+import { drawerBoxLines } from '../elevation/model/items/drawerBoxLines.js';
 import { resolveSlide } from '../elevation/model/slides.js';
-import { WALL_SIDES } from '../elevation/model/wallSides.js';
 
 const SPEC_OPTIONS = {
   sideMaterial: ['Baltic Birch Ply', 'Soft Maple'],
@@ -66,8 +65,7 @@ export function proBoxOrder(room, settings, header) {
     const { byKey, warnings: numberWarnings } = partNumbers(room, settings);
     const warnings = [...numberWarnings];
     const entries = [];
-    const add = (box, itemId, rollout = false) => {
-      const key = box.kind === 'rot' ? `${itemId}:rot:${box.path}` : itemId;
+    const add = (box, key, rollout = false) => {
       const cab = byKey.get(key) ?? null;
       if (![box.height, box.width, box.depth].every((value) => Number.isFinite(value) && value > 0)) {
         warnings.push({ code: 'report-drawer-box-unsized',
@@ -77,19 +75,7 @@ export function proBoxOrder(room, settings, header) {
       entries.push({ rollout, cab, height: box.height, width: box.width, depth: box.depth,
         instructions: instructionsFor(box, rollout, slide.mount, headerClips) });
     };
-    for (const wall of room?.walls ?? []) {
-      for (const side of WALL_SIDES) {
-        const data = wallInteriorData(room, wall, side, settings);
-        for (const [itemId, { boxes }] of data.boxes) {
-          for (const box of boxes) add(box, itemId);
-        }
-        for (const [itemId, sections] of data.rollouts) {
-          for (const { rollouts } of sections.values()) {
-            for (const rollout of rollouts) add(rollout, itemId, true);
-          }
-        }
-      }
-    }
+    for (const { box, key, rollout } of drawerBoxLines(room, settings)) add(box, key, rollout);
     return {
       jobName: header.job ? `${header.job} - ${header.orderRoom}` : header.orderRoom,
       spec: boxSpec(values),
