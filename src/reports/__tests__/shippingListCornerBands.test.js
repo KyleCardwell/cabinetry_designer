@@ -11,7 +11,8 @@ import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runBands } from '../../elevation/model/runBands.js';
 import { runScene } from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
-import { linealFeet, shippingList, shippingMoldings } from '../shippingList.js';
+import { shippingList } from '../shippingList.js';
+import { linealFeet, shippingMoldings } from '../../elevation/model/items/bandItems.js';
 
 const golden = normalizeElevationDocument(JSON.parse(readFileSync(
   new URL('../../elevation/model/__tests__/fixtures/golden.json', import.meta.url), 'utf8',

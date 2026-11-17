@@ -2,11 +2,9 @@ import { withBuildCache } from '../elevation/model/buildCache.js';
 import { accessoryText } from '../elevation/model/accessories.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../elevation/model/constants.js';
+import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { cornerEnd } from '../elevation/model/cornerEnd.js';
-import { cornerLegBandsForOwner } from '../elevation/model/cornerLegBands.js';
-import { cornerReturnPoint, frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { deckZ, elevationParts } from '../elevation/model/elevationParts.js';
@@ -15,29 +13,26 @@ import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
 import { wallLength } from '../elevation/model/geometry.js';
 import { runLegs } from '../elevation/model/legs.js';
 import { runLegFills } from '../elevation/model/legFills.js';
-import { moldingPast, moldingProfiles } from '../elevation/model/moldingProfiles.js';
 import {
   isJoinedEnd, isSheetCell, runEndThickness, wallPanelThickness,
 } from '../elevation/model/panelThickness.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
-import { carriesMolding } from '../elevation/model/parts.js';
 import { fillerOrderedDepth, fillerReturnDepth, runFillerThickness } from '../elevation/model/planPieces.js';
-import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
-import { runBands, waterfallEnds } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
-import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
 import { wallInteriorData } from '../elevation/model/shelves.js';
 import { resolveSlide } from '../elevation/model/slides.js';
 import {
   CABINET_STYLE_LABELS, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
 import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
-import { isShelvesOnlyRun, wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
+import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { wallEndFit } from '../elevation/model/wallEndFit.js';
-import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorLines } from '../elevation/model/items/doorLines.js';
+import { shippingMoldings } from '../elevation/model/items/bandItems.js';
+import { itemDescription, itemReport, itemReportContext } from '../elevation/model/items/itemReport.js';
+import { EPSILON, nosingNote, orderedThickness, TYPE_LABELS } from '../elevation/model/items/shared.js';
 import { cornerFrameNotes, cornerReportNotes } from './cornerNotes.js';
 import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from '../elevation/model/items/format.js';
@@ -46,82 +41,9 @@ import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
 
 export { drawerFrontNote };
 
-const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
-const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
-const MOLDING_EXTRA = 24;
-const EPSILON = 1e-6;
 const PRINTED_FRAME_RULES = new Set(['rule:top-overlap', 'rule:stacked-seam']);
 // A floor box under another in a tall run is a base up to this height, a tall above it (Kyle 2026-10-23).
 const STACKED_BASE_MAX_HEIGHT = 36.5;
-
-/** Order eight-foot lengths, allowing two extra feet for fitting. */
-export function linealFeet(inches) {
-  return Math.ceil((inches + MOLDING_EXTRA) / 96) * 8;
-}
-
-export function shippingMoldings(room, settings) {
-  const result = Object.fromEntries(Object.keys(MOLDINGS).map((kind) => [kind,
-    { measured: 0, dimensions: new Map() }]));
-  const shelfDepths = new Map();
-  for (const stored of room.walls ?? []) {
-    for (const side of WALL_SIDES) {
-      const wall = resolveWall(room, stored, side);
-      const profile = resolveProfile(settings, room, wall);
-      for (const run of wall.runs) {
-        const kinds = Object.keys(MOLDINGS).filter((kind) => carriesMolding(wall, run, profile, kind, settings));
-        if (!kinds.length) continue;
-        const scene = runScene(room, wall, run, settings);
-        const bands = runBands(room, wall, run, settings, scene);
-        const moldings = moldingProfiles(profile, settings, run);
-        const legBands = ['left', 'right'].flatMap((end) => {
-          const point = cornerReturnPoint(room, wall, run, end);
-          if (!point) return [];
-          const returnWall = room.walls.find(({ id }) => id === point.wallId);
-          const view = resolveWall(room, returnWall, point.wallSide);
-          return cornerLegBandsForOwner(room, view, wall, run, end, settings);
-        });
-        for (const kind of kinds) {
-          const data = result[kind];
-          const picked = moldings[kind];
-          // A toe kick is ordered short of the box by its top gap: a 4" kick is 3 7/8" (Kyle 2026-10-23).
-          const gap = kind === 'toeKick' ? settings.toeKickTopGap ?? DEFAULT_SETTINGS.toeKickTopGap : 0;
-          const height = formatInch((picked?.height ?? profile[`${kind}Height`]) - gap);
-          const bounds = picked && sectionProfileBounds({ geometry: picked.geometry });
-          const depth = bounds ? formatInch(bounds.maxX - bounds.minX) : null;
-          data.dimensions.set(`${height}:${depth}`, { height, depth });
-          // Panel orientation needs resolved leaf dimensions, including nested grid cells.
-          if (kind === 'topMold' && isShelvesOnlyRun(run)
-            && !scene.cells.pieces.some((piece) => panelOrientation(piece) === 'top')) {
-            const depth = run.depth + moldingPast(moldings, kind, settings);
-            shelfDepths.set(formatInch(depth), depth);
-          }
-          if (kind === 'toeKick') {
-            data.measured += bands.toeKicks.reduce((sum, band) => sum + band.width, 0);
-          } else {
-            const band = bands[kind];
-            data.measured += band.width + band.ends.filter((end) => end.type === 'return').length
-              * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
-          }
-          for (const leg of legBands.filter((leg) => leg.kind === kind)) {
-            data.measured += leg.part.width;
-            if (kind !== 'toeKick' && leg.returned) data.measured += leg.part.front - leg.part.back;
-          }
-        }
-      }
-    }
-  }
-  for (const data of Object.values(result)) {
-    const dimensions = [...data.dimensions.values()];
-    data.note = dimensions.every(({ depth }) => depth === null)
-      ? `${dimensions.map(({ height }) => height).join(' & ')} tall`
-      : dimensions.map(({ height, depth }) => `${height} tall${depth === null ? '' : ` x ${depth} deep`}`).join(' & ');
-  }
-  if (shelfDepths.size) {
-    const depths = [...shelfDepths].sort((a, b) => a[1] - b[1]).map(([text]) => text);
-    result.topMold.note += `, ${depths.join(' & ')} deep over shelves`;
-  }
-  return result;
-}
 
 /** Single doors and action pairs need shop instructions; pair halves share a path. */
 export function hingeNote(faces = []) {
@@ -149,7 +71,7 @@ export function hingeNote(faces = []) {
 
 /** Cabinet doors are implied; only working drawer fronts are counted. */
 export function cabinetDescription(typeId, faces = []) {
-  const type = TYPES[typeId];
+  const type = TYPE_LABELS[typeId];
   const drawers = faces.filter((face) => face.type === 'drawer_front');
   const doors = faces.filter((face) => ['door', 'pair_door', 'panel'].includes(face.type));
   if (drawers.length === 0) return doors.length ? type : `${type} Open`;
@@ -256,16 +178,6 @@ function shippingContext(room, settings) {
   };
 }
 
-function moldingDescription(room, settings, part) {
-  const wall = room.walls?.find((wall) => {
-    const profile = resolveProfile(settings, room, wall);
-    return wall.runs.some((run) => carriesMolding(wall, run, profile, part.molding, settings));
-  });
-  const profile = resolveProfile(settings, room, wall);
-  const id = profile[`${part.molding}ProfileId`];
-  return settings.sectionProfiles?.find((entry) => entry.id === id)?.name || MOLDINGS[part.molding];
-}
-
 /**
  * A tall run's cabinet on the floor under another is a base on the shop's lists when it's no taller than
  * 36 1/2"; a taller one stays a tall (Kyle 2026-10-23). It takes a base's notes too (full top).
@@ -276,20 +188,16 @@ function listedTypeId(run, piece) {
   return stacked && piece.height <= STACKED_BASE_MAX_HEIGHT + EPSILON ? CABINET_TYPE_IDS.BASE : run.cabinetTypeId;
 }
 
-function describePart(room, settings, part, context) {
-  const entry = room.reportParts?.[part.key];
-  const name = entry?.name?.trim();
-  if (name) return name;
-  if (part.kind === 'molding') return moldingDescription(room, settings, part);
-  const { run, scene, piece, blindPanel, shelfBack, style } = context;
-  const type = TYPES[run?.cabinetTypeId];
+function describePart(part, context) {
+  const { run, scene, piece, blindPanel, shelfBack } = context;
+  const type = TYPE_LABELS[run?.cabinetTypeId];
   let description;
   if (part.source === 'corner_return') {
     description = `${type} ${part.kind === 'end_panel' ? 'End Panel' : 'Filler'}`;
   } else switch (part.kind) {
     case 'cabinet': {
       const layout = scene.faceLayouts.get(part.key);
-      description = layout?.corner ? `${TYPES[listedTypeId(run, piece)]} Corner ${layout.corner.kind}`
+      description = layout?.corner ? `${TYPE_LABELS[listedTypeId(run, piece)]} Corner ${layout.corner.kind}`
         : cabinetDescription(listedTypeId(run, piece), layout?.faces);
       break;
     }
@@ -309,24 +217,17 @@ function describePart(room, settings, part, context) {
     case 'leg_filler': description = `${type} Filler`; break;
     case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = context.cornerFrame ? `Corner ${context.cornerFrame.kind} Face Frame` : 'Face Frame'; break;
-    case 'furniture_base': description = 'Furniture Base'; break;
-    case 'wood_top': description = 'Wood Top'; break;
     case 'rot': description = 'ROT Drawer Box'; break;
     case 'trash_lid': description = 'Trash Lid'; break;
   }
-  return entry?.shopBuilt || style?.id === 'sheet' ? `Shop-built ${description}` : description;
+  return description;
 }
 
 export function shippingDescription(room, settings, part) {
-  return describePart(room, settings, part, shippingContext(room, settings)(part));
+  return itemDescription(part, shippingContext(room, settings)(part), { room, settings }, { description: describePart });
 }
 
-/** Thick door panels are ordered at their style thickness, with a separate nosing note. */
-function orderedThickness(drawn, style) {
-  return style && style.id !== 'sheet' && drawn > style.thickness + EPSILON ? style.thickness : drawn;
-}
-
-function shippingSize(room, settings, part, context) {
+function shippingSize(part, context, { room, settings }) {
   if (part.source === 'corner_return') {
     const { wall, run, corner, style } = context;
     return part.kind === 'end_panel'
@@ -346,16 +247,13 @@ function shippingSize(room, settings, part, context) {
     const { w, h, d } = context.leg.size;
     return formatSize(w, h, d);
   }
-  if (part.kind === 'wood_top') return formatSize(context.top.orderedWidth, context.top.orderedDepth, context.top.thickness);
-  if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
   if (part.kind === 'rot' || part.kind === 'trash_lid') {
     const box = context.drawerBox?.();
     if (!box || ![box.width, box.height, box.depth].every(Number.isFinite)) return '';
     return part.kind === 'rot' ? formatSize(box.width, box.height, box.depth)
       : formatSize(box.width, box.depth, sheetThickness(settings));
   }
-  const { wall, run, scene, piece, end, blindPanel, style, endpoint, base } = context;
-  if (part.kind === 'furniture_base') return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
+  const { wall, run, scene, piece, end, blindPanel, style, endpoint } = context;
   if (part.kind === 'wall_end_panel') {
     const width = context.fit.hi === undefined ? part.width : context.fit.hi - context.fit.lo;
     return formatSize(width, part.height, context.fit.returns?.length ? context.fit.returnDepth
@@ -524,29 +422,6 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     if (box) groups[4.5] = [...box.notes,
       box.slideId !== resolveSlide(settings).id ? box.slide.name : null];
   }
-  if (part.kind === 'molding') groups[13] = context.molding.note;
-  if (part.kind === 'wood_top') {
-    const top = context.top;
-    let left = false;
-    let right = false;
-    const nosings = new Set();
-    const stored = room.walls.find(({ id }) => id === top.wallId);
-    for (const { side, runIds } of top.faces) {
-      const view = resolveWall(room, stored, side);
-      const profile = resolveProfile(settings, room, view);
-      for (const run of view.runs.filter(({ id }) => runIds.includes(id))) {
-        const waterfall = waterfallEnds(room, view, run, settings);
-        left ||= Boolean(waterfall.left);
-        right ||= Boolean(waterfall.right);
-        const nosing = moldingProfiles(profile, settings, run).nosing;
-        if (nosing?.profile.name) nosings.add(nosing.profile.name);
-      }
-    }
-    groups[13] = [top.faces.length === 2 ? 'Both faces' : null,
-      left && right ? 'Waterfall both' : left ? 'Waterfall L' : right ? 'Waterfall R' : null,
-      top.miters.left && top.miters.right ? 'Miter both' : top.miters.left ? 'Miter L' : top.miters.right ? 'Miter R' : null,
-      ...nosings];
-  }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
   if (part.source === 'corner_return') {
     groups[9] = endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
@@ -598,17 +473,9 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       drawn = orientation === 'side' ? part.width : orientation === 'top' ? part.height
         : context.rectangle().front - context.rectangle().back;
     }
-    if (drawn > style.thickness + EPSILON) {
-      groups[11] = `add ${formatInch(drawn - style.thickness)} square nosing, mitered (${formatInch(drawn)} thick)`;
-    }
+    groups[11] = nosingNote(drawn, style);
   }
   return groups;
-}
-
-/** Keep the specified note order, with free text last (#14). */
-function orderedNotes(groups) {
-  return Object.entries(groups).sort(([a], [b]) => Number(a) - Number(b))
-    .flatMap(([, notes]) => notes).map((note) => note?.trim()).filter(Boolean);
 }
 
 /** One planned-length reason per island/peninsula wall, shared by both faces. */
@@ -633,17 +500,20 @@ export function shippingList(room, settings, shop = settings) {
     const getContext = shippingContext(room, settings);
     const doorItems = new Map(doorLines(room, settings).items
       .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
+    const ctx = itemReportContext(room, settings, { shop, numberOf, doorItems });
+    const fallback = {
+      description: describePart,
+      size: shippingSize,
+      notes: (part, context, { room, settings, shop, numberOf }) => ({
+        ...cabinetNotes(room, settings, part, context),
+        ...partNotes(room, settings, part, context, doorItems, shop, numberOf),
+      }),
+    };
     const rows = parts
-      .sort((a, b) => a.number - b.number).map((part) => {
-        const context = getContext(part);
-        return {
-          number: part.number, key: part.key, kind: part.kind,
-          description: describePart(room, settings, part, context),
-          notes: orderedNotes({ ...cabinetNotes(room, settings, part, context),
-            ...partNotes(room, settings, part, context, doorItems, shop, numberOf), 14: [room.reportParts?.[part.key]?.note] }),
-          size: shippingSize(room, settings, part, context),
-        };
-      });
+      .sort((a, b) => a.number - b.number).map((part) => ({
+        number: part.number, key: part.key, kind: part.kind,
+        ...itemReport(part, getContext(part), ctx, fallback),
+      }));
     rows.push({ number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
       description: 'Adjustable Shelves', notes: [], size: '' });
     return { rows, wallNotes: wallLengthNotes(room, settings), roomNote: room.reportNote?.trim() || null, warnings };
