@@ -231,7 +231,7 @@ export function toDrawingPayload(room, settings, { revision } = {}) {
       paperSize: list.paperSize,
       plan: { ...list.plan, parts: withoutTags(list.plan.parts) },
     };
-  });
+  }, room);
 }
 
 /** "G1 Euro kitchen" → "g1-euro-kitchen.zip" (SPEC-40); the API uses the same rule. */

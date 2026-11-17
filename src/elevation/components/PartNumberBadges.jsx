@@ -13,6 +13,7 @@ import {
   PART_BADGE_STEP,
 } from '../canvas/partNumberLayout.js';
 import { wallRectToScreen } from '../canvas/transform.js';
+import { badgeText } from '../model/partNumbers.js';
 
 export default function PartNumberBadges({
   pieces,
@@ -40,7 +41,7 @@ export default function PartNumberBadges({
     const rect = rects.get(piece.id);
     return [{
       key: piece.id,
-      text: String(numbers.get(piece.id)),
+      text: badgeText(numbers, piece.id),
       left: rect.x,
       right: rect.x + rect.width,
     }];

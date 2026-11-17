@@ -36,7 +36,7 @@ function storedView(room, wall) {
 
 const valueKey = (values) => values.map((value) => `${typeof value}:${String(value)}`).join('|');
 
-function createBuildCache() {
+function createBuildCache(freezeResults = import.meta.env.MODE === 'test') {
   const scenes = new WeakMap();
   const corners = new WeakMap();
   const rooms = new Map();
@@ -52,7 +52,7 @@ function createBuildCache() {
     }
     if (values.has(key)) return values.get(key);
     const result = build();
-    if (import.meta.env.MODE === 'test') {
+    if (freezeResults) {
       for (const input of [room, settings]) {
         if (input === null || typeof input !== 'object' || inputRoots.has(input)) continue;
         visit(input, inputs);
@@ -85,10 +85,28 @@ function createBuildCache() {
   };
 }
 
-/** One synchronous build; nested entry points share its cache, released even on failure. */
-export function withBuildCache(fn) {
+let viewCache = null;
+
+/**
+ * The cache a builder uses: the active build's, else one long-lived cache for frozen rooms (store rooms are
+ * frozen by Immer, so identity keys can't go stale). Canvas renders (zoom, pan, hover) then reuse every run scene,
+ * corner shape and room list until the room or settings object changes. Results are frozen outside production so
+ * a caller that mutates one throws instead of corrupting later renders.
+ */
+export function buildCacheFor(room) {
+  if (activeBuildCache) return activeBuildCache;
+  if (!room || typeof room !== 'object' || !Object.isFrozen(room)) return null;
+  viewCache ??= createBuildCache(import.meta.env.MODE !== 'production');
+  return viewCache;
+}
+
+/**
+ * One synchronous build; nested entry points share its cache, released even on failure.
+ * A build for a frozen room uses the long-lived cache instead of a fresh one.
+ */
+export function withBuildCache(fn, room) {
   if (activeBuildCache) return fn();
-  activeBuildCache = createBuildCache();
+  activeBuildCache = buildCacheFor(room) ?? createBuildCache();
   try {
     return fn();
   } finally {

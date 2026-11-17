@@ -1,6 +1,7 @@
 import { roundBulge } from './units.js';
 
 const FULL_TURN = Math.PI * 2;
+const ARC_END = 1e-6;
 
 /** Keep each segment's bulge at its start; split arcs over 180 degrees at their midpoint. */
 function loopOutline(loop, points) {
@@ -67,9 +68,25 @@ export function flattenOutline(outline, maxSagitta = 0.001) {
   });
 }
 
-/** Bounds of the outline's flattened geometry, including arc interiors. */
+/** Axis-extreme points an arc passes through; sampled chords can miss them by up to the sagitta. */
+function arcExtremes(outline) {
+  return outline.flatMap((point, index) => {
+    const arc = arcGeometry(point, outline[(index + 1) % outline.length]);
+    if (!arc) return [];
+    const { cx, cy, radius, start, sweep } = arc;
+    const extremes = [[0, cx + radius, cy], [Math.PI / 2, cx, cy + radius],
+      [Math.PI, cx - radius, cy], [Math.PI * 1.5, cx, cy - radius]];
+    return extremes.filter(([angle]) => {
+      const distance = (((angle - start) * Math.sign(sweep)) % FULL_TURN + FULL_TURN) % FULL_TURN;
+      // Skip extremes at an endpoint (already a vertex); rounded bulges put them a hair past it.
+      return distance > ARC_END && distance < Math.abs(sweep) - ARC_END;
+    }).map(([, ex, ey]) => [ex, ey]);
+  });
+}
+
+/** Bounds of the outline's flattened geometry, including arc interiors and extremes (as geometry does). */
 export function outlineBounds(outline) {
-  const points = flattenOutline(outline);
+  const points = [...flattenOutline(outline), ...arcExtremes(outline)];
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };

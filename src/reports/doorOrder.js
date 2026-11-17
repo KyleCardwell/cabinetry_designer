@@ -234,5 +234,5 @@ export function doorOrder(room, settings) {
           return { ...page, sections: [{ id, title, lines: mergeLines(items) }] };
         }));
     return { pages: result, warnings };
-  });
+  }, room);
 }

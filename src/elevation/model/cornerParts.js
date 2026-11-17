@@ -1,4 +1,4 @@
-import { activeBuildCache } from './buildCache.js';
+import { buildCacheFor } from './buildCache.js';
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
@@ -96,8 +96,9 @@ export function landedReturns(room, view) {
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
 export function cornerShapes(room, wall, side, settings, options) {
-  if (!activeBuildCache) return buildCornerShapes(room, wall, side, settings, options);
-  return activeBuildCache.cornerShapes(room, wall, side, settings, options,
+  const cache = buildCacheFor(room);
+  if (!cache) return buildCornerShapes(room, wall, side, settings, options);
+  return cache.cornerShapes(room, wall, side, settings, options,
     () => buildCornerShapes(room, wall, side, settings, options));
 }
 

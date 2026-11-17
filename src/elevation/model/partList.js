@@ -93,5 +93,5 @@ export function roomPartList(room, settings) {
         ...(shapes.length ? { shapes } : {}),
       },
     };
-  });
+  }, room);
 }

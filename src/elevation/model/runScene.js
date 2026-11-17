@@ -1,4 +1,4 @@
-import { activeBuildCache } from './buildCache.js';
+import { buildCacheFor } from './buildCache.js';
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellPieces, floatingShelfLayout, panelOrientation, shelfParts } from './cells.js';
 import { cornerEnd } from './cornerEnd.js';
@@ -54,8 +54,9 @@ function cornerFrameView(frame, corner, entry, returning = false) {
  * draws from it and the click picker hit-tests it, so the two can't disagree.
  */
 export function runScene(room, wall, run, settings) {
-  if (!activeBuildCache) return buildRunScene(room, wall, run, settings);
-  return activeBuildCache.runScene(room, wall, run, settings, () => buildRunScene(room, wall, run, settings));
+  const cache = buildCacheFor(room);
+  if (!cache) return buildRunScene(room, wall, run, settings);
+  return cache.runScene(room, wall, run, settings, () => buildRunScene(room, wall, run, settings));
 }
 
 function buildRunScene(room, wall, run, settings) {

@@ -1,4 +1,4 @@
-import { activeBuildCache } from './buildCache.js';
+import { buildCacheFor } from './buildCache.js';
 import { endEdgeX, frontContour } from './bandEnds.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { frontDepth } from './corners.js';
@@ -98,8 +98,9 @@ function groupSize(entries, settings) {
  * Inside corners never link groups across walls.
  */
 export function furnitureBaseGroups(room, settings = DEFAULT_SETTINGS) {
-  if (!activeBuildCache) return buildFurnitureBaseGroups(room, settings);
-  return activeBuildCache.byRoom('furnitureBaseGroups', room, settings,
+  const cache = buildCacheFor(room);
+  if (!cache) return buildFurnitureBaseGroups(room, settings);
+  return cache.byRoom('furnitureBaseGroups', room, settings,
     () => buildFurnitureBaseGroups(room, settings));
 }
 

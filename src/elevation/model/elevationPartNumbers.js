@@ -1,6 +1,6 @@
 import { layoutPartBadges } from '../canvas/partNumberLayout.js';
 import { plotScale } from './drawingScale.js';
-import { partNumbers, wallBadgeGroups, wallMoldingBadges } from './partNumbers.js';
+import { badgeText, partNumbers, wallBadgeGroups, wallMoldingBadges } from './partNumbers.js';
 import { resolveWall } from './room.js';
 
 const badgeWidth = (text, scale) => Math.max(1 / 4, 0.075 * text.length + 0.1) * scale;
@@ -17,7 +17,7 @@ export function layoutDxfBadges(pieces, numbers, { lift = 0, plotScale: scale = 
   const byKey = new Map(pieces.map((piece) => [piece.id, piece]));
   const entries = pieces.flatMap((piece) => numbers.has(piece.id) ? [{
     key: piece.id,
-    text: String(numbers.get(piece.id)),
+    text: badgeText(numbers, piece.id),
     left: piece.x,
     right: piece.x + piece.width,
   }] : []);

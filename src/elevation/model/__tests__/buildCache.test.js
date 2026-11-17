@@ -44,3 +44,17 @@ it.each([
   if (mode === 'uncached') check();
   else withBuildCache(check);
 });
+
+it('reuses scenes and room items across calls for a frozen store room, outside a build', () => {
+  const settings = { ...DEFAULT_SETTINGS };
+  const freeze = (value) => {
+    if (value && typeof value === 'object' && !Object.isFrozen(value)) Object.values(Object.freeze(value)).forEach(freeze);
+    return value;
+  };
+  const stored = freeze(syncRoom(room({ walls: [wall({ runs: [run({ items: [auto('cabinet')] })] })] }), settings));
+  const scene = () => runScene(stored, resolveWall(stored, stored.walls[0], 'front'), stored.walls[0].runs[0], settings);
+  expect(scene()).toBe(scene());
+  expect(roomParts(stored, settings)).toBe(roomParts(stored, settings));
+  expect(Object.isFrozen(scene())).toBe(true);
+  expect(roomParts(stored, { ...settings })).not.toBe(roomParts(stored, settings));
+});

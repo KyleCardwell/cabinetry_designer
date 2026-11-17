@@ -526,7 +526,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[collision.runId]?.warnings.push(collision);
     }
     return diagnostics;
-  });
+  }, room);
 }
 
 function runLineWarnings(room, wall, run, settings, held) {

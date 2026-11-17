@@ -647,5 +647,5 @@ export function shippingList(room, settings, shop = settings) {
     rows.push({ number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
       description: 'Adjustable Shelves', notes: [], size: '' });
     return { rows, wallNotes: wallLengthNotes(room, settings), roomNote: room.reportNote?.trim() || null, warnings };
-  });
+  }, room);
 }

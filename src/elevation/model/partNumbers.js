@@ -29,7 +29,16 @@ export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furni
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 export function partNumbers(room, settings) {
-  return withBuildCache(() => numberItems(room, roomParts(room, settings)));
+  return withBuildCache(() => numberItems(room, roomParts(room, settings)), room);
+}
+
+// Hidden parts' numbers (ROT box, trash lid) per parent key, kept beside each numbering's byKey map.
+const hiddenNumbers = new WeakMap();
+
+/** A part's badge text: its number, plus any hidden parts it carries, e.g. "4 (5, 6)". */
+export function badgeText(numbers, key) {
+  const hidden = hiddenNumbers.get(numbers)?.get(key);
+  return hidden ? `${numbers.get(key)} (${hidden.join(', ')})` : String(numbers.get(key));
 }
 
 export function numberItems(room, items) {
@@ -61,6 +70,13 @@ export function numberItems(room, items) {
   }
 
   const parts = items.map((part) => ({ ...part, number: byKey.get(part.key) }));
+  // Parts drawn on no elevation join their cabinet's badge so the shop can find them.
+  const hidden = new Map();
+  for (const part of parts) {
+    if (!part.cabinetId || !byKey.has(part.cabinetId)) continue;
+    hidden.set(part.cabinetId, [...(hidden.get(part.cabinetId) ?? []), part.number].sort((a, b) => a - b));
+  }
+  hiddenNumbers.set(byKey, hidden);
   const warnings = [...claims.entries()]
     .filter(([, keys]) => keys.length > 1)
     .map(([number, keys]) => ({ code: 'duplicate-part-number', number, keys }));

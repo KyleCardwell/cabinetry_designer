@@ -97,5 +97,5 @@ export function proBoxOrder(room, settings, header) {
         brand: undermount ? `${headerClips.toUpperCase()} ${slide.brand.toUpperCase()}` : '' },
       comments, lines: groupedLines(entries), warnings,
     };
-  });
+  }, room);
 }

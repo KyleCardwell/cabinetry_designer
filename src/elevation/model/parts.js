@@ -261,7 +261,7 @@ function wallPanelPart(wall, panel) {
  */
 export function roomParts(room, settings) {
   return withBuildCache(() => activeBuildCache.byRoom('roomParts', room, settings,
-    () => buildRoomParts(room, settings)));
+    () => buildRoomParts(room, settings)), room);
 }
 
 function buildRoomParts(room, settings) {
