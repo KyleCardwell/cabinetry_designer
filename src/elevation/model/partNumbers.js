@@ -29,41 +29,42 @@ export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furni
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 export function partNumbers(room, settings) {
-  return withBuildCache(() => {
-    const ordered = roomParts(room, settings);
-    const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
-      ? room.partNumberStart
-      : 1;
-    const overrides = room?.partNumberOverrides ?? {};
-    const byKey = new Map();
-    const taken = new Set();
-    const overrideKeys = new Set();
-    const claims = new Map();
-    for (const part of ordered) {
-      const override = overrides[part.key];
-      if (!Number.isInteger(override) || override <= 0) continue;
-      byKey.set(part.key, override);
-      taken.add(override);
-      overrideKeys.add(part.key);
-      const keys = claims.get(override) ?? [];
-      keys.push(part.key);
-      claims.set(override, keys);
-    }
-    let next = start;
-    for (const part of ordered) {
-      if (byKey.has(part.key)) continue;
-      while (taken.has(next)) next += 1;
-      byKey.set(part.key, next);
-      taken.add(next);
-      next += 1;
-    }
+  return withBuildCache(() => numberItems(room, roomParts(room, settings)));
+}
 
-    const parts = ordered.map((part) => ({ ...part, number: byKey.get(part.key) }));
-    const warnings = [...claims.entries()]
-      .filter(([, keys]) => keys.length > 1)
-      .map(([number, keys]) => ({ code: 'duplicate-part-number', number, keys }));
-    return { parts, byKey, overrideKeys, warnings };
-  });
+export function numberItems(room, items) {
+  const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
+    ? room.partNumberStart
+    : 1;
+  const overrides = room?.partNumberOverrides ?? {};
+  const byKey = new Map();
+  const taken = new Set();
+  const overrideKeys = new Set();
+  const claims = new Map();
+  for (const part of items) {
+    const override = overrides[part.key];
+    if (!Number.isInteger(override) || override <= 0) continue;
+    byKey.set(part.key, override);
+    taken.add(override);
+    overrideKeys.add(part.key);
+    const keys = claims.get(override) ?? [];
+    keys.push(part.key);
+    claims.set(override, keys);
+  }
+  let next = start;
+  for (const part of items) {
+    if (byKey.has(part.key)) continue;
+    while (taken.has(next)) next += 1;
+    byKey.set(part.key, next);
+    taken.add(next);
+    next += 1;
+  }
+
+  const parts = items.map((part) => ({ ...part, number: byKey.get(part.key) }));
+  const warnings = [...claims.entries()]
+    .filter(([, keys]) => keys.length > 1)
+    .map(([number, keys]) => ({ code: 'duplicate-part-number', number, keys }));
+  return { parts, byKey, overrideKeys, warnings };
 }
 
 export function wallMoldingBadges(room, wall, settings, byKey) {

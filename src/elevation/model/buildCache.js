@@ -1,6 +1,6 @@
 import { wallSideOf } from './wallSides.js';
 
-// Internal interface for the two builders; only entry points start a build.
+// Internal interface for cached builders; only entry points start a build.
 export let activeBuildCache = null;
 
 function visit(value, seen, visitObject) {
@@ -39,6 +39,7 @@ const valueKey = (values) => values.map((value) => `${typeof value}:${String(val
 function createBuildCache() {
   const scenes = new WeakMap();
   const corners = new WeakMap();
+  const rooms = new Map();
   const inputs = new WeakSet();
   const inputRoots = new WeakSet();
   const frozen = new WeakSet();
@@ -53,7 +54,7 @@ function createBuildCache() {
     const result = build();
     if (import.meta.env.MODE === 'test') {
       for (const input of [room, settings]) {
-        if (inputRoots.has(input)) continue;
+        if (input === null || typeof input !== 'object' || inputRoots.has(input)) continue;
         visit(input, inputs);
         inputRoots.add(input);
       }
@@ -66,6 +67,10 @@ function createBuildCache() {
   }
 
   return {
+    byRoom(name, room, settings, build) {
+      if (!rooms.has(name)) rooms.set(name, new WeakMap());
+      return cachedOrRun(rooms.get(name), [room], settings, room, settings, build);
+    },
     runScene(room, wall, run, settings, build) {
       if (!storedView(room, wall)) return build();
       const key = valueKey([wall.side ?? 'front', wall.flipped, wall.length]);

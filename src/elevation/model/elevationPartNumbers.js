@@ -54,9 +54,9 @@ export function dxfMoldingBadges(badges, scale) {
 }
 
 /** The same side view and numbered groups that ElevationCanvas gives PartNumberLayer. */
-export function elevationPartNumbers(room, wall, side, settings) {
+export function elevationPartNumbers(room, wall, side, settings, byKey) {
   const view = resolveWall(room, wall, side);
-  const { byKey } = partNumbers(room, settings);
+  byKey ??= partNumbers(room, settings).byKey;
   const scale = plotScale(settings);
   return [
     ...wallBadgeGroups(room, view, settings).flatMap(({ pieces, lift }) =>
