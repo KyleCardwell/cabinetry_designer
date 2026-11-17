@@ -7,7 +7,6 @@ import { cornerEnd } from '../elevation/model/cornerEnd.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { deckZ, elevationParts } from '../elevation/model/elevationParts.js';
-import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
 import { wallLength } from '../elevation/model/geometry.js';
 import { runLegs } from '../elevation/model/legs.js';
@@ -21,7 +20,7 @@ import { runScene } from '../elevation/model/runScene.js';
 import { wallInteriorData } from '../elevation/model/shelves.js';
 import { resolveSlide } from '../elevation/model/slides.js';
 import {
-  CABINET_STYLE_LABELS, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
+  CABINET_STYLE_LABELS, isInsetStyle, resolveStyle, REVEAL_KEYS, typeStandardReveals,
 } from '../elevation/model/styles.js';
 import { teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
@@ -31,10 +30,9 @@ import { doorLines } from '../elevation/model/items/doorLines.js';
 import { shippingMoldings } from '../elevation/model/items/bandItems.js';
 import { itemDescription, itemReport, itemReportContext } from '../elevation/model/items/itemReport.js';
 import { EPSILON, TYPE_LABELS } from '../elevation/model/items/shared.js';
-import { cornerFrameNotes, cornerReportNotes } from './cornerNotes.js';
+import { cornerReportNotes } from '../elevation/model/items/cornerNotes.js';
 import { formatRevealParts, measureFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from '../elevation/model/items/format.js';
-import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
 import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
 
 export { drawerFrontNote };
@@ -196,7 +194,6 @@ function describePart(part, context) {
         : cabinetDescription(listedTypeId(run, piece), layout?.faces);
       break;
     }
-    case 'frame': description = context.cornerFrame ? `Corner ${context.cornerFrame.kind} Face Frame` : 'Face Frame'; break;
   }
   return description;
 }
@@ -206,10 +203,6 @@ export function shippingDescription(room, settings, part) {
 }
 
 function shippingSize(part, context, { room, settings }) {
-  if (context.cornerFrame) {
-    const { diagonal, frame } = context.cornerFrame;
-    return diagonal ? formatSize(diagonal.frontWidth, frame.height, frame.thickness) : '';
-  }
   const { wall, run, scene } = context;
   const corner = part.kind === 'cabinet' && scene.faceLayouts.get(part.key)?.corner;
   if (corner) {
@@ -222,7 +215,6 @@ function shippingSize(part, context, { room, settings }) {
       const depth = rect.front - rect.back;
       return formatSize(part.width, part.height, depth);
     }
-    case 'frame': return formatSize(part.width, part.height, runFrame(room, run, settings).thickness);
   }
 }
 
@@ -333,33 +325,6 @@ function cabinetNotes(room, settings, part, context) {
   };
 }
 
-/** Part notes share vendor annotations and the properties panel's return/chip rules. */
-function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
-  if (context.cornerFrame) {
-    const { wall, run, scene, cornerFrame } = context;
-    const { returnSide } = cornerEnd(room, wall, run, cornerFrame.side, settings, scene.result);
-    return { 10: cornerFrameNotes(cornerFrame, returnSide) };
-  }
-  const { run, scene, wall } = context;
-  const groups = {};
-  groups[10] = doorItems.get(part.key)?.notes;
-  if (part.kind === 'frame') {
-    const region = scene.frames.regions.find(({ id }) => id === part.key);
-    const members = region && frameMembers(region, regionOpenings(region, scene.faceLayouts));
-    if (members) {
-      const bead = runFrame(room, run, settings).bead;
-      const standards = frameStandards(shop.insetFrame, bead);
-      const entries = frameReasons(room, wall, run, scene, region,
-        frameMemberRoles(region, members, scene.cells.pieces), settings, standards);
-      groups[10] = frameNotes(entries, standards, { bead, numberOf });
-    }
-    groups[10] = [...(groups[10] ?? []), ...frameReturnNotes(run, region),
-      ...frameNotchNotes(region, scene.cells.pieces, numberOf),
-      ...frameStepReturnNotes(run, region, scene.cells, numberOf)];
-  }
-  return groups;
-}
-
 /** One planned-length reason per island/peninsula wall, shared by both faces. */
 function wallLengthNotes(room, settings) {
   if (settings.runFlex === 0) return [];
@@ -386,10 +351,7 @@ export function shippingList(room, settings, shop = settings) {
     const fallback = {
       description: describePart,
       size: shippingSize,
-      notes: (part, context, { room, settings, shop, numberOf }) => ({
-        ...cabinetNotes(room, settings, part, context),
-        ...partNotes(room, settings, part, context, doorItems, shop, numberOf),
-      }),
+      notes: (part, context, { room, settings }) => cabinetNotes(room, settings, part, context),
     };
     const rows = parts
       .sort((a, b) => a.number - b.number).map((part) => ({

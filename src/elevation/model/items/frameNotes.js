@@ -1,15 +1,15 @@
-import { findLeaf } from '../elevation/model/cellTree.js';
-import { gapReach } from '../elevation/model/cells.js';
-import { FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
-import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
-import { cornerLap } from '../elevation/model/cornerLaps.js';
-import { sideOf } from '../elevation/model/frames.js';
-import { runItems } from '../elevation/model/grid.js';
-import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
-import { runSeamGap } from '../elevation/model/styles.js';
-import { resolveTopSegments } from '../elevation/model/topSegments.js';
-import { wallEndPanelAt } from '../elevation/model/wallSides.js';
-import { formatInch } from '../elevation/model/items/format.js';
+import { findLeaf } from '../cellTree.js';
+import { gapReach } from '../cells.js';
+import { FRAME_RETURN_WIDTH } from '../constants.js';
+import { BOTTOM_PART_LABELS, frameBottomParts } from '../bottoms.js';
+import { cornerLap } from '../cornerLaps.js';
+import { sideOf } from '../frames.js';
+import { runItems } from '../grid.js';
+import { runEndThickness, wallPanelThickness } from '../panelThickness.js';
+import { runSeamGap } from '../styles.js';
+import { resolveTopSegments } from '../topSegments.js';
+import { wallEndPanelAt } from '../wallSides.js';
+import { formatInch } from './format.js';
 
 const EPSILON = 1e-6;
 
@@ -100,7 +100,7 @@ export function frameMemberRoles(region, members, boxes) {
   });
 }
 
-export { frameStandards } from '../elevation/model/frameStandards.js';
+export { frameStandards } from '../frameStandards.js';
 
 const NOTE_ORDER = ['left-stile', 'right-stile', 'top-rail', 'bottom-rail', 'stile', 'rail', 'mid-rail', 'mullion'];
 const STILE_ROLES = new Set(['left-stile', 'right-stile', 'stile', 'mullion']);

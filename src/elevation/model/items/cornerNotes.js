@@ -1,6 +1,6 @@
-import { cornerEnd } from '../elevation/model/cornerEnd.js';
-import { cornerBifold } from '../elevation/model/cornerBifold.js';
-import { formatInch, formatSize } from '../elevation/model/items/format.js';
+import { cornerEnd } from '../cornerEnd.js';
+import { cornerBifold } from '../cornerBifold.js';
+import { formatInch, formatSize } from './format.js';
 
 const EPSILON = 1e-6;
 const facingOrder = (side, a, b) => side === 'right' ? [a, b] : [b, a];
