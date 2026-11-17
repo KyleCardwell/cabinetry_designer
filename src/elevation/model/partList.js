@@ -1,14 +1,17 @@
 import { withBuildCache } from './buildCache.js';
 import { combinedElevationPayload } from './combinedPayload.js';
-import { drawingElevationFaces, faceDrawing } from './drawingPayload.js';
+import { drawingElevationFaces, facePayload } from './drawingPayload.js';
+import { paperSize, plotScale } from './drawingScale.js';
+import { numberItems } from './partNumbers.js';
+import { planDimensions } from './planDimensions.js';
+import { planMarks } from './planMarks.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { roomParts } from './parts.js';
-import { planParts } from './planParts.js';
+import { planParts, planShapes } from './planParts.js';
 import { woodTopGroups } from './woodTopGroups.js';
 
 const MOLDINGS = { toe_kick: 'molding:toeKick', top_mold: 'molding:topMold', crown: 'molding:crown' };
 const OWN_BAND = /^(countertop|furniture_base)(:\d+)?$|^top-/;
-const DRAWINGS = ['doorDetails', 'swingMarks', 'pulls', 'interiors', 'shapes', 'glassMarks'];
 
 /**
  * Index once per list. `bands` maps each drawn furniture base / wood top band id to its group's
@@ -58,32 +61,37 @@ export function pieceItemKey(piece, index) {
   return null;
 }
 
-/** Shop items and the geometry drawn for a synced room, without annotations. */
+/** Shop items, numbering and complete drawing records for a synced room, with ownership tags. */
 export function roomPartList(room, settings) {
   return withBuildCache(() => {
     const items = roomParts(room, settings);
+    const numbers = numberItems(room, items);
     const index = itemIndex(items, {
       furnitureBases: furnitureBaseGroups(room, settings), woodTops: woodTopGroups(room, settings),
     });
     const tag = (piece) => ({ ...piece, itemKey: pieceItemKey(piece, index) });
-    const elevations = Array.from(drawingElevationFaces(room), ({ key, letter, wall, side, combined }) => {
-      const buildFace = (faceWall, faceSide, options) => {
-        const { view, ...drawing } = faceDrawing(room, faceWall, faceSide, settings, options);
-        return {
-          key, letter, wallId: faceWall.id, side: faceSide,
-          length: view.length, height: faceWall.height, ...drawing,
-        };
-      };
-      const drawing = combined
-        ? combinedElevationPayload(room, combined, settings, buildFace)
-        : buildFace(wall, side);
-      return {
-        key, letter, wallId: drawing.wallId, side: drawing.side,
-        length: drawing.length, height: drawing.height,
-        pieces: drawing.parts.map(tag),
-        drawings: Object.fromEntries(DRAWINGS.map((name) => [name, drawing[name] ?? []])),
-      };
+    const shapes = planShapes(room, settings);
+    const drawings = Array.from(drawingElevationFaces(room), ({ key, letter, wall, side, combined }) => {
+      if (combined) {
+        return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
+          facePayload(room, faceWall, faceSide, key, letter, settings, options, numbers.byKey));
+      }
+      return facePayload(room, wall, side, key, letter, settings, undefined, numbers.byKey);
     });
-    return { items, elevations, plan: { pieces: planParts(room, settings).map(tag) } };
+
+    const elevations = drawings.map((drawing) => ({ ...drawing, parts: drawing.parts.map(tag) }));
+    return {
+      items,
+      numbers,
+      elevations,
+      plotScale: plotScale(settings),
+      paperSize: paperSize(settings),
+      plan: {
+        parts: planParts(room, settings).map(tag),
+        dimensions: planDimensions(room, settings),
+        marks: planMarks(room, settings),
+        ...(shapes.length ? { shapes } : {}),
+      },
+    };
   });
 }
