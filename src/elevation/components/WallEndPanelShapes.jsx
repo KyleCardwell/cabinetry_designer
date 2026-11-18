@@ -6,7 +6,7 @@ import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { wallEndPanelReturns, wallEndPanelSpans, wallEndPanels } from '../model/wallEndPanels.js';
 
 function WallEndPanelShape({
-  wall, panel, transform, selected, onSelect, cursor,
+  wall, panel, transform, selected, onSelect, cursor, hitOnly,
 }) {
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
@@ -32,20 +32,25 @@ function WallEndPanelShape({
         onSelect?.(panel.endpoint);
       }}
     >
-      <Rect {...rect(panel.bottom, panel.top - panel.bottom)} fill="rgba(0, 0, 0, 0.001)" />
+      <Rect
+        {...rect(panel.bottom, panel.top - panel.bottom)}
+        fill="rgba(0, 0, 0, 0.001)"
+        stroke={hitOnly && selected ? '#7dd3fc' : undefined}
+        strokeWidth={3}
+      />
       {/* A fitted panel's returns (SH7.6 step f); a click on one selects the panel. */}
       {wallEndPanelReturns(panel, wall.side ?? 'front').map((ret) => (
         <Rect
           key={`return-${ret.edge}`}
           {...wallRectToScreen({ x: ret.start, z: panel.bottom, width: ret.end - ret.start,
             height: panel.top - panel.bottom }, transform)}
-          fill={ELEVATION_BG}
-          opacity={0.55}
-          stroke={selected ? '#7dd3fc' : ELEVATION_LINE}
+          fill={hitOnly ? 'rgba(0, 0, 0, 0.001)' : ELEVATION_BG}
+          opacity={hitOnly ? 1 : 0.55}
+          stroke={selected ? '#7dd3fc' : hitOnly ? undefined : ELEVATION_LINE}
           strokeWidth={selected ? 3 : 1}
         />
       ))}
-      {spans.map((span) => (
+      {!hitOnly && spans.map((span) => (
         <Rect
           key={span.z}
           {...rect(span.z, span.height)}
@@ -61,7 +66,7 @@ function WallEndPanelShape({
 }
 
 export default function WallEndPanelShapes({
-  room, wall, settings, transform, selectedEndpoint = null, onSelect, cursor,
+  room, wall, settings, transform, selectedEndpoint = null, onSelect, cursor, hitOnly = false,
 }) {
   return wallEndPanels(room, wall, settings).map((panel) => (
     <WallEndPanelShape
@@ -72,6 +77,7 @@ export default function WallEndPanelShapes({
       selected={selectedEndpoint === panel.endpoint}
       onSelect={onSelect}
       cursor={cursor}
+      hitOnly={hitOnly}
     />
   ));
 }

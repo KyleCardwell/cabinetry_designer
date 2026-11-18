@@ -62,9 +62,8 @@ export default function WallContentLayer({
   const storedWall = room.walls.find((candidate) => candidate.id === wall.id);
   const heldJoints = storedWall ? lineHeldJoints(storedWall) : new Map();
   const lineLabels = Object.fromEntries((storedWall?.lines ?? []).map(({ id, label }) => [id, label]));
-  const runIds = useMemo(() => new Set(wall.runs.map(({ id }) => id)), [wall.runs]);
-  const entries = useMemo(() => paintEntries(screenDrawing, { doorsOff, runIds }),
-    [screenDrawing, doorsOff, runIds]);
+  const entries = useMemo(() => paintEntries(screenDrawing, { doorsOff }),
+    [screenDrawing, doorsOff]);
   const showThroughByItem = useMemo(() => new Map(showThrough.map((entry) => [entry.itemId, entry])),
     [showThrough]);
   const showThroughSlot = (part) => {
@@ -96,7 +95,9 @@ export default function WallContentLayer({
                 cursor={cursor}
               />
             ))}
+            <FacePainter entries={entries} transform={transform} after={showThroughSlot} />
             <SoffitShapes
+              hitOnly
               room={room}
               wall={wall}
               settings={settings}
@@ -105,7 +106,6 @@ export default function WallContentLayer({
               onSelect={tool === 'select' ? pick : undefined}
               combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
             />
-            <FacePainter entries={entries} transform={transform} after={showThroughSlot} />
             {runsByDepth(wall.runs, settings).map((run) => (
               <RunGroup
                 key={run.id}
@@ -145,6 +145,7 @@ export default function WallContentLayer({
               />
             ))}
             <WallEndPanelShapes
+              hitOnly
               room={room}
               wall={wall}
               settings={settings}

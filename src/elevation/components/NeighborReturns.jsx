@@ -30,7 +30,7 @@ import { outlineGeometry, outlinePath } from './outlinePath.js';
 export default function NeighborReturns({
   room, wall, settings, transform, doorsOff = false,
   shapes = cornerShapes(room, wall, wall.side ?? 'front', settings),
-  legs = cornerReturnLegs(room, wall, settings), selection = null,
+  legs = cornerReturnLegs(room, wall, settings), selection = null, hitOnly = false,
 }) {
   const drawing = doorDrawing(room);
   const seams = soffitSeams(room, wall);
@@ -73,10 +73,22 @@ export default function NeighborReturns({
   return (
     <>
       {legs.map((leg) => {
-        const owner = room.walls.find(({ id }) => id === leg.ownerWallId)
-          ?.runs.find(({ id }) => id === leg.runId);
         const selected = selection?.cornerOf?.wallId === leg.ownerWallId
           && selection.cornerOf.runId === leg.runId && selection.cornerOf.side === leg.side;
+        if (hitOnly) {
+          return selected ? (
+            <Rect
+              key={leg.key}
+              {...wallRectToScreen(leg.rect, transform)}
+              fillEnabled={false}
+              stroke="#7dd3fc"
+              strokeWidth={3}
+              listening={false}
+            />
+          ) : null;
+        }
+        const owner = room.walls.find(({ id }) => id === leg.ownerWallId)
+          ?.runs.find(({ id }) => id === leg.runId);
         const edgeX = leg.sideEdge && leg.sideEdge.x
           + (leg.sideEdge.x === leg.rect.x ? leg.sideEdge.width : 0);
         const edgeFrom = leg.sideEdge && wallToScreen({ x: edgeX, z: leg.rect.z }, transform);
@@ -176,7 +188,7 @@ export default function NeighborReturns({
       })}
       {returns.map((entry) => (
         <Group key={entry.key} listening={false}>
-          {entry.parts.map((part) => {
+          {!hitOnly && entry.parts.map((part) => {
             const PartShape = part.outline ? Shape : Rect;
             const geometry = part.outline ? outlineGeometry(part.outline, transform) : part.rect;
             const section = part.kind === 'section';

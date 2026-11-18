@@ -21,6 +21,7 @@ export default function SoffitShapes({
   selectedSoffitId,
   onSelect,
   combinedJoins = [],
+  hitOnly = false,
 }) {
   // A combined elevation's nearer face just as deep joins like a projection (Kyle 2026-10-23).
   const joins = [...soffitProjectionJoins(wall), ...combinedJoins];
@@ -60,10 +61,12 @@ export default function SoffitShapes({
       >
         <Rect
           {...rect}
-          fill="rgba(0,0,0,0)"
-          strokeEnabled={false}
+          fill={hitOnly ? 'rgba(0, 0, 0, 0.001)' : 'rgba(0,0,0,0)'}
+          stroke={hitOnly && selected ? '#7dd3fc' : undefined}
+          strokeWidth={3}
+          strokeEnabled={hitOnly && selected}
         />
-        {edges.map((points) => (
+        {!hitOnly && edges.map((points) => (
           <Line
             key={points.join(':')}
             points={points}
