@@ -177,8 +177,7 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
 
 /**
  * Every part-badge group on one elevation, in draw order.
- * Each group lays out independently, exactly as RunGroup laid one run out.
- * @returns {{key: string, lift: number, pieces: object[]}[]}
+ * @returns {{key: string, pieces: object[]}[]}
  */
 export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.flatMap((run) => {
@@ -194,23 +193,18 @@ export function wallBadgeGroups(room, wall, settings) {
     return [
       {
         key: `run:${run.id}`,
-        lift: 0,
         pieces: frames.regions.length > 0
           ? pieces.filter((piece) => piece.kind !== 'end_panel')
           : pieces,
       },
-      // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
       {
         key: `tees:${run.id}`,
-        lift: 1,
         pieces: seamTees.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })),
       },
-      // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
       ...frames.regions.map((region) => {
         const openings = regionOpenings(region, scene.faceLayouts);
         return {
           key: region.id,
-          lift: 2,
           pieces: [{
             id: region.id,
             x: region.x,
@@ -222,21 +216,19 @@ export function wallBadgeGroups(room, wall, settings) {
         };
       }),
       ...cornerFrames.map(({ columnId, owner }) => ({
-        key: `${columnId}:frame`, lift: 2,
+        key: `${columnId}:frame`,
         pieces: [{ id: `${columnId}:frame`, ...owner, anchor: frameBadgeAnchor(owner, owner.members) }],
       })),
       {
         key: `end-panels:${run.id}`,
-        lift: 3,
         pieces: endPanels,
       },
       ...scene.cornerPanels.map(({ columnId, x, width }) => ({
-        key: `${columnId}:return`, lift: 3,
+        key: `${columnId}:return`,
         pieces: [{ id: `${columnId}:return`, x, width, z: run.z, height: run.height }],
       })),
       {
         key: `legs:${run.id}`,
-        lift: 0,
         pieces: runLegs(room, wall, run, settings)
           .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
           .flatMap(({ leg, bounds }) => [{ id: leg.id, ...bounds },
@@ -247,15 +239,15 @@ export function wallBadgeGroups(room, wall, settings) {
 
   const returnLegs = cornerReturnLegs(room, wall, settings);
   groups.push(...returnLegs.map((leg) => ({
-    key: leg.key, lift: 0, pieces: [{ id: leg.columnId, ...leg.rect }],
+    key: leg.key, pieces: [{ id: leg.columnId, ...leg.rect }],
   })));
   groups.push(...returnLegs.filter(({ frame }) => frame).map(({ columnId, frame }) => ({
-    key: `${columnId}:frame`, lift: 2,
+    key: `${columnId}:frame`,
     pieces: [{ id: `${columnId}:frame`, ...frame, anchor: frameBadgeAnchor(frame, frame.members) }],
   })));
   groups.push(...returnLegs.filter(({ returnPanel }) => returnPanel?.type === 'filler')
     .map(({ columnId, returnPanel }) => ({
-      key: `${columnId}:return`, lift: 3,
+      key: `${columnId}:return`,
       pieces: [{ id: `${columnId}:return`, ...returnPanel }],
     })));
 
@@ -263,7 +255,6 @@ export function wallBadgeGroups(room, wall, settings) {
     const side = panel[wall.side ?? 'front'];
     groups.push({
       key: `panel:${panel.endpoint}`,
-      lift: 1,
       pieces: [{
         id: wallEndPanelPartKey(wall.id, panel.endpoint),
         x: side.x,

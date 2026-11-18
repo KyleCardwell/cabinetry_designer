@@ -1,5 +1,6 @@
 import { Group } from 'react-konva';
-import { wallBadgeGroups } from '../model/partNumbers.js';
+import { useMemo } from 'react';
+import { placeScreenPartBadges } from '../canvas/partNumberLayout.js';
 import MoldingBadges from './MoldingBadges.jsx';
 import PartNumberBadges from './PartNumberBadges.jsx';
 
@@ -10,27 +11,21 @@ export default function PartNumberLayer({
   partNumbers,
   transform,
 }) {
+  const ppi = transform.scale;
+  const badges = useMemo(
+    () => placeScreenPartBadges(room, wall, settings, partNumbers, ppi),
+    [room, wall, settings, partNumbers, ppi],
+  );
   if (!partNumbers) return null;
 
   return (
     <Group listening={false}>
-      {wallBadgeGroups(room, wall, settings).map((group) => (
-        <PartNumberBadges
-          key={group.key}
-          pieces={group.pieces}
-          numbers={partNumbers.byKey}
-          overrideKeys={partNumbers.overrideKeys}
-          transform={transform}
-          lift={group.lift}
-        />
-      ))}
-      <MoldingBadges
-        room={room}
-        wall={wall}
-        settings={settings}
-        partNumbers={partNumbers}
+      <PartNumberBadges
+        badges={badges.parts}
+        overrideKeys={partNumbers.overrideKeys}
         transform={transform}
       />
+      <MoldingBadges badges={badges.moldings} transform={transform} />
     </Group>
   );
 }

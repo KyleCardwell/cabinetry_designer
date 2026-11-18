@@ -26,7 +26,7 @@ describe('SH7.2 step b leg fill parts', () => {
     const numbered = partNumbers(input, settings);
     expect(numbered.byKey.get('run-1:endleg:left-front:fill')).toBe(numbered.byKey.get('run-1:endleg:left-front') + 1);
     expect(wallBadgeGroups(input, W, settings).find(({ key }) => key === `legs:${R.id}`))
-      .toEqual({ key: `legs:${R.id}`, lift: 0, pieces: parts.slice(-5).map(({ key: id, x, z, width, height }) =>
+      .toEqual({ key: `legs:${R.id}`, pieces: parts.slice(-5).map(({ key: id, x, z, width, height }) =>
         ({ id, x, z, width, height })) });
 
     // Invalid placements never acquire numbers or badges.

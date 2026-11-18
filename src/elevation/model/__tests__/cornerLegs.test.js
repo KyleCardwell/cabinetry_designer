@@ -400,7 +400,7 @@ describe('return leg layout (CC4)', () => {
       const view = wallSideView(returnWall);
       const leg = cornerReturnLegs(subject, view, DEFAULT_SETTINGS)[0];
       const group = wallBadgeGroups(subject, view, DEFAULT_SETTINGS).find(({ key }) => key === leg.key);
-      expect(group).toEqual({ key: leg.key, lift: 0, pieces: [{ id: 'cc', ...leg.rect }] });
+      expect(group).toEqual({ key: leg.key, pieces: [{ id: 'cc', ...leg.rect }] });
       const ownerPiece = wallBadgeGroups(subject, wallSideView(ownerWall), DEFAULT_SETTINGS)
         .flatMap(({ pieces }) => pieces).find(({ id }) => id === 'cc');
       const { byKey } = partNumbers(subject, DEFAULT_SETTINGS);

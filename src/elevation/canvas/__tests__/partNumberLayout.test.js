@@ -1,58 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import {
-  layoutPartBadges,
-  partBadgeLevels,
-  partBadgeWidth,
-} from '../partNumberLayout.js';
+import { fixed, room, run, wall } from '../../../test/builders.js';
+import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { partNumbers, wallBadgeGroups } from '../../model/partNumbers.js';
+import { PART_BADGE_HEIGHT, placeScreenPartBadges } from '../partNumberLayout.js';
 
-describe('part number badge layout', () => {
-  it('accepts custom text widths while keeping the canvas defaults', () => {
-    const entries = [{ key: 'a', text: '105', left: 0, right: 10 }];
-    expect(layoutPartBadges(entries)[0]).toMatchObject({ width: 41, level: 1 });
-    expect(layoutPartBadges(entries, { widthOf: (text) => text.length * 2 })[0])
-      .toMatchObject({ width: 6, level: 0 });
-  });
-
-  it('sizes badges and assigns lift levels in a single left-to-right sweep', () => {
-    const entries = [
-      { key: 'wide', text: '1', left: 0, right: 100 },
-      { key: 'thin-a', text: '2', left: 100, right: 108 },
-      { key: 'thin-b', text: '3', left: 108, right: 116 },
-      { key: 'thin-c', text: '4', left: 116, right: 124 },
-    ];
-
-    expect(partBadgeWidth('1')).toBe(23);
-    expect(partBadgeWidth('123')).toBe(41);
-    expect(layoutPartBadges(entries).map(({ level }) => level)).toEqual([0, 1, 2, 3]);
-    expect(layoutPartBadges(entries).map(({ lifted }) => lifted)).toEqual([
-      false,
-      true,
-      true,
-      true,
-    ]);
-    expect(layoutPartBadges(entries)[0].center).toBe(50);
-    expect(layoutPartBadges(entries)[0].width).toBe(23);
-    expect(layoutPartBadges(entries, { maxLevels: 1 }).map(({ level }) => level)).toEqual([
-      0,
-      1,
-      1,
-      1,
-    ]);
-    expect(layoutPartBadges(entries, { maxLevels: 0 }).map(({ level }) => level)).toEqual([
-      0,
-      0,
-      0,
-      0,
-    ]);
-    expect(layoutPartBadges(entries, { maxLevels: 0 }).map(({ lifted }) => lifted)).toEqual([
-      false,
-      true,
-      true,
-      true,
-    ]);
-    expect(partBadgeLevels(305)).toBe(3);
-    expect(partBadgeLevels(150)).toBe(1);
-    expect(partBadgeLevels(100)).toBe(0);
-    expect(partBadgeLevels(0)).toBe(0);
+describe('screen part number placement', () => {
+  it.each([
+    { name: 'places coincident T-filler and wall end panel pills without overlap', ppi: 8 },
+    { name: 're-places coincident pills without overlap at smaller zoom', ppi: 2 },
+  ])('$name (GC5)', ({ ppi }) => {
+    const face = wall({
+      endPanels: { start: { width: 0.75 }, end: null },
+      runs: [run({
+        x: -17.625, width: 36, autoCount: false, tFiller: 'seams',
+        ends: { left: { type: 'none' }, right: { type: 'none' } },
+        anchors: { left: true, right: false },
+        items: [fixed('a', 18), fixed('b', 18)],
+      })],
+    });
+    const subject = room({ walls: [face] });
+    const keys = ['tee:a|b', 'wall-1:endPanel:start'];
+    const pieces = wallBadgeGroups(subject, face, DEFAULT_SETTINGS).flatMap(({ pieces }) => pieces);
+    const [tee, panel] = keys.map((key) => pieces.find(({ id }) => id === key));
+    expect(tee.x + tee.width / 2).toBe(panel.x + panel.width / 2);
+    const numbered = partNumbers(subject, DEFAULT_SETTINGS);
+    const numbers = { ...numbered, byKey: new Map(keys.map((key) => [key, numbered.byKey.get(key)])) };
+    keys.forEach((key) => expect(numbers.byKey.get(key)).toBeTypeOf('number'));
+    const placed = placeScreenPartBadges(subject, face, DEFAULT_SETTINGS, numbers, ppi);
+    expect(placed.parts.map(({ key }) => key).sort()).toEqual([...keys].sort());
+    const [a, b] = placed.parts;
+    expect(Math.abs(a.x - b.x) >= (a.width + b.width) / 2 + 3 / ppi
+      || Math.abs(a.z - b.z) >= (a.height + b.height) / 2 + 3 / ppi - 1e-7).toBe(true);
+    placed.parts.forEach((badge) => expect(badge.height * ppi).toBe(PART_BADGE_HEIGHT));
+    if (ppi < 8) {
+      const original = placeScreenPartBadges(subject, face, DEFAULT_SETTINGS, numbers, 8);
+      expect(placed.parts.map(({ x, z }) => ({ x, z })))
+        .not.toEqual(original.parts.map(({ x, z }) => ({ x, z })));
+    }
   });
 });

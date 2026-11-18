@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS as UNPICKED_SETTINGS } from '../constants.js';
 import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
 import { roomDiagnostics, syncRoom } from '../room.js';
@@ -38,31 +39,10 @@ describe('inside panel numbering (IE1)', () => {
 });
 
 function makeWall(id, x1, y1, x2, y2, overrides = {}) {
-  return {
-    id,
-    name: '',
-    numberOverride: null,
-    elevationForced: false,
-    x1,
-    y1,
-    x2,
-    y2,
-    height: 108,
-    thickness: 4.5,
-    flipped: false,
-    connections: { start: null, end: null },
-    profile: {},
-    openings: [],
-    joints: [],
-    runs: [],
-    endPanels: { start: null, end: null },
-    landings: { start: null, end: null },
-    soffits: [],
-    ...overrides,
-  };
+  return buildWall({ id, x1, y1, x2, y2, height: 108, ...overrides });
 }
 
-const run = (id, cabinetTypeId, depth, overrides = {}) => ({
+const run = (id, cabinetTypeId, depth, overrides = {}) => buildRun({
   id,
   cabinetTypeId,
   x: 0,
@@ -142,7 +122,7 @@ const partWalls = ({ wallA = {}, wallB = {}, upper = {} } = {}) => [
   }),
 ];
 
-const partRoom = (overrides = {}) => syncRoom({
+const partRoom = (overrides = {}) => syncRoom(buildRoom({
   id: 'P',
   name: 'Room P',
   profile: { ...DEFAULT_SETTINGS.defaultProfile },
@@ -151,7 +131,7 @@ const partRoom = (overrides = {}) => syncRoom({
   wallOrder: ['A', 'B'],
   walls: partWalls(),
   ...overrides,
-}, DEFAULT_SETTINGS);
+}), DEFAULT_SETTINGS);
 
 const panelRoom = () => {
   const wBase = () => base('W-base', {
@@ -164,7 +144,7 @@ const panelRoom = () => {
     autoCount: false,
     items: [{ id: 'w1', kind: 'cabinet', width: 120 }],
   });
-  return syncRoom({
+  return syncRoom(buildRoom({
     id: 'E',
     name: 'Room E',
     profile: { ...DEFAULT_SETTINGS.defaultProfile },
@@ -175,7 +155,7 @@ const panelRoom = () => {
       endPanels: { start: { width: 0.75 }, end: { width: 0.75 } },
       runs: [wBase()],
     })],
-  }, DEFAULT_SETTINGS);
+  }), DEFAULT_SETTINGS);
 };
 
 describe('partNumbers', () => {
@@ -288,7 +268,6 @@ describe('partNumbers', () => {
     );
 
     expect(groupsA.map(({ key }) => key)).toEqual(['run:A-base', 'run:A-upper']);
-    expect(groupsA.map(({ lift }) => lift)).toEqual([0, 0]);
     expect(groupsA.map(({ pieces }) => pieces.map(({ id }) => id))).toEqual([
       ['A-base:left', 'a1', 'a2', 'A-base:right'],
       ['a3'],
@@ -302,7 +281,6 @@ describe('partNumbers', () => {
 
     expect(groupsW.map(({ key }) => key))
       .toEqual(['run:W-base', 'panel:start', 'panel:end']);
-    expect(groupsW.map(({ lift }) => lift)).toEqual([0, 1, 1]);
     expect(groupsW.find(({ key }) => key === 'panel:start').pieces).toEqual([
       { id: 'W:endPanel:start', x: 0, z: 0, width: 0.75, height: 34.5 },
     ]);
@@ -312,7 +290,7 @@ describe('partNumbers', () => {
   });
 
   it('reports blind cabinet and filler part widths without changing numbering', () => {
-    const room = syncRoom({
+    const room = syncRoom(buildRoom({
       id: 'K',
       name: 'Room K',
       profile: { ...DEFAULT_SETTINGS.defaultProfile },
@@ -329,7 +307,7 @@ describe('partNumbers', () => {
           blind: { left: 42, right: null },
         })],
       })],
-    }, DEFAULT_SETTINGS);
+    }), DEFAULT_SETTINGS);
     const result = partNumbers(room, DEFAULT_SETTINGS);
 
     expect(result.parts.find(({ key }) => key === 'L:left').width).toBe(6);
@@ -445,11 +423,11 @@ describe('SPEC-34 kind part numbers', () => {
 
 describe('SPEC-36 frame fillers', () => {
   it('numbers no filler inside a face frame, and badges the mitered end panel', () => {
-    const roomOf = (style) => syncRoom({
+    const roomOf = (style) => syncRoom(buildRoom({
       id: 'F', name: 'Room F', profile: { ...DEFAULT_SETTINGS.defaultProfile }, wallOrder: ['A'],
       ...(style ? { style } : {}),
       walls: [makeWall('A', 0, 0, 120, 0, { height: 96, runs: [aBase()] })],
-    }, DEFAULT_SETTINGS);
+    }), DEFAULT_SETTINGS);
     const keys = (room) => partNumbers(room, DEFAULT_SETTINGS).parts
       .filter((part) => part.runId === 'A-base')
       .map((part) => part.key);
@@ -470,16 +448,14 @@ describe('SPEC-50.12 face frame end panel badges', () => {
     return wallBadgeGroups(room, wallSideView(room.walls[0], 'front'), DEFAULT_SETTINGS);
   };
 
-  it('moves a face frame base run\'s left end panel into its own group at lift 3', () => {
+  it('groups a face frame base run\'s left end panel separately (GC5)', () => {
     const groups = badgeGroups({ cabinetStyleId: 14 });
 
     expect(groups.find(({ key }) => key === 'end-panels:R')).toMatchObject({
-      lift: 3,
       pieces: [{ id: 'R:left', kind: 'end_panel', x: 0, z: 4, width: 0.75, height: 30.5 }],
     });
     expect(groups.find(({ key }) => key === 'run:R').pieces.map(({ id }) => id))
       .toEqual(['a1', 'a2']);
-    expect(groups.find(({ key }) => key === 'frame:a1').lift).toBe(2);
     expect(groups.flatMap(({ pieces }) => pieces).filter(({ id }) => id === 'R:left'))
       .toHaveLength(1);
   });
@@ -489,7 +465,6 @@ describe('SPEC-50.12 face frame end panel badges', () => {
 
     expect(groups.some(({ key }) => key.startsWith('end-panels:'))).toBe(false);
     expect(groups.find(({ key }) => key === 'run:R')).toMatchObject({
-      lift: 0,
       pieces: [{ id: 'R:left', kind: 'end_panel' }, { id: 'a1' }, { id: 'a2' }, { id: 'R:right' }],
     });
   });

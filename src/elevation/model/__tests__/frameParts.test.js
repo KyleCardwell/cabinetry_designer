@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { cellPieces } from '../cells.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
 import { verticalChains } from '../dimensions.js';
 import { layoutRun } from '../faceLayouts.js';
 import { boxInsets, frameBadgeAnchor, frameMembers, frameRegions, frameVerticalChains, groupMembers } from '../frames.js';
@@ -14,22 +15,22 @@ const NONE = { type: 'none', width: null };
 const cell = (col, row, node) => ({ col, row, colSpan: 1, rowSpan: 1, node });
 
 function roomWith(run, style) {
-  const wall = {
+  const wall = buildWall({
     id: 'wall-1', name: 'Wall 1', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
     flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [],
-  };
-  return {
+  });
+  return buildRoom({
     id: 'room-1', name: 'Room 1', profile: { ...S.defaultProfile }, walls: [wall], wallOrder: ['wall-1'],
     ...(style ? { style } : {}),
-  };
+  });
 }
 
 /** SPEC-36.2 BW: an inset base in a 48" space, no end pieces, two auto cabinets. */
 const baseRun = (overrides = {}) => ({
-  id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 48, z: 4, height: 30.5, depth: 24,
-  ends: { left: NONE, right: NONE }, autoCount: false, maxCabinetWidth: null,
-  heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
-  grid: gridFromItems('r', [{ id: 'a', kind: 'cabinet', width: null }, { id: 'b', kind: 'cabinet', width: null }]),
+  ...buildRun({
+    id: 'r', x: 24, width: 48, autoCount: false,
+    ends: { left: NONE, right: NONE }, items: [auto('a'), auto('b')],
+  }),
   ...overrides,
 });
 
@@ -145,9 +146,9 @@ describe('SPEC-36.2 the frame as a part', () => {
     expect(parts.map(({ key, kind }) => [key, kind])).toEqual([['a', 'cabinet'], ['b', 'cabinet'], ['frame:a', 'frame']]);
     expect(parts[2]).toMatchObject({ width: 48, pieceId: null });
     expect(wallBadgeGroups(room, resolveWall(room, room.walls[0]), S)
-      .map(({ key, lift, pieces }) => [key, lift, pieces.map(({ id }) => id)])).toEqual([
-      ['run:r', 0, ['a', 'b']],
-      ['frame:a', 2, ['frame:a']],
+      .map(({ key, pieces }) => [key, pieces.map(({ id }) => id)])).toEqual([
+      ['run:r', ['a', 'b']],
+      ['frame:a', ['frame:a']],
     ]);
     expect(partNumbers(roomWith(baseRun()), S).parts.some(({ kind }) => kind === 'frame')).toBe(false);
   });
@@ -182,7 +183,6 @@ describe('SPEC-36.2.1 the frame on the wall chain and its badge', () => {
     const room = roomWith(baseRun(), INSET);
     const frame = wallBadgeGroups(room, resolveWall(room, room.walls[0]), S)
       .find(({ key }) => key === 'frame:a');
-    expect(frame.lift).toBe(2);
     expect(frame.pieces[0].anchor).toEqual({ x: 48, z: 19.25 });
   });
 });

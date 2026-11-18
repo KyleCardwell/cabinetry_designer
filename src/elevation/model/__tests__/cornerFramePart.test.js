@@ -119,7 +119,7 @@ describe('corner frame parts (CC6)', () => {
       const expectedX = frame.kind === 90 ? [29.625, 107.96875] : [35.8062184335, 118.6571699141];
       for (const [index, view] of [owner, returning].entries()) {
         const badge = wallBadgeGroups(subject, view, S).find(({ key }) => key === 'cc:frame');
-        expect(badge).toMatchObject({ lift: 2, pieces: [{ id: 'cc:frame' }] });
+        expect(badge).toMatchObject({ pieces: [{ id: 'cc:frame' }] });
         const anchor = badge.pieces[0].anchor;
         expect(anchor.x).toBeCloseTo(expectedX[index], 9);
         expect(anchor.z).toBe(19.25);

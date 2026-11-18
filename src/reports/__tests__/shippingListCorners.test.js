@@ -79,8 +79,6 @@ describe('corner return-side parts', () => {
       expect(returnBadges).toEqual([expect.objectContaining({ id: key, x: strip.x, width: 3 })]);
       expect(items.filter((item) => item.key === key)).toEqual([]);
     }
-    const badgeWall = anchor.kind === 'end_panel' ? wall : returnWall;
-    expect(wallBadgeGroups(room, badgeWall, settings).find((group) => group.key === key).lift).toBe(3);
     expect(row).toMatchObject({ number: part.number, description: anchor.description,
       size: formatSize(anchor.width, 30.5, thickness) });
     expect(row.notes.join(', ')).not.toMatch(/[TLU]-shape/);
