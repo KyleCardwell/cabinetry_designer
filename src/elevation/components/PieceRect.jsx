@@ -15,6 +15,7 @@ export default function PieceRect({
   notes = [],
   framed = false,
   ghost = false,
+  hitOnly = false,
   onSelect,
   cursor,
 }) {
@@ -42,6 +43,9 @@ export default function PieceRect({
   // A framed box never shows; a mitered end panel (ghost) shows while hovered or selected (SPEC-36.1).
   const quiet = framed || (ghost && !hovered && !selected);
   const showLabels = !quiet;
+  const showStroke = hitOnly
+    ? selected || warning || error || (ghost && hovered) || piece.kind === 'void'
+    : !quiet || outline !== ELEVATION_LINE;
   const showHover = () => showHoverLabel({
     id: piece.id,
     rect,
@@ -69,13 +73,13 @@ export default function PieceRect({
     >
       <Rect
         {...rect}
-        fill={quiet
+        fill={hitOnly || quiet
           ? 'rgba(0, 0, 0, 0.001)'
           : hollow ? 'transparent' : ELEVATION_BG}
-        opacity={0.82}
-        stroke={quiet && outline === ELEVATION_LINE
-          ? undefined
-          : piece.kind === 'void' && outline === ELEVATION_LINE ? '#475569' : outline}
+        opacity={hitOnly ? 1 : 0.82}
+        stroke={showStroke
+          ? piece.kind === 'void' && outline === ELEVATION_LINE ? '#475569' : outline
+          : undefined}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 

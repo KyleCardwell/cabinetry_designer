@@ -10,6 +10,8 @@ import { wallShowThrough } from '../../model/showThrough.js';
 import { resolveProfile } from '../../model/profile.js';
 import { partNumbers } from '../../model/partNumbers.js';
 import { roomDiagnostics } from '../../model/room.js';
+import { screenFace } from '../../model/screenPaint.js';
+import { elevationKey } from '../../model/topology.js';
 import { resolveCombinedFaces } from '../CombinedFaces.jsx';
 
 export default function useWallOverlays({ room, wall, settings, doorsOff, stretchPreview }) {
@@ -25,6 +27,15 @@ export default function useWallOverlays({ room, wall, settings, doorsOff, stretc
     () => (combined ? combinedSoffitJoins(room, combined) : []),
     [combined, room],
   );
+  const activeKey = elevationKey(wall?.id, wall?.side);
+  const inCombined = Boolean(combinedFaces);
+  const activeShapes = combinedFaces?.get(activeKey)?.shapes;
+  const activeJoins = useMemo(() => soffitJoins.filter((join) => join.key === activeKey),
+    [soffitJoins, activeKey]);
+  const screenDrawing = useMemo(() => (room && wall
+    ? screenFace(room, wall.sideSource ?? wall, wall.side ?? 'front', settings,
+      inCombined ? { cornerShapes: activeShapes, soffitJoins: activeJoins } : undefined)
+    : null), [room, wall, settings, inCombined, activeShapes, activeJoins]);
   // Seams hide under joined soffits and anything running across them, as in the DXF (Kyle 2026-10-23).
   const hiddenEdges = useMemo(() => (combined ? seamHiddenEdges(combined, combinedFaceParts(room, combined, settings,
     new Map([...combinedFaces].map(([key, { shapes }]) => [key, shapes]))), soffitJoins) : new Map()),
@@ -88,6 +99,7 @@ export default function useWallOverlays({ room, wall, settings, doorsOff, stretc
     partNumbering,
     interiors,
     showThrough,
+    screenDrawing,
     previewShowThrough,
     drawerBoxes,
     adjustableShelves,

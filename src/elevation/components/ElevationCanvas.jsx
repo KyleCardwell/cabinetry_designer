@@ -127,6 +127,7 @@ function ElevationCanvas({
     partNumbering,
     interiors,
     showThrough,
+    screenDrawing,
     previewShowThrough,
     drawerBoxes,
     adjustableShelves,
@@ -552,7 +553,7 @@ function ElevationCanvas({
             moveSelectedOpening={moveSelectedOpening} cursor={cursor} room={room}
             soffitJoins={soffitJoins} activeKey={activeKey} diagnostics={diagnostics}
             facePath={facePath} pickFace={pickFace} doorsOff={doorsOff}
-            showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
+            screenDrawing={screenDrawing} showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
             adjustableShelves={adjustableShelves} rollouts={rollouts}
             accessories={accessories} interiorPath={interiorPath}
             interiorDivider={interiorDivider} pickInterior={pickInterior}

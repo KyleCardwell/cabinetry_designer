@@ -71,18 +71,21 @@ function RunGroup({
   onEditTrack,
   stretchable = false,
   preview = false,
+  drawParts = true,
   showDimensions = true,
   onStretchStart,
   onStretchMove,
   onStretchEnd,
   cursor,
 }) {
+  const paintParts = preview || drawParts;
   const [anchorTooltip, setAnchorTooltip] = useState(null);
   const [dividerPreview, setDividerPreview] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
   const legs = useMemo(() => runLegs(room, wall, run, settings), [room, wall, run, settings]);
+  // Fill bounds still supply the leg click targets when the painter owns the drawing.
   const legFills = useMemo(() => runLegFills(room, wall, run, settings), [room, wall, run, settings]);
   const legFront = frontDepth(run, settings) - 1e-6;
   const drawing = doorDrawing(room);
@@ -91,36 +94,36 @@ function RunGroup({
     [room, run, scene, settings, wall],
   );
   const pulls = useMemo(
-    () => runPulls(room, wall, run, settings, scene, doorDetails),
-    [room, wall, run, settings, scene, doorDetails],
+    () => paintParts ? runPulls(room, wall, run, settings, scene, doorDetails) : null,
+    [paintParts, room, wall, run, settings, scene, doorDetails],
   );
   const squashes = useMemo(() => cornerSquashes(scene.faceLayouts), [scene]);
   const drawnFaceLayouts = useMemo(() => squashFaceLayouts(scene.faceLayouts), [scene]);
   const drawnDetails = useMemo(() => squashDoorDetails(doorDetails, squashes), [doorDetails, squashes]);
-  const drawnPulls = useMemo(() => squashPulls(pulls.pulls, squashes), [pulls, squashes]);
-  const swingMarks = useMemo(() => runSwingMarks(drawnFaceLayouts), [drawnFaceLayouts]);
+  const drawnPulls = useMemo(() => paintParts ? squashPulls(pulls.pulls, squashes) : [], [paintParts, pulls, squashes]);
+  const swingMarks = useMemo(() => paintParts ? runSwingMarks(drawnFaceLayouts) : [], [paintParts, drawnFaceLayouts]);
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
     panels, cornerPanels, panelPieceIds, shelves, drawnPieces,
   } = scene;
   const bands = useMemo(
-    () => runBands(room, wall, run, settings, scene),
-    [room, run, scene, settings, wall],
+    () => paintParts ? runBands(room, wall, run, settings, scene) : null,
+    [paintParts, room, run, scene, settings, wall],
   );
   // FX4 a: the frame's openings, drawn on their own so they still show when profiled faces shrink inside them.
   const frameOpenings = useMemo(
-    () => [...frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
-      ...frames.cornerFrames.flatMap((frame) => frame.owner.openings)],
-    [frames, faceLayouts],
+    () => paintParts ? [...frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
+      ...frames.cornerFrames.flatMap((frame) => frame.owner.openings)] : [],
+    [paintParts, frames, faceLayouts],
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
-  const topMold = toBand(bands.topMold);
-  const crown = toBand(bands.crown);
-  const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
-  const CrownShape = bands.crown?.outline ? Shape : Rect;
-  const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
-  const chipLines = bands.chipLines.map((line) => {
+  const topMold = toBand(bands?.topMold);
+  const crown = toBand(bands?.crown);
+  const TopMoldShape = bands?.topMold?.outline ? Shape : Rect;
+  const CrownShape = bands?.crown?.outline ? Shape : Rect;
+  const bottomParts = (bands?.bottomParts ?? []).map((part) => ({ ...part, rect: toScreen(part) }));
+  const chipLines = (bands?.chipLines ?? []).map((line) => {
     const from = wallToScreen({ x: line.x1, z: line.z }, transform);
     const to = wallToScreen({ x: line.x2, z: line.z }, transform);
     return { key: `chip:${line.pieceId}`, points: [from.x, from.y, to.x, to.y] };
@@ -149,7 +152,7 @@ function RunGroup({
     onSelectRun(run.id);
   };
   const legProps = {
-    transform, listening: !preview,
+    transform, listening: !preview, hitOnly: !paintParts,
     onSelect: (event, leg) => {
       event.cancelBubble = true;
       onSelectRun(run.id, { legId: leg.id });
@@ -274,108 +277,114 @@ function RunGroup({
           bounds: { x: start, width: end - start, z: bounds.z, height: bounds.height } })),
         { id, leg, bounds },
       ]).map(({ id, leg, bounds }) => (
-        <Rect key={id} {...toScreen(bounds)} fill={ELEVATION_BG} stroke={ELEVATION_LINE} strokeWidth={1}
+        <Rect key={id} {...toScreen(bounds)}
+          fill={paintParts ? ELEVATION_BG : 'rgba(0, 0, 0, 0.001)'}
+          stroke={paintParts ? ELEVATION_LINE : undefined} strokeWidth={1}
           listening={legProps.listening} onClick={(event) => legProps.onSelect(event, leg)}
           onMouseEnter={legProps.onMouseEnter} onMouseLeave={legProps.onMouseLeave} />
       ))}
-      {bands.toeKicks.map((band, index) => (
-        <Rect
-          key={`toeKick:${index}`}
-          {...toScreen(band)}
-          fill={ELEVATION_BG}
-          stroke={ELEVATION_LINE}
-          strokeWidth={1}
-          listening={false}
-        />
-      ))}
-
-      {bands.furnitureBases.map((band, index) => {
-        const FurnitureBaseShape = band.outline ? Shape : Rect;
-        return (
-          <FurnitureBaseShape
-            key={`furnitureBase:${index}`}
-            {...toBand(band)}
-            fill={FURNITURE_BASE.fill}
-            opacity={0.9}
-            stroke={FURNITURE_BASE.stroke}
-            strokeWidth={1}
-            listening={false}
-          />
-        );
-      })}
-
-      {[...bands.countertops, ...bands.topSegments].map((band, index) => {
-        const CountertopShape = band.outline ? Shape : Rect;
-        return (
-          <CountertopShape
-            key={band.id ?? `countertop:${index}`}
-            {...toBand(band)}
-            fill={(band.kind ?? bands.top.kind) === 'wood' ? ELEVATION_BG : '#cbd5e1'}
-            opacity={0.9}
-            stroke="#64748b"
-            strokeWidth={1}
-            listening={false}
-          />
-        );
-      })}
-
-      {topMold && (
-        <TopMoldShape
-          {...topMold}
-          fill={ELEVATION_BG}
-          opacity={0.9}
-          stroke={ELEVATION_LINE}
-          strokeWidth={1}
-          listening={false}
-        />
-      )}
-      {crown && (
-        <CrownShape
-          {...crown}
-          fill={ELEVATION_BG}
-          opacity={0.82}
-          stroke={ELEVATION_LINE}
-          strokeWidth={1}
-          listening={false}
-        />
-      )}
-
-      {[
-        ['toeKicks', ELEVATION_LINE, 1],
-        ['furnitureBases', FURNITURE_BASE.stroke, 1],
-        ['countertops', '#64748b', 0.9],
-        ['topMold', ELEVATION_LINE, 0.9],
-        ['crown', ELEVATION_LINE, 0.82],
-      ].flatMap(([kind, stroke, opacity]) => {
-        const segments = Array.isArray(bands[kind]) ? bands[kind] : [bands[kind]];
-        return segments.flatMap((band, segmentIndex) => (band?.lines ?? []).map((line, index) => {
-          const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
-          const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
-          return (
-            <Line
-              key={`${kind}:${segmentIndex}:line:${index}`}
-              points={[from.x, from.y, to.x, to.y]}
-              stroke={stroke}
-              strokeWidth={kind === 'furnitureBases' ? 1 : 0.5}
-              opacity={opacity}
+      {paintParts && (
+        <>
+          {bands.toeKicks.map((band, index) => (
+            <Rect
+              key={`toeKick:${index}`}
+              {...toScreen(band)}
+              fill={ELEVATION_BG}
+              stroke={ELEVATION_LINE}
+              strokeWidth={1}
               listening={false}
             />
-          );
-        }));
-      })}
+          ))}
 
-      {bottomParts.map((part) => (
-        <Rect
-          key={part.id}
-          {...part.rect}
-          fill={part.behind ? 'transparent' : ELEVATION_BG}
-          opacity={0.9}
-          stroke={ELEVATION_LINE}
-          strokeWidth={1}
-          dash={part.behind || part.kind === 'corbels' ? [4, 3] : undefined}
-          listening={false}
-        />
-      ))}
+          {bands.furnitureBases.map((band, index) => {
+            const FurnitureBaseShape = band.outline ? Shape : Rect;
+            return (
+              <FurnitureBaseShape
+                key={`furnitureBase:${index}`}
+                {...toBand(band)}
+                fill={FURNITURE_BASE.fill}
+                opacity={0.9}
+                stroke={FURNITURE_BASE.stroke}
+                strokeWidth={1}
+                listening={false}
+              />
+            );
+          })}
+
+          {[...bands.countertops, ...bands.topSegments].map((band, index) => {
+            const CountertopShape = band.outline ? Shape : Rect;
+            return (
+              <CountertopShape
+                key={band.id ?? `countertop:${index}`}
+                {...toBand(band)}
+                fill={(band.kind ?? bands.top.kind) === 'wood' ? ELEVATION_BG : '#cbd5e1'}
+                opacity={0.9}
+                stroke="#64748b"
+                strokeWidth={1}
+                listening={false}
+              />
+            );
+          })}
+
+          {topMold && (
+            <TopMoldShape
+              {...topMold}
+              fill={ELEVATION_BG}
+              opacity={0.9}
+              stroke={ELEVATION_LINE}
+              strokeWidth={1}
+              listening={false}
+            />
+          )}
+          {crown && (
+            <CrownShape
+              {...crown}
+              fill={ELEVATION_BG}
+              opacity={0.82}
+              stroke={ELEVATION_LINE}
+              strokeWidth={1}
+              listening={false}
+            />
+          )}
+
+          {[
+            ['toeKicks', ELEVATION_LINE, 1],
+            ['furnitureBases', FURNITURE_BASE.stroke, 1],
+            ['countertops', '#64748b', 0.9],
+            ['topMold', ELEVATION_LINE, 0.9],
+            ['crown', ELEVATION_LINE, 0.82],
+          ].flatMap(([kind, stroke, opacity]) => {
+            const segments = Array.isArray(bands[kind]) ? bands[kind] : [bands[kind]];
+            return segments.flatMap((band, segmentIndex) => (band?.lines ?? []).map((line, index) => {
+              const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
+              const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
+              return (
+                <Line
+                  key={`${kind}:${segmentIndex}:line:${index}`}
+                  points={[from.x, from.y, to.x, to.y]}
+                  stroke={stroke}
+                  strokeWidth={kind === 'furnitureBases' ? 1 : 0.5}
+                  opacity={opacity}
+                  listening={false}
+                />
+              );
+            }));
+          })}
+
+          {bottomParts.map((part) => (
+            <Rect
+              key={part.id}
+              {...part.rect}
+              fill={part.behind ? 'transparent' : ELEVATION_BG}
+              opacity={0.9}
+              stroke={ELEVATION_LINE}
+              strokeWidth={1}
+              dash={part.behind || part.kind === 'corbels' ? [4, 3] : undefined}
+              listening={false}
+            />
+          ))}
+        </>
+      )}
 
       <Rect
         {...runRect}
@@ -385,7 +394,7 @@ function RunGroup({
         onMouseLeave={() => cursorKeys.release('body')}
       />
 
-      {panels.map((panel) => (
+      {paintParts && panels.map((panel) => (
         <Rect
           key={panel.key}
           {...wallRectToScreen({
@@ -406,6 +415,7 @@ function RunGroup({
         <PieceRect
           key={piece.id}
           piece={piece}
+          hitOnly={!paintParts}
           transform={transform}
           warning={warningPieceIds.has(piece.id) || warningPieceIds.has(piece.columnId)}
           error={hasErrors}
@@ -421,7 +431,7 @@ function RunGroup({
         />
       ))}
 
-      {cornerPanels.map((panel) => (
+      {paintParts && cornerPanels.map((panel) => (
         <Rect
           key={panel.key}
           {...wallRectToScreen({
@@ -438,7 +448,7 @@ function RunGroup({
         />
       ))}
 
-      {[...faceLayouts].filter(([, entry]) => entry.corner?.sideEdge).map(([pieceId, entry]) => {
+      {paintParts && [...faceLayouts].filter(([, entry]) => entry.corner?.sideEdge).map(([pieceId, entry]) => {
         const { side, sideEdge } = entry.corner;
         const x = sideEdge.x + (side === 'right' ? sideEdge.width : 0);
         const from = wallToScreen({ x, z: entry.box.z }, transform);
@@ -454,7 +464,7 @@ function RunGroup({
         );
       })}
 
-      {[...frames.regions, ...frames.cornerFrames.map((frame) => ({
+      {paintParts && [...frames.regions, ...frames.cornerFrames.map((frame) => ({
         id: `${frame.columnId}:frame`, ...frame.owner,
       }))].map((region) => (
         <FrameOutline
@@ -463,7 +473,7 @@ function RunGroup({
           transform={transform}
         />
       ))}
-      {frameOpenings.map((opening, index) => (
+      {paintParts && frameOpenings.map((opening, index) => (
         <Rect
           key={`frame-opening-${index}`}
           {...toScreen(opening)}
@@ -474,7 +484,7 @@ function RunGroup({
         />
       ))}
 
-      {!doorsOff && showThrough.length > 0 && (
+      {paintParts && !doorsOff && showThrough.length > 0 && (
         <ShowThroughInteriors entries={showThrough} transform={transform}
           room={room} wall={wall} settings={settings} />
       )}
@@ -520,7 +530,7 @@ function RunGroup({
         );
       })}
 
-      {chipLines.map((line) => (
+      {paintParts && chipLines.map((line) => (
         <Line
           key={line.key}
           points={line.points}
@@ -531,7 +541,7 @@ function RunGroup({
         />
       ))}
 
-      {shelves.map((part) => (
+      {paintParts && shelves.map((part) => (
         <Rect
           key={part.id}
           {...wallRectToScreen(part, transform)}
@@ -545,19 +555,19 @@ function RunGroup({
 
       {!doorsOff && (
         <DoorDetails
-          parts={drawnDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
+          parts={paintParts ? drawnDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
             ({ partId }) => partId === part.key.replace(/:(left|right)$/, '$1'),
-          )) ? { ...part, openingsShown: false } : part)}
+          )) ? { ...part, openingsShown: false } : part) : drawnDetails.parts}
           warnings={drawnDetails.warnings}
           transform={transform}
-          showDetails={drawing.details}
-          showTags={drawing.tags}
+          showDetails={paintParts && drawing.details}
+          showTags={paintParts && drawing.tags}
         />
       )}
-      {!doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
-      {!doorsOff && drawing.pulls && <Pulls pulls={drawnPulls} transform={transform} />}
+      {paintParts && !doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
+      {paintParts && !doorsOff && drawing.pulls && <Pulls pulls={drawnPulls} transform={transform} />}
 
-      {!doorsOff && [...drawnFaceLayouts].map(([pieceId, layout]) => (
+      {!doorsOff && [...drawnFaceLayouts].filter(([pieceId]) => paintParts || selectedPieceId === pieceId).map(([pieceId, layout]) => (
         <FaceOutlines
           key={`faces:${pieceId}`}
           faces={layout.faces}
