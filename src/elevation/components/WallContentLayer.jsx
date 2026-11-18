@@ -26,8 +26,6 @@ export default function WallContentLayer({
   moveSelectedOpening,
   cursor,
   room,
-  soffitJoins,
-  activeKey,
   diagnostics,
   facePath,
   pickFace,
@@ -97,19 +95,14 @@ export default function WallContentLayer({
             ))}
             <FacePainter entries={entries} transform={transform} after={showThroughSlot} />
             <SoffitShapes
-              hitOnly
-              room={room}
               wall={wall}
-              settings={settings}
               transform={transform}
               selectedSoffitId={selection.soffitId}
               onSelect={tool === 'select' ? pick : undefined}
-              combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
             />
             {runsByDepth(wall.runs, settings).map((run) => (
               <RunGroup
                 key={run.id}
-                drawParts={false}
                 run={run}
                 room={room}
                 wall={wall}
@@ -145,7 +138,6 @@ export default function WallContentLayer({
               />
             ))}
             <WallEndPanelShapes
-              hitOnly
               room={room}
               wall={wall}
               settings={settings}

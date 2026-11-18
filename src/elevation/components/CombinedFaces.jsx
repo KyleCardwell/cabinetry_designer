@@ -81,8 +81,8 @@ function CombinedFace({
           />
         ))}
         <FacePainter entries={entries} transform={faceTransform} after={showThroughSlot} />
-        <NeighborReturns hitOnly room={room} wall={wall} settings={settings}
-          transform={faceTransform} shapes={shapes} doorsOff={doorsOff} />
+        <NeighborReturns room={room} wall={wall} settings={settings}
+          transform={faceTransform} shapes={shapes} />
         {note && (
           <Text x={rect.x} y={rect.y + 10} width={rect.width} align="center" text={note} fontSize={12 * (faceTransform.text?.label ?? 1)} fill="#e2e8f0" />
         )}

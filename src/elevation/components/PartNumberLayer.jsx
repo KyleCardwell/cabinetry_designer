@@ -9,12 +9,13 @@ export default function PartNumberLayer({
   wall,
   settings,
   partNumbers,
+  parts,
   transform,
 }) {
   const ppi = transform.scale;
   const badges = useMemo(
-    () => placeScreenPartBadges(room, wall, settings, partNumbers, ppi),
-    [room, wall, settings, partNumbers, ppi],
+    () => placeScreenPartBadges(room, wall, settings, partNumbers, ppi, parts),
+    [room, wall, settings, partNumbers, ppi, parts],
   );
   if (!partNumbers) return null;
 

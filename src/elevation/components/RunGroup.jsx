@@ -71,14 +71,12 @@ function RunGroup({
   onEditTrack,
   stretchable = false,
   preview = false,
-  drawParts = true,
   showDimensions = true,
   onStretchStart,
   onStretchMove,
   onStretchEnd,
   cursor,
 }) {
-  const paintParts = preview || drawParts;
   const [anchorTooltip, setAnchorTooltip] = useState(null);
   const [dividerPreview, setDividerPreview] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
@@ -94,27 +92,27 @@ function RunGroup({
     [room, run, scene, settings, wall],
   );
   const pulls = useMemo(
-    () => paintParts ? runPulls(room, wall, run, settings, scene, doorDetails) : null,
-    [paintParts, room, wall, run, settings, scene, doorDetails],
+    () => preview ? runPulls(room, wall, run, settings, scene, doorDetails) : null,
+    [preview, room, wall, run, settings, scene, doorDetails],
   );
   const squashes = useMemo(() => cornerSquashes(scene.faceLayouts), [scene]);
   const drawnFaceLayouts = useMemo(() => squashFaceLayouts(scene.faceLayouts), [scene]);
   const drawnDetails = useMemo(() => squashDoorDetails(doorDetails, squashes), [doorDetails, squashes]);
-  const drawnPulls = useMemo(() => paintParts ? squashPulls(pulls.pulls, squashes) : [], [paintParts, pulls, squashes]);
-  const swingMarks = useMemo(() => paintParts ? runSwingMarks(drawnFaceLayouts) : [], [paintParts, drawnFaceLayouts]);
+  const drawnPulls = useMemo(() => preview ? squashPulls(pulls.pulls, squashes) : [], [preview, pulls, squashes]);
+  const swingMarks = useMemo(() => preview ? runSwingMarks(drawnFaceLayouts) : [], [preview, drawnFaceLayouts]);
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
     panels, cornerPanels, panelPieceIds, shelves, drawnPieces,
   } = scene;
   const bands = useMemo(
-    () => paintParts ? runBands(room, wall, run, settings, scene) : null,
-    [paintParts, room, run, scene, settings, wall],
+    () => preview ? runBands(room, wall, run, settings, scene) : null,
+    [preview, room, run, scene, settings, wall],
   );
   // FX4 a: the frame's openings, drawn on their own so they still show when profiled faces shrink inside them.
   const frameOpenings = useMemo(
-    () => paintParts ? [...frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
+    () => preview ? [...frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
       ...frames.cornerFrames.flatMap((frame) => frame.owner.openings)] : [],
-    [paintParts, frames, faceLayouts],
+    [preview, frames, faceLayouts],
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
@@ -152,7 +150,7 @@ function RunGroup({
     onSelectRun(run.id);
   };
   const legProps = {
-    transform, listening: !preview, hitOnly: !paintParts,
+    transform, listening: !preview, hitOnly: !preview,
     onSelect: (event, leg) => {
       event.cancelBubble = true;
       onSelectRun(run.id, { legId: leg.id });
@@ -278,12 +276,12 @@ function RunGroup({
         { id, leg, bounds },
       ]).map(({ id, leg, bounds }) => (
         <Rect key={id} {...toScreen(bounds)}
-          fill={paintParts ? ELEVATION_BG : 'rgba(0, 0, 0, 0.001)'}
-          stroke={paintParts ? ELEVATION_LINE : undefined} strokeWidth={1}
+          fill={preview ? ELEVATION_BG : 'rgba(0, 0, 0, 0.001)'}
+          stroke={preview ? ELEVATION_LINE : undefined} strokeWidth={1}
           listening={legProps.listening} onClick={(event) => legProps.onSelect(event, leg)}
           onMouseEnter={legProps.onMouseEnter} onMouseLeave={legProps.onMouseLeave} />
       ))}
-      {paintParts && (
+      {preview && (
         <>
           {bands.toeKicks.map((band, index) => (
             <Rect
@@ -394,7 +392,7 @@ function RunGroup({
         onMouseLeave={() => cursorKeys.release('body')}
       />
 
-      {paintParts && panels.map((panel) => (
+      {preview && panels.map((panel) => (
         <Rect
           key={panel.key}
           {...wallRectToScreen({
@@ -415,7 +413,7 @@ function RunGroup({
         <PieceRect
           key={piece.id}
           piece={piece}
-          hitOnly={!paintParts}
+          hitOnly={!preview}
           transform={transform}
           warning={warningPieceIds.has(piece.id) || warningPieceIds.has(piece.columnId)}
           error={hasErrors}
@@ -431,7 +429,7 @@ function RunGroup({
         />
       ))}
 
-      {paintParts && cornerPanels.map((panel) => (
+      {preview && cornerPanels.map((panel) => (
         <Rect
           key={panel.key}
           {...wallRectToScreen({
@@ -448,7 +446,7 @@ function RunGroup({
         />
       ))}
 
-      {paintParts && [...faceLayouts].filter(([, entry]) => entry.corner?.sideEdge).map(([pieceId, entry]) => {
+      {preview && [...faceLayouts].filter(([, entry]) => entry.corner?.sideEdge).map(([pieceId, entry]) => {
         const { side, sideEdge } = entry.corner;
         const x = sideEdge.x + (side === 'right' ? sideEdge.width : 0);
         const from = wallToScreen({ x, z: entry.box.z }, transform);
@@ -464,7 +462,7 @@ function RunGroup({
         );
       })}
 
-      {paintParts && [...frames.regions, ...frames.cornerFrames.map((frame) => ({
+      {preview && [...frames.regions, ...frames.cornerFrames.map((frame) => ({
         id: `${frame.columnId}:frame`, ...frame.owner,
       }))].map((region) => (
         <FrameOutline
@@ -473,7 +471,7 @@ function RunGroup({
           transform={transform}
         />
       ))}
-      {paintParts && frameOpenings.map((opening, index) => (
+      {preview && frameOpenings.map((opening, index) => (
         <Rect
           key={`frame-opening-${index}`}
           {...toScreen(opening)}
@@ -484,7 +482,7 @@ function RunGroup({
         />
       ))}
 
-      {paintParts && !doorsOff && showThrough.length > 0 && (
+      {preview && !doorsOff && showThrough.length > 0 && (
         <ShowThroughInteriors entries={showThrough} transform={transform}
           room={room} wall={wall} settings={settings} />
       )}
@@ -530,7 +528,7 @@ function RunGroup({
         );
       })}
 
-      {paintParts && chipLines.map((line) => (
+      {preview && chipLines.map((line) => (
         <Line
           key={line.key}
           points={line.points}
@@ -541,7 +539,7 @@ function RunGroup({
         />
       ))}
 
-      {paintParts && shelves.map((part) => (
+      {preview && shelves.map((part) => (
         <Rect
           key={part.id}
           {...wallRectToScreen(part, transform)}
@@ -555,19 +553,19 @@ function RunGroup({
 
       {!doorsOff && (
         <DoorDetails
-          parts={paintParts ? drawnDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
+          parts={preview ? drawnDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
             ({ partId }) => partId === part.key.replace(/:(left|right)$/, '$1'),
           )) ? { ...part, openingsShown: false } : part) : drawnDetails.parts}
           warnings={drawnDetails.warnings}
           transform={transform}
-          showDetails={paintParts && drawing.details}
-          showTags={paintParts && drawing.tags}
+          showDetails={preview && drawing.details}
+          showTags={preview && drawing.tags}
         />
       )}
-      {paintParts && !doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
-      {paintParts && !doorsOff && drawing.pulls && <Pulls pulls={drawnPulls} transform={transform} />}
+      {preview && !doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
+      {preview && !doorsOff && drawing.pulls && <Pulls pulls={drawnPulls} transform={transform} />}
 
-      {!doorsOff && [...drawnFaceLayouts].filter(([pieceId]) => paintParts || selectedPieceId === pieceId).map(([pieceId, layout]) => (
+      {!doorsOff && [...drawnFaceLayouts].filter(([pieceId]) => preview || selectedPieceId === pieceId).map(([pieceId, layout]) => (
         <FaceOutlines
           key={`faces:${pieceId}`}
           faces={layout.faces}

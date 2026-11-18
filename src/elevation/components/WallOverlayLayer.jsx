@@ -5,7 +5,6 @@ import { PickOutline } from './SelectionPicker.jsx';
 import { RecessOutline } from './RecessShapes.jsx';
 
 export default function WallOverlayLayer({
-  doorsOff,
   room,
   wall,
   settings,
@@ -20,8 +19,6 @@ export default function WallOverlayLayer({
   return (
           <Layer listening={false}>
             <NeighborReturns
-              hitOnly
-              doorsOff={doorsOff}
               room={room}
               wall={wall}
               settings={settings}

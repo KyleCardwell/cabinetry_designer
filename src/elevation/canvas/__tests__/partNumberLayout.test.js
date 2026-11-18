@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixed, room, run, wall } from '../../../test/builders.js';
+import { normalizeCornerEnd } from '../../model/cornerEnd.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { partNumbers, wallBadgeGroups } from '../../model/partNumbers.js';
 import { PART_BADGE_HEIGHT, placeScreenPartBadges } from '../partNumberLayout.js';
@@ -38,4 +39,39 @@ describe('screen part number placement', () => {
         .not.toEqual(original.parts.map(({ x, z }) => ({ x, z })));
     }
   });
+
+  it.each([{ width: 36, covered: 24, ppi: 4 }])(
+    'places a corner cabinet badge on the uncovered right side (GC6)',
+    ({ width, covered, ppi }) => {
+      const face = wall({
+        connections: { start: { wallId: 'return', endpoint: 'end' }, end: null },
+        runs: [run({
+          width, autoCount: false, items: [fixed('corner', width)],
+          style: { cabinetStyleId: 13 }, anchors: { left: true, right: false },
+          ends: { left: normalizeCornerEnd({}), right: { type: 'none' } },
+        })],
+      });
+      const subject = room({ walls: [face, wall({
+        id: 'return', x1: 0, y1: 144, x2: 0, y2: 0,
+        connections: { start: null, end: { wallId: face.id, endpoint: 'start' } },
+      })] });
+      const piece = wallBadgeGroups(subject, face, DEFAULT_SETTINGS)
+        .flatMap(({ pieces }) => pieces).find(({ id }) => id === 'corner');
+      expect(piece.width).toBe(36);
+      const numbered = partNumbers(subject, DEFAULT_SETTINGS);
+      expect(numbered.byKey.get(piece.id)).toBeTypeOf('number');
+      const numbers = { ...numbered, byKey: new Map([[piece.id, numbered.byKey.get(piece.id)]]) };
+      const parts = [
+        { ...piece, front: 24 },
+        { ...piece, id: `${piece.id}:face`, front: 25 },
+        { ...piece, id: 'in-front', width: covered, front: 26, opaque: true },
+      ];
+      const [badge] = placeScreenPartBadges(subject, face, DEFAULT_SETTINGS, numbers, ppi, parts).parts;
+      expect(badge.x).toBeGreaterThan(piece.x + 24);
+      expect(badge.x).toBeLessThan(piece.x + 36);
+      expect(badge.z).toBeGreaterThanOrEqual(piece.z);
+      expect(badge.z).toBeLessThanOrEqual(piece.z + piece.height);
+      expect(badge.leader).toBeNull();
+    },
+  );
 });

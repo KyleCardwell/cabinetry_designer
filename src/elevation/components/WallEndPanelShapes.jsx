@@ -1,30 +1,22 @@
-import { useState } from 'react';
 import { Group, Rect } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
-import { wallEndPanelReturns, wallEndPanelSpans, wallEndPanels } from '../model/wallEndPanels.js';
+import { wallEndPanelReturns, wallEndPanels } from '../model/wallEndPanels.js';
 
 function WallEndPanelShape({
-  wall, panel, transform, selected, onSelect, cursor, hitOnly,
+  wall, panel, transform, selected, onSelect, cursor,
 }) {
-  const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
   const side = panel[wall.side ?? 'front'];
   const cursorKey = `wall-end-panel:${panel.endpoint}`;
   const rect = (z, height) => wallRectToScreen({ x: side.x, z, width: panel.width, height }, transform);
-  // A mitered face frame covers part of the panel (SPEC-36.2); hovered or selected, it all shows.
-  const spans = hovered || selected ? [{ z: panel.bottom, height: panel.top - panel.bottom }] : wallEndPanelSpans(wall, panel);
-
   return (
     <Group
       listening={Boolean(onSelect)}
       onMouseEnter={() => {
-        setHovered(true);
         cursorKeys.request(cursorKey, CURSORS.select);
       }}
       onMouseLeave={() => {
-        setHovered(false);
         cursorKeys.release(cursorKey);
       }}
       onClick={(event) => {
@@ -35,7 +27,7 @@ function WallEndPanelShape({
       <Rect
         {...rect(panel.bottom, panel.top - panel.bottom)}
         fill="rgba(0, 0, 0, 0.001)"
-        stroke={hitOnly && selected ? '#7dd3fc' : undefined}
+        stroke={selected ? '#7dd3fc' : undefined}
         strokeWidth={3}
       />
       {/* A fitted panel's returns (SH7.6 step f); a click on one selects the panel. */}
@@ -44,21 +36,9 @@ function WallEndPanelShape({
           key={`return-${ret.edge}`}
           {...wallRectToScreen({ x: ret.start, z: panel.bottom, width: ret.end - ret.start,
             height: panel.top - panel.bottom }, transform)}
-          fill={hitOnly ? 'rgba(0, 0, 0, 0.001)' : ELEVATION_BG}
-          opacity={hitOnly ? 1 : 0.55}
-          stroke={selected ? '#7dd3fc' : hitOnly ? undefined : ELEVATION_LINE}
+          fill="rgba(0, 0, 0, 0.001)"
+          stroke={selected ? '#7dd3fc' : undefined}
           strokeWidth={selected ? 3 : 1}
-        />
-      ))}
-      {!hitOnly && spans.map((span) => (
-        <Rect
-          key={span.z}
-          {...rect(span.z, span.height)}
-          fill={ELEVATION_BG}
-          opacity={0.55}
-          stroke={selected ? '#7dd3fc' : ELEVATION_LINE}
-          strokeWidth={selected ? 3 : 1}
-          listening={false}
         />
       ))}
     </Group>
@@ -66,7 +46,7 @@ function WallEndPanelShape({
 }
 
 export default function WallEndPanelShapes({
-  room, wall, settings, transform, selectedEndpoint = null, onSelect, cursor, hitOnly = false,
+  room, wall, settings, transform, selectedEndpoint = null, onSelect, cursor,
 }) {
   return wallEndPanels(room, wall, settings).map((panel) => (
     <WallEndPanelShape
@@ -77,7 +57,6 @@ export default function WallEndPanelShapes({
       selected={selectedEndpoint === panel.endpoint}
       onSelect={onSelect}
       cursor={cursor}
-      hitOnly={hitOnly}
     />
   ));
 }

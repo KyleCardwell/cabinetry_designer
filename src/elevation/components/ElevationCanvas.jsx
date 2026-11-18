@@ -551,7 +551,7 @@ function ElevationCanvas({
             wall={wall} transform={transform} selection={selection} tool={tool}
             pick={pick} settings={settings} selectOpening={selectOpening} selectLine={selectLine}
             moveSelectedOpening={moveSelectedOpening} cursor={cursor} room={room}
-            soffitJoins={soffitJoins} activeKey={activeKey} diagnostics={diagnostics}
+            diagnostics={diagnostics}
             facePath={facePath} pickFace={pickFace} doorsOff={doorsOff}
             screenDrawing={screenDrawing} showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
             adjustableShelves={adjustableShelves} rollouts={rollouts}
@@ -569,7 +569,7 @@ function ElevationCanvas({
             hoveredGlyphId={hoveredGlyphId} setHoveredGlyphId={setHoveredGlyphId}
           />
           <WallOverlayLayer
-            doorsOff={doorsOff} room={room} wall={wall} settings={settings}
+            room={room} wall={wall} settings={settings}
             transform={transform} combinedFaces={combinedFaces} activeKey={activeKey}
             selection={selection} hovered={hovered} alignmentGuides={alignmentGuides}
             viewport={viewport}
@@ -602,6 +602,7 @@ function ElevationCanvas({
                 wall={wall}
                 settings={settings}
                 partNumbers={partNumbering}
+                parts={screenDrawing.parts}
                 transform={transform}
               />
             </Layer>

@@ -1,3 +1,4 @@
+import { badgeBlockers } from '../model/elevationPartNumbers.js';
 import { placePartBadges } from '../model/badgePlacement.js';
 import { badgeText, wallBadgeGroups, wallMoldingBadges } from '../model/partNumbers.js';
 
@@ -10,10 +11,10 @@ export function partBadgeWidth(text, { charWidth = 9, padding = 7, minWidth = 22
 }
 
 /** Place all screen pills together in wall inches, using the current pixels per inch. */
-export function placeScreenPartBadges(room, wall, settings, numbers, ppi) {
+export function placeScreenPartBadges(room, wall, settings, numbers, ppi, parts = []) {
   if (!numbers) return { parts: [], moldings: [] };
   const height = PART_BADGE_HEIGHT / ppi;
-  const parts = wallBadgeGroups(room, wall, settings).flatMap(({ pieces }) => pieces.flatMap((piece) => {
+  const runBadges = wallBadgeGroups(room, wall, settings).flatMap(({ pieces }) => pieces.flatMap((piece) => {
     if (!numbers.byKey.has(piece.id)) return [];
     const text = badgeText(numbers.byKey, piece.id);
     return [{
@@ -27,6 +28,7 @@ export function placeScreenPartBadges(room, wall, settings, numbers, ppi) {
         z: piece.z + piece.height / 2 + PART_BADGE_LIFT / ppi,
       },
       axis: piece.anchor ? 'vertical' : 'free',
+      blockers: badgeBlockers(parts, piece.id),
     }];
   }));
   const moldings = wallMoldingBadges(room, wall, settings, numbers.byKey).map((badge) => {
@@ -43,8 +45,9 @@ export function placeScreenPartBadges(room, wall, settings, numbers, ppi) {
         z: badge.z + badge.height / 2,
       },
       axis: 'horizontal',
+      blockers: [],
     };
   });
-  const placed = placePartBadges([...parts, ...moldings], { gap: 3 / ppi });
-  return { parts: placed.slice(0, parts.length), moldings: placed.slice(parts.length) };
+  const placed = placePartBadges([...runBadges, ...moldings], { gap: 3 / ppi });
+  return { parts: placed.slice(0, runBadges.length), moldings: placed.slice(runBadges.length) };
 }

@@ -5,6 +5,15 @@ import { resolveWall } from './room.js';
 
 const badgeWidth = (text, scale) => Math.max(1 / 4, 0.075 * text.length + 0.1) * scale;
 
+/** Opaque parts in front of a piece's foremost part can hide its badge. */
+export function badgeBlockers(parts, pieceId) {
+  const own = (part) => part.id === pieceId || part.id.startsWith(`${pieceId}:`);
+  const ownParts = parts.filter(own);
+  const front = Math.max(...ownParts.map(({ front }) => front));
+  return ownParts.length ? parts.filter((part) => !own(part)
+    && part.opaque !== false && part.front > front + 1 / 64) : [];
+}
+
 /** All numbered groups share one placement pass against the face's opaque payload parts. */
 export function elevationPartNumbers(room, wall, side, settings, byKey, parts = []) {
   const view = resolveWall(room, wall, side);
@@ -14,17 +23,13 @@ export function elevationPartNumbers(room, wall, side, settings, byKey, parts = 
   const gap = 1 / 16 * scale;
   const badges = wallBadgeGroups(room, view, settings).flatMap(({ pieces }) => pieces
     .filter(({ id }) => byKey.has(id)).map((piece) => {
-      const own = (part) => part.id === piece.id || part.id.startsWith(`${piece.id}:`);
-      const ownParts = parts.filter(own);
-      const front = Math.max(...ownParts.map(({ front }) => front));
       const text = badgeText(byKey, piece.id);
       return {
         key: piece.id, text, width: badgeWidth(text, scale), height,
         rect: { x: piece.x, z: piece.z, width: piece.width, height: piece.height },
         prefer: piece.anchor ?? { x: piece.x + piece.width / 2, z: piece.z + piece.height / 2 },
         axis: piece.anchor ? 'vertical' : 'free',
-        blockers: ownParts.length ? parts.filter((part) => !own(part)
-          && part.opaque !== false && part.front > front + 1 / 64) : [],
+        blockers: badgeBlockers(parts, piece.id),
       };
     }));
   badges.push(...wallMoldingBadges(room, view, settings, byKey).map((badge) => {
