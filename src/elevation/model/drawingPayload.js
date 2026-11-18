@@ -181,7 +181,7 @@ export function facePayload(room, wall, side, key, letter, settings, options, by
     dimensions: elevationDimensions(room, wall, side, settings, options),
     marks: elevationMarks(room, wall, side, settings),
     doorDetails,
-    partNumbers: elevationPartNumbers(room, wall, side, settings, byKey),
+    partNumbers: elevationPartNumbers(room, wall, side, settings, byKey, parts),
     ...(swingMarks.length ? { swingMarks } : {}),
     ...(pulls.length ? { pulls } : {}),
     ...(interiors.length ? { interiors } : {}),

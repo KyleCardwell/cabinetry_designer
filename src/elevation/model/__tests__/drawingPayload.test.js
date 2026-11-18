@@ -187,13 +187,14 @@ describe('DM8 step b end-view panel payload', () => {
 // CC9.1: G2’s frame follows its cabinet, swapping only its and the end panel’s badge numbers (4 / 5).
 // End stile fix (5312f37): G2 panel gaps shrink and corner filler minimums retain standard stiles.
 // GC4: opaque wall solids
+// GC5: part number placement
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '7f4603a200272406108c3943cf85a6f347afd8942194a0bcc7c3b05fcb794890',
-  'G2 Face frame kitchen': 'fc6836b74c054920e6106b9c381d5d664ec520f636eede588d778908cd13d9ce',
-  'G3 Bath alcove': '1f1f9515335a7fc7a2d251f4f15bf55daa8eb7e4b41426e3c0c8b620a2d69e47',
-  'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
-  'G5 Recess room': '3ca4f370bfb3aa4ea609bab3769cb7abcc6213dcf96847d02d345823d1d76cd8',
-  'G6 Stacked runs': '491f6fc3a4134bf2878dc1a619f05a314b0e805d5bcca8912479d5630d14064c',
+  'G1 Euro kitchen': '5de9688f0ae692ba842fb624b6b5a97f9a2c3a39e6b27a9f4a5694c5abdeb1fc',
+  'G2 Face frame kitchen': '3bb4b28bc122aa45adab4e0f7b39c2ce88e5f0f62a0634f4d8e428a30b32e0ec',
+  'G3 Bath alcove': '25c004dda428e80b385e273dd28fc8fbef0932020201c1e5420dc08407ee61a9',
+  'G4 T-filler run': 'dd3128076e119384cc318a16cae0aaa28ca9e7c9bcd781e92a752fb065724cd9',
+  'G5 Recess room': '67aa07c8845af0597643edc685d0f9834b77ee1e91d576da9c8428608d873f4a',
+  'G6 Stacked runs': 'ed43050312d7c56ac14677252559504a111fcf4b98cd78712976179e3515cd63',
 };
 
 // Keep the historical hashes: assert PD3's only payload change, then restore its old position

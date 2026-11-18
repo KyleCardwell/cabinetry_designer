@@ -60,6 +60,7 @@ function coverage({ payload, parts, shipping, doorOrder, proBox, diagnostics }) 
   };
 }
 
+const goldenPayloads = [];
 let outputFailure;
 describe.sequential('GC0 golden outputs', () => {
   for (const { key, name, load } of goldenRooms()) {
@@ -88,11 +89,30 @@ describe.sequential('GC0 golden outputs', () => {
         error.message = `${key} ${name}: ${error.message}`;
         throw error;
       }
+      goldenPayloads.push({ key, payload: outputs.payload });
       // Compute every output before writing any snapshot for this room.
       for (const [file, value] of Object.entries(outputs)) {
         const path = fileURLToPath(new URL(`./__golden__/${key}/${file}.json`, import.meta.url));
         await expect(stable(value)).toMatchFileSnapshot(path);
       }
     });
+  }
+});
+
+it('places every golden elevation badge without overlapping another box (GC5)', () => {
+  expect(goldenPayloads).toHaveLength(goldenRooms().length);
+  for (const { key, payload } of goldenPayloads) {
+    for (const elevation of payload.elevations) {
+      const badges = elevation.partNumbers;
+      for (let i = 0; i < badges.length; i += 1) {
+        for (let j = i + 1; j < badges.length; j += 1) {
+          const a = badges[i];
+          const b = badges[j];
+          const overlap = Math.abs(a.x - b.x) < (a.width + b.width) / 2 - 1e-6
+            && Math.abs(a.z - b.z) < (a.height + b.height) / 2 - 1e-6;
+          expect(overlap, `${key} ${elevation.letter}: ${a.key} / ${b.key}`).toBe(false);
+        }
+      }
+    }
   }
 });
