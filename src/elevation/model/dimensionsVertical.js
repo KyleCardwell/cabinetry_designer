@@ -141,7 +141,7 @@ function runBoxSegments(room, wall, run, settings, edge) {
   // Root bounds include nested voids and only offsets accepted by the layout solver.
   const columns = layout.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item');
   const column = (edge === 'right' ? rightmost : leftmost)(columns);
-  const cells = cellPieces(run, layout);
+  const cells = cellPieces(run, layout, { room, settings });
   const { regions } = frameRegions(room, run, cells, settings);
   if (regions.length === 0) return edgeStepSegments(run, column,
     teeBoxSegments(run, cells, teeFillers(room, run, cells, settings).tees, edge));

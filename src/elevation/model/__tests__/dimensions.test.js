@@ -974,8 +974,8 @@ describe('SPEC-36 opening dimensions', () => {
     ]);
 
     const spaced = {
-      ...F, width: 36.5, _seamGap: 0.5,
-      items: [{ id: 'a', kind: 'cabinet', width: null }, { id: 'b', kind: 'cabinet', width: null }],
+      ...F, width: 36.5,
+      items: [{ id: 'a', kind: 'cabinet', width: null, gap: 0.5 }, { id: 'b', kind: 'cabinet', width: null }],
     };
     const euro = roomR({ wallA: { runs: [spaced] } });
     expect(horizontalChains(euro, wallOf(euro), 'lower', DEFAULT_SETTINGS).inner.slice(0, 3)).toEqual([

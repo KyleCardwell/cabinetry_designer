@@ -301,7 +301,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const offset = faceFrontOffset(run, settings);
   const faceBack = run.depth + offset - runFaceThickness(run, settings);
   const faceFront = frontDepth(run, settings) - outset;
-  const cells = cellPieces(run, layout);
+  const cells = cellPieces(run, layout, { room, settings });
   const fillerThickness = runFillerThickness(room, wall, run, settings);
   const fillerBand = (piece) => {
     const front = fillerAtBoxFace(cells.pieces, faceLayouts, piece) ? run.depth : faceFront;

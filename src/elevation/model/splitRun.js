@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { MIN_CELL_SIZE, derivedLeafWidths } from './cells.js';
+import { MIN_CELL_SIZE, derivedLeafWidths, framedColumn } from './cells.js';
 import { columnSteps } from './columnSteps.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -22,19 +22,20 @@ export function isAutoItem(item) {
 
 /**
  * The run's items, each with `gapAfter` (SPEC-36): its column's own `gap`, else the run's seam
- * gap between two cabinet columns; 0 after the last. Items that already carry one keep it (the
+ * gap between two framed cabinet columns; 0 after the last. Items that already carry one keep it (the
  * pinned segments pass slices of this list back in).
  */
-function itemsWithGaps(run, settings) {
+function itemsWithGaps(run, settings, room) {
   const items = runItems(run);
   const seamGap = run._seamGap ?? run.seamGap ?? 0;
   const panels = insideEndPanels(run, settings);
+  const framed = (item) => framedColumn(item.grid ?? item, { settings, room, run });
   return items.map((item, index) => {
     if (item.gapAfter !== undefined) return item;
     const next = items[index + 1];
     let gapAfter = 0;
     if (next) {
-      gapAfter = item.gap ?? (item.kind === 'cabinet' && next.kind === 'cabinet' ? seamGap : 0);
+      gapAfter = item.gap ?? (framed(item) && framed(next) ? seamGap : 0);
       gapAfter += insideEndGap(panels, run.grid?.id, run.grid?.cols[index]?.id);
     }
     return { ...item, gapAfter };
@@ -50,7 +51,7 @@ function itemsWithGaps(run, settings) {
  */
 const ROUND_SEARCH = 48;
 
-function autoRounding(run, settings, items) {
+function autoRounding(run, settings, items, room) {
   const step = settings.roundTo;
   const onStep = (value) => Math.abs(value / step - Math.round(value / step)) <= WIDTH_EPSILON;
   const nested = items.filter((item) => isAutoItem(item) && item.grid);
@@ -64,7 +65,7 @@ function autoRounding(run, settings, items) {
   const seamGap = run._seamGap ?? run.seamGap ?? 0;
   const panels = insideEndPanels(run, settings);
   const isRound = (w) => items.filter(isAutoItem).every((item) => {
-    const widths = item.grid ? derivedLeafWidths(item.grid, w, seamGap, panels) : [w];
+    const widths = item.grid ? derivedLeafWidths(item.grid, w, seamGap, panels, { settings, room, run }) : [w];
     return widths.length === 0 ? onStep(w) : widths.every(onStep);
   });
   const steps = ROUND_SEARCH / FILLER_STEP;
@@ -142,8 +143,8 @@ function endGaps(run, items, settings) {
 }
 
 /** The gap a run end leaves beside its end box by rule, ignoring any typed gap (the field's blank value). */
-export function ruleEndGap(run, settings, side) {
-  return endGapParts(run, itemsWithGaps(run, settings), settings, side, false).gap;
+export function ruleEndGap(run, settings, side, opts) {
+  return endGapParts(run, itemsWithGaps(run, settings, opts?.room), settings, side, false).gap;
 }
 
 /** A top-level cell's own settings, copied onto its piece. */
@@ -189,7 +190,7 @@ function autoBlindCovers(run, items, opts) {
 }
 
 function layoutInputs(run, settings, opts) {
-  const items = itemsWithGaps(run, settings);
+  const items = itemsWithGaps(run, settings, opts?.room);
   const gaps = endGaps(run, items, settings);
   const room = legRoom(run, settings);
   const panelMiters = autoPanelMiters(run, items);
@@ -271,6 +272,7 @@ function warning(code, pieceId, message) {
  * @param {object} run
  * @param {object} settings
  * @param {{
+ *   room?: object,
  *   endMinWidths?: {left?: number, right?: number},
  *   blindCovers?: {left?: number, right?: number},
  *   endCornerAngles?: {left?: number, right?: number},
@@ -278,7 +280,7 @@ function warning(code, pieceId, message) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 function splitSegment(run, settings, opts) {
-  const items = itemsWithGaps(run, settings);
+  const items = itemsWithGaps(run, settings, opts?.room);
   const {
     available,
     endGaps,
@@ -305,7 +307,7 @@ function splitSegment(run, settings, opts) {
       flexOverconstrained = true;
       errors.push({ code: 'over-constrained' });
     } else {
-      autoWidth = nAuto > 0 ? autoRounding(run, settings, items).floor(cabSpace / nAuto) : 0;
+      autoWidth = nAuto > 0 ? autoRounding(run, settings, items, opts?.room).floor(cabSpace / nAuto) : 0;
       const leftover = available - nAuto * autoWidth;
       const extra = leftover - minimumTotal;
       flexExtra = floorTo(extra / flex, FILLER_STEP);
@@ -313,7 +315,7 @@ function splitSegment(run, settings, opts) {
     }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
-    if (!autoRounding(run, settings, items).isRound(autoWidth)) {
+    if (!autoRounding(run, settings, items, opts?.room).isRound(autoWidth)) {
       const firstAuto = items.find(
         (item) => item.kind === 'cabinet' && item.width === null,
       );
@@ -339,7 +341,7 @@ function splitSegment(run, settings, opts) {
   if (sharing) {
     // Reinclude the placed column's rounding constraints when splitting its neighbours later.
     const roundingItems = run._lineShareItem ? [...items, run._lineShareItem] : items;
-    autoWidth = autoRounding(run, settings, roundingItems).floor(
+    autoWidth = autoRounding(run, settings, roundingItems, opts?.room).floor(
       (available - minimumTotal + (run._lineShareWidth ?? 0))
         / (nAuto + (run._lineShareItem ? 1 : 0)),
     );
@@ -502,8 +504,8 @@ function outerMinimum(run, side, items, settings, opts) {
 }
 
 /** Space outside an attached column, including its seams and the real end's frame gap. */
-export function lineEndMinimum(run, settings, itemId, side) {
-  const items = itemsWithGaps(run, settings);
+export function lineEndMinimum(run, settings, itemId, side, opts) {
+  const items = itemsWithGaps(run, settings, opts?.room);
   const index = items.findIndex((item) => item.id === itemId);
   const outerItems = side === 'left' ? items.slice(0, index) : items.slice(index + 1);
   return outerMinimum(run, side, outerItems, settings)
@@ -550,7 +552,7 @@ function cabinetWidthWarnings(run, settings, item, width, auto) {
   return warnings;
 }
 
-function interiorLayout(run, settings, items, start, end, leftPin, rightPin, sharingPin) {
+function interiorLayout(run, settings, items, start, end, leftPin, rightPin, sharingPin, opts) {
   const onLine = Boolean(leftPin.item.attach || rightPin.item.attach);
   const width = onLine ? Math.max(0, end - start) : end - start;
   const fixedWidth = items.reduce(
@@ -568,7 +570,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin, sha
   if (autos.length > 0) {
     const autoSpace = onLine ? Math.max(0, available) : available;
     const roundingItems = sharingPin ? [...items, sharingPin.item] : items;
-    baseWidth = autoRounding(run, settings, roundingItems).floor(
+    baseWidth = autoRounding(run, settings, roundingItems, opts?.room).floor(
       (autoSpace + (sharingPin?.width ?? 0)) / (autos.length + (sharingPin ? 1 : 0)),
     );
     absorberId = autos.find((item) => item.absorb)?.id ?? autos[autos.length - 1].id;
@@ -693,6 +695,7 @@ export function splitRun(run, settings, opts) {
         plan.sharedWidths[pin.item.id] !== undefined && placedAt(pin.item) === 'left' ? pin
           : plan.sharedWidths[next.item.id] !== undefined && placedAt(next.item) === 'right' ? next
             : null,
+        opts,
       ));
     }
   });
@@ -716,7 +719,7 @@ function withLineEndFillers(run, settings, opts) {
 
 /** Auto edge-attached columns share with the autos on their bounded side, independent of history. */
 export function lineSharedWidths(run, settings, opts) {
-  const items = itemsWithGaps(run, settings);
+  const items = itemsWithGaps(run, settings, opts?.room);
   const targets = opts?.pinTargets ?? {};
   const placed = items.flatMap((item, itemIndex) => (
     PINNABLE_KINDS.has(item.kind) && placedAt(item) && Number.isFinite(targets[item.id])
@@ -788,7 +791,7 @@ export function lineSharedWidths(run, settings, opts) {
  * Warn on squeezed line segments and unreachable return pins. Null without a finite target.
  */
 function pinPlan(run, settings, opts) {
-  const items = itemsWithGaps(run, settings);
+  const items = itemsWithGaps(run, settings, opts?.room);
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
     PINNABLE_KINDS.has(item.kind)
@@ -934,7 +937,7 @@ function roundingNeed(run, settings, opts) {
     minimumTotal,
     nAuto,
   } = layoutInputs(run, settings, opts);
-  const rounding = autoRounding(run, settings, itemsWithGaps(run, settings));
+  const rounding = autoRounding(run, settings, itemsWithGaps(run, settings, opts?.room), opts?.room);
   const sixteenth = (value) => roundTo(value, FILLER_STEP);
   if (flex > 0) {
     const cabSpace = available - minimumTotal;

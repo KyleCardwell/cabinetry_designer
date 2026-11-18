@@ -293,8 +293,8 @@ describe('inside panels reserve their width (IE1)', () => {
     expect(returned.layout).not.toHaveProperty('insidePanels');
     expect(returned.layout.pieces[1].x - returned.layout.pieces[0].x - returned.layout.pieces[0].width).toBe(0);
 
-    const seam = makeRun([auto('a'), auto('b', 'cabinet', { depth: 12, align: 'back' })], {
-      width: 48, ends: noEnds, seamGap: 0.25,
+    const seam = makeRun([auto('a', 'cabinet', { gap: 0.25 }), auto('b', 'cabinet', { depth: 12, align: 'back' })], {
+      width: 48, ends: noEnds,
     });
     const seamed = solve(seam);
     expect(seamed.cells.gaps).toContainEqual({ x: 23.5, z: 30, width: 1, height: 60 });

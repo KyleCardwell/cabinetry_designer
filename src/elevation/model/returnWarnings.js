@@ -22,7 +22,7 @@ export function returnFaceWarnings(room, wall, run, settings) {
     const layout = layoutRun(room, view, returning, settings);
     const columns = layout.pieces.filter((piece) => piece.role === 'item');
     const column = hostEnd === 'left' ? columns[0] : columns[columns.length - 1];
-    const pieces = cellPieces(returning, layout).pieces.filter((piece) => piece.kind !== 'void'
+    const pieces = cellPieces(returning, layout, { room, settings }).pieces.filter((piece) => piece.kind !== 'void'
       && (piece.role === `end-${hostEnd}`
         || (column && (piece.id === column.id || piece.columnId === column.id))));
     const top = runSide(room, view, returning, settings).filter(({ piece }) => piece === 'countertop');

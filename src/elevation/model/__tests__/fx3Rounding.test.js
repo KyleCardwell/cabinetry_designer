@@ -178,8 +178,9 @@ describe('cabinet row shows the cells of a column holding a void (FX3)', () => {
     ]);
   });
 
-  it('a seam gap between the drawer cells is its own gap', () => {
-    const run = deskRun({ x: 50, seamGap: 0.125 });
+  it('a typed gap between the drawer cells is its own gap', () => {
+    const run = deskRun({ x: 50 });
+    run.items[0].grid.cells[0].node.cols[0].gap = 0.125;
     const rows = inner(synced(run));
     expect(rows.map(([kind, start, end]) => [kind, end - start])).toEqual([
       ['piece', 2.5], ['piece', 28], ['gap', 0.125], ['piece', 28], ['piece', 1.5625],

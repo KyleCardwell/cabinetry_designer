@@ -38,7 +38,7 @@ describe('SPEC-37 T-fillers in plan', () => {
   });
 
   it('widens the flat over spaced boxes', () => {
-    const { faces, returns } = planOf(baseRun({ width: 36.5, seamGap: 0.5 }));
+    const { faces, returns } = planOf(baseRun({ width: 36.5, items: [{ ...fixed('a', 18), gap: 0.5 }, fixed('b', 18)] }));
     expect(faces.find((face) => face.key === 'tee:a|b')).toMatchObject({ start: 41.25, end: 43.25 });
     expect(returns[0]).toMatchObject({ start: 41.875, end: 42.625 });
   });

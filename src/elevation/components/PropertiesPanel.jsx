@@ -95,8 +95,8 @@ export default function PropertiesPanel() {
     [room, run, settings, wall],
   );
   const cells = useMemo(
-    () => (run && layout ? cellPieces(run, layout) : null),
-    [run, layout],
+    () => (run && layout ? cellPieces(run, layout, { room, settings }) : null),
+    [run, layout, room, settings],
   );
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),

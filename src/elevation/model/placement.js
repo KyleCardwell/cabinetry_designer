@@ -24,6 +24,7 @@ function lineEndOptions(run, targets) {
 export function splitOptionsForRun(room, wall, run, settings) {
   const blindCovers = blindCoversForRun(room, wall, run, settings);
   return {
+    room,
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     ...(blindCovers.left || blindCovers.right ? { blindCovers } : {}),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),

@@ -66,7 +66,7 @@ describe('SPEC-37 T-fillers on the horizontal chain', () => {
   });
 
   it('counts the gap between spaced boxes in the T', () => {
-    expect(inner(baseRun({ width: 36.5, seamGap: 0.5 })).map(({ start, end, kind }) => [start, end, kind])).toEqual([
+    expect(inner(baseRun({ width: 36.5, grid: gridFromItems('r', [cab('a', 18, { gap: 0.5 }), cab('b', 18)]) })).map(({ start, end, kind }) => [start, end, kind])).toEqual([
       [24, 41.25, 'piece'], [41.25, 43.25, 't-filler'], [43.25, 60.5, 'piece'],
     ]);
   });

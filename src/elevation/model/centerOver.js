@@ -64,7 +64,7 @@ export function centerOverTargets(room, wallId, runId, settings) {
     const layout = layoutRun(resolved, faceWall, run, settings);
     const cells = [
       ...layout.pieces.filter(isCell),
-      ...cellPieces(run, layout).pieces.filter(isCell),
+      ...cellPieces(run, layout, { room: resolved, settings }).pieces.filter(isCell),
     ];
     const kept = [];
     for (const cell of cells) {

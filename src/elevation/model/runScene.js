@@ -61,7 +61,7 @@ export function runScene(room, wall, run, settings) {
 
 function buildRunScene(room, wall, run, settings) {
   const result = layoutRun(room, wall, run, settings);
-  const cells = cellPieces(run, result);
+  const cells = cellPieces(run, result, { room, settings });
   const faceLayouts = runFaceLayouts(room, wall, run, settings, result);
   const frames = frameRegions(room, run, cells, settings, faceLayouts);
   const cornerFrames = [];

@@ -3,7 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems } from '../grid.js';
 import { splitRun } from '../splitRun.js';
 
-const S = DEFAULT_SETTINGS;
+const S = { ...DEFAULT_SETTINGS, defaultStyle: { ...DEFAULT_SETTINGS.defaultStyle, cabinetStyleId: 15 } };
 const BEADED = { thickness: 0.8125, drop: 0, bead: 0.25 };
 
 function run(width, ends, count, extra = {}) {

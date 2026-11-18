@@ -152,7 +152,7 @@ function withInsideEnds(room, wall, run, settings) {
   const { _insideEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
   const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
-  const entries = insideEndSides(base, cellPieces(base, layout), settings)
+  const entries = insideEndSides(base, cellPieces(base, layout, { room, settings }), settings)
     .filter((entry) => entry.choice !== 'none')
     .map((entry) => entry.choice === 'panel'
       ? { ...entry, boundary: insideEndBoundary(base.grid, entry.leafId, entry.side) } : entry);
@@ -167,7 +167,7 @@ function withStepEnds(room, wall, run, settings) {
   const { _stepEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
   const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
-  const entries = stepEndSides(base, cellPieces(base, layout), settings, room)
+  const entries = stepEndSides(base, cellPieces(base, layout, { room, settings }), settings, room)
     .filter((entry) => entry.choice !== 'none');
   if (entries.length) {
     return JSON.stringify(_stepEnds) === JSON.stringify(entries) ? run : { ...base, _stepEnds: entries };
@@ -492,9 +492,9 @@ export function roomDiagnostics(room, settings) {
             ...cornerReturnWarnings(synced, wall, run, settings),
             ...runLineWarnings(synced, wall, run, settings, held),
             ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
-            ...cellPieces(run, layout).warnings,
-            ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
-            ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
+            ...cellPieces(run, layout, { room: synced, settings }).warnings,
+            ...extendPieces(wall, run, cellPieces(run, layout, { room: synced, settings }).pieces).warnings,
+            ...frameRegions(synced, run, cellPieces(run, layout, { room: synced, settings }), settings).warnings,
             ...runItems(run).flatMap((item) => (
               item.pin?.from === 'return' && !Number.isFinite(options.pinTargets[item.id])
                 ? [{
@@ -563,6 +563,7 @@ function runLineWarnings(room, wall, run, settings, held) {
   const owner = sides.map((side) => held.get(run.anchors?.[side]?.jointId))
     .find((entry) => entry && entry.runId !== run.id);
   if (owner && run.width < runWidthRange(run, settings, {
+    room,
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     blindCovers: blindCoversForRun(room, wall, run, settings),
   }).min - 1e-9) {
