@@ -9,15 +9,18 @@ import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
 import { outlineGeometry, outlinePath } from './outlinePath.js';
 
-function partGeometry(part, transform) {
+function partGeometry(part, transform, doorsOff) {
   const rect = wallRectToScreen(part, transform);
   const traceOutline = part.outline ? outlinePath(part.outline, transform) : null;
-  const trace = (context) => {
+  const traceOuter = (context) => {
     if (traceOutline) traceOutline(context);
     else {
       context.beginPath();
       context.rect(rect.x, rect.y, rect.width, rect.height);
     }
+  };
+  const trace = (context) => {
+    traceOuter(context);
     for (const hole of part.holes ?? []) {
       const opening = wallRectToScreen(hole, transform);
       context.rect(opening.x, opening.y, opening.width, opening.height);
@@ -27,19 +30,23 @@ function partGeometry(part, transform) {
     fillRule: 'evenodd',
     sceneFunc(context, shape) {
       trace(context);
-      context.fillStrokeShape(shape);
+      if (doorsOff) {
+        context.fillShape(shape);
+        traceOuter(context);
+        context.strokeShape(shape);
+      } else context.fillStrokeShape(shape);
     },
   } : part.outline ? outlineGeometry(part.outline, transform) : rect;
   return { rect, geometry, clipFunc: (context) => { trace(context); return ['evenodd']; } };
 }
 
 /** Filled parts and their attached details in the model's back-to-front order. */
-export default function FacePainter({ entries, transform, after }) {
+export default function FacePainter({ entries, transform, after, doorsOff = false }) {
   return (
     <Group listening={false}>
       {entries.map(({ part, doorDetail, pulls, swingMarks, legLoops }) => {
         const { hatch, ...style } = screenPartStyle(part);
-        const { rect, geometry, clipFunc } = partGeometry(part, transform);
+        const { rect, geometry, clipFunc } = partGeometry(part, transform, doorsOff);
         const PartShape = part.outline || part.holes?.length ? Shape : Rect;
         return (
           <Fragment key={part.id}>
@@ -50,6 +57,10 @@ export default function FacePainter({ entries, transform, after }) {
             ) : (
               <PartShape {...geometry} {...style} fillEnabled={style.fill !== null} />
             )}
+            {doorsOff && (part.holes ?? []).map((hole, index) => (
+              <Rect key={`hole:${index}`} {...wallRectToScreen(hole, transform)}
+                stroke={style.stroke} strokeWidth={style.strokeWidth} dash={[4, 3]} fillEnabled={false} />
+            ))}
             {hatch && (
               <Group clipFunc={clipFunc}>
                 <Hatch rect={rect} />

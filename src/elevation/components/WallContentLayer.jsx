@@ -93,7 +93,7 @@ export default function WallContentLayer({
                 cursor={cursor}
               />
             ))}
-            <FacePainter entries={entries} transform={transform} after={showThroughSlot} />
+            <FacePainter entries={entries} transform={transform} after={showThroughSlot} doorsOff={doorsOff} />
             <SoffitShapes
               wall={wall}
               transform={transform}

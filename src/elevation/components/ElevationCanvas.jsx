@@ -227,8 +227,8 @@ function ElevationCanvas({
 
   const measureGeometry = useMemo(
     () => (tool === 'measure' && room && wall
-      ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : null),
-    [tool, room, wall, settings],
+      ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings, { doorsOff }) : null),
+    [tool, room, wall, settings, doorsOff],
   );
   const measure = useMeasure({
     active: tool === 'measure',

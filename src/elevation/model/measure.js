@@ -1,9 +1,14 @@
 import { combinedViewOf } from './combinedElevations.js';
 import { combinedElevationPayload, shiftPayloadRecord } from './combinedPayload.js';
 import { faceDrawing } from './drawingPayload.js';
+import { wallDrawerBoxes } from './drawerBoxes.js';
+import { wallInteriors } from './interiors.js';
 import { planParts } from './planParts.js';
+import { rolloutSpacerSides, wallRollouts } from './rollouts.js';
 import { resolveWall } from './room.js';
+import { runScene } from './runScene.js';
 import { arcMeasure } from './sectionProfiles.js';
+import { wallShelves } from './shelves.js';
 import { elevationKey } from './topology.js';
 import { formatInches } from './units.js';
 
@@ -152,17 +157,78 @@ function drawnLineShapes(drawing) {
 
 const DRAWN = ['parts', 'doorDetails', 'interiors', 'shapes', 'glassMarks', 'swingMarks', 'pulls'];
 
-function drawingShapes(drawing) {
+function drawingShapes(drawing, doorsOff = false) {
+  if (doorsOff) {
+    const faces = new Set(drawing.parts.filter(({ kind }) => kind === 'face').map(({ id }) => id));
+    drawing = {
+      ...drawing,
+      parts: drawing.parts.filter(({ kind }) => kind !== 'face'),
+      interiors: [],
+      ...Object.fromEntries(['doorDetails', 'pulls', 'swingMarks', 'glassMarks'].map((key) => [
+        key, (drawing[key] ?? []).filter(({ partId }) => !faces.has(partId)),
+      ])),
+    };
+  }
   return [...elevationShapes(drawing.parts), ...doorDetailShapes(drawing.doorDetails), ...drawnLineShapes(drawing)];
 }
 
-/** Every line the opened elevation draws, in its local x/z frame (y is z), as the DXF gets it (FX5). */
-export function elevationMeasureGeometry(room, wall, side, settings) {
+/** Rectangles and lines drawn by InteriorShapes on the active doors-off face, in wall inches. */
+function doorsOffMeasureShapes(room, wall, side, settings) {
+  const view = resolveWall(room, wall, side);
+  const framedIds = new Set(view.runs.flatMap((run) => [...runScene(room, view, run, settings).framedIds]));
+  const faceLayoutsByRun = new Map();
+  const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
+  const boxes = wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
+  const rollouts = wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
+  const shelves = wallShelves(room, wall, side, settings);
+  return interiors.flatMap((entry) => [
+    ...(framedIds.has(entry.itemId) ? [rect(entry.box)] : []),
+    ...entry.sections.map(rect),
+    ...entry.dividers.flatMap((divider) => {
+      if (divider.kind !== 'zone') return [rect(divider)];
+      if (divider.gap > 0) {
+        return divider.dimFrom === 'bottom'
+          ? [rect({ ...divider, height: 0 }), rect({ ...divider, z: divider.z + divider.height, height: 0 })]
+          : [rect({ ...divider, width: 0 }), rect({ ...divider, x: divider.x + divider.width, width: 0 })];
+      }
+      return [segment({ x1: divider.x, z1: divider.z,
+        x2: divider.x + divider.width, z2: divider.z + divider.height })];
+    }),
+    ...(entry.partLines ?? []).map(rect),
+    ...entry.sections.flatMap((section) => {
+      const shelf = shelves.get(entry.itemId)?.get(section.path);
+      const rollout = rollouts.get(entry.itemId)?.get(section.path);
+      return [
+        ...(shelf?.positions ?? []).map((z) => rect({
+          x: section.x + (section.width - shelf.width) / 2, z,
+          width: shelf.width, height: shelf.nosing?.height ?? shelf.thickness,
+        })),
+        ...(shelf?.shoe?.positions ?? []).map((z) => rect({
+          x: section.x + (section.width - shelf.shoe.width) / 2, z,
+          width: shelf.shoe.width, height: shelf.shoe.frontHeight,
+        })),
+        ...(rollout?.rollouts ?? []).flatMap((box) => [
+          rect(box),
+          ...rolloutSpacerSides(rollout, box).map((side) => rect({
+            x: side === 'left' ? box.column.x : box.column.x + box.column.width - box.spacers.right,
+            z: rollout.zone.z, width: box.spacers[side], height: rollout.top - rollout.zone.z,
+          })),
+        ]),
+      ];
+    }),
+    ...(boxes.get(entry.itemId)?.boxes ?? []).filter(({ height }) => height !== null).map(rect),
+  ]);
+}
+
+/** Every line the opened elevation draws, in its local x/z frame (y is z). */
+export function elevationMeasureGeometry(room, wall, side, settings, { doorsOff = false } = {}) {
+  const interiors = doorsOff ? doorsOffMeasureShapes(room, wall, side, settings) : [];
   const combined = combinedViewOf(room, wall.id, side);
   if (!combined) {
     const view = resolveWall(room, wall, side);
     return measureGeometry([
-      ...drawingShapes(faceDrawing(room, wall, side, settings)),
+      ...drawingShapes(faceDrawing(room, wall, side, settings), doorsOff),
+      ...interiors,
       { kind: 'rect', x: 0, y: 0, width: view.length, height: wall.height },
     ]);
   }
@@ -170,7 +236,8 @@ export function elevationMeasureGeometry(room, wall, side, settings) {
   const payload = combinedElevationPayload(room, combined, settings,
     (w, s, options) => faceDrawing(room, w, s, settings, options));
   return measureGeometry([
-    ...drawingShapes(Object.fromEntries(DRAWN.map((key) => [key, shiftPayloadRecord(payload[key] ?? [], -active.dx)]))),
+    ...drawingShapes(Object.fromEntries(DRAWN.map((key) => [key, shiftPayloadRecord(payload[key] ?? [], -active.dx)])), doorsOff),
+    ...interiors,
     ...combined.faces.map((face) => {
       const faceWall = room.walls.find(({ id }) => id === face.wallId);
       const view = resolveWall(room, faceWall, face.side);

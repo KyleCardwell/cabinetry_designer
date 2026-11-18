@@ -80,7 +80,7 @@ function CombinedFace({
             onMove={noop}
           />
         ))}
-        <FacePainter entries={entries} transform={faceTransform} after={showThroughSlot} />
+        <FacePainter entries={entries} transform={faceTransform} after={showThroughSlot} doorsOff={doorsOff} />
         <NeighborReturns room={room} wall={wall} settings={settings}
           transform={faceTransform} shapes={shapes} />
         {note && (
