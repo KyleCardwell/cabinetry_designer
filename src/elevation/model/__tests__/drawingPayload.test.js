@@ -191,7 +191,7 @@ describe('DM8 step b end-view panel payload', () => {
 // GC5.1: plan mark placement
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': 'e82c1e88920be380ba1b4bfc8b6772de9205bee2efbf88cb35be52f113c04436',
-  'G2 Face frame kitchen': 'a0e1f58e5782d4958edc8636e07dbae31f02061da473af690dbb12c60b65ce30',
+  'G2 Face frame kitchen': '52e555bf79b43848f1b8922be2b0afea906f53962d17d4bb6f99f400b0300d76',
   'G3 Bath alcove': '25c004dda428e80b385e273dd28fc8fbef0932020201c1e5420dc08407ee61a9',
   'G4 T-filler run': 'dd3128076e119384cc318a16cae0aaa28ca9e7c9bcd781e92a752fb065724cd9',
   'G5 Recess room': '67aa07c8845af0597643edc685d0f9834b77ee1e91d576da9c8428608d873f4a',

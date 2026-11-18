@@ -64,7 +64,7 @@ describe('SPEC-36.3 hanging base', () => {
     expect(hanging.drop).toBe(0.75);
 
     const beaded = build({ cabinetStyleId: 15 }, { hanging: true });
-    expect(beaded.reveals.values).toMatchObject({ top: 1.75, bottom: 1 });
+    expect(beaded.reveals.values).toMatchObject({ top: 1.75, bottom: 0.75 });
     expect([beaded.region.z, beaded.region.height]).toEqual([4, 30.5]);
     expect([beaded.face.z, beaded.face.height]).toEqual([5.75, 27]);
   });

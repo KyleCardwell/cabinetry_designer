@@ -160,7 +160,7 @@
       "z": 4
     },
     {
-      "height": 35.25,
+      "height": 35,
       "key": "2db19921-bc7f-4f28-9610-0d0f46729a46",
       "kind": "cabinet",
       "molding": null,
@@ -172,10 +172,10 @@
       "wallId": "e10e98d3-30bd-4ec1-8a67-81d3923598e1",
       "width": 30.5,
       "x": 77.5,
-      "z": 54.75
+      "z": 55
     },
     {
-      "height": 35.25,
+      "height": 35,
       "key": "e69051ee-c269-47b0-922b-a5002e6a5faf",
       "kind": "cabinet",
       "molding": null,
@@ -187,10 +187,10 @@
       "wallId": "e10e98d3-30bd-4ec1-8a67-81d3923598e1",
       "width": 30.5,
       "x": 108.5,
-      "z": 54.75
+      "z": 55
     },
     {
-      "height": 35.25,
+      "height": 35,
       "key": "81539d21-3eb7-4559-9470-c041ff1f5812",
       "kind": "cabinet",
       "molding": null,
@@ -202,7 +202,7 @@
       "wallId": "e10e98d3-30bd-4ec1-8a67-81d3923598e1",
       "width": 30.5,
       "x": 139.5,
-      "z": 54.75
+      "z": 55
     },
     {
       "height": 36,

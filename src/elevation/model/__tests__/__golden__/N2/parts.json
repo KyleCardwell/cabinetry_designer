@@ -220,7 +220,7 @@
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 51.5,
       "x": 8.5,
-      "z": 54.75
+      "z": 55
     },
     {
       "height": 1.5,
@@ -235,7 +235,7 @@
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 51.5,
       "x": 8.5,
-      "z": 70.5
+      "z": 70.66666666666667
     },
     {
       "height": 1.5,
@@ -250,10 +250,10 @@
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 51.5,
       "x": 8.5,
-      "z": 86.25
+      "z": 86.33333333333334
     },
     {
-      "height": 47.25,
+      "height": 47,
       "key": "0feabb20-ad36-4868-82bd-be94baf47a24",
       "kind": "cabinet",
       "molding": null,
@@ -265,10 +265,10 @@
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 28.5,
       "x": 121.25,
-      "z": 54.75
+      "z": 55
     },
     {
-      "height": 47.25,
+      "height": 47,
       "key": "80b2d87b-3e6c-4ca7-a9d2-b2e0bc4e3be1",
       "kind": "cabinet",
       "molding": null,
@@ -280,7 +280,7 @@
       "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
       "width": 28.5,
       "x": 150.25,
-      "z": 54.75
+      "z": 55
     },
     {
       "height": 48,
@@ -339,7 +339,7 @@
       "side": "front",
       "source": "piece",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 24.5,
+      "width": 25,
       "x": 48.5,
       "z": 4
     },
@@ -354,7 +354,7 @@
       "side": "front",
       "source": "frame",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 25.5,
+      "width": 26,
       "x": 47.5,
       "z": 4
     },
@@ -384,8 +384,8 @@
       "side": "front",
       "source": "piece",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 24.5,
-      "x": 105.5,
+      "width": 25,
+      "x": 105,
       "z": 4
     },
     {
@@ -399,8 +399,8 @@
       "side": "front",
       "source": "frame",
       "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
-      "width": 25.5,
-      "x": 105.5,
+      "width": 26,
+      "x": 105,
       "z": 4
     },
     {

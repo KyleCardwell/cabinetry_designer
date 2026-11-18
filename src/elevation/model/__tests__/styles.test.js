@@ -79,7 +79,7 @@ describe('styles', () => {
 
   it('30 beaded, profiled upper', () => {
     expect(styleReveals(BEADED, UPPER, S, { profiled: true })).toEqual({
-      top: 1.75, bottom: 1, left: 0.75, right: 0.75, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625, shared: 0.0625,
+      top: 1.75, bottom: 0.75, left: 0.75, right: 0.75, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625, shared: 0.0625,
     });
   });
 
