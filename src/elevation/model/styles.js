@@ -75,18 +75,26 @@ export function isInsetStyle(style) {
   return style.cabinetStyleId !== CABINET_STYLE_IDS.EUROPEAN;
 }
 
+/** The bead width of a beaded inset style, else 0. */
+function beadOf(style) {
+  return style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+}
+
 /**
  * How far a face frame run's bottom rail hangs below its box (SPEC-36.3): the upper drop on an upper
  * whose doors overhang, and on a base marked hanging. An upper's covered or flush parts set its
  * drop when present (SPEC-46.2.1). Zero for everything else.
  */
-export function frameDrop(run, settings) {
+export function frameDrop(run, settings, bead = run._frame?.bead ?? 0) {
+  // A beaded rail is a bead wider and hangs that much lower: the frame's bottom stays put and the box
+  // is a bead shorter (Kyle 2026-11-18).
   const { upperDrop } = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  const hang = upperDrop + bead;
   if (run.cabinetTypeId === UPPER) {
     const { height } = frameBottomParts(run);
-    return height > 0 ? height : (run.upperBottom ?? 'overhang') === 'overhang' ? upperDrop : 0;
+    return height > 0 ? height : (run.upperBottom ?? 'overhang') === 'overhang' ? hang : 0;
   }
-  return run.cabinetTypeId === BASE && run.hanging === true ? upperDrop : 0;
+  return run.cabinetTypeId === BASE && run.hanging === true ? hang : 0;
 }
 
 /** REV-009/010: the reveals either side of a seam where one box sits on another. */
@@ -123,7 +131,8 @@ export function styleReveals(style, cabinetTypeId, settings, { profiled = false 
   const bottomRail = cabinetTypeId === UPPER ? frame.rail - frame.upperDrop : frame.rail;
   return {
     top: frame.rail + bead,
-    bottom: bottomRail + bead,
+    // An upper's bead is in its drop (`frameDrop`), not its bottom reveal.
+    bottom: cabinetTypeId === UPPER ? bottomRail : bottomRail + bead,
     // SPEC-38.3: the bead is in the gaps beside a beaded box, never in its side reveals.
     left: frame.stile,
     right: frame.stile,
@@ -215,14 +224,14 @@ export function cabinetReveals({
     apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
   }
   // A hanging base's bottom reveal is an upper's: the frame's rail hangs below the box (SPEC-36.3).
-  if (!euro && cabinetTypeId !== UPPER && runEdges.bottom && frameDrop(run, settings) > 0) {
+  if (!euro && cabinetTypeId !== UPPER && runEdges.bottom && frameDrop(run, settings, beadOf(style)) > 0) {
     apply('bottom', styleReveals(style, UPPER, settings).bottom, 'rule:hanging');
   }
   if (!euro && runEdges.bottom) {
     const { height, doors } = frameBottomParts(run);
     if (height > 0) {
       const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
-      apply('bottom', doors === 'flush' ? bead : styleReveals(style, UPPER, settings).bottom, 'rule:below-run');
+      apply('bottom', doors === 'flush' ? bead : styleReveals(style, UPPER, settings).bottom + bead, 'rule:below-run');
     }
   }
   const below = euro && runEdges.bottom ? belowRunReveal(run, settings) : null;
@@ -312,7 +321,7 @@ export function growStandardFronts(face, extra) {
 
 /** How far a run's fillers and end panels extend below the box: to the doors. */
 export function panelDrop(run, style, settings) {
-  if (isInsetStyle(style)) return frameDrop(run, settings);
+  if (isInsetStyle(style)) return frameDrop(run, settings, beadOf(style));
   const below = belowRunReveal(run, settings);
   if (below !== null) return Math.max(0, -below);
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
@@ -356,7 +365,7 @@ export function runFrame(room, run, settings) {
   if (!isInsetStyle(style)) return null;
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
-  return { thickness: frame.thickness, drop: frameDrop(run, settings), bead };
+  return { thickness: frame.thickness, drop: frameDrop(run, settings, bead), bead };
 }
 
 /** The resolved T-filler choice, including runs used without syncRoom. */
