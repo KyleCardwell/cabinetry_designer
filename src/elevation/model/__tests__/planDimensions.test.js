@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { auto, opening, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
+import { planParts } from '../planParts.js';
 import { planMarks } from '../planMarks.js';
 import { wallFrame } from '../geometry.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../wallEndPanels.js';
@@ -16,6 +17,7 @@ const document = normalizeElevationDocument(
 const settings = { ...document.settings, runFlex: 0 };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 const dimensions = (room) => planDimensions(syncRoom(room, settings), settings);
+const marks = (room) => planMarks(room, settings, planDimensions(room, settings), planParts(room, settings)).marks;
 const WALL_ROWS = ['front', 'back', 'wall'];
 const wallRows = (room) => dimensions(room).filter(({ row }) => WALL_ROWS.includes(row));
 const wall = (start, end, offset, text) => ({ row: 'wall', kind: 'wall', start, end, offset, text });
@@ -191,14 +193,14 @@ describe('anchors (DM1)', () => {
   it('keeps a perimeter wall row at 13 1/2 and marker A at 41 3/8', () => {
     const room = dm1Room({ back: false });
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 13.5], [96, 13.5]]]);
-    expect(planMarks(room, settings)).toContainEqual(markerAt([48, -41.375], 'A'));
+    expect(marks(room)).toContainEqual(markerAt([48, -41.375], 'A'));
   });
 
   it('puts island rows at 38 3/8 and the back marker at 57 7/8', () => {
     const room = dm1Room();
     expect(planSideReach(room, room.walls[0], 'back', settings)).toBe(24.875);
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 38.375], [96, 38.375]]]);
-    expect(planMarks(room, settings)).toContainEqual(markerAt([48, 57.875], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 57.875], 'B', [0, -1]));
     expect(through(room)).toEqual([]);
   });
 
@@ -208,10 +210,10 @@ describe('anchors (DM1)', () => {
     expect(rows.filter(({ row }) => row === 'front').map((row) => lineEnds(row)[0][1]))
       .toEqual([38.375, 38.375, 38.375]);
     expect(lineEnds(rows.find(({ row }) => row === 'wall'))[0][1]).toBe(47.375);
-    expect(planMarks(room, settings)).toContainEqual({
+    expect(marks(room)).toContainEqual({
       kind: 'label', at: [48, 32], text: 'W1 · 36"', rotation: 0,
     });
-    expect(planMarks(room, settings)).toContainEqual(markerAt([48, 66.875], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 66.875], 'B', [0, -1]));
   });
 
   it('measures through the start panel from -29 3/8 to +24 7/8, 9 past its outer edge', () => {
@@ -272,13 +274,13 @@ describe('anchors (DM1)', () => {
   it('keeps markers past moved text levels on both sides', () => {
     const room = dm1Room({ window: true });
     room.walls[0].openings[0].offset = 1;
-    expect(planMarks(room, settings)).toContainEqual(markerAt([48, 70.625], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 70.625], 'B', [0, -1]));
     room.walls[0].recesses = [{
       id: 'back-recess', label: 'R1', kind: 'recess', wallSide: 'back',
       width: 2, depth: 6, bottom: 0, height: null, offset: 30, offsetFrom: 'left',
     }];
     // Front runs reach 24 7/8; one back row, one moved-text level, then the marker's symbol.
-    expect(planMarks(room, settings)).toContainEqual(markerAt([48, -57.125], 'A'));
+    expect(marks(room)).toContainEqual(markerAt([48, -57.125], 'A'));
   });
 
   it('labels recesses and projections past the opposite runs, including a recess bump-out', () => {
@@ -289,9 +291,9 @@ describe('anchors (DM1)', () => {
       { id: 'back', label: 'P1', kind: 'projection', wallSide: 'back', width: 12,
         depth: 6, bottom: 0, height: null, offset: 30, offsetFrom: 'left' },
     ];
-    expect(planMarks(room, settings).filter(({ kind }) => kind === 'label')).toEqual([
-      { kind: 'label', at: [36, 38], text: 'R1 · 12" × 6"', rotation: 0 },
-      { kind: 'label', at: [60, -27.5], text: 'P1 · 12" × 6"', rotation: 0 },
+    expect(marks(room).filter(({ kind }) => kind === 'label')).toEqual([
+      { kind: 'label', at: [-12, 38], text: 'R1 · 12" × 6"', rotation: 0 },
+      { kind: 'label', at: [78, -27.5], text: 'P1 · 12" × 6"', rotation: 0 },
     ]);
     // A bump-out deeper than the runs controls the exterior row base.
     room.walls[0].recesses[0].depth = 30;

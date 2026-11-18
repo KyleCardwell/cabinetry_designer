@@ -188,13 +188,14 @@ describe('DM8 step b end-view panel payload', () => {
 // End stile fix (5312f37): G2 panel gaps shrink and corner filler minimums retain standard stiles.
 // GC4: opaque wall solids
 // GC5: part number placement
+// GC5.1: plan mark placement
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '5de9688f0ae692ba842fb624b6b5a97f9a2c3a39e6b27a9f4a5694c5abdeb1fc',
-  'G2 Face frame kitchen': '3bb4b28bc122aa45adab4e0f7b39c2ce88e5f0f62a0634f4d8e428a30b32e0ec',
+  'G1 Euro kitchen': 'e82c1e88920be380ba1b4bfc8b6772de9205bee2efbf88cb35be52f113c04436',
+  'G2 Face frame kitchen': 'a0e1f58e5782d4958edc8636e07dbae31f02061da473af690dbb12c60b65ce30',
   'G3 Bath alcove': '25c004dda428e80b385e273dd28fc8fbef0932020201c1e5420dc08407ee61a9',
   'G4 T-filler run': 'dd3128076e119384cc318a16cae0aaa28ca9e7c9bcd781e92a752fb065724cd9',
   'G5 Recess room': '67aa07c8845af0597643edc685d0f9834b77ee1e91d576da9c8428608d873f4a',
-  'G6 Stacked runs': 'ed43050312d7c56ac14677252559504a111fcf4b98cd78712976179e3515cd63',
+  'G6 Stacked runs': '94b5ffea54656e17ac948aba63c80ad0230d1496652b613e24c1b66b38b85ae5',
 };
 
 // Keep the historical hashes: assert PD3's only payload change, then restore its old position
@@ -512,14 +513,16 @@ describe('SPEC-40 drawing payload', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(plan.dimensions).toHaveLength(18);
-    expect(plan.dimensions).toEqual(planDimensions(synced, settings));
+    expect(plan.dimensions).toEqual(
+      planMarks(synced, settings, planDimensions(synced, settings), plan.parts).dimensions,
+    );
   });
 
   it('SPEC-45.1 carries the plan markers and labels', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(plan.marks).toHaveLength(5);
-    expect(plan.marks).toEqual(planMarks(synced, settings));
+    expect(plan.marks).toEqual(planMarks(synced, settings, planDimensions(synced, settings), plan.parts).marks);
   });
 
   it('SPEC-46.4 carries each wall face\'s door details', () => {

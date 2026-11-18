@@ -80,6 +80,8 @@ export function roomPartList(room, settings) {
     });
 
     const elevations = drawings.map((drawing) => ({ ...drawing, parts: drawing.parts.map(tag) }));
+    const parts = planParts(room, settings).map(tag);
+    const { marks, dimensions } = planMarks(room, settings, planDimensions(room, settings), parts);
     return {
       items,
       numbers,
@@ -87,9 +89,9 @@ export function roomPartList(room, settings) {
       plotScale: plotScale(settings),
       paperSize: paperSize(settings),
       plan: {
-        parts: planParts(room, settings).map(tag),
-        dimensions: planDimensions(room, settings),
-        marks: planMarks(room, settings),
+        parts,
+        dimensions,
+        marks,
         ...(shapes.length ? { shapes } : {}),
       },
     };
