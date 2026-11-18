@@ -1,0 +1,195 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails - No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "panelProfile": "FLAT",
+        "style": "110",
+        "thickness": "13/16\"",
+        "vendor": "STILLWATER",
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 2,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 4,
+              "qty": 2,
+              "size": "12 x 27",
+              "width": 12
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 6,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 9,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 27,
+              "notes": "3\" MR up 13 1/2\" oc",
+              "number": 10,
+              "qty": 2,
+              "size": "13 1/2 x 27",
+              "width": 13.5
+            },
+            {
+              "height": 27,
+              "notes": "3\" MR up 13 1/2\" oc",
+              "number": 11,
+              "qty": 2,
+              "size": "13 1/2 x 27",
+              "width": 13.5
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 21,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 22,
+              "notes": "",
+              "number": 25,
+              "qty": 2,
+              "size": "11 3/8 x 22",
+              "width": 11.375
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 27,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 32,
+              "qty": 2,
+              "size": "14 1/2 x 27",
+              "width": 14.5
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 33,
+              "qty": 2,
+              "size": "14 1/2 x 27",
+              "width": 14.5
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 34,
+              "qty": 2,
+              "size": "13 7/8 x 27",
+              "width": 13.875
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 36,
+              "qty": 1,
+              "size": "24 13/16 x 30 1/2",
+              "width": 24.8125
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    },
+    {
+      "header": {
+        "appliedMoldings": "3/8\" HALF BEAD",
+        "edgeProfile": "SQUARE",
+        "insideProfile": null,
+        "notes": "No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "panelProfile": null,
+        "style": "Slab - MDF Core",
+        "thickness": "3/4\"",
+        "vendor": "ALPHA",
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "drawer_fronts",
+          "lines": [
+            {
+              "height": 9,
+              "notes": "",
+              "number": 3,
+              "qty": 2,
+              "size": "24 x 9",
+              "width": 24
+            },
+            {
+              "height": 5,
+              "notes": "",
+              "number": 3,
+              "qty": 1,
+              "size": "24 x 5",
+              "width": 24
+            },
+            {
+              "height": 9,
+              "notes": "",
+              "number": 22,
+              "qty": 2,
+              "size": "22 3/4 x 9",
+              "width": 22.75
+            },
+            {
+              "height": 5,
+              "notes": "",
+              "number": 22,
+              "qty": 1,
+              "size": "22 3/4 x 5",
+              "width": 22.75
+            },
+            {
+              "height": 4,
+              "notes": "",
+              "number": 24,
+              "qty": 1,
+              "size": "31 3/8 x 4",
+              "width": 31.375
+            }
+          ],
+          "title": "Drawer Fronts"
+        }
+      ],
+      "styleId": "17aa7ec7-1f4f-4bfb-9ae6-4d6b68f4dac9",
+      "type": "drawer_fronts"
+    }
+  ],
+  "warnings": []
+}

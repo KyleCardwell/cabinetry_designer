@@ -1,0 +1,68 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails",
+        "panelProfile": "FLAT",
+        "style": "5PC",
+        "thickness": "13/16\"",
+        "vendor": null,
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 86,
+              "notes": "do not sand edges",
+              "number": 1,
+              "qty": 1,
+              "size": "24 13/16 x 86",
+              "width": 24.8125
+            },
+            {
+              "height": 85.75,
+              "notes": "",
+              "number": 2,
+              "qty": 2,
+              "size": "16 5/8 x 85 3/4",
+              "width": 16.625
+            },
+            {
+              "height": 59.0625,
+              "notes": "",
+              "number": 4,
+              "qty": 2,
+              "size": "16 5/8 x 59 1/16",
+              "width": 16.625
+            },
+            {
+              "height": 25.0625,
+              "notes": "",
+              "number": 6,
+              "qty": 2,
+              "size": "16 5/8 x 25 1/16",
+              "width": 16.625
+            },
+            {
+              "height": 85.75,
+              "notes": "",
+              "number": 8,
+              "qty": 2,
+              "size": "16 5/8 x 85 3/4",
+              "width": 16.625
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

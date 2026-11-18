@@ -1,12 +1,10 @@
 import { Layer } from 'react-konva';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
-import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import { PickOutline } from './SelectionPicker.jsx';
 import { RecessOutline } from './RecessShapes.jsx';
 
 export default function WallOverlayLayer({
-  doorsOff,
   room,
   wall,
   settings,
@@ -21,20 +19,11 @@ export default function WallOverlayLayer({
   return (
           <Layer listening={false}>
             <NeighborReturns
-              doorsOff={doorsOff}
               room={room}
               wall={wall}
               settings={settings}
               transform={transform}
               selection={selection}
-              shapes={combinedFaces?.get(activeKey).shapes}
-            />
-            <NeighborProfiles
-              doorsOff={doorsOff}
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
               shapes={combinedFaces?.get(activeKey).shapes}
             />
             {selection.recessId && (

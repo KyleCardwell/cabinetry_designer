@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatInch, formatSize } from '../format.js';
+import { formatInch, formatSize } from '../../elevation/model/items/format.js';
 
 describe('report fractions', () => {
   it('formats the two- and three-dimensional sizes and inch values', () => {

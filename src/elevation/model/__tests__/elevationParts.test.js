@@ -52,8 +52,8 @@ describe('SPEC-41 elevation parts', () => {
       id: 'frame:352bd8c0-79a1-4210-a428-cfe95038118f', kind: 'frame', runId: 'a42e9a57-a98f-47f0-b6b4-9076b513db6e',
       x: 50, z: 4, width: 26.5, height: 86, back: 25, front: 25.8125, coversBoxEdges: true,
       holes: [
-        { x: 51.8125, z: 5.75, width: 22.9375, height: 61.25 },
-        { x: 51.8125, z: 69, width: 22.9375, height: 19.25 },
+        { x: 51.75, z: 5.75, width: 23, height: 61.25 },
+        { x: 51.75, z: 69, width: 23, height: 19.25 },
       ],
     });
     // Mitered end panels sit behind the frame (front = the frame's back).
@@ -101,7 +101,7 @@ describe('SPEC-41 elevation parts', () => {
     const g2 = partsOf(room('G2 Face frame kitchen'), 0);
     expect(g2).toHaveLength(27);
     expect(row(byId(g2, '352bd8c0-79a1-4210-a428-cfe95038118f:rleft')))
-      .toEqual(['352bd8c0-79a1-4210-a428-cfe95038118f:rleft', 'face', 51.8125, 5.75, 11.46875, 61.25, 25, 25.8125, true]);
+      .toEqual(['352bd8c0-79a1-4210-a428-cfe95038118f:rleft', 'face', 51.75, 5.75, 11.5, 61.25, 25, 25.8125, true]);
   });
 
   it('shelves: the back panel at the back of its cell, each shelf in front of it', () => {

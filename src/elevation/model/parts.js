@@ -1,3 +1,4 @@
+import { activeBuildCache, withBuildCache } from './buildCache.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import { blindPartWidths } from './blind.js';
 import { blindCellWidths, partPieces } from './cells.js';
@@ -259,6 +260,11 @@ function wallPanelPart(wall, panel) {
  * the estimator and the AI layer read.
  */
 export function roomParts(room, settings) {
+  return withBuildCache(() => activeBuildCache.byRoom('roomParts', room, settings,
+    () => buildRoomParts(room, settings)), room);
+}
+
+function buildRoomParts(room, settings) {
   const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
   const walls = [...wallNumbers(room).entries()]
     .sort((a, b) => a[1] - b[1])

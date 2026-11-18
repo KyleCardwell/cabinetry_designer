@@ -1,11 +1,15 @@
+import { useMemo } from 'react';
 import { Layer } from 'react-konva';
 import { runsByDepth } from '../model/corners.js';
 import { openingGeometry } from '../model/openings.js';
 import { lineHeldJoints } from '../model/linePlacement.js';
+import { paintEntries } from '../model/screenPaint.js';
+import FacePainter from './FacePainter.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LayoutLines from './LayoutLines.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
+import ShowThroughInteriors from './ShowThroughInteriors.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
 import RecessShapes from './RecessShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
@@ -22,13 +26,12 @@ export default function WallContentLayer({
   moveSelectedOpening,
   cursor,
   room,
-  soffitJoins,
-  activeKey,
   diagnostics,
   facePath,
   pickFace,
   doorsOff,
   showThrough,
+  screenDrawing,
   interiors,
   drawerBoxes,
   adjustableShelves,
@@ -57,6 +60,15 @@ export default function WallContentLayer({
   const storedWall = room.walls.find((candidate) => candidate.id === wall.id);
   const heldJoints = storedWall ? lineHeldJoints(storedWall) : new Map();
   const lineLabels = Object.fromEntries((storedWall?.lines ?? []).map(({ id, label }) => [id, label]));
+  const entries = useMemo(() => paintEntries(screenDrawing, { doorsOff }),
+    [screenDrawing, doorsOff]);
+  const showThroughByItem = useMemo(() => new Map(showThrough.map((entry) => [entry.itemId, entry])),
+    [showThrough]);
+  const showThroughSlot = (part) => {
+    const entry = !doorsOff && part.kind === 'cabinet' && showThroughByItem.get(part.id);
+    return entry ? <ShowThroughInteriors entries={[entry]} transform={transform}
+      room={room} wall={wall} settings={settings} /> : null;
+  };
   return (
           <Layer>
             <RecessShapes
@@ -81,14 +93,12 @@ export default function WallContentLayer({
                 cursor={cursor}
               />
             ))}
+            <FacePainter entries={entries} transform={transform} after={showThroughSlot} doorsOff={doorsOff} />
             <SoffitShapes
-              room={room}
               wall={wall}
-              settings={settings}
               transform={transform}
               selectedSoffitId={selection.soffitId}
               onSelect={tool === 'select' ? pick : undefined}
-              combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
             />
             {runsByDepth(wall.runs, settings).map((run) => (
               <RunGroup

@@ -185,13 +185,17 @@ describe('DM8 step b end-view panel payload', () => {
 // FX9 a moves only G4's Euro T faces and their dependent front projections in by 1/16".
 // PT2 c: plan countertop parts are exposed-edge chains now; every other payload byte is unchanged.
 // CC9.1: G2’s frame follows its cabinet, swapping only its and the end panel’s badge numbers (4 / 5).
+// End stile fix (5312f37): G2 panel gaps shrink and corner filler minimums retain standard stiles.
+// GC4: opaque wall solids
+// GC5: part number placement
+// GC5.1: plan mark placement
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '7f4603a200272406108c3943cf85a6f347afd8942194a0bcc7c3b05fcb794890',
-  'G2 Face frame kitchen': '680ed20e27bd0e116360b6c47c6ba62b770c873edb9a97301fa3afd24d4a7913',
-  'G3 Bath alcove': '3e631443a6bfed8193f627d26d2090c8f232b84559118aee711cefc0999ccf52',
-  'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
-  'G5 Recess room': '3ca4f370bfb3aa4ea609bab3769cb7abcc6213dcf96847d02d345823d1d76cd8',
-  'G6 Stacked runs': '491f6fc3a4134bf2878dc1a619f05a314b0e805d5bcca8912479d5630d14064c',
+  'G1 Euro kitchen': 'e82c1e88920be380ba1b4bfc8b6772de9205bee2efbf88cb35be52f113c04436',
+  'G2 Face frame kitchen': '52e555bf79b43848f1b8922be2b0afea906f53962d17d4bb6f99f400b0300d76',
+  'G3 Bath alcove': '25c004dda428e80b385e273dd28fc8fbef0932020201c1e5420dc08407ee61a9',
+  'G4 T-filler run': 'dd3128076e119384cc318a16cae0aaa28ca9e7c9bcd781e92a752fb065724cd9',
+  'G5 Recess room': '67aa07c8845af0597643edc685d0f9834b77ee1e91d576da9c8428608d873f4a',
+  'G6 Stacked runs': '94b5ffea54656e17ac948aba63c80ad0230d1496652b613e24c1b66b38b85ae5',
 };
 
 // Keep the historical hashes: assert PD3's only payload change, then restore its old position
@@ -509,14 +513,16 @@ describe('SPEC-40 drawing payload', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(plan.dimensions).toHaveLength(18);
-    expect(plan.dimensions).toEqual(planDimensions(synced, settings));
+    expect(plan.dimensions).toEqual(
+      planMarks(synced, settings, planDimensions(synced, settings), plan.parts).dimensions,
+    );
   });
 
   it('SPEC-45.1 carries the plan markers and labels', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(plan.marks).toHaveLength(5);
-    expect(plan.marks).toEqual(planMarks(synced, settings));
+    expect(plan.marks).toEqual(planMarks(synced, settings, planDimensions(synced, settings), plan.parts).marks);
   });
 
   it('SPEC-46.4 carries each wall face\'s door details', () => {

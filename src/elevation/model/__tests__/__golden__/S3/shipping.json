@@ -1,0 +1,242 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:0cc425d0-8b87-4763-aedc-ea203f368453",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 1,
+      "size": "164 1/2 x 4 1/2 x 19 5/8"
+    },
+    {
+      "description": "Base",
+      "key": "5e3a9aac-4306-418b-8698-b8a74b00be00",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 1/8\" (with supports)",
+        "RV's (27/32\" T, 1 19/32\" B, 13/16\" L & R, 1/8\" pair door gap)",
+        "1 as"
+      ],
+      "number": 2,
+      "size": "29 1/2 x 25 1/4 x 18"
+    },
+    {
+      "description": "Tall Open",
+      "key": "d5235ce3-42e5-48e2-a35d-ed84839413cc",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/4\" B)",
+        "NPH (No Doors)",
+        "4 as"
+      ],
+      "number": 3,
+      "size": "29 1/2 x 62 3/4 x 18"
+    },
+    {
+      "description": "Base",
+      "key": "b124bbf6-8f1a-4fd4-ae20-804e0204eee5",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 1/8\" (with supports)",
+        "RV's (27/32\" T, 1 19/32\" B, 13/16\" L & R, 1/8\" pair door gap)",
+        "1 as"
+      ],
+      "number": 4,
+      "size": "29 1/2 x 25 1/4 x 18"
+    },
+    {
+      "description": "Tall Open",
+      "key": "fff7cd2c-efa0-4d58-8c5a-51c6afe8baa2",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/4\" B)",
+        "NPH (No Doors)",
+        "4 as"
+      ],
+      "number": 5,
+      "size": "29 1/2 x 62 3/4 x 18"
+    },
+    {
+      "description": "Tall Open",
+      "key": "a897bd8e-9e38-434d-8196-24bfe01189b6",
+      "kind": "cabinet",
+      "notes": [
+        "deck up 25 5/8\" (with supports)",
+        "RV's (26\" B)",
+        "NPH (No Doors)",
+        "4 as"
+      ],
+      "number": 6,
+      "size": "30 7/8 x 88 x 18"
+    },
+    {
+      "description": "Base",
+      "key": "6ec438d6-6319-4b61-8cf1-8f703ec11381",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 1/8\" (with supports)",
+        "RV's (27/32\" T, 1 19/32\" B, 13/16\" L & R, 1/8\" pair door gap)",
+        "1 as"
+      ],
+      "number": 7,
+      "size": "35 1/2 x 25 1/4 x 18"
+    },
+    {
+      "description": "Tall Open",
+      "key": "dc56154b-a3c6-402c-8601-6afe17cddf1a",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/4\" B)",
+        "NPH (No Doors)",
+        "4 as"
+      ],
+      "number": 8,
+      "size": "35 1/2 x 62 3/4 x 18"
+    },
+    {
+      "description": "Base",
+      "key": "edab6428-262d-41b7-a235-253c0701c7e4",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 1/8\" (with supports)",
+        "RV's (27/32\" T, 1 19/32\" B, 13/16\" L & R, 1/8\" pair door gap)",
+        "1 as"
+      ],
+      "number": 9,
+      "size": "35 1/2 x 25 1/4 x 18"
+    },
+    {
+      "description": "Tall Open",
+      "key": "71dd202f-64ce-40bd-af7a-0c37d9f316df",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/4\" B)",
+        "NPH (No Doors)",
+        "4 as"
+      ],
+      "number": 10,
+      "size": "35 1/2 x 62 3/4 x 18"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:5e3a9aac-4306-418b-8698-b8a74b00be00",
+      "kind": "frame",
+      "notes": [
+        "2 3/8\" left stile (filler)",
+        "1 3/4\" right stile (filler)",
+        "26\" bottom rail @ #6"
+      ],
+      "number": 11,
+      "size": "163 1/2 x 88 x 13/16"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:0f8a2992-b035-45af-9dcb-88e9196b28a8",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 12,
+      "size": "61 x 4 1/2 x 27 5/16"
+    },
+    {
+      "description": "Base Filler",
+      "key": "0f8a2992-b035-45af-9dcb-88e9196b28a8:left",
+      "kind": "filler",
+      "notes": [
+        "return up 1/8\""
+      ],
+      "number": 13,
+      "size": "1 5/8 x 12 3/8 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "a6e4e86e-1ebb-43b7-834c-aecfaaef03bd",
+      "kind": "cabinet",
+      "notes": [
+        "EUROPEAN BOX",
+        "full top",
+        "RV's (1/8\" T, 1/8\" OH B)",
+        "3/4\" inset back",
+        "NLB"
+      ],
+      "number": 14,
+      "size": "28 1/2 x 12 1/4 x 24"
+    },
+    {
+      "description": "Shop-built Base Side Panel",
+      "key": "3924953e-f0ab-4e7c-9e46-f60a0c3146ba",
+      "kind": "panel",
+      "notes": [],
+      "number": 15,
+      "size": "24 7/8 x 24 1/2 x 3/4"
+    },
+    {
+      "description": "Base",
+      "key": "a1845569-2247-4c5b-bcb1-81e63d14d3c5",
+      "kind": "cabinet",
+      "notes": [
+        "EUROPEAN BOX",
+        "full top",
+        "RV's (1/8\" T)",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 16,
+      "size": "28 1/2 x 24 1/2 x 24"
+    },
+    {
+      "description": "Base Back Panel",
+      "key": "a23ef60a-20d0-4490-9598-768dcfd2c75d",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 17,
+      "size": "30 1/8 x 24 1/2 x 13/16"
+    },
+    {
+      "description": "Base Back Panel",
+      "key": "e5806f5c-00bc-43f1-aab0-110d1f1f3ddd",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 18,
+      "size": "30 1/16 x 24 1/2 x 13/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:0f8a2992-b035-45af-9dcb-88e9196b28a8",
+      "kind": "wood_top",
+      "notes": [
+        "Both faces"
+      ],
+      "number": 19,
+      "size": "60 15/16 x 27 3/16 x 1 1/2"
+    },
+    {
+      "description": "Wall End Panel",
+      "key": "39d3d505-3350-439c-89ed-fe3dc88d05f0:endPanel:end",
+      "kind": "wall_end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 20,
+      "size": "13/16 x 28 1/2 x 13/16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

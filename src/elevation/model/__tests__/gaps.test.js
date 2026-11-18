@@ -7,7 +7,7 @@ import { syncRoom } from '../room.js';
 import { runWidthRange, splitRun } from '../splitRun.js';
 import { runSeamGap } from '../styles.js';
 
-const S = DEFAULT_SETTINGS;
+const S = { ...DEFAULT_SETTINGS, defaultStyle: { ...DEFAULT_SETTINGS.defaultStyle, cabinetStyleId: 14 } };
 const NONE = { type: 'none', width: null };
 const cab = (id, width = null, extra = {}) => ({ id, kind: 'cabinet', width, ...extra });
 const makeRun = (overrides = {}) => ({
@@ -103,14 +103,14 @@ describe('SPEC-36 nested gaps', () => {
 
   it('leaves the seam gap between side-by-side cabinet cells', () => {
     const run = nestedRun(SIDE_BY_SIDE, { _seamGap: 0.5 });
-    const cells = cellPieces(run, splitRun(run, S));
+    const cells = cellPieces(run, splitRun(run, S), { settings: S });
     expect(cells.pieces.map(({ id, x, width }) => [id, x, width])).toEqual([['x', 0, 18], ['y', 18.5, 18]]);
     expect(cells.gaps).toEqual([{ x: 18, z: 0, width: 0.5, height: 60 }]);
     expect(cells.grids[0].tracks.map(({ start, end }) => [start, end])).toEqual([[0, 18], [18.5, 36.5]]);
 
     const panel = { ...SIDE_BY_SIDE, cells: [SIDE_BY_SIDE.cells[0], cell(1, 0, { id: 'y', kind: 'panel' })] };
     const panelRun = nestedRun(panel, { _seamGap: 0.5 });
-    expect(cellPieces(panelRun, splitRun(panelRun, S)).gaps).toEqual([]);
+    expect(cellPieces(panelRun, splitRun(panelRun, S), { settings: S }).gaps).toEqual([]);
   });
 
   it('stacks across a row gap and reports gaps between top-level pieces', () => {
@@ -121,14 +121,14 @@ describe('SPEC-36 nested gaps', () => {
       cells: [cell(0, 0, { id: 't', kind: 'cabinet' }), cell(0, 1, { id: 'b', kind: 'cabinet' })],
     };
     const run = nestedRun(stack, { width: 20 });
-    const cells = cellPieces(run, splitRun(run, S));
+    const cells = cellPieces(run, splitRun(run, S), { settings: S });
     expect(cells.pieces.map(({ id, z, height }) => [id, z, height])).toEqual([['b', 0, 30], ['t', 31, 29]]);
     expect(cells.gaps).toEqual([{ x: 0, z: 30, width: 20, height: 1 }]);
     expect(stackedSides(cells.pieces, 'b')).toEqual({ top: false, bottom: false });
     expect(stackedSides(cells.pieces, 'b', gapReach(cells.gaps))).toEqual({ top: true, bottom: false });
 
     const root = withItems([cab('a'), cab('b')], { width: 36.5, _seamGap: 0.5 });
-    expect(cellPieces(root, splitRun(root, S)).gaps).toEqual([{ x: 18, z: 4, width: 0.5, height: 30.5 }]);
+    expect(cellPieces(root, splitRun(root, S), { settings: S }).gaps).toEqual([{ x: 18, z: 4, width: 0.5, height: 30.5 }]);
   });
 });
 

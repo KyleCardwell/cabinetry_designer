@@ -1,7 +1,8 @@
+import { boxesOverlap, dimensionShape, lineHitsBox } from './planBoxes.js';
 import { planClearances } from './clearances.js';
 import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
-import { DIMENSION_ROW_SPACING, DIMENSION_TEXT_HEIGHT, placeLabels } from './elevationDimensions.js';
+import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { DEPTH_LANES, planDepthPositions } from './planDepthPositions.js';
 import { planTopOverhangs } from './planTops.js';
@@ -11,9 +12,11 @@ import { wallFaceSegments } from './wallFaceRow.js';
 import { wallBuiltEnds, wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
 
-/** The elevation marker's circle and flag on paper (SPEC-45.1); geometry draws them the same size. */
+/** Elevation marker paper inches (GC5.1): radius, tip beyond the circle, half base and letter height. */
 export const PLAN_MARKER_RADIUS = 0.25;
-export const PLAN_MARKER_FLAG = 0.1875;
+export const PLAN_MARKER_FLAG = 0.2;
+export const PLAN_MARKER_HALF_BASE = 0.375;
+export const PLAN_MARKER_TEXT = 0.2;
 /** Drawing inches from a face's deepest run to its marker (the canvas's MARKER_CLEARANCE). */
 export const PLAN_MARKER_CLEARANCE = 6;
 
@@ -202,47 +205,6 @@ function clearanceRecords({ kind, from, to, length }, scale) {
   const base = (t) => ({ x: from.x + unit.x * t, y: from.y + unit.y * t });
   const outward = { x: -unit.y, y: unit.x };
   return rowRecords('clearance', [{ start: 0, end: length, kind }], base, outward, 0, scale).records;
-}
-
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
-const subtract = (a, b) => [a[0] - b[0], a[1] - b[1]];
-
-/** The DXF line and its oriented text box, in drawing inches with y up (PD3). */
-function dimensionShape({ start, end, offset, text, textAt }, scale) {
-  const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
-  const u = [(end[0] - start[0]) / length, (end[1] - start[1]) / length];
-  const n = [-u[1], u[0]];
-  const line = [start, end].map((p) => [p[0] + n[0] * offset, p[1] + n[1] * offset]);
-  const center = textAt ?? [(line[0][0] + line[1][0]) / 2, (line[0][1] + line[1][1]) / 2];
-  const height = DIMENSION_TEXT_HEIGHT * scale;
-  return { line, center, axes: [u, n], half: [text.length * 0.5 * height / 2, height / 2] };
-}
-
-function boxesOverlap(a, b) {
-  return [...a.axes, ...b.axes].every((axis) => {
-    const radius = (box) => box.half.reduce((sum, half, i) => sum + half * Math.abs(dot(box.axes[i], axis)), 0);
-    return Math.abs(dot(subtract(a.center, b.center), axis)) < radius(a) + radius(b) - EPSILON;
-  });
-}
-
-/** Clip a segment to the open text rectangle; mere boundary contact is clear. */
-function lineHitsBox(line, box) {
-  let low = 0;
-  let high = 1;
-  for (let i = 0; i < 2; i += 1) {
-    const start = dot(subtract(line[0], box.center), box.axes[i]);
-    const delta = dot(subtract(line[1], line[0]), box.axes[i]);
-    const half = box.half[i] - EPSILON;
-    if (Math.abs(delta) <= EPSILON) {
-      if (Math.abs(start) >= half) return false;
-    } else {
-      const bounds = [(-half - start) / delta, (half - start) / delta].sort((a, b) => a - b);
-      low = Math.max(low, bounds[0]);
-      high = Math.min(high, bounds[1]);
-      if (low >= high) return false;
-    }
-  }
-  return true;
 }
 
 /** Place one clearance nearest its span's middle, keeping a quarter-paper-inch end margin. */

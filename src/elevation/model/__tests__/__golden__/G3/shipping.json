@@ -1,0 +1,136 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Base Filler",
+      "key": "02c88254-9a83-4002-9fda-912cd06a2a21:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 1,
+      "size": "1 1/2 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "2648a74b-7f13-44c5-af7d-d1b88ae0d75c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 2 - 12\", 18\" drws)"
+      ],
+      "number": 2,
+      "size": "19 1/2 x 30 1/2 x 21"
+    },
+    {
+      "description": "Base",
+      "key": "3e0f48ae-0c10-4d8f-9f22-0e4ab3d1a9cc",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 3,
+      "size": "30 x 30 1/2 x 21"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "076bdf06-0ce9-4a20-8aa7-d3fd77e5372d",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 2 - 12\", 18\" drws)"
+      ],
+      "number": 4,
+      "size": "19 1/2 x 30 1/2 x 21"
+    },
+    {
+      "description": "Base Filler",
+      "key": "02c88254-9a83-4002-9fda-912cd06a2a21:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 5,
+      "size": "1 1/2 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "bcdd4e78-0d52-40d0-9f5d-2901e590e98a:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 6,
+      "size": "24 x 42 x 13/16"
+    },
+    {
+      "description": "Upper Back Panel",
+      "key": "5f4db696-00e1-4303-9881-23a4d8ae7a64",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 7,
+      "size": "70 3/8 x 41 1/4 x 3/4"
+    },
+    {
+      "description": "Shop-built Upper Top Panel",
+      "key": "fbe04e96-9442-4fcd-aafa-b8d49960a63d",
+      "kind": "panel",
+      "notes": [],
+      "number": 8,
+      "size": "70 3/8 x 24 x 3/4"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "bcdd4e78-0d52-40d0-9f5d-2901e590e98a:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 9,
+      "size": "24 x 42 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 10,
+      "size": "Lineal Feet: 8"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 11,
+      "size": "Lineal Feet: 8"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 12,
+      "size": "Lineal Feet: 8"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

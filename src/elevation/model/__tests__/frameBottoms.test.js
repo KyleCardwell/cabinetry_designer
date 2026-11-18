@@ -116,7 +116,7 @@ describe('SPEC-46.2.1 a face frame upper\'s bottom rail is its light rail or tro
   });
 
   it('raises G2\'s face frame upper by a covered rail or a flush trough; the frame keeps its bottom at 54"', () => {
-    expect(g2Upper([])).toEqual({ box: [54.75, 35.25], face: [55.75, 32.5], frameBottom: 54, parts: [] });
+    expect(g2Upper([])).toEqual({ box: [55, 35], face: [55.75, 32.5], frameBottom: 54, parts: [] });
     expect(g2Upper([RAIL])).toEqual({
       box: [55.5, 34.5], face: [56.5, 31.75], frameBottom: 54, parts: [['light_rail', 54, 1.5, true]],
     });

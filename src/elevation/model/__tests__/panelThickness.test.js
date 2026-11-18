@@ -108,20 +108,20 @@ describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {
     expect(runOf(styled, G1_TALL)._endThickness.right).toBe(1);
   });
 
-  it('widens a beaded face frame\'s end stiles by the extra 1/16" (G2 tall)', () => {
+  it('reduces a beaded frame\'s panel gaps to keep standard end stiles (G2 tall)', () => {
     const room = styled('G2 Face frame kitchen', (r) => {
       r.panelStyleId = 'ds-p';
       runOf(r, G2_TALL).ends.right.styleId = 'ds-p';
     });
     expect(runOf(room, G2_TALL)).not.toHaveProperty('_endThickness');
     expect(pieces(room, G2_TALL)).toEqual([
-      [`${G2_TALL}:left`, 50, 0.8125], [G2_CAB, 51.0625, 24.375], [`${G2_TALL}:right`, 75.6875, 0.8125],
+      [`${G2_TALL}:left`, 50, 0.8125], [G2_CAB, 51, 24.5], [`${G2_TALL}:right`, 75.6875, 0.8125],
     ]);
     const parts = elevationParts(room, wallOf(room, G2_TALL), 'front', settings);
     const at = (id) => parts.find((part) => part.id === id);
     expect([at(`frame:${G2_FRAME_CAB}`).x, at(`frame:${G2_FRAME_CAB}`).width]).toEqual([50, 26.5]);
     expect([at(`${G2_FRAME_CAB}:rleft`).x, at(`${G2_FRAME_CAB}:rleft`).width, at(`${G2_FRAME_CAB}:rright`).x])
-      .toEqual([51.8125, 11.4375, 63.25]);
+      .toEqual([51.75, 11.5, 63.25]);
   });
 
   it('makes a wall end panel its style\'s thickness, and the mitered frame sees it (G2)', () => {

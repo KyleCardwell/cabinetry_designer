@@ -1,0 +1,124 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails",
+        "panelProfile": "FLAT",
+        "style": "5PC",
+        "thickness": "13/16\"",
+        "vendor": null,
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 86,
+              "notes": "do not sand edges",
+              "number": 1,
+              "qty": 1,
+              "size": "25 x 86",
+              "width": 25
+            },
+            {
+              "height": 61.25,
+              "notes": "",
+              "number": 2,
+              "qty": 2,
+              "size": "11 1/2 x 61 1/4",
+              "width": 11.5
+            },
+            {
+              "height": 19.25,
+              "notes": "",
+              "number": 3,
+              "qty": 2,
+              "size": "11 1/2 x 19 1/4",
+              "width": 11.5
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 7,
+              "qty": 2,
+              "size": "16 1/4 x 27",
+              "width": 16.25
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 8,
+              "qty": 2,
+              "size": "16 1/4 x 27",
+              "width": 16.25
+            },
+            {
+              "height": 32.5,
+              "notes": "",
+              "number": 10,
+              "qty": 2,
+              "size": "14 1/2 x 32 1/2",
+              "width": 14.5
+            },
+            {
+              "height": 32.5,
+              "notes": "",
+              "number": 11,
+              "qty": 2,
+              "size": "14 1/2 x 32 1/2",
+              "width": 14.5
+            },
+            {
+              "height": 32.5,
+              "notes": "",
+              "number": 12,
+              "qty": 2,
+              "size": "14 1/2 x 32 1/2",
+              "width": 14.5
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 14,
+              "qty": 2,
+              "size": "12 x 27",
+              "width": 12
+            },
+            {
+              "height": 27,
+              "notes": "",
+              "number": 15,
+              "qty": 2,
+              "size": "12 x 27",
+              "width": 12
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 17,
+              "qty": 1,
+              "size": "78 1/2 x 30 1/2",
+              "width": 78.5
+            },
+            {
+              "height": 34.5,
+              "notes": "do not sand edges",
+              "number": 18,
+              "qty": 1,
+              "size": "13/16 x 34 1/2",
+              "width": 0.8125
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

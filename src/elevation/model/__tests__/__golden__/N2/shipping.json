@@ -1,0 +1,435 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:8cf27dd8-2e21-408b-88fc-17d0a51eab7e",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 1,
+      "size": "55 1/8 x 4 1/2 x 25 5/8"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "8cf27dd8-2e21-408b-88fc-17d0a51eab7e:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 2,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "da7ee479-a96e-4118-84b0-e8328902c9a2",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "DF's (1 - 5\", 2 - 9\", 21\" drws)"
+      ],
+      "number": 3,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "0077825a-c803-4540-ba61-8270e2c67310",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 4,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:da7ee479-a96e-4118-84b0-e8328902c9a2",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails"
+      ],
+      "number": 5,
+      "size": "53 1/2 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "8cf27dd8-2e21-408b-88fc-17d0a51eab7e:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 6,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:8cf27dd8-2e21-408b-88fc-17d0a51eab7e",
+      "kind": "wood_top",
+      "notes": [],
+      "number": 7,
+      "size": "56 1/4 x 26 5/16 x 1 1/2"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:f6247069-6523-4261-8f96-29212be780e6",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 8,
+      "size": "61 5/16 x 4 1/2 x 25 5/8"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "f6247069-6523-4261-8f96-29212be780e6:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 9,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "33fcaba7-0460-4430-8223-08353f6c2138",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 10,
+      "size": "28 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "5c4443dc-5eea-4e5d-9639-a48601a3a19f",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 11,
+      "size": "28 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:33fcaba7-0460-4430-8223-08353f6c2138",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "2 1/4\" right stile (filler)"
+      ],
+      "number": 12,
+      "size": "60 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Floating Shelf",
+      "key": "b4772ac1-71e3-46e6-aaa0-345d2f6a6637:shelf-1",
+      "kind": "shelf",
+      "notes": [],
+      "number": 13,
+      "size": "51 1/2 x 12 x 1 1/2"
+    },
+    {
+      "description": "Floating Shelf",
+      "key": "b4772ac1-71e3-46e6-aaa0-345d2f6a6637:shelf-2",
+      "kind": "shelf",
+      "notes": [],
+      "number": 14,
+      "size": "51 1/2 x 12 x 1 1/2"
+    },
+    {
+      "description": "Floating Shelf",
+      "key": "b4772ac1-71e3-46e6-aaa0-345d2f6a6637:shelf-3",
+      "kind": "shelf",
+      "notes": [],
+      "number": 15,
+      "size": "51 1/2 x 12 x 1 1/2"
+    },
+    {
+      "description": "Upper Open",
+      "key": "0feabb20-ad36-4868-82bd-be94baf47a24",
+      "kind": "cabinet",
+      "notes": [
+        "NPH (No Doors)",
+        "2 as"
+      ],
+      "number": 16,
+      "size": "28 1/2 x 47 x 12"
+    },
+    {
+      "description": "Upper Open",
+      "key": "80b2d87b-3e6c-4ca7-a9d2-b2e0bc4e3be1",
+      "kind": "cabinet",
+      "notes": [
+        "NPH (No Doors)",
+        "2 as, no banding - add 1 1/2\" nosing"
+      ],
+      "number": 17,
+      "size": "28 1/2 x 47 x 12"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:0feabb20-ad36-4868-82bd-be94baf47a24",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "2\" left stile (filler)",
+        "2\" right stile (filler)"
+      ],
+      "number": 18,
+      "size": "60 x 48 x 13/16"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:20b65788-3176-44db-b582-5b2089bc0cfb",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 19,
+      "size": "27 5/8 x 4 1/2 x 25 5/8"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:20b65788-3176-44db-b582-5b2089bc0cfb:2",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 20,
+      "size": "27 5/8 x 4 1/2 x 25 5/8"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "20b65788-3176-44db-b582-5b2089bc0cfb:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 21,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "7b3642e1-12f2-4bfe-900f-9049f893ed4f",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "DF's (1 - 5\", 2 - 9\", 21\" drws)"
+      ],
+      "number": 22,
+      "size": "25 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:7b3642e1-12f2-4bfe-900f-9049f893ed4f",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "1 1/2\" right stile"
+      ],
+      "number": 23,
+      "size": "26 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base 1 Drawer",
+      "key": "f52c9a95-ec0d-49f3-abe1-975420e7e13b",
+      "kind": "cabinet",
+      "notes": [
+        "EUROPEAN BOX",
+        "full top",
+        "RV's (1/8\" T, 1/8\" OH B)",
+        "no deck",
+        "3/4\" inset back",
+        "DF's (1 - 4\", 21\" drw)"
+      ],
+      "number": 24,
+      "size": "31 1/2 x 4 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "fde4c5e0-3cbf-49db-99aa-a13d6917ff69",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "RV's (6 3/4\" T)",
+        "1 as"
+      ],
+      "number": 25,
+      "size": "25 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:fde4c5e0-3cbf-49db-99aa-a13d6917ff69",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" stiles & rails",
+        "1 1/2\" left stile",
+        "6 3/4\" top rail (wood overlap)"
+      ],
+      "number": 26,
+      "size": "26 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "20b65788-3176-44db-b582-5b2089bc0cfb:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 27,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:20b65788-3176-44db-b582-5b2089bc0cfb",
+      "kind": "wood_top",
+      "notes": [
+        "Nosing 3"
+      ],
+      "number": 28,
+      "size": "58 1/2 x 26 5/16 x 1 1/2"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:20b65788-3176-44db-b582-5b2089bc0cfb:2",
+      "kind": "wood_top",
+      "notes": [
+        "Nosing 3"
+      ],
+      "number": 29,
+      "size": "2 x 26 5/16 x 1 1/2"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:20b65788-3176-44db-b582-5b2089bc0cfb:top-5e9c3aa1-7af7-42df-9f33-09ba5adce255",
+      "kind": "wood_top",
+      "notes": [
+        "Nosing 3"
+      ],
+      "number": 30,
+      "size": "25 x 26 5/16 x 6 1/2"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:ba1e1078-b801-4205-9b18-7c8e3424191f",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 31,
+      "size": "98 13/16 x 4 1/2 x 25 5/8"
+    },
+    {
+      "description": "Base",
+      "key": "ae07edb1-22cc-44ea-b9f7-ad4c82fcb90c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 32,
+      "size": "30 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "1f6e8f41-ce59-41b3-b5a8-28c15cc586e3",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 33,
+      "size": "30 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "046c9492-e02a-458a-b796-03ba503e5665",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "deck up 1 3/8\" (with supports)",
+        "1 as"
+      ],
+      "number": 34,
+      "size": "30 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:ae07edb1-22cc-44ea-b9f7-ad4c82fcb90c",
+      "kind": "frame",
+      "notes": [
+        "beaded face frame - 1 3/4\" outer stiles & rails, 2\" interior stiles & rails",
+        "4 3/4\" left stile",
+        "2 3/16\" right stile (butts end panel, no miter)"
+      ],
+      "number": 35,
+      "size": "96 11/16 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "ba1e1078-b801-4205-9b18-7c8e3424191f:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 36,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Leg",
+      "key": "ba1e1078-b801-4205-9b18-7c8e3424191f:endleg:left-front",
+      "kind": "leg",
+      "notes": [],
+      "number": 37,
+      "size": "2 1/2 x 30 1/2 x 2 1/2"
+    },
+    {
+      "description": "Leg",
+      "key": "ba1e1078-b801-4205-9b18-7c8e3424191f:endleg:right-front",
+      "kind": "leg",
+      "notes": [],
+      "number": 38,
+      "size": "2 1/2 x 34 1/2 x 2 1/2"
+    },
+    {
+      "description": "Leg",
+      "key": "ba1e1078-b801-4205-9b18-7c8e3424191f:endleg:right-back",
+      "kind": "leg",
+      "notes": [],
+      "number": 39,
+      "size": "2 1/2 x 34 1/2 x 2 1/2"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3\" deep"
+      ],
+      "number": 40,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Crown 4 1/2",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 4\" deep"
+      ],
+      "number": 41,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

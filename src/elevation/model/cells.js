@@ -1,4 +1,6 @@
-import { isNestedGrid } from './grid.js';
+import { gridLeaves, isNestedGrid } from './grid.js';
+import { DEFAULT_SETTINGS } from './constants.js';
+import { isInsetStyle, resolveStyle } from './styles.js';
 import { faceFrontOffset } from './corners.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { insideEndGap, insideEndPieces } from './insideEnds.js';
@@ -48,24 +50,28 @@ function spanLength(starts, sizes, first, count) {
   return starts[last] + sizes[last] - starts[first];
 }
 
-function isBoxNode(node) {
-  return isNestedGrid(node) || node.kind === 'cabinet';
+/** A framed column holds cabinets, all inset; voids alongside those cabinets are allowed. */
+export function framedColumn(node, { settings = DEFAULT_SETTINGS, room, run } = {}) {
+  const cabinets = gridLeaves(node).filter((leaf) => leaf.kind === 'cabinet');
+  return cabinets.length > 0
+    && cabinets.every((item) => isInsetStyle(resolveStyle(settings, room, run, item)));
 }
 
 /**
  * The gap after each track (SPEC-36): its own `gap`, else the run's seam gap between two columns
- * of cabinets. Rows take only their own. Never after the last track.
+ * of framed cabinets. Rows take only their own. Never after the last track.
  */
-function trackGaps(grid, key, seamGap = 0, insidePanels = []) {
+function trackGaps(grid, key, seamGap = 0, insidePanels = [], context) {
   const tracks = grid[key];
-  const axis = key === 'cols' ? 'col' : 'row';
-  const span = key === 'cols' ? 'colSpan' : 'rowSpan';
   return tracks.map((track, index) => {
     if (index === tracks.length - 1) return 0;
     if (key !== 'cols') return track.gap ?? 0;
-    const touching = grid.cells.filter((cell) => cell[axis] + cell[span] - 1 === index
-      || cell[axis] === index + 1);
-    const gap = track.gap ?? (seamGap > 0 && touching.every((cell) => isBoxNode(cell.node)) ? seamGap : 0);
+    const framed = (col) => framedColumn({
+      ...grid,
+      cells: grid.cells.filter((cell) => cell.col <= col && cell.col + cell.colSpan > col),
+    }, context);
+    const gap = track.gap ?? (seamGap > 0
+      && framed(index) && framed(index + 1) ? seamGap : 0);
     return gap + insideEndGap(insidePanels, grid.id, track.id);
   });
 }
@@ -75,8 +81,8 @@ export function gapReach(gaps) {
   return gaps.reduce((reach, gap) => Math.max(reach, Math.min(gap.width, gap.height)), 0);
 }
 
-function axisLayout(grid, key, length, seamGap, insidePanels) {
-  const gaps = trackGaps(grid, key, seamGap, insidePanels);
+function axisLayout(grid, key, length, seamGap, insidePanels, context) {
+  const gaps = trackGaps(grid, key, seamGap, insidePanels, context);
   const sizes = resolveTracks(grid[key], length, gaps);
   return { gaps, sizes, starts: trackStarts(sizes, gaps) };
 }
@@ -86,9 +92,9 @@ function axisLayout(grid, key, length, seamGap, insidePanels) {
  * it, at every nesting depth, with voids left out. Cells spanning only typed column tracks don't
  * depend on it. A plain (non-grid) node is its own one leaf.
  */
-export function derivedLeafWidths(node, width, seamGap = 0, insidePanels = []) {
+export function derivedLeafWidths(node, width, seamGap = 0, insidePanels = [], context) {
   if (!isNestedGrid(node)) return node.kind === 'void' ? [] : [width];
-  const cols = axisLayout(node, 'cols', width, seamGap, insidePanels);
+  const cols = axisLayout(node, 'cols', width, seamGap, insidePanels, context);
   const anyAuto = node.cols.some((track) => track.size === null);
   const last = node.cols.length - 1;
   const derived = (index) => node.cols[index].size === null || (!anyAuto && index === last);
@@ -100,7 +106,7 @@ export function derivedLeafWidths(node, width, seamGap = 0, insidePanels = []) {
     }
     if (!spansDerived) continue;
     const cellWidth = spanLength(cols.starts, cols.sizes, cell.col, cell.colSpan);
-    widths.push(...derivedLeafWidths(cell.node, cellWidth, seamGap, insidePanels));
+    widths.push(...derivedLeafWidths(cell.node, cellWidth, seamGap, insidePanels, context));
   }
   return widths;
 }
@@ -129,8 +135,8 @@ function gridRecord(grid, columnId, depth, rectangle, cols, rows) {
   return { id: grid.id, columnId, axis, depth, x, z, width, height, tracks };
 }
 
-function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap, insidePanels) {
-  const cols = axisLayout(grid, 'cols', rectangle.width, seamGap, insidePanels);
+function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap, insidePanels, context) {
+  const cols = axisLayout(grid, 'cols', rectangle.width, seamGap, insidePanels, context);
   const rows = axisLayout(grid, 'rows', rectangle.height, seamGap);
   const top = rectangle.z + rectangle.height;
   const leaves = [];
@@ -159,7 +165,7 @@ function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap, inside
     const childRectangle = { x, z: cellTop - height, width, height };
 
     if (isNestedGrid(cell.node)) {
-      leaves.push(...resolveGrid(cell.node, piece, childRectangle, depth + 1, grids, gaps, seamGap, insidePanels));
+      leaves.push(...resolveGrid(cell.node, piece, childRectangle, depth + 1, grids, gaps, seamGap, insidePanels, context));
       continue;
     }
 
@@ -199,7 +205,8 @@ function rootGaps(run, layout) {
   return gaps;
 }
 
-export function cellPieces(run, layout) {
+/** Resolve nested cells with the same room/settings style context as the root layout. */
+export function cellPieces(run, layout, context = {}) {
   const gaps = rootGaps(run, layout);
   const insidePanels = layout.insidePanels ?? [];
   const stepPanels = layout.stepPanels ?? [];
@@ -225,7 +232,7 @@ export function cellPieces(run, layout) {
     }
 
     replaced = true;
-    const leaves = resolveGrid(node, piece, piece, 1, grids, gaps, seamGap, insidePanels);
+    const leaves = resolveGrid(node, piece, piece, 1, grids, gaps, seamGap, insidePanels, { ...context, run });
     const solid = leaves.filter((leaf) => leaf.kind !== 'void');
     if (solid.length) {
       const z = Math.min(...solid.map((leaf) => leaf.z));

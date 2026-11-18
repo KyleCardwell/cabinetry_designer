@@ -1,3 +1,4 @@
+import { withBuildCache } from './buildCache.js';
 import { elevationKey, elevationLetters, wallLabel } from './topology.js';
 import { resolveWall } from './room.js';
 import { WALL_SIDES } from './wallSides.js';
@@ -5,7 +6,6 @@ import { elevationParts } from './elevationParts.js';
 import { bandParts } from './bandParts.js';
 import { wallParts } from './wallParts.js';
 import { cornerParts } from './cornerParts.js';
-import { paperSize, plotScale } from './drawingScale.js';
 import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { elevationDoorDetails } from './elevationDoorDetails.js';
@@ -13,11 +13,8 @@ import { doorDrawing } from './doorDetails.js';
 import { elevationSwingMarks } from './swingMarks.js';
 import { elevationPulls } from './pullLayouts.js';
 import { elevationPartNumbers } from './elevationPartNumbers.js';
-import { planParts, planShapes } from './planParts.js';
-import { planDimensions } from './planDimensions.js';
-import { planMarks } from './planMarks.js';
 import { combinedViewOf } from './combinedElevations.js';
-import { combinedElevationPayload } from './combinedPayload.js';
+import { roomPartList } from './partList.js';
 import { wallShowThrough } from './showThrough.js';
 import { glassMarks } from './glassMarks.js';
 import { openingGeometry } from './openings.js';
@@ -166,7 +163,7 @@ export function faceDrawing(room, wall, side, settings, options) {
   return { view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: glassMarksOut };
 }
 
-function facePayload(room, wall, side, key, letter, settings, options) {
+export function facePayload(room, wall, side, key, letter, settings, options, byKey) {
   const {
     view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: marks,
   } = faceDrawing(room, wall, side, settings, options);
@@ -184,13 +181,25 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     dimensions: elevationDimensions(room, wall, side, settings, options),
     marks: elevationMarks(room, wall, side, settings),
     doorDetails,
-    partNumbers: elevationPartNumbers(room, wall, side, settings),
+    partNumbers: elevationPartNumbers(room, wall, side, settings, byKey, parts),
     ...(swingMarks.length ? { swingMarks } : {}),
     ...(pulls.length ? { pulls } : {}),
     ...(interiors.length ? { interiors } : {}),
     ...(shapes.length ? { shapes } : {}),
     ...(marks.length ? { glassMarks: marks } : {}),
   };
+}
+
+/** Letter-ordered faces shared by the drawing payload and room part list. */
+export function* drawingElevationFaces(room) {
+  for (const [key, letter] of elevationLetters(room)) {
+    const wall = room.walls.find((candidate) => WALL_SIDES.some(
+      (side) => elevationKey(candidate.id, side) === key,
+    ));
+    const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
+    const combined = combinedViewOf(room, wall.id, side);
+    yield { key, letter, wall, side, combined };
+  }
 }
 
 /**
@@ -203,38 +212,26 @@ function facePayload(room, wall, side, key, letter, settings, options) {
  * HP5 its pulls; CE combines every saved group into one elevation; IN14 its visible interiors and glass.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
-  const shapes = planShapes(room, settings);
-  const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
-    const wall = room.walls.find((candidate) => WALL_SIDES.some(
-      (side) => elevationKey(candidate.id, side) === key,
-    ));
-    const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
-    const combined = combinedViewOf(room, wall.id, side);
-    if (combined) {
-      return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
-        facePayload(room, faceWall, faceSide, key, letter, settings, options));
-    }
-    return facePayload(room, wall, side, key, letter, settings);
-  });
+  return withBuildCache(() => {
+    const list = roomPartList(room, settings);
+    const withoutTags = (parts) => parts.map(({ itemKey, ...part }) => part); // eslint-disable-line no-unused-vars
 
-  return {
-    payloadVersion: DRAWING_PAYLOAD_VERSION,
-    units: 'in',
-    room: {
-      id: room.id,
-      name: room.name,
-      ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
-    },
-    elevations,
-    plotScale: plotScale(settings),
-    paperSize: paperSize(settings),
-    plan: {
-      parts: planParts(room, settings),
-      dimensions: planDimensions(room, settings),
-      marks: planMarks(room, settings),
-      ...(shapes.length ? { shapes } : {}),
-    },
-  };
+    return {
+      payloadVersion: DRAWING_PAYLOAD_VERSION,
+      units: 'in',
+      room: {
+        id: room.id,
+        name: room.name,
+        ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
+      },
+      elevations: list.elevations.map((elevation) => ({
+        ...elevation, parts: withoutTags(elevation.parts),
+      })),
+      plotScale: list.plotScale,
+      paperSize: list.paperSize,
+      plan: { ...list.plan, parts: withoutTags(list.plan.parts) },
+    };
+  }, room);
 }
 
 /** "G1 Euro kitchen" → "g1-euro-kitchen.zip" (SPEC-40); the API uses the same rule. */

@@ -1,3 +1,4 @@
+import { buildCacheFor } from './buildCache.js';
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
@@ -176,6 +177,13 @@ function groupSize(entries, key, settings) {
  * Inserts always stand alone; inside corners never connect across walls.
  */
 export function woodTopGroups(room, settings = DEFAULT_SETTINGS) {
+  const cache = buildCacheFor(room);
+  if (!cache) return buildWoodTopGroups(room, settings);
+  return cache.byRoom('woodTopGroups', room, settings,
+    () => buildWoodTopGroups(room, settings));
+}
+
+function buildWoodTopGroups(room, settings) {
   const walls = wallEntries(room, settings);
   const miter = cornerMode(settings) === 'miter';
   for (const { x, y } of cornerPairs(room, settings, walls.flat())) {

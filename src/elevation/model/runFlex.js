@@ -161,6 +161,7 @@ function runModel(room, wall, run, settings) {
   const clean = Object.hasOwn(run, '_flexBoxes') ? withoutPrior : run;
   const targets = pinTargetsForRun(clean, wall, wallLength(wall), settings);
   const opts = {
+    room,
     endMinWidths: endMinWidthsForRun(room, wall, clean, settings),
     blindCovers: blindCoversForRun(room, wall, clean, settings),
     pinTargets: segmentTargets(clean, targets),

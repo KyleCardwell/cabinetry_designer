@@ -167,11 +167,11 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, allTarge
   const ends = lineEndColumns(run, allTargets);
   let current = run;
   if (ends.left) {
-    const x = allTargets[ends.left] - lineEndMinimum(run, settings, ends.left, 'left');
+    const x = allTargets[ends.left] - lineEndMinimum(run, settings, ends.left, 'left', opts);
     current = { ...current, x, width: Math.max(0, run.x + run.width - x) };
   }
   if (ends.right) {
-    const right = allTargets[ends.right] + lineEndMinimum(run, settings, ends.right, 'right');
+    const right = allTargets[ends.right] + lineEndMinimum(run, settings, ends.right, 'right', opts);
     current = { ...current, width: Math.max(0, right - current.x) };
   }
   const held = { left: Boolean(ends.left), right: Boolean(ends.right) };
@@ -195,7 +195,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, allTarge
   }
   run = current;
 
-  const pass1 = splitRun(run, settings, { pinTargets: {} });
+  const pass1 = splitRun(run, settings, { ...opts, pinTargets: {} });
   const pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const sharedWidths = lineSharedWidths(
     { ...run, anchors: storedAnchors }, settings,
@@ -220,9 +220,9 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, allTarge
   const exactLeft = columnSetsRunEnd(run, 'left', first.item, leftItems);
   const exactRight = columnSetsRunEnd(run, 'right', last.item, rightItems);
   const desiredX = pinLeft(first.target, firstWidth, placedAt(first.item))
-    - (exactLeft ? lineEndMinimum(run, settings, first.item.id, 'left') : leftMinimum);
+    - (exactLeft ? lineEndMinimum(run, settings, first.item.id, 'left', opts) : leftMinimum);
   const desiredRight = pinLeft(last.target, lastWidth, placedAt(last.item)) + lastWidth
-    + (exactRight ? lineEndMinimum(run, settings, last.item.id, 'right') : rightMinimum);
+    + (exactRight ? lineEndMinimum(run, settings, last.item.id, 'right', opts) : rightMinimum);
 
   let resolved = exactLeft
     ? { ...run, x: desiredX, width: Math.max(0, run.x + run.width - desiredX) }

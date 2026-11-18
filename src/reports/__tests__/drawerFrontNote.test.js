@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawerFrontNote } from '../shippingList.js';
+import { drawerFrontNote } from '../../elevation/model/items/interiorNotes.js';
 
 const fronts = [
   { type: 'drawer_front', path: 'btm', height: 12, z: 0, x: 0 },

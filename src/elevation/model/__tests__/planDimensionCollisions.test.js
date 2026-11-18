@@ -3,9 +3,14 @@ import { expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { plotScale } from '../drawingScale.js';
 import { planClearances } from '../clearances.js';
+import { toDrawingPayload } from '../drawingPayload.js';
+import { boxesOverlap, lineHitsBox } from '../planBoxes.js';
+import { placePlanMarks } from '../planMarkPlacement.js';
+import { planMarkPlacementInput } from '../planMarks.js';
 import { placePlanClearance, planDimensions, planPlacedClearances } from '../planDimensions.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
+import { goldenRooms } from './helpers/goldenRooms.js';
 
 const document = normalizeElevationDocument(JSON.parse(readFileSync(
   new URL('./fixtures/golden.json', import.meta.url), 'utf8',
@@ -45,6 +50,79 @@ function lineThroughText(line, box) {
   });
 }
 const conflicts = (a, b) => overlaps(a, b) || lineThroughText(a.line, b) || lineThroughText(b.line, a);
+
+it('clears golden plan marks and moved text except named candidate fallbacks (GC5.1)', () => {
+  const fallbacks = {};
+  const expectedFallbacks = {
+    G1: [{ text: '12 7/8', hits: 1 }, { text: '12 7/8', hits: 1 }],
+    G2: [{ text: '12 13/16', hits: 1 }],
+    G6: [{ text: '12 7/8', hits: 1 }, { text: '3/4', hits: 2 }],
+    S1: [{ text: '12 7/8', hits: 1 }],
+    N1: [{ text: '12 7/8', hits: 1 }, { text: '12 7/8', hits: 1 },
+      { text: '13/16', hits: 1 }, { text: '4 1/2', hits: 2 }],
+    N2: [{ text: '12 13/16', hits: 1 }],
+    N3: [{ text: '12 7/8', hits: 1 }],
+  };
+  for (const { key, load } of goldenRooms()) {
+    const { room, settings } = load();
+    const { plan } = toDrawingPayload(syncRoom(room, settings), settings);
+    const scale = plotScale(settings);
+    const { items, blockers } = planMarkPlacementInput(plan.dimensions, plan.marks, plan.parts, scale);
+    const placed = placePlanMarks(items.map((item) => ({ ...item, steps: [[0, 0]] })), blockers, { gap: scale / 16 });
+    const found = placed.filter(({ hits }) => hits > 0).map(({ key, hits }) => ({
+      text: key.startsWith('mark:') ? plan.marks[Number(key.split(':')[1])].text
+        : plan.dimensions[Number(key.split(':')[1])].text,
+      hits,
+    }));
+    if (found.length) fallbacks[key] = found;
+
+    // Audit the final geometry independently of the candidate builder, including later items.
+    const grow = (box) => ({ ...box, half: box.half.map((h) => h + scale / 32) });
+    const dimensions = plan.dimensions.map((record) => grow(geometry(record, scale)));
+    const movable = plan.dimensions.flatMap((record, i) => (record.textAt
+      ? [{ key: `dimension:${i}`, box: dimensions[i], own: i }] : []));
+    plan.marks.forEach((mark, i) => {
+      const angle = (mark.rotation ?? 0) * Math.PI / 180;
+      const u = mark.direction ?? [Math.cos(angle), Math.sin(angle)];
+      const v = [-u[1], u[0]];
+      const marker = mark.kind === 'elevation';
+      movable.push({ key: `mark:${i}`, box: grow({
+        center: mark.at.map((value, axis) => value + (marker ? u[axis] * 0.1 * scale : 0)),
+        axes: [u, v], half: marker ? [0.35 * scale, 0.375 * scale]
+          : [mark.text.length * 0.5 * (3 / 32) * scale / 2, (3 / 32) * scale / 2],
+      }) });
+    });
+    const fallbackKeys = new Set(placed.filter(({ hits }) => hits > 0).map(({ key }) => key));
+    for (let i = 0; i < movable.length; i += 1) {
+      const item = movable[i];
+      if (fallbackKeys.has(item.key)) continue;
+      const context = `${key} ${item.key}`;
+      for (const other of movable.slice(i + 1)) {
+        if (!fallbackKeys.has(other.key)) expect(boxesOverlap(item.box, other.box), context).toBe(false);
+      }
+      plan.dimensions.forEach((record, j) => {
+        if (item.own === j) return;
+        if (!record.textAt) expect(boxesOverlap(item.box, dimensions[j]), context).toBe(false);
+        for (const line of [dimensions[j].line,
+          [record.start, dimensions[j].line[0]], [record.end, dimensions[j].line[1]]]) {
+          expect(lineHitsBox(line, item.box), context).toBe(false);
+        }
+      });
+      for (const { points, closed } of plan.parts) {
+        const loop = closed === false ? points : [...points, points[0]];
+        let winding = 0;
+        for (let j = 1; j < loop.length; j += 1) {
+          const line = [loop[j - 1], loop[j]];
+          expect(lineHitsBox(line, item.box), context).toBe(false);
+          const [a, b] = line.map((p) => p.map((value, axis) => value - item.box.center[axis]));
+          winding += Math.atan2(a[0] * b[1] - a[1] * b[0], dot(a, b));
+        }
+        if (closed !== false) expect(Math.abs(winding), context).toBeLessThan(Math.PI);
+      }
+    }
+  }
+  expect(fallbacks).toEqual(expectedFallbacks);
+});
 
 it('all golden and fixture dimensions clear other text, except Room 8 wall rows 28 / 36 (PD3)', () => {
   const inputs = [

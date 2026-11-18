@@ -1,3 +1,5 @@
+import { badgeBoxesOverlap } from './badgePlacement.js';
+import { plotScale } from './drawingScale.js';
 import { combinedSoffitJoins } from './combinedElevations.js';
 import { seamHiddenEdges } from './combinedSeams.js';
 import { combinedCornerShapes } from './cornerParts.js';
@@ -59,7 +61,20 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
         }
         return true;
       });
-      records[key].push(...kept.map((record) => shiftPayloadRecord(record, face.dx)));
+      for (const record of kept) {
+        let shifted = shiftPayloadRecord(record, face.dx);
+        if (key === 'partNumbers' && records.partNumbers.some((other) => badgeBoxesOverlap(shifted, other))) {
+          const gap = 1 / 16 * plotScale(settings);
+          const offsets = [0, 1, 2, 3, -1, -2, -3];
+          const placed = offsets.map((step) => ({ ...shifted, z: shifted.z + step * (shifted.height + gap) }))
+            .find((badge) => !records.partNumbers.some((other) => badgeBoxesOverlap(badge, other)));
+          if (placed) {
+            if (placed.leader) placed.leader = { ...placed.leader, z1: placed.leader.z1 + placed.z - shifted.z };
+            shifted = placed;
+          }
+        }
+        records[key].push(shifted);
+      }
     }
     for (const { id } of payload.parts) seen.add(id);
   }

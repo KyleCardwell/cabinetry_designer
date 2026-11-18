@@ -43,6 +43,7 @@ import elevationReducer, {
   setRunJointOffset,
   setRunStackOffset,
   setRunEnd,
+  setRunEndGap,
   setAutoCount,
   setTrackGap,
   splitItem,
@@ -61,6 +62,17 @@ import {
 } from './helpers/sliceFixtures.js';
 
 describe('elevation run reducers', () => {
+  it('sets a run end gap, ignores a negative gap, and clears with null (Run end gap)', () => {
+    const initial = stateWithRun(run({ autoCount: false, items: [auto('a')] }));
+    const at = { wallId: 'wall-1', runId: 'run-1', side: 'left' };
+    const typed = elevationReducer(initial, setRunEndGap({ ...at, gap: 7 / 16 }));
+    expect(currentRun(typed).ends.left.gap).toBe(7 / 16);
+    const invalid = elevationReducer(typed, setRunEndGap({ ...at, gap: -1 / 16 }));
+    expect(invalid).toBe(typed);
+    const cleared = elevationReducer(invalid, setRunEndGap({ ...at, gap: null }));
+    expect(currentRun(cleared).ends.left).not.toHaveProperty('gap');
+  });
+
   it.each([
     { name: 'adds a cabinet to the left and takes ownership of its segment', action: 'add' },
     { name: 'removes an auto-added cabinet and turns auto count off', action: 'remove' },

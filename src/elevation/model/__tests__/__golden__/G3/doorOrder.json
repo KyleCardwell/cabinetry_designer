@@ -1,0 +1,115 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails",
+        "panelProfile": "FLAT",
+        "style": "5PC",
+        "thickness": "13/16\"",
+        "vendor": null,
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "drawer_fronts",
+          "lines": [
+            {
+              "height": 12,
+              "notes": "",
+              "number": 2,
+              "qty": 2,
+              "size": "19 3/8 x 12",
+              "width": 19.375
+            },
+            {
+              "height": 5.875,
+              "notes": "1 7/8\" TR & BR",
+              "number": 2,
+              "qty": 1,
+              "size": "19 3/8 x 5 7/8",
+              "width": 19.375
+            },
+            {
+              "height": 12,
+              "notes": "",
+              "number": 4,
+              "qty": 2,
+              "size": "19 3/8 x 12",
+              "width": 19.375
+            },
+            {
+              "height": 5.875,
+              "notes": "1 7/8\" TR & BR",
+              "number": 4,
+              "qty": 1,
+              "size": "19 3/8 x 5 7/8",
+              "width": 19.375
+            }
+          ],
+          "title": "Drawer Fronts"
+        }
+      ],
+      "styleId": "default",
+      "type": "drawer_fronts"
+    },
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails",
+        "panelProfile": "FLAT",
+        "style": "5PC",
+        "thickness": "13/16\"",
+        "vendor": null,
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 30.125,
+              "notes": "",
+              "number": 3,
+              "qty": 2,
+              "size": "14 7/8 x 30 1/8",
+              "width": 14.875
+            },
+            {
+              "height": 78,
+              "notes": "do not sand edges",
+              "number": 6,
+              "qty": 1,
+              "size": "24 x 78",
+              "width": 24
+            },
+            {
+              "height": 41.25,
+              "notes": "do not sand edges",
+              "number": 7,
+              "qty": 1,
+              "size": "70 3/8 x 41 1/4",
+              "width": 70.375
+            },
+            {
+              "height": 78,
+              "notes": "do not sand edges",
+              "number": 9,
+              "qty": 1,
+              "size": "24 x 78",
+              "width": 24
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

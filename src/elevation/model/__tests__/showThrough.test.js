@@ -205,7 +205,7 @@ describe('show-through visibility and shared drawing rules', () => {
 
   it('uses strict area overlap and inclusive line coordinates with the specified tolerance', () => {
     const room = single();
-    const data = shelvesModule.wallInteriorData(room, room.walls[0], 'front', settings);
+    const data = structuredClone(shelvesModule.wallInteriorData(room, room.walls[0], 'front', settings));
     const window = show(room).get('a').windows[0];
     const { x, z, width } = window;
     data.interiors.get('a').partLines = [

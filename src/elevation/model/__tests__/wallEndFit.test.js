@@ -16,7 +16,7 @@ import { planThroughDimensions } from '../planDimensions.js';
 import { cornerReserveParts } from '../corners.js';
 import { wallSideView } from '../wallSides.js';
 import { shippingList } from '../../../reports/shippingList.js';
-import { doorOrderItems } from '../../../reports/doorOrder.js';
+import { doorLines } from '../items/doorLines.js';
 import { auto, room, run, wall } from '../../../test/builders.js';
 import { E, S, Sf, legShape, noEnds } from './fixtures/legs.js';
 
@@ -85,7 +85,7 @@ describe('wall end panel fit (SH7.6)', () => {
     expect(runEndView(synced, w, r, 'left', settings, { returnEnd: true })
       .find(({ wallEndpoint }) => wallEndpoint === 'start')).toMatchObject({ z: 0.5, height: 33 });
     expect(shipped(synced).size).toBe('18 3/8 x 33 x 13/16');
-    expect(doorOrderItems(synced, settings).items.find(({ pieceId }) => pieceId === 'w:endPanel:start').height).toBe(33);
+    expect(doorLines(synced, settings).items.find(({ pieceId }) => pieceId === 'w:endPanel:start').height).toBe(33);
   });
 
   it('falls back inside the legs when they overlap', () => {

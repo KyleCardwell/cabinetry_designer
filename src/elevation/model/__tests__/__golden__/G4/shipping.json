@@ -1,0 +1,148 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Tall End Panel",
+      "key": "738c73a7-adda-40e0-bca9-a881403c1ffa:left",
+      "kind": "end_panel",
+      "notes": [
+        "L-shape",
+        "do not sand edges"
+      ],
+      "number": 1,
+      "size": "24 13/16 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "36718dec-9ae3-48e7-bce7-f3d95d207a1c",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" L & R)",
+        "6 as",
+        "FF to rabbet right side for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 2,
+      "size": "35 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:36718dec-9ae3-48e7-bce7-f3d95d207a1c|0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 3,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" T, 13/16\" L & R)",
+        "4 as",
+        "FF to rabbet sides and top for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 4,
+      "size": "35 x 60 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:h:87b307e7-2f67-48a7-a80e-a52d4249d55b|0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 5,
+      "size": "1 1/2 x 1 1/2 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "87b307e7-2f67-48a7-a80e-a52d4249d55b",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" B, 13/16\" L & R)",
+        "1 as",
+        "FF to rabbet sides and bottom for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 6,
+      "size": "35 x 26 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "tee:0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba|6ae1c6d6-ec28-40d7-aee3-f3b0898ed2fb",
+      "kind": "filler",
+      "notes": [
+        "T-shape"
+      ],
+      "number": 7,
+      "size": "1 1/2 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "6ae1c6d6-ec28-40d7-aee3-f3b0898ed2fb",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (13/16\" L & R)",
+        "6 as",
+        "FF to rabbet sides for T-filler",
+        "deck, fixed shelves & top set back 1/16\""
+      ],
+      "number": 8,
+      "size": "35 x 86 x 24"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "738c73a7-adda-40e0-bca9-a881403c1ffa:right",
+      "kind": "filler",
+      "notes": [
+        "T-shape - 3/4\" left offset"
+      ],
+      "number": 9,
+      "size": "1 15/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 10,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 11,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 12,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

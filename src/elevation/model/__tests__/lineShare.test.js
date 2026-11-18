@@ -158,8 +158,8 @@ describe('line-attached auto columns share width (LL4.1)', () => {
 
   it('a left end column stays on its line; between two lines with no filler the widths match, unrounded (LL4.1)', () => {
     w.runs = [run({
-      ...r, anchors: { left: false, right: false }, seamGap: 1,
-      items: [{ ...auto('B'), attach: attach('L1', 'left') }, auto('C'),
+      ...r, anchors: { left: false, right: false },
+      items: [{ ...auto('B'), gap: 1, attach: attach('L1', 'left') }, { ...auto('C'), gap: 1 },
         { ...fixed('P', 20), attach: attach('L2', 'left') }],
     })];
     w.lines = [line('L1', 10), line('L2', 62.5)];
@@ -196,9 +196,9 @@ describe('line-attached auto columns share width (LL4.1)', () => {
 
   it('includes seams and nested-grid rounding when sharing', () => {
     w.runs = [run({
-      ...r, seamGap: 1,
-      items: [auto('A'), { ...auto('B'), attach: attach('L1', 'right'),
-        grid: { ...run({ id: 'nested', items: [auto('B1'), auto('B2')] }).grid, id: 'B' } }],
+      ...r,
+      items: [{ ...auto('A'), gap: 1 }, { ...auto('B'), attach: attach('L1', 'right'),
+        grid: { ...run({ id: 'nested', items: [{ ...auto('B1'), gap: 1 }, auto('B2')] }).grid, id: 'B' } }],
     })];
     w.lines[0].value = 77.5;
     const actual = result();

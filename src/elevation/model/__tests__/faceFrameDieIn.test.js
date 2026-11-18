@@ -68,7 +68,7 @@ describe('SPEC-38.4 a joined end that dies into a deeper run', () => {
     const room = g2();
     expect(frameOf(room, 'B')).toEqual({
       leftEnd: 'none', dieIn: { left: true, right: false },
-      boxes: [[77.5, 34], [112, 33.9375]], leftStile: 1.75, rightStile: 1.8125, openings: [32.5, 32.4375],
+      boxes: [[77.5, 34], [112, 34]], leftStile: 1.75, rightStile: 1.75, openings: [32.5, 32.5],
     });
     expect(frameOf(room, 'U')).toMatchObject({
       leftEnd: 'none', dieIn: { left: true, right: false }, leftStile: 1.75, openings: [29, 29, 29],
@@ -79,7 +79,7 @@ describe('SPEC-38.4 a joined end that dies into a deeper run', () => {
     const room = g2({ tallDepth: 24 });
     expect(frameOf(room, 'B')).toEqual({
       leftEnd: 'none', dieIn: undefined,
-      boxes: [[76.75, 34.375], [111.625, 34.3125]], leftStile: 1, rightStile: 1.8125, openings: [32.875, 32.8125],
+      boxes: [[76.75, 34.375], [111.625, 34.375]], leftStile: 1, rightStile: 1.75, openings: [32.875, 32.875],
     });
   });
 });
@@ -89,12 +89,12 @@ describe('SPEC-38.4 a mitered wall end panel in a beaded run', () => {
     const room = g2({ endPanels: { start: null, end: { width: null } }, upperRight: AUTO_NONE });
     const upper = room.walls[0].runs.find(({ id }) => id === 'U');
     expect(upper._frame.wallPanels.right).toEqual({ width: 0.8125, top: 90, join: 'miter' });
-    // The 13/16" wall panel leaves three 30 13/16" boxes; the right stile follows that panel.
+    // The 13/16-inch wall panel reduces the gap to 3/16, keeping the right stile at 1 3/4.
     expect(frameOf(room, 'U')).toMatchObject({
-      boxes: [[77.5, 30.8125], [108.8125, 30.8125], [140.125, 30.8125]],
+      boxes: [[77.5, 30.8125], [108.8125, 30.8125], [140.125, 30.875]],
       leftStile: 1.75,
-      rightStile: 1.8125,
-      openings: [29.3125, 29.3125, 29.3125],
+      rightStile: 1.75,
+      openings: [29.3125, 29.3125, 29.375],
     });
   });
 });

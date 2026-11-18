@@ -1,0 +1,107 @@
+{
+  "counts": {
+    "doorOrderLines": 38,
+    "errors": 0,
+    "parts": 43,
+    "proBoxLines": 10,
+    "shippingRows": 44,
+    "warnings": 4
+  },
+  "elevations": [
+    {
+      "partKinds": {
+        "cabinet": 10,
+        "casing": 1,
+        "countertop": 5,
+        "crown": 4,
+        "end_panel": 2,
+        "face": 16,
+        "filler": 1,
+        "light_rail": 1,
+        "opening": 1,
+        "section": 6,
+        "toe_kick": 6,
+        "top_mold": 4
+      },
+      "side": "front",
+      "wallId": "f5f5ee12-9909-471b-b2f6-c9a7112a76cc"
+    },
+    {
+      "partKinds": {
+        "cabinet": 6,
+        "countertop": 3,
+        "crown": 4,
+        "end_panel": 6,
+        "face": 9,
+        "section": 6,
+        "toe_kick": 5,
+        "top_mold": 4
+      },
+      "side": "front",
+      "wallId": "c78b87d8-ca2b-4010-9d2f-4c9b44b3f39a"
+    },
+    {
+      "partKinds": {
+        "cabinet": 4,
+        "crown": 1,
+        "end_panel": 1,
+        "face": 7,
+        "filler": 1,
+        "toe_kick": 2,
+        "top_mold": 1
+      },
+      "side": "front",
+      "wallId": "68870e7d-5d85-4d8c-b591-e59dabf8d99b"
+    },
+    {
+      "partKinds": {
+        "cabinet": 3,
+        "casing": 1,
+        "countertop": 3,
+        "crown": 1,
+        "end_panel": 1,
+        "face": 5,
+        "opening": 1,
+        "section": 4,
+        "toe_kick": 3,
+        "top_mold": 1
+      },
+      "side": "front",
+      "wallId": "91b80e0a-e3e7-4abc-93b3-bb7f600a11e9"
+    },
+    {
+      "partKinds": {
+        "cabinet": 2,
+        "countertop": 1,
+        "end_panel": 1,
+        "face": 6,
+        "toe_kick": 1,
+        "wall_end_panel": 1
+      },
+      "side": "front",
+      "wallId": "14d8d962-114c-4f20-ae0d-ead114857c95"
+    },
+    {
+      "partKinds": {
+        "countertop": 1,
+        "panel": 1,
+        "wall_end_panel": 1
+      },
+      "side": "back",
+      "wallId": "14d8d962-114c-4f20-ae0d-ead114857c95"
+    }
+  ],
+  "planPartKinds": {
+    "cabinet": 22,
+    "casing": 2,
+    "countertop": 4,
+    "end_panel": 11,
+    "face": 32,
+    "filler": 4,
+    "opening": 2,
+    "panel": 1,
+    "void": 2,
+    "wall": 5,
+    "wall_end_panel": 1
+  }
+}

@@ -1,0 +1,480 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Base Corner 90",
+      "key": "604d64d6-41cf-41d8-ae2e-0605ce2a29d8",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "24\" L & R sides",
+        "2 doors x 10 15/16\" wide",
+        "1 as",
+        "bi-fold doors hinge?"
+      ],
+      "number": 1,
+      "size": "36 x 30 1/2 x 36"
+    },
+    {
+      "description": "Base",
+      "key": "735c796d-3f49-450c-9987-9b2906071631",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hl"
+      ],
+      "number": 2,
+      "size": "9 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "32cde155-983f-4836-93ce-42fa417902dc",
+      "kind": "cabinet",
+      "notes": [
+        "NLB"
+      ],
+      "number": 3,
+      "size": "30 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "8ec0df13-fb33-49fa-b77f-1970d51a4ff3",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "pull-out"
+      ],
+      "number": 4,
+      "size": "18 x 30 1/2 x 24"
+    },
+    {
+      "description": "ROT Drawer Box",
+      "key": "8ec0df13-fb33-49fa-b77f-1970d51a4ff3:rot:r",
+      "kind": "rot",
+      "notes": [
+        "bottom up 1 3/4\""
+      ],
+      "number": 5,
+      "size": "16 x 15 1/8 x 22"
+    },
+    {
+      "description": "Trash Lid",
+      "key": "8ec0df13-fb33-49fa-b77f-1970d51a4ff3:lid:r",
+      "kind": "trash_lid",
+      "notes": [],
+      "number": 6,
+      "size": "16 x 22 x 3/4"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "ac48ab1d-2dbf-4ded-aa4e-01273c9eb9d9",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "DF's (1 - 5 7/8\", 2 - 12\", 21\" drws)"
+      ],
+      "number": 7,
+      "size": "15 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Corner 45",
+      "key": "9d1744e1-a46f-4172-8e46-3f8f7b699053",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "24\" L & R sides",
+        "RV's (1/8\" L & R)",
+        "door x 15 9/16\" wide",
+        "1 as",
+        "hl"
+      ],
+      "number": 8,
+      "size": "36 x 30 1/2 x 36"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "383587d4-58b4-48b8-a7c5-86ceff8994e7:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 9,
+      "size": "2 3/16 x 34 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "38d726f8-130d-464a-9560-2fe6ac3833c9",
+      "kind": "cabinet",
+      "notes": [
+        "1 as"
+      ],
+      "number": 10,
+      "size": "27 x 34 1/2 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "332dd4aa-a851-42c2-91f0-6a7f073470fb",
+      "kind": "cabinet",
+      "notes": [
+        "1 as"
+      ],
+      "number": 11,
+      "size": "27 x 34 1/2 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "383587d4-58b4-48b8-a7c5-86ceff8994e7:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 12,
+      "size": "12 7/8 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "b8ef9fc0-298f-4d36-a109-8a0f8f0d5cb0:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 13,
+      "size": "12 7/8 x 36 x 13/16"
+    },
+    {
+      "description": "Upper",
+      "key": "47af0c8c-097b-4874-9c7e-a77f26486b2a",
+      "kind": "cabinet",
+      "notes": [
+        "2 as (1/4\" glass)"
+      ],
+      "number": 14,
+      "size": "32 x 36 x 12"
+    },
+    {
+      "description": "Upper Corner 45",
+      "key": "a9e68cdd-a28e-433d-9629-74dd2d9e4068",
+      "kind": "cabinet",
+      "notes": [
+        "12\" L & R sides",
+        "RV's (1/8\" L & R)",
+        "door x 15 9/16\" wide",
+        "2 as",
+        "hl"
+      ],
+      "number": 15,
+      "size": "24 x 36 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "8153f75d-cec6-4810-8399-b87b67672212",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hl"
+      ],
+      "number": 16,
+      "size": "24 1/16 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "8153f75d-cec6-4810-8399-b87b67672212:inside-right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 17,
+      "size": "24 7/8 x 30 1/2 x 3/4"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "9c55a7f8-ec7e-4ab7-89b7-c8dca90554a2",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (3/32\" L & R)",
+        "DF's (1 - 5 7/8\", 2 - 12\", 21\" drws)"
+      ],
+      "number": 18,
+      "size": "24 1/16 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "9c55a7f8-ec7e-4ab7-89b7-c8dca90554a2:inside-left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 19,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Shop-built Base End Panel",
+      "key": "64def3b8-625b-4db9-a040-f11e407a36bd:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 20,
+      "size": "24 7/8 x 30 1/2 x 3/4"
+    },
+    {
+      "description": "Upper",
+      "key": "d70e9740-bc18-402f-8e62-1faa8cf3c5f3",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 21,
+      "size": "30 x 36 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "d70e9740-bc18-402f-8e62-1faa8cf3c5f3:inside-right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 22,
+      "size": "12 7/8 x 36 1/8 x 3/4"
+    },
+    {
+      "description": "Upper",
+      "key": "07c4db13-e28b-4e6e-a716-c5e66eaf9116",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "2 as",
+        "hr"
+      ],
+      "number": 23,
+      "size": "18 x 36 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "07c4db13-e28b-4e6e-a716-c5e66eaf9116:inside-left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 24,
+      "size": "12 7/8 x 36 1/8 x 13/16"
+    },
+    {
+      "description": "Shop-built Upper End Panel",
+      "key": "b08bce23-683d-4603-b4d6-1a2ef05548f0:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 25,
+      "size": "12 7/8 x 36 x 3/4"
+    },
+    {
+      "description": "Tall Filler",
+      "key": "9f141e5b-1477-49d2-a43a-c98453942f76:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 26,
+      "size": "1 11/16 x 86 x 3 3/16"
+    },
+    {
+      "description": "Tall",
+      "key": "cc44e79a-b8c2-4a93-8261-4b7e70264484",
+      "kind": "cabinet",
+      "notes": [
+        "6 as",
+        "hl"
+      ],
+      "number": 27,
+      "size": "24 x 86 x 25"
+    },
+    {
+      "description": "Tall",
+      "key": "db9e3293-23e8-42c2-8282-1213291a08ce",
+      "kind": "cabinet",
+      "notes": [
+        "6 as",
+        "hl"
+      ],
+      "number": 28,
+      "size": "24 x 86 x 25"
+    },
+    {
+      "description": "Tall",
+      "key": "cafd0ec2-d992-4d8c-b67a-4b5a6152641b",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (1/8\" OH B)",
+        "NLB"
+      ],
+      "number": 29,
+      "size": "30 x 18 x 25"
+    },
+    {
+      "description": "Tall Drawers & Doors",
+      "key": "16381259-bbb2-4f83-b861-f26b1dcac8fe",
+      "kind": "cabinet",
+      "notes": [
+        "fs up 49 1/16\" oc",
+        "fs up 12 3/16\" oc",
+        "Top Sec (NLB)",
+        "Mid Sec (NLB, NPH (No Doors))",
+        "Btm Sec (DF's (1 - 12\", 21\" drw))"
+      ],
+      "number": 30,
+      "size": "30 x 86 x 25"
+    },
+    {
+      "description": "Tall End Panel",
+      "key": "9f141e5b-1477-49d2-a43a-c98453942f76:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 31,
+      "size": "25 7/8 x 86 x 13/16"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "c563f110-7776-4741-ae87-8ed9ad0fccc0:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 32,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "ab638f81-951a-4cdb-b8c7-fc4fbda8d51f",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 33,
+      "size": "31 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "360d5855-d3a6-4d37-a00d-a3deb5932b51",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 34,
+      "size": "31 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "1dd86015-ceda-42cd-b1bc-15da5a7d7389:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 35,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "59ddea18-d5ae-4a1c-b9ef-18b3256d5840",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "DF's (1 - 6\", 2 - 12\", 21\" drws)"
+      ],
+      "number": 36,
+      "size": "22 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base 3 Drawers",
+      "key": "3e207942-3e88-4aac-9a09-701cb2b1084b",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "DF's (1 - 6\", 2 - 12\", 21\" drws)"
+      ],
+      "number": 37,
+      "size": "22 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Back Panel",
+      "key": "813d1561-8de4-4fab-b328-0f862ce1bc89",
+      "kind": "panel",
+      "notes": [
+        "do not sand edges",
+        "3\" MS 13 1/2\" oc from left",
+        "3\" MS 33 1/8\" oc from left"
+      ],
+      "number": 38,
+      "size": "46 5/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:1dd86015-ceda-42cd-b1bc-15da5a7d7389",
+      "kind": "wood_top",
+      "notes": [
+        "Both faces",
+        "Waterfall both",
+        "Nosing 3"
+      ],
+      "number": 39,
+      "size": "48 15/16 x 32 3/16 x 1 1/2"
+    },
+    {
+      "description": "Wall End Panel",
+      "key": "14d8d962-114c-4f20-ae0d-ead114857c95:endPanel:end",
+      "kind": "wall_end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 40,
+      "size": "13/16 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 41,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3\" deep"
+      ],
+      "number": 42,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "Crown 4 1/2",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 4\" deep"
+      ],
+      "number": 43,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

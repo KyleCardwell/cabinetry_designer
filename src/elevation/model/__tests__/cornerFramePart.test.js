@@ -112,19 +112,19 @@ describe('corner frame parts (CC6)', () => {
     }
   });
 
-  it('anchors badges on each elevation’s nearest own stile, falling back to the rails’ centre', () => {
+  it('anchors badges on each elevation’s nearest own stile, falling back to the rails’ centre (GC5)', () => {
     for (const source of [ROOM_B, ROOM_C]) {
       const { subject, owner, returning, scene } = resolved(source);
       const frame = scene.cornerFrames[0];
       const expectedX = frame.kind === 90 ? [29.625, 107.96875] : [35.8062184335, 118.6571699141];
       for (const [index, view] of [owner, returning].entries()) {
         const badge = wallBadgeGroups(subject, view, S).find(({ key }) => key === 'cc:frame');
-        expect(badge).toMatchObject({ lift: 2, pieces: [{ id: 'cc:frame' }] });
+        expect(badge).toMatchObject({ pieces: [{ id: 'cc:frame' }] });
         const anchor = badge.pieces[0].anchor;
         expect(anchor.x).toBeCloseTo(expectedX[index], 9);
         expect(anchor.z).toBe(19.25);
         expect(elevationPartNumbers(subject, view, 'front', S).find(({ key }) => key === 'cc:frame'))
-          .toMatchObject({ text: '3', x: anchor.x, leader: expect.objectContaining({ x2: anchor.x, z2: anchor.z }) });
+          .toMatchObject({ text: '3', x: anchor.x, leader: null });
       }
     }
   });

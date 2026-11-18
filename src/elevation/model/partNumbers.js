@@ -1,3 +1,4 @@
+import { withBuildCache } from './buildCache.js';
 import { bandParts } from './bandParts.js';
 import { partPieces } from './cells.js';
 import { cornerReturnLegs } from './cornerLegs.js';
@@ -28,7 +29,19 @@ export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furni
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 export function partNumbers(room, settings) {
-  const ordered = roomParts(room, settings);
+  return withBuildCache(() => numberItems(room, roomParts(room, settings)), room);
+}
+
+// Hidden parts' numbers (ROT box, trash lid) per parent key, kept beside each numbering's byKey map.
+const hiddenNumbers = new WeakMap();
+
+/** A part's badge text: its number, plus any hidden parts it carries, e.g. "4 (5, 6)". */
+export function badgeText(numbers, key) {
+  const hidden = hiddenNumbers.get(numbers)?.get(key);
+  return hidden ? `${numbers.get(key)} (${hidden.join(', ')})` : String(numbers.get(key));
+}
+
+export function numberItems(room, items) {
   const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
     ? room.partNumberStart
     : 1;
@@ -37,7 +50,7 @@ export function partNumbers(room, settings) {
   const taken = new Set();
   const overrideKeys = new Set();
   const claims = new Map();
-  for (const part of ordered) {
+  for (const part of items) {
     const override = overrides[part.key];
     if (!Number.isInteger(override) || override <= 0) continue;
     byKey.set(part.key, override);
@@ -48,7 +61,7 @@ export function partNumbers(room, settings) {
     claims.set(override, keys);
   }
   let next = start;
-  for (const part of ordered) {
+  for (const part of items) {
     if (byKey.has(part.key)) continue;
     while (taken.has(next)) next += 1;
     byKey.set(part.key, next);
@@ -56,7 +69,14 @@ export function partNumbers(room, settings) {
     next += 1;
   }
 
-  const parts = ordered.map((part) => ({ ...part, number: byKey.get(part.key) }));
+  const parts = items.map((part) => ({ ...part, number: byKey.get(part.key) }));
+  // Parts drawn on no elevation join their cabinet's badge so the shop can find them.
+  const hidden = new Map();
+  for (const part of parts) {
+    if (!part.cabinetId || !byKey.has(part.cabinetId)) continue;
+    hidden.set(part.cabinetId, [...(hidden.get(part.cabinetId) ?? []), part.number].sort((a, b) => a - b));
+  }
+  hiddenNumbers.set(byKey, hidden);
   const warnings = [...claims.entries()]
     .filter(([, keys]) => keys.length > 1)
     .map(([number, keys]) => ({ code: 'duplicate-part-number', number, keys }));
@@ -157,8 +177,7 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
 
 /**
  * Every part-badge group on one elevation, in draw order.
- * Each group lays out independently, exactly as RunGroup laid one run out.
- * @returns {{key: string, lift: number, pieces: object[]}[]}
+ * @returns {{key: string, pieces: object[]}[]}
  */
 export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.flatMap((run) => {
@@ -174,23 +193,18 @@ export function wallBadgeGroups(room, wall, settings) {
     return [
       {
         key: `run:${run.id}`,
-        lift: 0,
         pieces: frames.regions.length > 0
           ? pieces.filter((piece) => piece.kind !== 'end_panel')
           : pieces,
       },
-      // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
       {
         key: `tees:${run.id}`,
-        lift: 1,
         pieces: seamTees.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })),
       },
-      // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
       ...frames.regions.map((region) => {
         const openings = regionOpenings(region, scene.faceLayouts);
         return {
           key: region.id,
-          lift: 2,
           pieces: [{
             id: region.id,
             x: region.x,
@@ -202,21 +216,19 @@ export function wallBadgeGroups(room, wall, settings) {
         };
       }),
       ...cornerFrames.map(({ columnId, owner }) => ({
-        key: `${columnId}:frame`, lift: 2,
+        key: `${columnId}:frame`,
         pieces: [{ id: `${columnId}:frame`, ...owner, anchor: frameBadgeAnchor(owner, owner.members) }],
       })),
       {
         key: `end-panels:${run.id}`,
-        lift: 3,
         pieces: endPanels,
       },
       ...scene.cornerPanels.map(({ columnId, x, width }) => ({
-        key: `${columnId}:return`, lift: 3,
+        key: `${columnId}:return`,
         pieces: [{ id: `${columnId}:return`, x, width, z: run.z, height: run.height }],
       })),
       {
         key: `legs:${run.id}`,
-        lift: 0,
         pieces: runLegs(room, wall, run, settings)
           .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
           .flatMap(({ leg, bounds }) => [{ id: leg.id, ...bounds },
@@ -227,15 +239,15 @@ export function wallBadgeGroups(room, wall, settings) {
 
   const returnLegs = cornerReturnLegs(room, wall, settings);
   groups.push(...returnLegs.map((leg) => ({
-    key: leg.key, lift: 0, pieces: [{ id: leg.columnId, ...leg.rect }],
+    key: leg.key, pieces: [{ id: leg.columnId, ...leg.rect }],
   })));
   groups.push(...returnLegs.filter(({ frame }) => frame).map(({ columnId, frame }) => ({
-    key: `${columnId}:frame`, lift: 2,
+    key: `${columnId}:frame`,
     pieces: [{ id: `${columnId}:frame`, ...frame, anchor: frameBadgeAnchor(frame, frame.members) }],
   })));
   groups.push(...returnLegs.filter(({ returnPanel }) => returnPanel?.type === 'filler')
     .map(({ columnId, returnPanel }) => ({
-      key: `${columnId}:return`, lift: 3,
+      key: `${columnId}:return`,
       pieces: [{ id: `${columnId}:return`, ...returnPanel }],
     })));
 
@@ -243,7 +255,6 @@ export function wallBadgeGroups(room, wall, settings) {
     const side = panel[wall.side ?? 'front'];
     groups.push({
       key: `panel:${panel.endpoint}`,
-      lift: 1,
       pieces: [{
         id: wallEndPanelPartKey(wall.id, panel.endpoint),
         x: side.x,

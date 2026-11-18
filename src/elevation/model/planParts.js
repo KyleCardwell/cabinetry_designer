@@ -165,7 +165,7 @@ export function planSolidParts(room, settings, { bottoms = false } = {}) {
       const { boxes, faces, returns, waterfallLegs = [] } = planRunPieces(
         room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),
       );
-      const runPieces = [...layout.pieces, ...cellPieces(run, layout).pieces];
+      const runPieces = [...layout.pieces, ...cellPieces(run, layout, { room, settings }).pieces];
       const tops = new Map(runPieces.map((piece) => [piece.id, piece.z + piece.height]));
       const lows = new Map(runPieces.map((piece) => [piece.id, piece.z]));
       const topOf = (key) => tops.get(key) ?? tops.get(key.split(':')[0]) ?? run.z + run.height;

@@ -97,7 +97,7 @@ describe('SPEC-36.1 depth, clearance and corners', () => {
     };
     expect(minimum()).toEqual({ left: 1.5, right: 1.5 });
     expect(minimum(INSET)).toEqual({ left: 1.5, right: 0.75 });
-    expect(minimum({ cabinetStyleId: 15 })).toEqual({ left: 1.5, right: 0.5 });
+    expect(minimum({ cabinetStyleId: 15 })).toEqual({ left: 1.5, right: 0.75 });
   });
 });
 

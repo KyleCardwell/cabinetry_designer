@@ -92,14 +92,14 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
   wall = wallViewForRun(wall, run);
   const otherPieces = wall.runs
     .filter((other) => other.id !== run.id)
-    .flatMap((other) => cellPieces(other, layoutRun(room, wall, other, settings)).pieces);
+    .flatMap((other) => cellPieces(other, layoutRun(room, wall, other, settings), { room, settings }).pieces);
   const tolerance = settings.adjacentRunGap ?? DEFAULT_SETTINGS.adjacentRunGap;
   const result = new Map();
   const topKinds = new Map(resolveTopSegments(run).segments.flatMap(({ kind, columnIds }) => (
     columnIds.map((id) => [id, kind])
   )));
   const overlaps = columnOverlaps(run);
-  const cells = frameContext?.cells ?? cellPieces(run, layout);
+  const cells = frameContext?.cells ?? cellPieces(run, layout, { room, settings });
   const frames = frameContext?.frames ?? frameRegions(room, run, cells, settings);
   const { covers: teeCovers } = teeFillers(room, run, cells, settings);
   const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;

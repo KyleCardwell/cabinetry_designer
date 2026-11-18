@@ -1,0 +1,118 @@
+{
+  "comments": [
+    "Cross Grain Bottoms"
+  ],
+  "jobName": "Golden Job - GC0-001 GOLDEN ROOM",
+  "lines": [
+    {
+      "cab": 9,
+      "depth": 21,
+      "height": 4.25,
+      "instructions": "",
+      "qty": 1,
+      "width": 15
+    },
+    {
+      "cab": 10,
+      "depth": 21,
+      "height": 4.25,
+      "instructions": "",
+      "qty": 1,
+      "width": 51
+    },
+    {
+      "cab": 9,
+      "depth": 21,
+      "height": 10.25,
+      "instructions": "",
+      "qty": 2,
+      "width": 15
+    },
+    {
+      "cab": 10,
+      "depth": 21,
+      "height": 10.25,
+      "instructions": "",
+      "qty": 2,
+      "width": 51
+    }
+  ],
+  "options": {
+    "brand": "STANDARD BLUM",
+    "clips": true,
+    "notch": true
+  },
+  "spec": {
+    "assembly": {
+      "options": [
+        {
+          "checked": true,
+          "label": "Pre-finished & assembled"
+        },
+        {
+          "checked": false,
+          "label": "Assembled w/ clear coat"
+        }
+      ],
+      "writeIn": null
+    },
+    "bottomMaterial": {
+      "options": [
+        {
+          "checked": true,
+          "label": "1/4\" Baltic Birch Ply"
+        },
+        {
+          "checked": false,
+          "label": "1/4\" Maple Veneer"
+        }
+      ],
+      "writeIn": null
+    },
+    "bottomPlacement": {
+      "options": [
+        {
+          "checked": true,
+          "label": "Standard"
+        }
+      ],
+      "writeIn": null
+    },
+    "sideMaterial": {
+      "options": [
+        {
+          "checked": true,
+          "label": "Baltic Birch Ply"
+        },
+        {
+          "checked": false,
+          "label": "Soft Maple"
+        }
+      ],
+      "writeIn": null
+    },
+    "sideThickness": {
+      "options": [
+        {
+          "checked": false,
+          "label": "1/2\""
+        },
+        {
+          "checked": true,
+          "label": "5/8\""
+        }
+      ],
+      "writeIn": null
+    },
+    "topEdge": {
+      "options": [
+        {
+          "checked": true,
+          "label": "Flat Flush (w/ eased edges)"
+        }
+      ],
+      "writeIn": null
+    }
+  },
+  "warnings": []
+}

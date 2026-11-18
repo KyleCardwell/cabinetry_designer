@@ -4,7 +4,7 @@ import { notchedFrameRoom, notchedFrameSettings } from '../../elevation/model/__
 import { room8Upper, settings } from '../../elevation/model/__tests__/helpers/room8Upper.js';
 import { gridFromItems, rootItems } from '../../elevation/model/grid.js';
 import { syncRoom } from '../../elevation/model/roomSync.js';
-import { frameStepReturnNotes } from '../frameNotes.js';
+import { frameStepReturnNotes } from '../../elevation/model/items/frameNotes.js';
 import { shippingList } from '../shippingList.js';
 
 const frameRows = (room) => shippingList(room, settings).rows.filter(({ kind }) => kind === 'frame');

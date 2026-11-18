@@ -32,16 +32,16 @@ function tall(cabinetStyleId, runFlex = 0) {
 
 describe('SPEC-42.1 face frame end stiles follow panel thickness', () => {
   it('keeps the rounding leftover in the box and follows the end panel thickness (G2 tall at 32 7/8)', () => {
-    expect(tall(15)).toEqual({ box: 30.8125, leftStile: 1.8125, rightStile: 1.75 });
+    expect(tall(15)).toEqual({ box: 30.875, leftStile: 1.75, rightStile: 1.75 });
     expect(tall(14)).toEqual({ box: 31.3125, leftStile: 1.5625, rightStile: 1.5 });
   });
 });
 
 describe('SPEC-RF1 run flex on the same tall', () => {
-  it('grows the run by 3/16" so the box comes out round; the stiles follow the panels', () => {
-    // EP1 + SPEC-42.1: the 13/16 free panel adds 1/16 to the left stile in either style.
-    // Boxes 30 13/16 and 31 5/16 each need +3/16 to reach 31 and 31 1/2.
-    expect(tall(15, 0.25)).toEqual({ box: 31, leftStile: 1.8125, rightStile: 1.75 });
+  it('grows the run to round the box with the panel gap applied', () => {
+    // Beaded: the panel reduces the gap, keeping a 1 3/4 stile; 30 7/8 needs +1/8.
+    // Plain: no bead gap to reduce; 31 5/16 still needs +3/16.
+    expect(tall(15, 0.25)).toEqual({ box: 31, leftStile: 1.75, rightStile: 1.75 });
     expect(tall(14, 0.25)).toEqual({ box: 31.5, leftStile: 1.5625, rightStile: 1.5 });
   });
 });

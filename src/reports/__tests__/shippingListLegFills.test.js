@@ -3,8 +3,9 @@ import { room, run, wall } from '../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { roomParts } from '../../elevation/model/parts.js';
 import { E, Sf, fourEndLegs, legShape, noEnds } from '../../elevation/model/__tests__/fixtures/legs.js';
-import { formatSize } from '../format.js';
-import { shippingDescription, shippingList } from '../shippingList.js';
+import { formatSize } from '../../elevation/model/items/format.js';
+import { shippingList } from '../shippingList.js';
+import { itemDescription as shippingDescription } from '../../elevation/model/items/itemReport.js';
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };
 const R = run({ x: 10, width: 36 });

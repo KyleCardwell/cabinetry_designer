@@ -166,7 +166,7 @@ function voidColumnEntries(piece, cells, runId) {
  * T-filler is its own `t-filler` segment, and the boxes it covers show what's left of them (SPEC-37).
  */
 function runInnerSegments(room, wall, run, settings, layout) {
-  const cells = cellPieces(run, layout);
+  const cells = cellPieces(run, layout, { room, settings });
   const { regions } = frameRegions(room, run, cells, settings);
   const { tees, covers, ells } = teeFillers(room, run, cells, settings);
   const faceLayouts = regions.length > 0 ? runFaceLayouts(room, wall, run, settings, layout) : null;

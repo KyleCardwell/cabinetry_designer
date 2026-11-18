@@ -4,7 +4,7 @@ import { findLeaf } from '../../elevation/model/cellTree.js';
 import { frameMembers, regionOpenings } from '../../elevation/model/frames.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
-import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameStandards } from '../frameNotes.js';
+import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameStandards } from '../../elevation/model/items/frameNotes.js';
 import { shippingList } from '../shippingList.js';
 
 const REGION_D = { id: 'frame:d', x: 0, z: 0, width: 30, height: 30, cabinetIds: ['a'] };

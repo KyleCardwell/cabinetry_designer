@@ -1,3 +1,4 @@
+import { withBuildCache } from './buildCache.js';
 import { cellPieces } from './cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerEndWarnings, cornerReturnWarnings } from './cornerEnd.js';
@@ -151,7 +152,7 @@ function withInsideEnds(room, wall, run, settings) {
   const { _insideEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
   const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
-  const entries = insideEndSides(base, cellPieces(base, layout), settings)
+  const entries = insideEndSides(base, cellPieces(base, layout, { room, settings }), settings)
     .filter((entry) => entry.choice !== 'none')
     .map((entry) => entry.choice === 'panel'
       ? { ...entry, boundary: insideEndBoundary(base.grid, entry.leafId, entry.side) } : entry);
@@ -166,7 +167,7 @@ function withStepEnds(room, wall, run, settings) {
   const { _stepEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
   const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
-  const entries = stepEndSides(base, cellPieces(base, layout), settings, room)
+  const entries = stepEndSides(base, cellPieces(base, layout, { room, settings }), settings, room)
     .filter((entry) => entry.choice !== 'none');
   if (entries.length) {
     return JSON.stringify(_stepEnds) === JSON.stringify(entries) ? run : { ...base, _stepEnds: entries };
@@ -450,80 +451,82 @@ export function syncRoom(room, settings) {
  * @returns {Record<string, {warnings:object[], errors:object[]} >}
  */
 export function roomDiagnostics(room, settings) {
-  const synced = syncRoom(room, settings);
-  const diagnostics = {};
-  for (const wall of synced.walls.flatMap((sourceWall) => (
-    WALL_SIDES.map((side) => wallSideView(sourceWall, side))
-  ))) {
-    const profile = resolveProfile(settings, synced, wall);
-    const length = wallLength(wall);
-    const bases = floorRunsWithTops(wall, wall.runs, profile);
-    const resolvedWall = { ...wall, length };
-    const held = lineHeldJoints(wall);
-    for (const run of wall.runs) {
-      const options = splitOptionsForRun(synced, wall, run, settings);
-      const layout = splitRun(run, settings, options);
-      const vertical = resolveVertical(
-        run,
-        profileUnderSoffit(profile, wall, run),
-        bases,
-        wall,
-      );
-      const horizontal = horizontalResolution(synced, wall, run, settings);
-      const placement = validateRunPlacement(resolvedWall, run, settings);
-      const overhang = {
-        code: 'overhang',
-        left: Math.max(0, -run.x),
-        right: Math.max(0, run.x + run.width - length),
-      };
-      const blockedOpenings = (wall.openings ?? [])
-        .filter((opening) => runBlocksOpening(run, opening, resolvedWall, settings))
-        .map((opening) => ({
-          code: 'blocks-opening',
-          openingId: opening.id,
-          label: opening.label,
-        }));
-      diagnostics[run.id] = {
-        warnings: [
-          ...layout.warnings,
-          ...cornerEndWarnings(synced, wall, run, settings, layout),
-          ...cornerReturnWarnings(synced, wall, run, settings),
-          ...runLineWarnings(synced, wall, run, settings, held),
-          ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
-          ...cellPieces(run, layout).warnings,
-          ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
-          ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
-          ...runItems(run).flatMap((item) => (
-            item.pin?.from === 'return' && !Number.isFinite(options.pinTargets[item.id])
-              ? [{
-                  code: 'pin-unresolved',
-                  pieceId: item.id,
-                  message: 'The return this column follows is gone.',
-                }]
-              : []
-          )),
-          ...vertical.warnings,
-          ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
-          ...blockedOpenings,
-          ...casingClearanceWarnings(run, wall, length, settings),
-          ...cornerLapWarnings(synced, wall, run, settings),
-          ...returnFaceWarnings(synced, resolvedWall, run, settings),
-          ...soffitConflicts(wall, run),
-          ...recessWarnings(wall, run),
-        ],
-        errors: [
-          ...layout.errors,
-          ...vertical.errors,
-          ...horizontal.errors,
-          ...(placement.ok ? [] : [{ code: placement.reason }]),
-        ],
-      };
+  return withBuildCache(() => {
+    const synced = syncRoom(room, settings);
+    const diagnostics = {};
+    for (const wall of synced.walls.flatMap((sourceWall) => (
+      WALL_SIDES.map((side) => wallSideView(sourceWall, side))
+    ))) {
+      const profile = resolveProfile(settings, synced, wall);
+      const length = wallLength(wall);
+      const bases = floorRunsWithTops(wall, wall.runs, profile);
+      const resolvedWall = { ...wall, length };
+      const held = lineHeldJoints(wall);
+      for (const run of wall.runs) {
+        const options = splitOptionsForRun(synced, wall, run, settings);
+        const layout = splitRun(run, settings, options);
+        const vertical = resolveVertical(
+          run,
+          profileUnderSoffit(profile, wall, run),
+          bases,
+          wall,
+        );
+        const horizontal = horizontalResolution(synced, wall, run, settings);
+        const placement = validateRunPlacement(resolvedWall, run, settings);
+        const overhang = {
+          code: 'overhang',
+          left: Math.max(0, -run.x),
+          right: Math.max(0, run.x + run.width - length),
+        };
+        const blockedOpenings = (wall.openings ?? [])
+          .filter((opening) => runBlocksOpening(run, opening, resolvedWall, settings))
+          .map((opening) => ({
+            code: 'blocks-opening',
+            openingId: opening.id,
+            label: opening.label,
+          }));
+        diagnostics[run.id] = {
+          warnings: [
+            ...layout.warnings,
+            ...cornerEndWarnings(synced, wall, run, settings, layout),
+            ...cornerReturnWarnings(synced, wall, run, settings),
+            ...runLineWarnings(synced, wall, run, settings, held),
+            ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
+            ...cellPieces(run, layout, { room: synced, settings }).warnings,
+            ...extendPieces(wall, run, cellPieces(run, layout, { room: synced, settings }).pieces).warnings,
+            ...frameRegions(synced, run, cellPieces(run, layout, { room: synced, settings }), settings).warnings,
+            ...runItems(run).flatMap((item) => (
+              item.pin?.from === 'return' && !Number.isFinite(options.pinTargets[item.id])
+                ? [{
+                    code: 'pin-unresolved',
+                    pieceId: item.id,
+                    message: 'The return this column follows is gone.',
+                  }]
+                : []
+            )),
+            ...vertical.warnings,
+            ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
+            ...blockedOpenings,
+            ...casingClearanceWarnings(run, wall, length, settings),
+            ...cornerLapWarnings(synced, wall, run, settings),
+            ...returnFaceWarnings(synced, resolvedWall, run, settings),
+            ...soffitConflicts(wall, run),
+            ...recessWarnings(wall, run),
+          ],
+          errors: [
+            ...layout.errors,
+            ...vertical.errors,
+            ...horizontal.errors,
+            ...(placement.ok ? [] : [{ code: placement.reason }]),
+          ],
+        };
+      }
     }
-  }
-  for (const collision of findCollisions(synced, settings)) {
-    diagnostics[collision.runId]?.warnings.push(collision);
-  }
-  return diagnostics;
+    for (const collision of findCollisions(synced, settings)) {
+      diagnostics[collision.runId]?.warnings.push(collision);
+    }
+    return diagnostics;
+  }, room);
 }
 
 function runLineWarnings(room, wall, run, settings, held) {
@@ -560,6 +563,7 @@ function runLineWarnings(room, wall, run, settings, held) {
   const owner = sides.map((side) => held.get(run.anchors?.[side]?.jointId))
     .find((entry) => entry && entry.runId !== run.id);
   if (owner && run.width < runWidthRange(run, settings, {
+    room,
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     blindCovers: blindCoversForRun(room, wall, run, settings),
   }).min - 1e-9) {

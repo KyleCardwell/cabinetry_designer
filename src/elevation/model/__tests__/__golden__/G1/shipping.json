@@ -1,0 +1,371 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Tall End Panel",
+      "key": "b38f2f11-5318-42f2-9d95-8b9b3d1b9087:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 1,
+      "size": "25 7/8 x 86 x 13/16"
+    },
+    {
+      "description": "Tall",
+      "key": "28072a7d-e691-40d1-a005-4d0ed1c9e825",
+      "kind": "cabinet",
+      "notes": [
+        "6 as"
+      ],
+      "number": 2,
+      "size": "28 1/2 x 86 x 25"
+    },
+    {
+      "description": "Shop-built Tall End Panel",
+      "key": "b38f2f11-5318-42f2-9d95-8b9b3d1b9087:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 3,
+      "size": "25 7/8 x 86 x 3/4"
+    },
+    {
+      "description": "Base",
+      "key": "cfc9c904-3a11-43ee-a48d-88bef061b5ae",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as",
+        "hl"
+      ],
+      "number": 4,
+      "size": "24 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "0f652c26-5f80-4387-8a1b-1f35ada26b59",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 5,
+      "size": "36 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "0624c9d5-b951-4191-95f2-1562a6b32343",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 6,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "e3bfb331-0a5d-4cf2-aaba-929c53ca8c54",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 7,
+      "size": "25 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "b822e8ac-1a44-47ca-acec-ecb93caf7b8a:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 8,
+      "size": "2 1/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 9,
+      "size": "12 7/8 x 36 x 13/16"
+    },
+    {
+      "description": "Upper",
+      "key": "ae7626bb-d1e5-4396-8b5b-a8630bfed949",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hl"
+      ],
+      "number": 10,
+      "size": "22 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "2dc1a45e-c462-4c4a-99f3-65c8b6782a2a",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hr"
+      ],
+      "number": 11,
+      "size": "22 x 36 x 12"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 12,
+      "size": "2 5/8 x 36 x 3 3/16"
+    },
+    {
+      "description": "Base Filler",
+      "key": "4b64d096-54b1-49d9-88e9-39c84bc14bb4:left",
+      "kind": "filler",
+      "notes": [],
+      "number": 13,
+      "size": "6 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "c38ca5a0-197f-4885-a084-d33ec4eafcff",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "Door x 30 1/2\", Blind x 17 1/2\"",
+        "pt 15 1/4\" oc from R",
+        "Left Sec (1 as)",
+        "Right Sec (1 as)"
+      ],
+      "number": 14,
+      "size": "48 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "3f940169-0e87-4e1d-812f-962646828468",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 15,
+      "size": "30 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "64543cee-d4c7-412c-b017-7563a402fc5b",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 16,
+      "size": "30 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "4b64d096-54b1-49d9-88e9-39c84bc14bb4:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 17,
+      "size": "1 13/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "4a087225-0a3c-4de0-9bdf-6c86d935aa25:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 18,
+      "size": "1 13/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "f13203f9-2ed3-45b8-8f03-f3ba7d808e99",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 19,
+      "size": "34 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "9ca7cce2-945a-4434-b3d7-3d57ae786f92",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 20,
+      "size": "34 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "4f66e919-9733-46c0-a64e-93b2b2b22549",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 21,
+      "size": "34 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "4a087225-0a3c-4de0-9bdf-6c86d935aa25:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 22,
+      "size": "1 13/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Wall End Panel",
+      "key": "84063fed-ab0d-4a1d-ae05-ffe67decad5e:endPanel:end",
+      "kind": "wall_end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 23,
+      "size": "13/16 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "4f63dbb1-fc47-40d0-a17c-f78b72e985f1",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 24,
+      "size": "30 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "244a2d47-5fee-4526-886e-c22645246225",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 25,
+      "size": "30 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "26015878-bf6a-45c7-a008-3694086276b9",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 26,
+      "size": "30 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "24332001-56d2-48f1-b88b-21dd2ff21a97",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 27,
+      "size": "30 x 30 1/2 x 12"
+    },
+    {
+      "description": "Base",
+      "key": "a09bcb6a-3951-4310-9850-f852509494c9",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 28,
+      "size": "30 x 30 1/2 x 12"
+    },
+    {
+      "description": "Base",
+      "key": "e3318f8f-58dc-4fc8-8c1c-def93a1fb204",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "3/4\" inset back",
+        "1 as"
+      ],
+      "number": 29,
+      "size": "30 x 30 1/2 x 12"
+    },
+    {
+      "description": "Wall End Panel",
+      "key": "84063fed-ab0d-4a1d-ae05-ffe67decad5e:endPanel:start",
+      "kind": "wall_end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 30,
+      "size": "13/16 x 34 1/2 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 31,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 32,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 33,
+      "size": "Lineal Feet: 32"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [
+    "Island 91 5/8 (planned 91 1/2)"
+  ],
+  "warnings": []
+}

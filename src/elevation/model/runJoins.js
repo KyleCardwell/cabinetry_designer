@@ -346,6 +346,7 @@ export function jointXRange(resolvedRoom, wall, jointId, settings, { excludeRunI
     if (!run) continue;
     const offset = member.offset ?? 0;
     const widthRange = runWidthRange(run, settings, {
+      room: resolvedRoom,
       endMinWidths: endMinWidthsForRun(resolvedRoom, wall, run, settings),
       blindCovers: blindCoversForRun(resolvedRoom, wall, run, settings),
     });

@@ -127,6 +127,7 @@ function ElevationCanvas({
     partNumbering,
     interiors,
     showThrough,
+    screenDrawing,
     previewShowThrough,
     drawerBoxes,
     adjustableShelves,
@@ -226,8 +227,8 @@ function ElevationCanvas({
 
   const measureGeometry = useMemo(
     () => (tool === 'measure' && room && wall
-      ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : null),
-    [tool, room, wall, settings],
+      ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings, { doorsOff }) : null),
+    [tool, room, wall, settings, doorsOff],
   );
   const measure = useMeasure({
     active: tool === 'measure',
@@ -550,9 +551,9 @@ function ElevationCanvas({
             wall={wall} transform={transform} selection={selection} tool={tool}
             pick={pick} settings={settings} selectOpening={selectOpening} selectLine={selectLine}
             moveSelectedOpening={moveSelectedOpening} cursor={cursor} room={room}
-            soffitJoins={soffitJoins} activeKey={activeKey} diagnostics={diagnostics}
+            diagnostics={diagnostics}
             facePath={facePath} pickFace={pickFace} doorsOff={doorsOff}
-            showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
+            screenDrawing={screenDrawing} showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
             adjustableShelves={adjustableShelves} rollouts={rollouts}
             accessories={accessories} interiorPath={interiorPath}
             interiorDivider={interiorDivider} pickInterior={pickInterior}
@@ -568,7 +569,7 @@ function ElevationCanvas({
             hoveredGlyphId={hoveredGlyphId} setHoveredGlyphId={setHoveredGlyphId}
           />
           <WallOverlayLayer
-            doorsOff={doorsOff} room={room} wall={wall} settings={settings}
+            room={room} wall={wall} settings={settings}
             transform={transform} combinedFaces={combinedFaces} activeKey={activeKey}
             selection={selection} hovered={hovered} alignmentGuides={alignmentGuides}
             viewport={viewport}
@@ -601,6 +602,7 @@ function ElevationCanvas({
                 wall={wall}
                 settings={settings}
                 partNumbers={partNumbering}
+                parts={screenDrawing.parts}
                 transform={transform}
               />
             </Layer>

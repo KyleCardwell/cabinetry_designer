@@ -93,8 +93,9 @@ describe('leg fill drawing payloads (SH7.2)', () => {
 
   it('preserves the entire payload without fills, with and without legs', () => {
     // Captured before step c, including elevation parts and plan parts/shapes; PT2 c changed only the top lines.
+    // GC5: part number placement
     for (const [legs, hash] of [
-      [four, '273b9e96f24dcc21556cbbe28c03ac4754743c80722735d01e0fabbf1256a002'],
+      [four, '65e8f13c2dcb8a250e1e9b353cd5d52d9753dfbd10e6c6c095f2448bc8692c9e'],
       [[], 'a8d0978686bac67812b702c6ff3887eee6af9bf8c1d683d2fbe950ed77f7cdcb'],
     ]) {
       const input = room({ walls: [wall({ ...W, runs: [run({ ...R, legs })] })] });

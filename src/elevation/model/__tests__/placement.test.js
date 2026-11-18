@@ -122,6 +122,7 @@ describe('splitOptionsForRun (LL1)', () => {
     const run = runOf(state, BASE10);
     const before = structuredClone(state);
     expect(splitOptionsForRun(state, wall, run, settings)).toEqual({
+      room: state,
       endMinWidths: endMinWidthsForRun(state, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(state, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),

@@ -7,7 +7,7 @@ import {
 import { pickOptions } from '../../model/doorStyleEdits.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { removeItem, setCellExtend, setItemWidth, setPartStyle } from '../../store/elevationSlice.js';
-import { shippingDescription } from '../../../reports/shippingList.js';
+import { itemDescription } from '../../model/items/itemReport.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
 import CellProperties from './CellProperties.jsx';
@@ -141,7 +141,7 @@ export default function PieceProperties({
   );
   const reportFields = partNumberField ? (
     <PartReportFields room={room} partKey={partKey} kind={piece.kind} settings={settings}
-      autoName={shippingDescription(room, settings, {
+      autoName={itemDescription(room, settings, {
         key: partKey, kind: piece.kind, wallId: wall.id, runId: run.id, side: wallSideOf(run),
       })} />
   ) : null;

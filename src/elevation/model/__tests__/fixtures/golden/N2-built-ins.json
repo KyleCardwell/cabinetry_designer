@@ -1,0 +1,2774 @@
+{
+  "name": "GC N2 Built-ins",
+  "document": {
+    "id": "01a1d6a9-9d78-7450-b0a3-3ec8c1949269",
+    "name": "GC N2 Built-ins",
+    "style": {
+      "cabinetStyleId": 15
+    },
+    "walls": [
+      {
+        "id": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
+        "x1": -89,
+        "x2": -89,
+        "y1": 90,
+        "y2": -90,
+        "name": "",
+        "runs": [
+          {
+            "x": 6.25,
+            "z": 4,
+            "id": "8cf27dd8-2e21-408b-88fc-17d0a51eab7e",
+            "top": "wood",
+            "ends": {
+              "left": {
+                "type": "end_panel",
+                "width": null
+              },
+              "right": {
+                "type": "end_panel",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 6.25,
+              "left": -0.25,
+              "right": -0.125,
+              "width": 53.625
+            },
+            "grid": {
+              "id": "8cf27dd8-2e21-408b-88fc-17d0a51eab7e:grid",
+              "cols": [
+                {
+                  "id": "da7ee479-a96e-4118-84b0-e8328902c9a2:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                },
+                {
+                  "id": "0077825a-c803-4540-ba61-8270e2c67310:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                }
+              ],
+              "rows": [
+                {
+                  "id": "8cf27dd8-2e21-408b-88fc-17d0a51eab7e:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "da7ee479-a96e-4118-84b0-e8328902c9a2",
+                    "face": {
+                      "size": null,
+                      "children": [
+                        {
+                          "size": null,
+                          "type": "drawer_front",
+                          "match": "standard"
+                        },
+                        {
+                          "size": null,
+                          "type": "drawer_front"
+                        },
+                        {
+                          "size": null,
+                          "type": "drawer_front"
+                        }
+                      ],
+                      "direction": "vertical"
+                    },
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 1,
+                  "row": 0,
+                  "node": {
+                    "id": "0077825a-c803-4540-ba61-8270e2c67310",
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 24,
+            "width": 53.625,
+            "height": 30.5,
+            "outset": 0,
+            "anchors": {
+              "left": false,
+              "right": {
+                "to": "recess",
+                "edge": "left",
+                "offset": 0,
+                "recessId": "7214e71f-5588-4276-b2f6-64b21703d88f"
+              }
+            },
+            "wallSide": "front",
+            "autoCount": true,
+            "overrides": {},
+            "heightMode": "auto",
+            "topOverhang": {
+              "left": 2,
+              "front": 1
+            },
+            "cabinetTypeId": 1,
+            "maxCabinetWidth": null
+          },
+          {
+            "x": 8.5,
+            "z": 54.75,
+            "id": "b0a5d470-3633-4333-908d-f6e561e583ee",
+            "top": "none",
+            "ends": {
+              "left": {
+                "type": "none",
+                "width": null
+              },
+              "right": {
+                "type": "none",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 8.5,
+              "left": 0.125,
+              "right": 0,
+              "width": 51.5
+            },
+            "grid": {
+              "id": "b0a5d470-3633-4333-908d-f6e561e583ee:grid",
+              "cols": [
+                {
+                  "id": "b4772ac1-71e3-46e6-aaa0-345d2f6a6637:col",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "rows": [
+                {
+                  "id": "b0a5d470-3633-4333-908d-f6e561e583ee:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "b4772ac1-71e3-46e6-aaa0-345d2f6a6637",
+                    "kind": "shelves",
+                    "shelves": {
+                      "back": false,
+                      "bottom": 0
+                    }
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 12,
+            "width": 51.5,
+            "height": 47.25,
+            "anchors": {
+              "left": false,
+              "right": {
+                "to": "recess",
+                "edge": "left",
+                "offset": 0,
+                "recessId": "7214e71f-5588-4276-b2f6-64b21703d88f"
+              }
+            },
+            "wallSide": "front",
+            "autoCount": false,
+            "overrides": {},
+            "heightMode": "auto",
+            "cabinetTypeId": 2,
+            "maxCabinetWidth": null
+          },
+          {
+            "x": 120,
+            "z": 4,
+            "id": "f6247069-6523-4261-8f96-29212be780e6",
+            "ends": {
+              "left": {
+                "type": "end_panel",
+                "width": null
+              },
+              "right": {
+                "type": "filler",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 120,
+              "left": 0,
+              "boxes": {
+                "run": 28.5
+              },
+              "right": 0,
+              "width": 60
+            },
+            "grid": {
+              "id": "f6247069-6523-4261-8f96-29212be780e6:grid",
+              "cols": [
+                {
+                  "id": "33fcaba7-0460-4430-8223-08353f6c2138:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                },
+                {
+                  "id": "5c4443dc-5eea-4e5d-9639-a48601a3a19f:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                }
+              ],
+              "rows": [
+                {
+                  "id": "f6247069-6523-4261-8f96-29212be780e6:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "33fcaba7-0460-4430-8223-08353f6c2138",
+                    "face": {
+                      "size": null,
+                      "type": "pair_door",
+                      "sizes": {
+                        "layout": {
+                          "split": "rows",
+                          "children": [
+                            {},
+                            {}
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 1,
+                  "row": 0,
+                  "node": {
+                    "id": "5c4443dc-5eea-4e5d-9639-a48601a3a19f",
+                    "face": {
+                      "size": null,
+                      "type": "pair_door",
+                      "sizes": {
+                        "layout": {
+                          "split": "rows",
+                          "children": [
+                            {},
+                            {}
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 24,
+            "width": 60,
+            "height": 30.5,
+            "outset": 0,
+            "anchors": {
+              "left": {
+                "to": "recess",
+                "edge": "right",
+                "offset": 0,
+                "recessId": "7214e71f-5588-4276-b2f6-64b21703d88f"
+              },
+              "right": true
+            },
+            "wallSide": "front",
+            "autoCount": true,
+            "overrides": {},
+            "heightMode": "auto",
+            "cabinetTypeId": 1,
+            "maxCabinetWidth": null
+          },
+          {
+            "x": 120,
+            "z": 54.75,
+            "id": "859d4826-c0ed-4d19-87e9-bd71333b6c20",
+            "ends": {
+              "left": {
+                "type": "filler",
+                "width": null
+              },
+              "right": {
+                "type": "filler",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 120,
+              "left": 0,
+              "boxes": {
+                "run": 29
+              },
+              "right": 0,
+              "width": 60
+            },
+            "grid": {
+              "id": "859d4826-c0ed-4d19-87e9-bd71333b6c20:grid",
+              "cols": [
+                {
+                  "id": "0feabb20-ad36-4868-82bd-be94baf47a24:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                },
+                {
+                  "id": "80b2d87b-3e6c-4ca7-a9d2-b2e0bc4e3be1:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                }
+              ],
+              "rows": [
+                {
+                  "id": "859d4826-c0ed-4d19-87e9-bd71333b6c20:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "0feabb20-ad36-4868-82bd-be94baf47a24",
+                    "face": {
+                      "size": null,
+                      "type": "open"
+                    },
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 1,
+                  "row": 0,
+                  "node": {
+                    "id": "80b2d87b-3e6c-4ca7-a9d2-b2e0bc4e3be1",
+                    "face": {
+                      "size": null,
+                      "type": "open"
+                    },
+                    "kind": "cabinet",
+                    "shelves": {
+                      "nosing": "hardwood"
+                    }
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 12,
+            "width": 60,
+            "height": 47.25,
+            "anchors": {
+              "left": {
+                "to": "recess",
+                "edge": "right",
+                "offset": 0,
+                "recessId": "7214e71f-5588-4276-b2f6-64b21703d88f"
+              },
+              "right": true
+            },
+            "wallSide": "front",
+            "autoCount": true,
+            "overrides": {},
+            "heightMode": "auto",
+            "cabinetTypeId": 2,
+            "maxCabinetWidth": null
+          }
+        ],
+        "height": 108,
+        "joints": [],
+        "flipped": false,
+        "profile": {},
+        "soffits": [],
+        "landings": {
+          "end": null,
+          "start": null
+        },
+        "openings": [],
+        "recesses": [
+          {
+            "id": "7214e71f-5588-4276-b2f6-64b21703d88f",
+            "kind": "projection",
+            "depth": 18,
+            "label": "P1",
+            "width": 60,
+            "bottom": 0,
+            "height": null,
+            "offset": 90,
+            "molding": "crown",
+            "wallSide": "front",
+            "offsetFrom": "left",
+            "offsetAnchor": "center"
+          }
+        ],
+        "endPanels": {
+          "end": null,
+          "start": null
+        },
+        "thickness": 4.5,
+        "connections": {
+          "end": {
+            "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
+            "endpoint": "start"
+          },
+          "start": null
+        },
+        "numberOverride": null,
+        "elevationForced": false,
+        "thicknessOverride": null
+      },
+      {
+        "id": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
+        "x1": -89,
+        "x2": 89,
+        "y1": -90,
+        "y2": -90,
+        "name": "",
+        "runs": [
+          {
+            "x": 47.4375,
+            "z": 4,
+            "id": "20b65788-3176-44db-b582-5b2089bc0cfb",
+            "top": "wood",
+            "ends": {
+              "left": {
+                "type": "end_panel",
+                "width": null
+              },
+              "right": {
+                "type": "end_panel",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 47.4375,
+              "left": 0.0625,
+              "right": 0.0625,
+              "width": 83.625
+            },
+            "grid": {
+              "id": "20b65788-3176-44db-b582-5b2089bc0cfb:grid",
+              "cols": [
+                {
+                  "id": "7b3642e1-12f2-4bfe-900f-9049f893ed4f:col",
+                  "size": null,
+                  "sizeMode": "auto"
+                },
+                {
+                  "id": "c9b115ad-2f96-4d48-861d-0be03d019d2b:col",
+                  "size": 31.5,
+                  "sizeMode": "manual"
+                },
+                {
+                  "id": "fde4c5e0-3cbf-49db-99aa-a13d6917ff69:col",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "rows": [
+                {
+                  "id": "20b65788-3176-44db-b582-5b2089bc0cfb:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "7b3642e1-12f2-4bfe-900f-9049f893ed4f",
+                    "face": {
+                      "size": null,
+                      "children": [
+                        {
+                          "size": null,
+                          "type": "drawer_front",
+                          "match": "standard"
+                        },
+                        {
+                          "size": null,
+                          "type": "drawer_front"
+                        },
+                        {
+                          "size": null,
+                          "type": "drawer_front"
+                        }
+                      ],
+                      "direction": "vertical"
+                    },
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 1,
+                  "row": 0,
+                  "node": {
+                    "id": "c9b115ad-2f96-4d48-861d-0be03d019d2b",
+                    "cols": [
+                      {
+                        "id": "320c4707-17ba-40ce-af3a-d8714576f551",
+                        "size": null,
+                        "sizeMode": "auto"
+                      }
+                    ],
+                    "rows": [
+                      {
+                        "id": "158bbb80-e534-4230-a136-e1148d8a522e",
+                        "size": 4,
+                        "sizeMode": "manual"
+                      },
+                      {
+                        "id": "6f74b289-2034-4572-a32a-ccb59a4a4fc8",
+                        "size": null,
+                        "sizeMode": "auto"
+                      }
+                    ],
+                    "cells": [
+                      {
+                        "col": 0,
+                        "row": 0,
+                        "node": {
+                          "id": "f52c9a95-ec0d-49f3-abe1-975420e7e13b",
+                          "box": {
+                            "bottom": "none"
+                          },
+                          "face": {
+                            "size": null,
+                            "type": "drawer_front"
+                          },
+                          "kind": "cabinet",
+                          "style": {
+                            "cabinetStyleId": 13
+                          }
+                        },
+                        "colSpan": 1,
+                        "rowSpan": 1
+                      },
+                      {
+                        "col": 0,
+                        "row": 1,
+                        "node": {
+                          "id": "70acc9b2-fd45-49a0-af02-6bf106d7b37c",
+                          "kind": "void"
+                        },
+                        "colSpan": 1,
+                        "rowSpan": 1
+                      }
+                    ]
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 2,
+                  "row": 0,
+                  "node": {
+                    "id": "fde4c5e0-3cbf-49db-99aa-a13d6917ff69",
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 24,
+            "width": 83.625,
+            "height": 30.5,
+            "anchors": {
+              "left": false,
+              "right": false
+            },
+            "wallSide": "front",
+            "autoCount": true,
+            "overrides": {
+              "nosingProfileId": "532c89f2-6da1-42df-a62f-7714a07d20b2"
+            },
+            "heightMode": "auto",
+            "topSegments": [
+              {
+                "id": "5e9c3aa1-7af7-42df-9f33-09ba5adce255",
+                "to": "fde4c5e0-3cbf-49db-99aa-a13d6917ff69",
+                "drop": 5,
+                "from": "fde4c5e0-3cbf-49db-99aa-a13d6917ff69",
+                "kind": "wood",
+                "mode": "overlap"
+              }
+            ],
+            "cabinetTypeId": 1,
+            "maxCabinetWidth": null
+          }
+        ],
+        "height": 108,
+        "joints": [],
+        "flipped": false,
+        "profile": {},
+        "soffits": [],
+        "landings": {
+          "end": null,
+          "start": null
+        },
+        "openings": [],
+        "endPanels": {
+          "end": null,
+          "start": null
+        },
+        "thickness": 4.5,
+        "connections": {
+          "end": {
+            "wallId": "93c425cf-96d1-4abd-93e7-be514d804f33",
+            "endpoint": "start"
+          },
+          "start": {
+            "wallId": "dab7622f-8e0d-473c-893a-e6d01fb780d5",
+            "endpoint": "end"
+          }
+        },
+        "numberOverride": null,
+        "elevationForced": false,
+        "thicknessOverride": null
+      },
+      {
+        "id": "93c425cf-96d1-4abd-93e7-be514d804f33",
+        "x1": 89,
+        "x2": 89,
+        "y1": -90,
+        "y2": 90,
+        "name": "",
+        "runs": [
+          {
+            "x": 0,
+            "z": 4,
+            "id": "ba1e1078-b801-4205-9b18-7c8e3424191f",
+            "ends": {
+              "left": {
+                "type": "filler",
+                "width": null
+              },
+              "right": {
+                "type": "end_panel",
+                "width": null
+              }
+            },
+            "flex": {
+              "x": 0,
+              "left": 0,
+              "boxes": {
+                "run": 30.5
+              },
+              "right": 0,
+              "width": 100
+            },
+            "grid": {
+              "id": "ba1e1078-b801-4205-9b18-7c8e3424191f:grid",
+              "cols": [
+                {
+                  "id": "ae07edb1-22cc-44ea-b9f7-ad4c82fcb90c:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                },
+                {
+                  "id": "1f6e8f41-ce59-41b3-b5a8-28c15cc586e3:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                },
+                {
+                  "id": "046c9492-e02a-458a-b796-03ba503e5665:col",
+                  "size": null,
+                  "sizeMode": "auto",
+                  "autoAdded": true
+                }
+              ],
+              "rows": [
+                {
+                  "id": "ba1e1078-b801-4205-9b18-7c8e3424191f:row",
+                  "size": null,
+                  "sizeMode": "auto"
+                }
+              ],
+              "cells": [
+                {
+                  "col": 0,
+                  "row": 0,
+                  "node": {
+                    "id": "ae07edb1-22cc-44ea-b9f7-ad4c82fcb90c",
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 1,
+                  "row": 0,
+                  "node": {
+                    "id": "1f6e8f41-ce59-41b3-b5a8-28c15cc586e3",
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "col": 2,
+                  "row": 0,
+                  "node": {
+                    "id": "046c9492-e02a-458a-b796-03ba503e5665",
+                    "kind": "cabinet"
+                  },
+                  "colSpan": 1,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "depth": 24,
+            "width": 100,
+            "height": 30.5,
+            "anchors": {
+              "left": true,
+              "right": false
+            },
+            "endLegs": {
+              "left": {
+                "legs": "front",
+                "front": {
+                  "x": 0,
+                  "y": 0.25,
+                  "height": "full",
+                  "sitsOn": "base",
+                  "shapeId": "31a5de8e-e169-4316-a9ce-b26bdd9a6a2d"
+                }
+              },
+              "right": {
+                "back": {
+                  "x": 0,
+                  "y": 0,
+                  "height": "full",
+                  "shapeId": "31a5de8e-e169-4316-a9ce-b26bdd9a6a2d"
+                },
+                "legs": "both",
+                "front": {
+                  "x": -1.25,
+                  "y": 2.5,
+                  "height": "full",
+                  "shapeId": "31a5de8e-e169-4316-a9ce-b26bdd9a6a2d"
+                }
+              }
+            },
+            "wallSide": "front",
+            "autoCount": true,
+            "overrides": {},
+            "heightMode": "auto",
+            "cabinetTypeId": 1,
+            "maxCabinetWidth": null
+          }
+        ],
+        "height": 108,
+        "joints": [],
+        "flipped": false,
+        "profile": {},
+        "soffits": [],
+        "landings": {
+          "end": null,
+          "start": null
+        },
+        "openings": [],
+        "endPanels": {
+          "end": null,
+          "start": null
+        },
+        "thickness": 4.5,
+        "connections": {
+          "end": null,
+          "start": {
+            "wallId": "a389cfce-0715-41e4-b12d-e10b6d5f5617",
+            "endpoint": "end"
+          }
+        },
+        "numberOverride": null,
+        "elevationForced": false,
+        "thicknessOverride": null
+      }
+    ],
+    "profile": {
+      "baseKind": "furniture_base",
+      "crownTop": 108,
+      "wallHeight": 108,
+      "furnitureBaseProfileId": "af0ac601-fd98-48a7-9e1f-ba3b41b40928"
+    },
+    "wallOrder": [
+      "dab7622f-8e0d-473c-893a-e6d01fb780d5",
+      "a389cfce-0715-41e4-b12d-e10b6d5f5617",
+      "93c425cf-96d1-4abd-93e7-be514d804f33"
+    ],
+    "doorStyles": [
+      {
+        "id": "9e0bb474-ffbb-4fdf-af56-672c1f97523c",
+        "mid": {},
+        "arch": {
+          "rise": 2
+        },
+        "label": "A",
+        "panel": {
+          "type": "flat",
+          "thickness": 0.625
+        },
+        "rails": {
+          "top": 1.5,
+          "bottom": 1.5
+        },
+        "stiles": {
+          "left": 1.5,
+          "right": 1.5
+        },
+        "designId": "01a13bc2-bd7c-769e-ac7f-6d652f0ea2bd",
+        "profiles": {
+          "panel": null,
+          "inside": null,
+          "outside": null
+        },
+        "shortFace": {
+          "step": 0.0625,
+          "minRail": 1.625,
+          "minPanel": 2.125,
+          "slabBelow": 3.9375
+        },
+        "thickness": 0.8125,
+        "appliedMoldings": []
+      },
+      {
+        "id": "17aa7ec7-1f4f-4bfb-9ae6-4d6b68f4dac9",
+        "mid": {},
+        "arch": {
+          "rise": 2
+        },
+        "label": "B",
+        "panel": {
+          "type": "flat",
+          "thickness": 0.5
+        },
+        "rails": {
+          "top": 3,
+          "bottom": 3
+        },
+        "stiles": {
+          "left": 3,
+          "right": 3
+        },
+        "designId": "slab-mdf",
+        "profiles": {
+          "panel": null,
+          "inside": null,
+          "outside": null
+        },
+        "shortFace": {
+          "step": 0.0625,
+          "minRail": 1.625,
+          "minPanel": 2.125,
+          "slabBelow": 4.8125
+        },
+        "thickness": 0.75,
+        "appliedMoldings": [
+          {
+            "offset": 0.375,
+            "profileId": "19e5c419-ad67-4d59-9c79-12cce6a5bb3d"
+          }
+        ]
+      }
+    ],
+    "reportNote": "",
+    "reportParts": {},
+    "partNumberStart": 1,
+    "drawerFrontStyleId": "17aa7ec7-1f4f-4bfb-9ae6-4d6b68f4dac9",
+    "partNumberOverrides": {}
+  },
+  "schemaVersion": 4,
+  "settingsSnapshot": {
+    "pulls": [
+      {
+        "id": "pull-4",
+        "kind": "pull",
+        "name": "4\" pull",
+        "labor": {},
+        "price": null,
+        "width": 0.375,
+        "length": 4.75,
+        "centers": 4,
+        "actualCost": null,
+        "projection": 1.25,
+        "hardwarePullId": null
+      },
+      {
+        "id": "knob-1-25",
+        "kind": "knob",
+        "name": "1 1/4\" knob",
+        "labor": {},
+        "price": null,
+        "diameter": 1.25,
+        "actualCost": null,
+        "projection": 1,
+        "hardwarePullId": null
+      }
+    ],
+    "format": 1,
+    "shapes": [
+      {
+        "id": "31a5de8e-e169-4316-a9ce-b26bdd9a6a2d",
+        "box": {
+          "d": 2.5,
+          "h": 34.5,
+          "w": 2.5,
+          "x": -1.25,
+          "y": -1.25,
+          "z": 0
+        },
+        "kind": "leg",
+        "name": "Leg 1",
+        "views": {
+          "plan": {
+            "loops": [
+              {
+                "id": "square",
+                "segs": [
+                  {
+                    "to": "sq2",
+                    "from": "sq1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "sq3",
+                    "from": "sq2",
+                    "type": "line"
+                  },
+                  {
+                    "to": "sq4",
+                    "from": "sq3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "sq1",
+                    "from": "sq4",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "circle",
+                "segs": [
+                  {
+                    "to": "c2",
+                    "ccw": true,
+                    "from": "c1",
+                    "type": "arc",
+                    "center": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "to": "c1",
+                    "ccw": true,
+                    "from": "c2",
+                    "type": "arc",
+                    "center": [
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "closed": true
+              }
+            ],
+            "units": "in",
+            "points": {
+              "c1": [
+                1.25,
+                0
+              ],
+              "c2": [
+                -1.25,
+                0
+              ],
+              "sq1": [
+                -1.25,
+                -1.25
+              ],
+              "sq2": [
+                1.25,
+                -1.25
+              ],
+              "sq3": [
+                1.25,
+                1.25
+              ],
+              "sq4": [
+                -1.25,
+                1.25
+              ]
+            }
+          },
+          "side": {
+            "loops": [
+              {
+                "id": "s1",
+                "segs": [
+                  {
+                    "to": "s1p2",
+                    "from": "s1p1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p3",
+                    "from": "s1p2",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p4",
+                    "from": "s1p3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p1",
+                    "from": "s1p4",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s2",
+                "segs": [
+                  {
+                    "to": "s2r1",
+                    "from": "s2r0",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2m1",
+                    "from": "s2r1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2m0",
+                    "from": "s2m1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2r0",
+                    "from": "s2m0",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s3",
+                "segs": [
+                  {
+                    "to": "s3r1",
+                    "from": "s3r0",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r2",
+                    "ccw": true,
+                    "from": "s3r1",
+                    "type": "arc",
+                    "center": [
+                      0.7841880341880342,
+                      4.25
+                    ]
+                  },
+                  {
+                    "to": "s3r3",
+                    "from": "s3r2",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r4",
+                    "from": "s3r3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r5",
+                    "from": "s3r4",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r6",
+                    "ccw": true,
+                    "from": "s3r5",
+                    "type": "arc",
+                    "center": [
+                      1,
+                      29
+                    ]
+                  },
+                  {
+                    "to": "s3m6",
+                    "from": "s3r6",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m5",
+                    "ccw": true,
+                    "from": "s3m6",
+                    "type": "arc",
+                    "center": [
+                      -1,
+                      29
+                    ]
+                  },
+                  {
+                    "to": "s3m4",
+                    "from": "s3m5",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m3",
+                    "from": "s3m4",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m2",
+                    "from": "s3m3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m1",
+                    "ccw": true,
+                    "from": "s3m2",
+                    "type": "arc",
+                    "center": [
+                      -0.7841880341880342,
+                      4.25
+                    ]
+                  },
+                  {
+                    "to": "s3m0",
+                    "from": "s3m1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r0",
+                    "from": "s3m0",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s3line1",
+                "segs": [
+                  {
+                    "to": "s3l1b",
+                    "from": "s3l1a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line2",
+                "segs": [
+                  {
+                    "to": "s3l2b",
+                    "from": "s3l2a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line3",
+                "segs": [
+                  {
+                    "to": "s3l3b",
+                    "from": "s3l3a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line4",
+                "segs": [
+                  {
+                    "to": "s3l4b",
+                    "from": "s3l4a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              }
+            ],
+            "units": "in",
+            "points": {
+              "s1p1": [
+                -1.25,
+                29.5
+              ],
+              "s1p2": [
+                1.25,
+                29.5
+              ],
+              "s1p3": [
+                1.25,
+                34.5
+              ],
+              "s1p4": [
+                -1.25,
+                34.5
+              ],
+              "s2m0": [
+                -1,
+                29.25
+              ],
+              "s2m1": [
+                -1.25,
+                29.5
+              ],
+              "s2r0": [
+                1,
+                29.25
+              ],
+              "s2r1": [
+                1.25,
+                29.5
+              ],
+              "s3m0": [
+                -0.75,
+                0
+              ],
+              "s3m1": [
+                -0.7841880341880342,
+                4
+              ],
+              "s3m2": [
+                -0.7841880341880342,
+                4.5
+              ],
+              "s3m3": [
+                -0.7884615384615384,
+                4.5
+              ],
+              "s3m4": [
+                -0.9957264957264957,
+                28.75
+              ],
+              "s3m5": [
+                -1,
+                28.75
+              ],
+              "s3m6": [
+                -1,
+                29.25
+              ],
+              "s3r0": [
+                0.75,
+                0
+              ],
+              "s3r1": [
+                0.7841880341880342,
+                4
+              ],
+              "s3r2": [
+                0.7841880341880342,
+                4.5
+              ],
+              "s3r3": [
+                0.7884615384615384,
+                4.5
+              ],
+              "s3r4": [
+                0.9957264957264957,
+                28.75
+              ],
+              "s3r5": [
+                1,
+                28.75
+              ],
+              "s3r6": [
+                1,
+                29.25
+              ],
+              "s3l1a": [
+                -0.7841880341880342,
+                4
+              ],
+              "s3l1b": [
+                0.7841880341880342,
+                4
+              ],
+              "s3l2a": [
+                -0.7884615384615384,
+                4.5
+              ],
+              "s3l2b": [
+                0.7884615384615384,
+                4.5
+              ],
+              "s3l3a": [
+                -0.9957264957264957,
+                28.75
+              ],
+              "s3l3b": [
+                0.9957264957264957,
+                28.75
+              ],
+              "s3l4a": [
+                -1,
+                29.25
+              ],
+              "s3l4b": [
+                1,
+                29.25
+              ]
+            }
+          },
+          "front": {
+            "loops": [
+              {
+                "id": "s1",
+                "segs": [
+                  {
+                    "to": "s1p2",
+                    "from": "s1p1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p3",
+                    "from": "s1p2",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p4",
+                    "from": "s1p3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s1p1",
+                    "from": "s1p4",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s2",
+                "segs": [
+                  {
+                    "to": "s2r1",
+                    "from": "s2r0",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2m1",
+                    "from": "s2r1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2m0",
+                    "from": "s2m1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s2r0",
+                    "from": "s2m0",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s3",
+                "segs": [
+                  {
+                    "to": "s3r1",
+                    "from": "s3r0",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r2",
+                    "ccw": true,
+                    "from": "s3r1",
+                    "type": "arc",
+                    "center": [
+                      0.7841880341880342,
+                      4.25
+                    ]
+                  },
+                  {
+                    "to": "s3r3",
+                    "from": "s3r2",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r4",
+                    "from": "s3r3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r5",
+                    "from": "s3r4",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r6",
+                    "ccw": true,
+                    "from": "s3r5",
+                    "type": "arc",
+                    "center": [
+                      1,
+                      29
+                    ]
+                  },
+                  {
+                    "to": "s3m6",
+                    "from": "s3r6",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m5",
+                    "ccw": true,
+                    "from": "s3m6",
+                    "type": "arc",
+                    "center": [
+                      -1,
+                      29
+                    ]
+                  },
+                  {
+                    "to": "s3m4",
+                    "from": "s3m5",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m3",
+                    "from": "s3m4",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m2",
+                    "from": "s3m3",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3m1",
+                    "ccw": true,
+                    "from": "s3m2",
+                    "type": "arc",
+                    "center": [
+                      -0.7841880341880342,
+                      4.25
+                    ]
+                  },
+                  {
+                    "to": "s3m0",
+                    "from": "s3m1",
+                    "type": "line"
+                  },
+                  {
+                    "to": "s3r0",
+                    "from": "s3m0",
+                    "type": "line"
+                  }
+                ],
+                "closed": true
+              },
+              {
+                "id": "s3line1",
+                "segs": [
+                  {
+                    "to": "s3l1b",
+                    "from": "s3l1a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line2",
+                "segs": [
+                  {
+                    "to": "s3l2b",
+                    "from": "s3l2a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line3",
+                "segs": [
+                  {
+                    "to": "s3l3b",
+                    "from": "s3l3a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              },
+              {
+                "id": "s3line4",
+                "segs": [
+                  {
+                    "to": "s3l4b",
+                    "from": "s3l4a",
+                    "type": "line"
+                  }
+                ],
+                "closed": false
+              }
+            ],
+            "units": "in",
+            "points": {
+              "s1p1": [
+                -1.25,
+                29.5
+              ],
+              "s1p2": [
+                1.25,
+                29.5
+              ],
+              "s1p3": [
+                1.25,
+                34.5
+              ],
+              "s1p4": [
+                -1.25,
+                34.5
+              ],
+              "s2m0": [
+                -1,
+                29.25
+              ],
+              "s2m1": [
+                -1.25,
+                29.5
+              ],
+              "s2r0": [
+                1,
+                29.25
+              ],
+              "s2r1": [
+                1.25,
+                29.5
+              ],
+              "s3m0": [
+                -0.75,
+                0
+              ],
+              "s3m1": [
+                -0.7841880341880342,
+                4
+              ],
+              "s3m2": [
+                -0.7841880341880342,
+                4.5
+              ],
+              "s3m3": [
+                -0.7884615384615384,
+                4.5
+              ],
+              "s3m4": [
+                -0.9957264957264957,
+                28.75
+              ],
+              "s3m5": [
+                -1,
+                28.75
+              ],
+              "s3m6": [
+                -1,
+                29.25
+              ],
+              "s3r0": [
+                0.75,
+                0
+              ],
+              "s3r1": [
+                0.7841880341880342,
+                4
+              ],
+              "s3r2": [
+                0.7841880341880342,
+                4.5
+              ],
+              "s3r3": [
+                0.7884615384615384,
+                4.5
+              ],
+              "s3r4": [
+                0.9957264957264957,
+                28.75
+              ],
+              "s3r5": [
+                1,
+                28.75
+              ],
+              "s3r6": [
+                1,
+                29.25
+              ],
+              "s3l1a": [
+                -0.7841880341880342,
+                4
+              ],
+              "s3l1b": [
+                0.7841880341880342,
+                4
+              ],
+              "s3l2a": [
+                -0.7884615384615384,
+                4.5
+              ],
+              "s3l2b": [
+                0.7884615384615384,
+                4.5
+              ],
+              "s3l3a": [
+                -0.9957264957264957,
+                28.75
+              ],
+              "s3l3b": [
+                0.9957264957264957,
+                28.75
+              ],
+              "s3l4a": [
+                -1,
+                29.25
+              ],
+              "s3l4b": [
+                1,
+                29.25
+              ]
+            }
+          }
+        },
+        "builder": {
+          "type": "stack",
+          "stretch": 2,
+          "sections": [
+            {
+              "type": "square",
+              "width": 2.5,
+              "height": 5
+            },
+            {
+              "type": "turned",
+              "profile": {
+                "loops": [
+                  {
+                    "id": "L1",
+                    "segs": [
+                      {
+                        "to": "q2",
+                        "from": "q1",
+                        "type": "line"
+                      }
+                    ],
+                    "closed": false
+                  }
+                ],
+                "units": "in",
+                "points": {
+                  "q1": [
+                    1,
+                    0
+                  ],
+                  "q2": [
+                    1.25,
+                    0.25
+                  ]
+                }
+              },
+              "drawnPoints": {
+                "elevation": []
+              }
+            },
+            {
+              "top": 2,
+              "type": "tapered",
+              "shape": "round",
+              "taper": "all",
+              "bottom": 1.5,
+              "height": 29.25,
+              "details": [
+                {
+                  "at": 0,
+                  "from": "top",
+                  "profile": {
+                    "loops": [
+                      {
+                        "id": "L1",
+                        "segs": [
+                          {
+                            "to": "b2",
+                            "ccw": true,
+                            "from": "b1",
+                            "type": "arc",
+                            "center": [
+                              0,
+                              0.25
+                            ]
+                          }
+                        ],
+                        "closed": false
+                      }
+                    ],
+                    "units": "in",
+                    "points": {
+                      "b1": [
+                        0,
+                        0
+                      ],
+                      "b2": [
+                        0,
+                        0.5
+                      ]
+                    }
+                  },
+                  "drawnPoints": {
+                    "elevation": []
+                  }
+                },
+                {
+                  "at": 4,
+                  "from": "bottom",
+                  "profile": {
+                    "loops": [
+                      {
+                        "id": "L1",
+                        "segs": [
+                          {
+                            "to": "b2",
+                            "ccw": true,
+                            "from": "b1",
+                            "type": "arc",
+                            "center": [
+                              0,
+                              0.25
+                            ]
+                          }
+                        ],
+                        "closed": false
+                      }
+                    ],
+                    "units": "in",
+                    "points": {
+                      "b1": [
+                        0,
+                        0
+                      ],
+                      "b2": [
+                        0,
+                        0.5
+                      ]
+                    }
+                  },
+                  "drawnPoints": {
+                    "elevation": []
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "stretch": {
+          "z": [
+            [
+              0,
+              29.25
+            ]
+          ]
+        },
+        "version": 15,
+        "archived": false
+      }
+    ],
+    "slides": [
+      {
+        "id": "blum-562h",
+        "name": "Blum Tandem 562H",
+        "brand": "Blum",
+        "clips": true,
+        "labor": {},
+        "model": "562H",
+        "mount": "undermount",
+        "price": null,
+        "height": 1,
+        "lengths": [
+          {
+            "nominal": 9
+          },
+          {
+            "nominal": 12
+          },
+          {
+            "length": 15.515625,
+            "nominal": 15,
+            "extension": 14.953125
+          },
+          {
+            "nominal": 18
+          },
+          {
+            "nominal": 21
+          },
+          {
+            "nominal": 24
+          },
+          {
+            "nominal": 27
+          },
+          {
+            "nominal": 30
+          },
+          {
+            "nominal": 33
+          },
+          {
+            "nominal": 36
+          }
+        ],
+        "minAbove": 0.25,
+        "minBelow": 0.5625,
+        "heavyDuty": false,
+        "softClose": true,
+        "actualCost": null,
+        "description": "Blum Tandem 562H soft-close",
+        "backClearance": 0.75,
+        "sideClearance": 0.25,
+        "hardwareSlideId": null
+      },
+      {
+        "id": "accuride-3832",
+        "name": "Accuride 3832",
+        "brand": "Accuride",
+        "clips": false,
+        "labor": {},
+        "model": "3832",
+        "mount": "side",
+        "price": null,
+        "height": 1.796875,
+        "lengths": [
+          {
+            "length": 8,
+            "nominal": 8,
+            "extension": 8
+          },
+          {
+            "nominal": 10
+          },
+          {
+            "nominal": 12
+          },
+          {
+            "nominal": 14
+          },
+          {
+            "nominal": 16
+          },
+          {
+            "nominal": 18
+          },
+          {
+            "nominal": 20
+          },
+          {
+            "nominal": 22
+          },
+          {
+            "nominal": 24
+          },
+          {
+            "nominal": 26
+          },
+          {
+            "nominal": 28
+          },
+          {
+            "nominal": 30
+          },
+          {
+            "nominal": 32
+          },
+          {
+            "nominal": 34
+          },
+          {
+            "nominal": 36
+          }
+        ],
+        "minAbove": 0.25,
+        "minBelow": 0.5625,
+        "heavyDuty": true,
+        "softClose": false,
+        "actualCost": null,
+        "description": "Accuride 3832 full extension",
+        "backClearance": 0,
+        "sideClearance": 0.5,
+        "hardwareSlideId": null
+      },
+      {
+        "id": "accuride-4034",
+        "name": "Accuride 4034",
+        "brand": "Accuride",
+        "clips": false,
+        "labor": {},
+        "model": "4034",
+        "mount": "side",
+        "price": null,
+        "height": 1.796875,
+        "lengths": [
+          {
+            "nominal": 8
+          },
+          {
+            "nominal": 10
+          },
+          {
+            "nominal": 12
+          },
+          {
+            "nominal": 14
+          },
+          {
+            "nominal": 16
+          },
+          {
+            "nominal": 18
+          },
+          {
+            "nominal": 20
+          },
+          {
+            "nominal": 22
+          },
+          {
+            "nominal": 24
+          },
+          {
+            "nominal": 26
+          },
+          {
+            "nominal": 28
+          },
+          {
+            "nominal": 30
+          },
+          {
+            "nominal": 32
+          },
+          {
+            "nominal": 34
+          },
+          {
+            "nominal": 36
+          }
+        ],
+        "minAbove": 0.25,
+        "minBelow": 0.5625,
+        "heavyDuty": true,
+        "softClose": false,
+        "actualCost": null,
+        "description": "Accuride 4034 heavy duty",
+        "backClearance": 0,
+        "sideClearance": 0.5,
+        "hardwareSlideId": null
+      }
+    ],
+    "library": {
+      "pulls": {
+        "pull-4": 1,
+        "knob-1-25": 1
+      },
+      "shapes": {
+        "31a5de8e-e169-4316-a9ce-b26bdd9a6a2d": 1
+      },
+      "slides": {
+        "blum-562h": 1,
+        "accuride-3832": 1,
+        "accuride-4034": 1
+      },
+      "profiles": {
+        "19e5c419-ad67-4d59-9c79-12cce6a5bb3d": 2,
+        "532c89f2-6da1-42df-a62f-7714a07d20b2": 1,
+        "5d799e26-08d6-4c96-bfb1-7441abdc3886": 1,
+        "af0ac601-fd98-48a7-9e1f-ba3b41b40928": 1,
+        "db5e271d-707d-4067-82ce-5804e14490df": 2
+      },
+      "accessories": {},
+      "doorDesigns": {
+        "slab": 4,
+        "slab-mdf": 4,
+        "five-piece-square": 3,
+        "01a13bc2-bd7c-769e-ac7f-6d652f0ea2bd": 3
+      }
+    },
+    "missing": {
+      "pulls": [],
+      "shapes": [],
+      "slides": [],
+      "profiles": [],
+      "accessories": [],
+      "doorDesigns": []
+    },
+    "settings": {
+      "report": {
+        "wood": "",
+        "finish": "",
+        "jobNumber": "",
+        "companyFax": "444-444-4444",
+        "companyZip": "",
+        "boxMaterial": "",
+        "companyCity": "",
+        "companyName": "Kyle's Practice Company",
+        "wireBrushed": false,
+        "companyPhone": "555-555-5555",
+        "companyState": "",
+        "doorFormNote": "No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "edgebandAlert": "",
+        "companyAddress": ""
+      },
+      "roundTo": 0.5,
+      "runFlex": 0.25,
+      "zoneGap": 1,
+      "teeCover": 0.75,
+      "baseDepth": 24,
+      "tallDepth": 25,
+      "bandDepths": {
+        "toeKickSetback": 3,
+        "crownProjection": 3,
+        "countertopOverhang": 0.75,
+        "toeKickSideSetback": 1,
+        "toeKickEndPanelSetback": 1
+      },
+      "doorPullAt": "auto",
+      "doorPullId": "pull-4",
+      "insetFrame": {
+        "rail": 1.5,
+        "stile": 0.75,
+        "midRail": 1.5,
+        "mullion": 1.5,
+        "thickness": 0.8125,
+        "upperDrop": 0.75
+      },
+      "pullHeight": 45,
+      "upperDepth": 12,
+      "casingWidth": 3,
+      "cornerDoors": "equal",
+      "defaultEnds": {
+        "left": "filler",
+        "right": "filler"
+      },
+      "faceReveals": {
+        "1": {
+          "top": 0.125,
+          "left": 0.0625,
+          "right": 0.0625,
+          "bottom": 0.125,
+          "vertical": 0.125,
+          "horizontal": 0.125
+        },
+        "2": {
+          "top": 0.125,
+          "left": 0.0625,
+          "right": 0.0625,
+          "bottom": -0.125,
+          "vertical": 0.125,
+          "horizontal": 0.125
+        },
+        "3": {
+          "top": 0.125,
+          "left": 0.0625,
+          "right": 0.0625,
+          "bottom": 0.125,
+          "vertical": 0.125,
+          "horizontal": 0.125
+        }
+      },
+      "minRunWidth": 3,
+      "profiledFit": {
+        "edge": 0.09375,
+        "pairGap": 0.125,
+        "pairEdge": 0.0625,
+        "sharedGap": 0.0625
+      },
+      "defaultStyle": {
+        "beadWidth": 0.25,
+        "cabinetStyleId": 13
+      },
+      "drawerPullAt": "center",
+      "drawerPullId": "pull-4",
+      "shelfSetback": 0.125,
+      "shelfSpacing": 11,
+      "teeThickness": 0.8125,
+      "cornerDoorGap": 0.125,
+      "drawerSlideId": "blum-562h",
+      "rolloutHeight": 4.25,
+      "rolloutSpacer": 1.25,
+      "teamDoorStyle": {
+        "id": "default",
+        "mid": {},
+        "arch": {
+          "rise": 2
+        },
+        "name": "Team default",
+        "label": "Std",
+        "panel": {
+          "type": "flat",
+          "thickness": 0.5
+        },
+        "rails": {
+          "top": 3,
+          "bottom": 3
+        },
+        "stiles": {
+          "left": 3,
+          "right": 3
+        },
+        "designId": "five-piece-square",
+        "profiles": {
+          "panel": null,
+          "inside": null,
+          "outside": null
+        },
+        "shortFace": {
+          "step": 0.0625,
+          "minRail": 1.625,
+          "minPanel": 2.125,
+          "slabBelow": 4.8125
+        },
+        "thickness": 0.8125,
+        "appliedMoldings": []
+      },
+      "toeKickTopGap": 0.125,
+      "wallThickness": 4.5,
+      "woodTopCorner": "miter",
+      "woodTopReveal": 0.125,
+      "woodTopScribe": 0.5,
+      "adjacentRunGap": 1,
+      "baseCutoutFoot": 3,
+      "defaultProfile": {
+        "baseKind": "toe_kick",
+        "crownTop": 96,
+        "wallHeight": 96,
+        "crownHeight": 4.5,
+        "baseBoxHeight": 30.5,
+        "toeKickHeight": 4,
+        "topMoldHeight": 3,
+        "crownProfileId": "5d799e26-08d6-4c96-bfb1-7441abdc3886",
+        "upperClearance": 18,
+        "nosingProfileId": null,
+        "topMoldOverhang": 0.25,
+        "crownStackHeight": 6,
+        "topMoldProfileId": "db5e271d-707d-4067-82ce-5804e14490df",
+        "furnitureBaseProud": 0.8125,
+        "baseCutoutProfileId": null,
+        "countertopThickness": 1.5,
+        "furnitureBaseProfileId": null
+      },
+      "drawerBoxOrder": {
+        "topEdge": "Flat Flush",
+        "assembly": "Pre-finished & assembled",
+        "comments": "Cross Grain Bottoms",
+        "sideMaterial": "Baltic Birch Ply",
+        "sideThickness": "5/8\"",
+        "bottomMaterial": "1/4\" Baltic Birch Ply",
+        "bottomPlacement": "Standard"
+      },
+      "fillerMinWidth": 1.5,
+      "legPanelReveal": 0.25,
+      "maxRunOverhang": 36,
+      "sheetThickness": 0.75,
+      "shoeShelfAngle": 12,
+      "shoeShelfClear": 6,
+      "squareLegDepth": 3,
+      "squareLegWidth": 3,
+      "stoneTopReveal": 0.25,
+      "bumperThickness": 0.0625,
+      "casingClearance": 0,
+      "casingThickness": 0.75,
+      "fillerThickness": 0.8125,
+      "fillerWarnWidth": 6,
+      "maxCabinetWidth": 36,
+      "minCabinetWidth": 4,
+      "minOpeningWidth": 6,
+      "stackedLowerTop": 0.125,
+      "baseCutoutHeight": 1.5,
+      "belowRunOverhang": -0.125,
+      "blindFillerWidth": 6,
+      "defaultDoorWidth": 36,
+      "doorPanelDefault": 0.5,
+      "drawerBoxHeights": {
+        "to": 10.25,
+        "max": 22.125,
+        "from": 2.25,
+        "step": 1,
+        "thenFrom": 11.125,
+        "warnAbove": 15.125
+      },
+      "bottomPartHeights": {
+        "panel": 0.75,
+        "corbels": 6,
+        "bottom_cap": 1.5,
+        "light_rail": 1.5,
+        "light_trough": 3
+      },
+      "defaultDoorHeight": 80,
+      "fillerReturnDepth": 2.5,
+      "foldedNosingExtra": 2,
+      "shelfNosingHeight": 1.5,
+      "defaultSoffitDepth": 14,
+      "defaultWindowSillZ": 42,
+      "defaultWindowWidth": 36,
+      "fillerReturnTongue": 0.125,
+      "openingsHaveCasing": true,
+      "pairDoorAboveWidth": 24,
+      "stackedUpperBottom": 0,
+      "belowRunFlushReveal": 0.125,
+      "defaultWindowHeight": 48,
+      "doorPullOrientation": "auto",
+      "drawerBoxAdjustment": 0.125,
+      "furnitureBaseScribe": 0.5,
+      "glassShelfThickness": 0.25,
+      "legPanelReturnDepth": 4.5,
+      "shelfWidthClearance": 0.0625,
+      "capturedSingleReveal": 0.09375,
+      "cornerDiagonalReveal": 0.125,
+      "cornerFillerMinWidth": 1.5,
+      "defaultSoffitMolding": "crown",
+      "floatingShelfSpacing": 11,
+      "legPanelTopClearance": 0,
+      "shelfNosingThickness": 0.8125,
+      "autoEndPanelOnFreeEnd": true,
+      "drawerPullOrientation": "auto",
+      "fillerReturnThickness": 0.75,
+      "prefinishedMapleExtra": 0.0625,
+      "snapHeightsToDefaults": true,
+      "standardDrawerHeights": {
+        "european": 5.875,
+        "faceFrame": 5
+      },
+      "floatingShelfThickness": 1.5,
+      "legPanelBottomClearance": 0,
+      "defaultOpeningMeasureMode": "jamb",
+      "defaultInteriorFillerWidth": 3
+    },
+    "overrides": {
+      "phase": {},
+      "project": {}
+    },
+    "issuedFrom": {
+      "roomId": "01a1d6a9-9d78-7450-b0a3-3ec8c1949269",
+      "teamId": "6bb798df-d28a-47dc-998e-a90bee875682",
+      "phaseId": "01a1d60c-8100-7bfb-a065-9aeba1c102dc",
+      "roomVersion": 25,
+      "teamVersion": 13,
+      "estProjectId": 106,
+      "phaseVersion": 1,
+      "projectVersion": 1
+    },
+    "accessories": [],
+    "doorDesigns": [
+      {
+        "id": "five-piece-square",
+        "code": "110",
+        "slots": [
+          "outside",
+          "inside",
+          "panel",
+          "applied"
+        ],
+        "vendor": "Stillwater",
+        "topRail": {
+          "shape": "flat"
+        },
+        "defaults": {
+          "slabBelow": 4.8125,
+          "thickness": 0.8125,
+          "stileWidth": 3,
+          "panelThickness": 0.5
+        },
+        "slabCore": null,
+        "bottomRail": {
+          "shape": "flat"
+        },
+        "panelJoint": "curved",
+        "description": "5-piece square",
+        "construction": "five_piece"
+      },
+      {
+        "id": "slab",
+        "code": "Slab",
+        "slots": [
+          "outside",
+          "applied"
+        ],
+        "vendor": "Stillwater",
+        "topRail": {
+          "shape": "flat"
+        },
+        "defaults": {
+          "thickness": 0.8125
+        },
+        "slabCore": "hardwood",
+        "bottomRail": {
+          "shape": "flat"
+        },
+        "panelJoint": null,
+        "description": "Slab (hardwood)",
+        "construction": "slab"
+      },
+      {
+        "id": "slab-mdf",
+        "code": "Slab - MDF Core",
+        "slots": [
+          "outside",
+          "applied"
+        ],
+        "vendor": "Alpha",
+        "topRail": {
+          "shape": "flat"
+        },
+        "defaults": {
+          "thickness": 0.75
+        },
+        "slabCore": "mdf",
+        "bottomRail": {
+          "shape": "flat"
+        },
+        "panelJoint": null,
+        "description": "Slab, MDF core, edge banded",
+        "construction": "slab"
+      },
+      {
+        "id": "01a13bc2-bd7c-769e-ac7f-6d652f0ea2bd",
+        "code": "Micro Shaker",
+        "slots": [
+          "outside",
+          "inside",
+          "panel",
+          "applied"
+        ],
+        "vendor": null,
+        "topRail": {
+          "shape": "flat"
+        },
+        "defaults": {
+          "slabBelow": 3.9375,
+          "thickness": 0.8125,
+          "stileWidth": 1.5,
+          "panelThickness": 0.625
+        },
+        "slabCore": null,
+        "bottomRail": {
+          "shape": "flat"
+        },
+        "panelJoint": "square",
+        "description": "Micro shaker, 1 1/2\" stiles & rails",
+        "construction": "five_piece"
+      }
+    ],
+    "sectionProfiles": [
+      {
+        "id": "19e5c419-ad67-4d59-9c79-12cce6a5bb3d",
+        "kind": "applied_molding",
+        "name": "3/8\" Half Bead",
+        "version": 2,
+        "archived": false,
+        "geometry": {
+          "loops": [
+            {
+              "id": "L1",
+              "segs": [
+                {
+                  "to": "t",
+                  "ccw": false,
+                  "from": "s",
+                  "type": "arc",
+                  "center": [
+                    -0.8125,
+                    0
+                  ]
+                },
+                {
+                  "to": "s",
+                  "from": "t",
+                  "type": "line"
+                }
+              ],
+              "closed": true
+            }
+          ],
+          "units": "in",
+          "points": {
+            "s": [
+              -1,
+              0
+            ],
+            "t": [
+              -0.625,
+              0
+            ]
+          }
+        },
+        "drawnPoints": {
+          "elevation": [
+            "s",
+            "t"
+          ]
+        }
+      },
+      {
+        "id": "5d799e26-08d6-4c96-bfb1-7441abdc3886",
+        "kind": "crown",
+        "name": "Crown 4 1/2",
+        "version": 3,
+        "archived": false,
+        "geometry": {
+          "loops": [
+            {
+              "id": "L1",
+              "segs": [
+                {
+                  "to": "c2",
+                  "from": "c1",
+                  "type": "line"
+                },
+                {
+                  "to": "p1",
+                  "from": "c2",
+                  "type": "line"
+                },
+                {
+                  "to": "c3",
+                  "from": "p1",
+                  "type": "line"
+                },
+                {
+                  "to": "c4",
+                  "from": "c3",
+                  "type": "line"
+                },
+                {
+                  "to": "c5",
+                  "ccw": true,
+                  "from": "c4",
+                  "type": "arc",
+                  "center": [
+                    5.714102,
+                    -5.531089
+                  ]
+                },
+                {
+                  "to": "c1",
+                  "from": "c5",
+                  "type": "line"
+                }
+              ],
+              "closed": true
+            }
+          ],
+          "units": "in",
+          "points": {
+            "c1": [
+              0,
+              -4.5
+            ],
+            "c2": [
+              0,
+              -3.5
+            ],
+            "c3": [
+              4,
+              0
+            ],
+            "c4": [
+              4,
+              -0.5
+            ],
+            "c5": [
+              0.5,
+              -4.5
+            ],
+            "p1": [
+              3,
+              0
+            ]
+          }
+        },
+        "drawnPoints": {
+          "plan": [
+            "c3"
+          ],
+          "elevation": [
+            "c3",
+            "c4",
+            "c5"
+          ]
+        }
+      },
+      {
+        "id": "db5e271d-707d-4067-82ce-5804e14490df",
+        "kind": "top_mold",
+        "name": "Top Mold",
+        "stretch": {
+          "y": 1
+        },
+        "version": 3,
+        "archived": false,
+        "geometry": {
+          "loops": [
+            {
+              "id": "L1",
+              "segs": [
+                {
+                  "to": "p6",
+                  "from": "p1",
+                  "type": "line"
+                },
+                {
+                  "to": "p5",
+                  "from": "p6",
+                  "type": "line"
+                },
+                {
+                  "to": "p2",
+                  "from": "p5",
+                  "type": "line"
+                },
+                {
+                  "to": "p3",
+                  "from": "p2",
+                  "type": "line"
+                },
+                {
+                  "to": "p4",
+                  "from": "p3",
+                  "type": "line"
+                },
+                {
+                  "to": "p1",
+                  "from": "p4",
+                  "type": "line"
+                }
+              ],
+              "closed": true
+            }
+          ],
+          "units": "in",
+          "points": {
+            "p1": [
+              -3,
+              0.75
+            ],
+            "p2": [
+              0,
+              3
+            ],
+            "p3": [
+              0,
+              0
+            ],
+            "p4": [
+              -3,
+              0
+            ],
+            "p5": [
+              -0.75,
+              3
+            ],
+            "p6": [
+              -0.75,
+              0.75
+            ]
+          }
+        },
+        "drawnPoints": {
+          "elevation": [
+            "p3"
+          ]
+        }
+      },
+      {
+        "id": "af0ac601-fd98-48a7-9e1f-ba3b41b40928",
+        "kind": "furniture_base",
+        "name": "Cove",
+        "version": 3,
+        "archived": false,
+        "geometry": {
+          "loops": [
+            {
+              "id": "L1",
+              "segs": [
+                {
+                  "to": "p4",
+                  "ccw": true,
+                  "from": "p1",
+                  "type": "arc",
+                  "center": [
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "closed": false
+            }
+          ],
+          "units": "in",
+          "points": {
+            "p1": [
+              -0.375,
+              0
+            ],
+            "p4": [
+              0,
+              -0.375
+            ]
+          }
+        },
+        "drawnPoints": {
+          "plan": [],
+          "elevation": [
+            "p4"
+          ]
+        }
+      },
+      {
+        "id": "532c89f2-6da1-42df-a62f-7714a07d20b2",
+        "kind": "nosing",
+        "name": "Nosing 3",
+        "version": 2,
+        "archived": false,
+        "geometry": {
+          "loops": [
+            {
+              "id": "L1",
+              "segs": [
+                {
+                  "to": "p2",
+                  "from": "p1",
+                  "type": "line"
+                },
+                {
+                  "to": "p3",
+                  "ccw": false,
+                  "from": "p2",
+                  "type": "arc",
+                  "center": [
+                    0.5,
+                    -0.5
+                  ]
+                },
+                {
+                  "to": "p6",
+                  "from": "p3",
+                  "type": "line"
+                },
+                {
+                  "to": "p5",
+                  "ccw": true,
+                  "from": "p6",
+                  "type": "arc",
+                  "center": [
+                    0.5,
+                    -1.5
+                  ]
+                },
+                {
+                  "to": "p4",
+                  "from": "p5",
+                  "type": "line"
+                },
+                {
+                  "to": "p1",
+                  "from": "p4",
+                  "type": "line"
+                }
+              ],
+              "closed": true
+            }
+          ],
+          "units": "in",
+          "points": {
+            "p1": [
+              0,
+              0
+            ],
+            "p2": [
+              0.5,
+              0
+            ],
+            "p3": [
+              0.5,
+              -1
+            ],
+            "p4": [
+              0,
+              -1.5
+            ],
+            "p5": [
+              0.125,
+              -1.5
+            ],
+            "p6": [
+              0.5,
+              -1.125
+            ]
+          }
+        },
+        "drawnPoints": {
+          "plan": [],
+          "elevation": [
+            "p3",
+            "p6"
+          ]
+        }
+      }
+    ]
+  }
+}

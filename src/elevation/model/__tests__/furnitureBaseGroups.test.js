@@ -34,7 +34,7 @@ const stepped = () => {
 describe('SPEC-50.7 step 495 furniture base groups', () => {
   it('orders one free 24-inch run with returned ends', () => {
     expect(groups(room([wall('A', [run('base')])]))).toEqual([{
-      key: 'furniture_base:base', runIds: ['base'], height: 4, orderedHeight: 4.5,
+      key: 'furniture_base:base', runIds: ['base'], bandIds: ['base:furniture_base'], height: 4, orderedHeight: 4.5,
       width: 37.625, orderedWidth: 37.625, depth: 25.6875,
       steps: [{ wallId: 'A', side: 'front', x1: 29.1875, x2: 66.8125, depth: 25.6875 }],
       faces: [{ wallId: 'A', side: 'front', runIds: ['base'] }],
@@ -43,7 +43,7 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
 
   it('joins a tall and shallower base, records the depth seam, and scribes the wall end', () => {
     expect(groups(stepped())).toEqual([{
-      key: 'furniture_base:T', runIds: ['T', 'B'], height: 4, orderedHeight: 4.5,
+      key: 'furniture_base:T', runIds: ['T', 'B'], bandIds: ['T:furniture_base', 'B:furniture_base'], height: 4, orderedHeight: 4.5,
       width: 66.8125, orderedWidth: 67.3125, depth: 25.6875,
       steps: [
         { wallId: 'A', side: 'front', x1: 0, x2: 30, depth: 25.6875 },

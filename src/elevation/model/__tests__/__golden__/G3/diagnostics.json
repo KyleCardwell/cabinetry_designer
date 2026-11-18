@@ -1,0 +1,26 @@
+{
+  "02c88254-9a83-4002-9fda-912cd06a2a21": {
+    "errors": [],
+    "warnings": []
+  },
+  "bcdd4e78-0d52-40d0-9f5d-2901e590e98a": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "widths-not-rounded",
+        "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+        "pieceId": "a538e242-d398-46bb-b752-71f9c7d19f66"
+      },
+      {
+        "code": "wide-cabinet",
+        "message": "Cabinet is wider than 36 inches.",
+        "pieceId": "a538e242-d398-46bb-b752-71f9c7d19f66"
+      },
+      {
+        "code": "cell-too-small",
+        "message": "Cell is smaller than 1 inch.",
+        "pieceId": "fbe04e96-9442-4fcd-aafa-b8d49960a63d"
+      }
+    ]
+  }
+}

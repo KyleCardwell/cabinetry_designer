@@ -1,16 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { saveBlob } from '../api/drawings.js';
 import {
-  filterSectionProfiles, mergeImportedProfiles, parseProfileFile, profileFile,
+  filterSectionProfiles,
   profileKindLabel, profileKindOptions,
 } from '../elevation/model/sectionProfiles.js';
 import {
-  addSectionProfile, deleteSectionProfile, importSectionProfiles, setSectionProfileArchived,
+  addSectionProfile, deleteSectionProfile, setSectionProfileArchived,
 } from '../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from './ProfileDetailsDialog.jsx';
 import ProfileThumbnail from './ProfileThumbnail.jsx';
+import LibraryTransfer from './LibraryTransfer.jsx';
+import { LibrarySelectAll, LibrarySelectRow, useLibrarySelection } from './LibrarySelection.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -26,33 +27,11 @@ export default function ProfilesPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
-  const [importMessage, setImportMessage] = useState(null);
-  const fileInputRef = useRef(null);
   const closeDialog = useCallback(() => setEditingId(null), []);
   const editingProfile = profiles.find((profile) => profile.id === editingId);
   const filteredProfiles = filterSectionProfiles(profiles, { search, kind, showArchived });
 
-  const importProfiles = async (event) => {
-    const input = event.target;
-    const file = input.files?.[0];
-    setImportMessage(null);
-    try {
-      if (!file) return;
-      const text = await file.text();
-      const parsed = parseProfileFile(text);
-      if (parsed === null) {
-        setImportMessage({ error: true, text: "That file isn't a profiles export." });
-        return;
-      }
-      const { added, replaced, skipped } = mergeImportedProfiles(profiles, parsed);
-      dispatch(importSectionProfiles({ profiles: parsed }));
-      setImportMessage({ error: false, text: `Imported: ${added} new, ${replaced} replaced, ${skipped} skipped.` });
-    } catch {
-      setImportMessage({ error: true, text: "That file isn't a profiles export." });
-    } finally {
-      input.value = '';
-    }
-  };
+  const selection = useLibrarySelection(filteredProfiles, JSON.stringify([search, kind, showArchived]));
 
   return (
     <div className="space-y-5">
@@ -67,7 +46,6 @@ export default function ProfilesPage() {
             className={BUTTON_CLASS}
             onClick={() => {
               setConfirmingId(null);
-              setImportMessage(null);
               const action = addSectionProfile();
               dispatch(action);
               setEditingId(action.payload.id);
@@ -75,28 +53,9 @@ export default function ProfilesPage() {
           >
             New profile
           </button>
-          <button
-            type="button"
-            className={`${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-            disabled={profiles.length === 0}
-            onClick={() => saveBlob(new Blob([JSON.stringify(profileFile(profiles), null, 2)], { type: 'application/json' }), 'profiles.json')}
-          >
-            Export
-          </button>
-          <button
-            type="button"
-            className={BUTTON_CLASS}
-            onClick={() => {
-              setImportMessage(null);
-              fileInputRef.current.click();
-            }}
-          >
-            Import…
-          </button>
-          <input ref={fileInputRef} type="file" accept=".json,application/json" hidden onChange={importProfiles} />
+          <LibraryTransfer listKey="sectionProfiles" selectedIds={selection.selectedIds} />
         </div>
       </div>
-      {importMessage && <p role="status" className={`text-sm ${importMessage.error ? 'text-red-400' : 'text-gray-300'}`}>{importMessage.text}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <input
           type="search"
@@ -139,6 +98,7 @@ export default function ProfilesPage() {
           Show archived
         </label>
       </div>
+      <label className="flex items-center gap-2 text-sm text-gray-300"><LibrarySelectAll selection={selection} /> Select all visible rows</label>
       {filteredProfiles.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProfiles.map((profile) => {
@@ -148,6 +108,7 @@ export default function ProfilesPage() {
                   <ProfileThumbnail profile={profile} className="h-full w-full" />
                 </div>
                 <div className="flex items-center gap-2">
+                  <LibrarySelectRow row={profile} selection={selection} />
                   <span className="font-medium text-gray-100">{profile.name}</span>
                   {profile.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
                 </div>
@@ -161,7 +122,6 @@ export default function ProfilesPage() {
                     className={BUTTON_CLASS}
                     onClick={() => {
                       setConfirmingId(null);
-                      setImportMessage(null);
                       setEditingId(profile.id);
                     }}
                   >
@@ -214,7 +174,7 @@ export default function ProfilesPage() {
           ? 'No profiles yet. New profile starts a 3/4" square to work from.'
           : 'No profiles match.'}</p>
       )}
-      <p className="text-xs text-gray-500">Edit shape opens the profile editor. Profiles are saved in this browser with the Elevation Lab drawings until the library moves to the team&apos;s account. Export saves every profile to a file; Import adds new ones and replaces any with the same id.</p>
+      <p className="text-xs text-gray-500">Edit shape opens the profile editor. Export saves selected profiles, or every profile when none are selected. Import previews items before adding new ones or replacing matching ids in the current library.</p>
       {editingProfile && <ProfileDetailsDialog key={editingProfile.id} profile={editingProfile} onClose={closeDialog} />}
     </div>
   );

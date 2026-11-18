@@ -1,19 +1,18 @@
 import { Circle, Group, Line, Text } from 'react-konva';
-import { MARKER_FLAG_LENGTH, MARKER_RADIUS } from './elevationMarkers.js';
+import { MARKER_RADIUS } from './elevationMarkers.js';
 
-/** A circled letter with a small triangular flag pointing back at the wall. */
+/** A circled letter over a wide triangular flag pointing back at the wall. */
 export default function PlanElevationMarker({ point, direction, scale, letter }) {
   const radius = MARKER_RADIUS / scale;
-  const flagLength = MARKER_FLAG_LENGTH / scale;
-  const flagHalfWidth = radius * 0.6;
+  const flagHalfWidth = radius * 1.5;
   const perp = { x: -direction.y, y: direction.x };
   const flagBase = {
-    x: point.x - direction.x * radius,
-    y: point.y - direction.y * radius,
+    x: point.x,
+    y: point.y,
   };
   const flagTip = {
-    x: flagBase.x - direction.x * flagLength,
-    y: flagBase.y - direction.y * flagLength,
+    x: point.x - direction.x * radius * 1.8,
+    y: point.y - direction.y * radius * 1.8,
   };
 
   return (
@@ -36,7 +35,7 @@ export default function PlanElevationMarker({ point, direction, scale, letter })
         text={letter}
         align="center"
         verticalAlign="middle"
-        fontSize={15 / scale}
+        fontSize={16 / scale}
         fill="#fde68a"
       />
     </Group>

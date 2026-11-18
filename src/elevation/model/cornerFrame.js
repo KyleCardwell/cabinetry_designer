@@ -67,7 +67,7 @@ export function cornerFrame(room, wall, run, side, settings, layout, faceLayouts
   const corner = cornerEnd(room, wall, run, side, settings, layout);
   if (!corner?.active || !corner.shape || !corner.columnId) return null;
 
-  const cells = cellPieces(run, layout);
+  const cells = cellPieces(run, layout, { room, settings });
   const frames = frameRegions(room, run, cells, settings, faceLayouts);
   const entry = (faceLayouts ?? runFaceLayouts(room, wall, run, settings, layout)).get(corner.columnId);
   if (!entry) return null;

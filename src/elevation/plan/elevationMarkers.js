@@ -5,11 +5,12 @@ import { wallFaceSegments } from '../model/wallFaceRow.js';
 import { wallOutline } from '../model/wallOutline.js';
 import { elevationToPlan, wallFrame } from '../model/geometry.js';
 import { planMarkerPlacement } from '../model/planMarkerPlacement.js';
+import { placePlanMarks } from '../model/planMarkPlacement.js';
 import { elevationKey, elevationLetters } from '../model/topology.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 export const MARKER_RADIUS = 14;
-export const MARKER_FLAG_LENGTH = 10;
+export const MARKER_FLAG_LENGTH = 11;
 const MARKER_CLEARANCE = 6;
 const MARKER_SHIFT = 24;
 
@@ -76,5 +77,28 @@ export function elevationMarkers(room, settings, scale, factor = 1) {
     }
   }
 
-  return markers;
+  const candidates = Array.from({ length: 4 }, (_, a) => Array.from(
+    { length: 5 }, (_, i) => ({ a, b: i - 2 }),
+  )).flat().sort((one, two) => one.a + Math.abs(one.b) - two.a - Math.abs(two.b)
+    || one.a - two.a || two.b - one.b);
+  const radius = MARKER_RADIUS / scale;
+  const out = (2.8 * MARKER_RADIUS + 3) / scale;
+  const side = (3 * MARKER_RADIUS + 3) / scale;
+  const items = [...markers].sort((one, two) => one.letter.length - two.letter.length
+    || one.letter.localeCompare(two.letter)).map(({ key, point, direction }) => {
+    // Canvas directions point away from the wall; the footprint's u points toward it.
+    const u = [-direction.x, -direction.y];
+    const v = [-u[1], u[0]];
+    return {
+      key,
+      at: [point.x, point.y],
+      axes: [u, v],
+      half: [1.4 * radius, 1.5 * radius],
+      shift: u.map((value) => value * 0.4 * radius),
+      steps: candidates.map(({ a, b }) => u.map((value, i) => -value * a * out + v[i] * b * side)),
+    };
+  });
+  const points = new Map(placePlanMarks(items, {}, { gap: 3 / scale })
+    .map(({ key, at }) => [key, { x: at[0], y: at[1] }]));
+  return markers.map((marker) => ({ ...marker, point: points.get(marker.key) }));
 }

@@ -3,7 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems } from '../grid.js';
 import { splitRun } from '../splitRun.js';
 
-const S = DEFAULT_SETTINGS;
+const S = { ...DEFAULT_SETTINGS, defaultStyle: { ...DEFAULT_SETTINGS.defaultStyle, cabinetStyleId: 15 } };
 const BEADED = { thickness: 0.8125, drop: 0, bead: 0.25 };
 
 function run(width, ends, count, extra = {}) {
@@ -21,29 +21,29 @@ const shown = ({ pieces }) => pieces.map(({ kind, x, width }) => [kind, x, width
 
 describe('SPEC-38.3 face frame ends', () => {
   it('gives a beaded run equal boxes and a bead gap each end; a free end adds the overhang to its gap', () => {
-    // Joined left: a bead gap each end; the boxes take the rest; the last box absorbs the odd sixteenth.
+    // Joined left: a bead gap each end; the 13/16-inch panel reduces its bead gap to 3/16.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.25, 29.25], ['cabinet', 30, 29.25], ['cabinet', 59.75, 29.1875], ['end_panel', 89.1875, 0.8125],
+      ['cabinet', 0.25, 29.25], ['cabinet', 30, 29.25], ['cabinet', 59.75, 29.25], ['end_panel', 89.1875, 0.8125],
     ]);
     // Free left (None, not joined): bead + 3/4 overhang, no leftover. The box isn't narrowed.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3), S))).toEqual([
-      ['cabinet', 1, 29], ['cabinet', 30.5, 29], ['cabinet', 60, 28.9375], ['end_panel', 89.1875, 0.8125],
+      ['cabinet', 1, 29], ['cabinet', 30.5, 29], ['cabinet', 60, 29], ['end_panel', 89.1875, 0.8125],
     ]);
   });
 
   it('SPEC-42.1 keeps the rounding leftover in the boxes', () => {
     expect(shown(splitRun(run(65.1875, ['none', 'end_panel'], 2, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.25, 31.6875], ['cabinet', 32.4375, 31.6875], ['end_panel', 64.375, 0.8125],
+      ['cabinet', 0.25, 31.75], ['cabinet', 32.5, 31.6875], ['end_panel', 64.375, 0.8125],
     ]);
   });
 
   it('keeps a corner filler taking the leftover, with a bead gap before and after the boxes', () => {
     const wall2 = splitRun(run(59.1875, ['filler', 'end_panel'], 2), S, { endMinWidths: { left: 0.75, right: 1.5 } });
     expect(shown(wall2)).toEqual([
-      ['filler', 0, 1.375], ['cabinet', 1.625, 28], ['cabinet', 30.125, 28], ['end_panel', 58.375, 0.8125],
+      ['filler', 0, 1.4375], ['cabinet', 1.6875, 28], ['cabinet', 30.1875, 28], ['end_panel', 58.375, 0.8125],
     ]);
     // Kyle's G2 base: joined to the tall on the left, corner filler on the right.
-    const base = splitRun(run(65.1875, ['none', 'filler'], 2, JOINED_LEFT), S, { endMinWidths: { left: 0, right: 0.5 } });
+    const base = splitRun(run(65.1875, ['none', 'filler'], 2, JOINED_LEFT), S, { endMinWidths: { left: 0, right: 0.75 } });
     expect(shown(base)).toEqual([
       ['cabinet', 0.25, 31.5], ['cabinet', 32.25, 31.5], ['filler', 64, 1.1875],
     ]);

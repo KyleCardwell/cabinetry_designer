@@ -1,32 +1,32 @@
 import { describe, expect, it } from 'vitest';
+import { auto, fixed, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun } from '../faceLayouts.js';
-import { gridFromItems } from '../grid.js';
 import { partNumbers, wallBadgeGroups } from '../partNumbers.js';
 import { resolveWall } from '../room.js';
 import { rabbetNote, teeFillers } from '../tees.js';
 
 const S = DEFAULT_SETTINGS;
 const NONE = { type: 'none', width: null };
-const cab = (id, width = null, extra = {}) => ({ id, kind: 'cabinet', width, ...extra });
+const cab = (id, width = null, extra = {}) => ({ ...(width === null ? auto(id) : fixed(id, width)), ...extra });
 const cell = (col, row, node) => ({ col, row, colSpan: 1, rowSpan: 1, node });
 
 function roomWith(run) {
-  const wall = {
+  const wall = buildWall({
     id: 'wall-1', name: 'Wall 1', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
     flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [],
     joints: [], endPanels: { start: null, end: null }, landings: { start: null, end: null }, soffits: [],
-  };
-  return { id: 'room-1', name: 'Room 1', profile: { ...S.defaultProfile }, walls: [wall], wallOrder: ['wall-1'] };
+  });
+  return buildRoom({ profile: { ...S.defaultProfile }, walls: [wall], wallOrder: ['wall-1'] });
 }
 
 const baseRun = (overrides = {}) => ({
-  id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 36, z: 4, height: 30.5, depth: 24,
-  ends: { left: NONE, right: NONE }, autoCount: false, maxCabinetWidth: null,
-  heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
-  tFiller: 'seams',
-  grid: gridFromItems('r', [cab('a', 18), cab('b', 18)]),
+  ...buildRun({
+    id: 'r', x: 24, width: 36, autoCount: false,
+    ends: { left: NONE, right: NONE }, tFiller: 'seams',
+    items: [fixed('a', 18), fixed('b', 18)],
+  }),
   ...overrides,
 });
 
@@ -124,10 +124,10 @@ describe('SPEC-37 T-fillers in the part list', () => {
     ]);
   });
 
-  it('badges a seam T one level up, and not an end T', () => {
+  it('badges seam T-fillers separately from run end pieces (GC5)', () => {
     const room = roomWith(endRun());
     const groups = wallBadgeGroups(room, resolveWall(room, room.walls[0]), S);
-    expect(groups.map((group) => [group.key, group.lift])).toEqual([['run:r', 0], ['tees:r', 1]]);
+    expect(groups.map((group) => group.key)).toEqual(['run:r', 'tees:r']);
     expect(groups[1].pieces).toEqual([{ id: 'tee:a|b', x: 44.25, z: 4, width: 1.5, height: 30.5 }]);
   });
 

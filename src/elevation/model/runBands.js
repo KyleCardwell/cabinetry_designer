@@ -5,10 +5,12 @@ import { cornerBandEdge, lazyCornerShapes, ownerBandTurnLines, profileBandJoint 
 import { cornerEnd } from './cornerEnd.js';
 import { cornerLegBandEdge, ownerBands } from './cornerLegBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
+import { endLegList } from './endLegs.js';
 import { floorEndOpen, floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
 import { wallFrame } from './geometry.js';
 import { landingProjection } from './landings.js';
+import { legRoom } from './legRoom.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
@@ -147,9 +149,13 @@ function bandPast(room, wall, run, side, band, settings) {
 
 /** Where a band ends at a free end of a run. */
 export function freeEdge(room, wall, run, side, band, settings) {
+  // A furniture base returns at the panel beside end legs supported independently of it.
+  const legs = band === 'furnitureBase' ? endLegList(run)
+    .filter((leg) => leg.end.side === side && leg.sitsOn !== 'base') : [];
+  const inset = legs.length ? legRoom({ ...run, endLegs: undefined, legs }, settings)[side] : 0;
   return side === 'left'
-    ? run.x - bandPast(room, wall, run, side, band, settings)
-    : run.x + run.width + bandPast(room, wall, run, side, band, settings);
+    ? run.x + inset - bandPast(room, wall, run, side, band, settings)
+    : run.x + run.width - inset + bandPast(room, wall, run, side, band, settings);
 }
 
 /** Whether a run carries this top family or floor base kind. */

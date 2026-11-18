@@ -31,8 +31,8 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
   it('dimensions a split column up its left side, 1/4" (paper) inside it (G2, G3, G4)', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(cells(elevationDimensions(g2, g2.walls[0], 'front', settings)).map(row)).toEqual([
-      ['vertical', 'cell', 4, 68, 57.0625, 57.0625, '64'],
-      ['vertical', 'cell', 68, 90, 57.0625, 57.0625, '22'],
+      ['vertical', 'cell', 4, 68, 57, 57, '64'],
+      ['vertical', 'cell', 68, 90, 57, 57, '22'],
     ]);
     // The 3/4" top panel's text moves off the line, into the column.
     const g3 = room('G3 Bath alcove');

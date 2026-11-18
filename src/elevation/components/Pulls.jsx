@@ -3,7 +3,7 @@ import { pullOutlines } from '../model/pullLayouts.js';
 import { outlineGeometry } from './outlinePath.js';
 
 export default function Pulls({ pulls, transform }) {
-  return pulls.flatMap((entry) => pullOutlines(entry).map((outline, index) => (
+  return pulls.flatMap((entry) => (entry.outlines ?? pullOutlines(entry)).map((outline, index) => (
     <Shape
       key={`${entry.partId}:${index}`}
       {...outlineGeometry(outline, transform)}

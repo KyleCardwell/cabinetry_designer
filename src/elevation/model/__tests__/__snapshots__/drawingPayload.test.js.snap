@@ -909,20 +909,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              61.96875,
+              61.9375,
               42.8125,
             ],
             [
-              61.96875,
+              61.9375,
               47.1875,
               1,
             ],
             [
-              61.59375,
+              61.5625,
               47.1875,
             ],
             [
-              61.59375,
+              61.5625,
               42.8125,
               1,
             ],
@@ -934,20 +934,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              64.96875,
+              64.9375,
               42.8125,
             ],
             [
-              64.96875,
+              64.9375,
               47.1875,
               1,
             ],
             [
-              64.59375,
+              64.5625,
               47.1875,
             ],
             [
-              64.59375,
+              64.5625,
               42.8125,
               1,
             ],
@@ -959,20 +959,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              61.96875,
+              61.9375,
               70.6875,
             ],
             [
-              61.96875,
+              61.9375,
               75.0625,
               1,
             ],
             [
-              61.59375,
+              61.5625,
               75.0625,
             ],
             [
-              61.59375,
+              61.5625,
               70.6875,
               1,
             ],
@@ -984,20 +984,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              64.96875,
+              64.9375,
               70.6875,
             ],
             [
-              64.96875,
+              64.9375,
               75.0625,
               1,
             ],
             [
-              64.59375,
+              64.5625,
               75.0625,
             ],
             [
-              64.59375,
+              64.5625,
               70.6875,
               1,
             ],
@@ -1264,20 +1264,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              37.375,
+              37.4375,
               26.6875,
             ],
             [
-              37.375,
+              37.4375,
               31.0625,
               1,
             ],
             [
-              37,
+              37.0625,
               31.0625,
             ],
             [
-              37,
+              37.0625,
               26.6875,
               1,
             ],
@@ -1289,20 +1289,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              40.375,
+              40.4375,
               26.6875,
             ],
             [
-              40.375,
+              40.4375,
               31.0625,
               1,
             ],
             [
-              40,
+              40.0625,
               31.0625,
             ],
             [
-              40,
+              40.0625,
               26.6875,
               1,
             ],
@@ -1314,20 +1314,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              63.375,
+              63.4375,
               26.6875,
             ],
             [
-              63.375,
+              63.4375,
               31.0625,
               1,
             ],
             [
-              63,
+              63.0625,
               31.0625,
             ],
             [
-              63,
+              63.0625,
               26.6875,
               1,
             ],
@@ -1339,20 +1339,20 @@ exports[`SPEC-40 drawing payload > HP5 step d anchor 2: carries every drawn gold
         "outlines": [
           [
             [
-              66.375,
+              66.4375,
               26.6875,
             ],
             [
-              66.375,
+              66.4375,
               31.0625,
               1,
             ],
             [
-              66,
+              66.0625,
               31.0625,
             ],
             [
-              66,
+              66.0625,
               26.6875,
               1,
             ],

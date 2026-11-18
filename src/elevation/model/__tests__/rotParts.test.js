@@ -81,8 +81,11 @@ describe('ROT and trash lid parts (IN6)', () => {
     expect(wallBadgeGroups(room, view, settings)).toEqual(groups);
     const after = elevationPartNumbers(room, room.walls[0], 'front', settings);
     expect(after.map(({ key }) => key)).toEqual(badges.map(({ key }) => key));
-    expect(after.filter(({ key }) => key !== 'B' && !key.startsWith('molding:')))
-      .toEqual(badges.filter(({ key }) => key !== 'B' && !key.startsWith('molding:')));
+    // Hidden parts ride in their cabinet's badge (Kyle 2026-11-17), never one of their own.
+    expect(badges.find(({ key }) => key === 'T').text).toBe('2 (3, 4)');
+    expect(after.find(({ key }) => key === 'T').text).toBe('2 (3, 40)');
+    expect(after.filter(({ key }) => !['B', 'T'].includes(key) && !key.startsWith('molding:')))
+      .toEqual(badges.filter(({ key }) => !['B', 'T'].includes(key) && !key.startsWith('molding:')));
     expect(groups.flatMap(({ pieces }) => pieces.map(({ id }) => id)))
       .not.toEqual(expect.arrayContaining(['T:rot:r', 'T:lid:r']));
 

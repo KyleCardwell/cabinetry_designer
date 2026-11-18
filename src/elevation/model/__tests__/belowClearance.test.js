@@ -46,7 +46,7 @@ describe('SPEC-46.2.1 an upper\'s clearance runs to the bottom of the parts belo
 
   it('hangs corbels below a face frame upper\'s frame, with their bottom 18" over the counter (G2)', () => {
     expect(upperWith('G2 Face frame kitchen', G2_UPPER, [CORBELS])).toEqual({
-      box: [60.75, 29.25],
+      box: [61, 29],
       faces: [[61.75, 26.5], [61.75, 26.5], [61.75, 26.5]],
       parts: [['corbels', 54, 6]],
       frameBottom: 60,
