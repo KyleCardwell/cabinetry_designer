@@ -16,6 +16,8 @@ function displayValue(entry) {
 
 export default function LiveEntryInput({
   entry,
+  heading,
+  showLocks = true,
   position,
   containerRef,
   containerSize,
@@ -64,7 +66,8 @@ export default function LiveEntryInput({
       onPointerDown={(event) => event.stopPropagation()}
     >
       <label className="block text-xs font-medium text-cyan-200">
-        {entry.label} <span className="text-gray-400">({entry.unit})</span>
+        {heading ?? entry.label} <span className="text-gray-400">({entry.unit})</span>
+        {heading && <span className="mt-1 block text-gray-400">{entry.label}</span>}
         <input
           ref={inputRef}
           type="text"
@@ -85,11 +88,11 @@ export default function LiveEntryInput({
               onCycle();
             }
           }}
-          aria-label={entry.label}
+          aria-label={heading ?? entry.label}
           className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-cyan-500 focus:outline-none"
         />
       </label>
-      {Object.entries(entry.locked).map(([key, value]) => {
+      {showLocks && Object.entries(entry.locked).map(([key, value]) => {
         const mode = entry.modes?.find((candidate) => candidate.key === key);
         return (
           <span key={key} className="mr-1 mt-1 inline-block rounded bg-gray-800 px-1 text-[10px] text-cyan-200">

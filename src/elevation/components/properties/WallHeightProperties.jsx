@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectRoomInheritedChain, selectSettings } from '../../store/selectors.js';
 import { resolveSetting } from '../../model/settingsResolve.js';
@@ -15,6 +15,7 @@ import {
   wallNumberWarnings,
 } from '../../model/index.js';
 import { resolveProfile } from '../../model/profile.js';
+import { cornerAt } from '../../model/corners.js';
 import { firstWallBlocker, wallHasCabinets, wallLabel } from '../../model/topology.js';
 import { resolveWall } from '../../model/room.js';
 import { wallBuiltEnds } from '../../model/wallEndPanels.js';
@@ -31,6 +32,7 @@ import {
   setPullPick,
   setWallEndPanel,
   setWallLanding,
+  setWallCornerAngle,
   setWallLength,
   setWallTFiller,
   updateWall,
@@ -51,6 +53,44 @@ import WallEndPanelFields from './WallEndPanelFields.jsx';
 import WallEndLegsFields from './WallEndLegsFields.jsx';
 import StretchInput from './StretchInput.jsx';
 import PanelSection from '../panel/PanelSection.jsx';
+
+function CornerAngleField({ label, angle, onCommit }) {
+  const shown = String(Math.round(angle * 10) / 10);
+  const [text, setText] = useState(shown);
+  const edited = useRef(false);
+  return (
+    <Field label={label} tag="°">
+      <input
+        type="number"
+        min="15"
+        max="345"
+        step="any"
+        value={text}
+        aria-label={`${label} angle`}
+        onChange={(event) => {
+          edited.current = true;
+          setText(event.target.value);
+        }}
+        onBlur={(event) => {
+          const value = event.currentTarget.value.trim();
+          if (edited.current && value && Number.isFinite(Number(value)) && Number(value) !== angle) {
+            onCommit(Number(value));
+          }
+          edited.current = false;
+          setText(shown);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            edited.current = false;
+            setText(shown);
+          }
+          if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
+        }}
+        className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+      />
+    </Field>
+  );
+}
 
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
@@ -503,6 +543,20 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   </p>
                 )}
               </div>
+              {['left', 'right'].map((side) => {
+                const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+                const corner = cornerAt(room, wall, side);
+                if (corner.type === 'open') return null;
+                const angle = corner.type === 'straight' ? 180 : corner.angle;
+                return (
+                  <CornerAngleField
+                    key={`${wall.id}:${endpoint}:${angle}`}
+                    label={landingEndLabel(room, wall, 'front', side)}
+                    angle={angle}
+                    onCommit={(angle) => dispatch(setWallCornerAngle({ wallId: wall.id, endpoint, angle }))}
+                  />
+                );
+              })}
               {heightField}
               <OverrideInput
                 kind="number"

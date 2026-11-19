@@ -104,7 +104,7 @@ export default function usePlanStageGestures({
       return;
     }
     if (entry) {
-      setEntryPointer(pointer);
+      if (entry.kind !== 'corner-angle') setEntryPointer(pointer);
       if (entry.kind === 'run-move') {
         updateMovePointer(pointer);
       } else if (entry.kind === 'wall-group-move') {

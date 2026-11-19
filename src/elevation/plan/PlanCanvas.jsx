@@ -27,12 +27,15 @@ import MeasureReadout from '../components/MeasureReadout.jsx';
 import { wallFrame } from '../model/geometry.js';
 import { planMeasureGeometry } from '../model/measure.js';
 import { formatInches } from '../model/units.js';
+import { wallLabel } from '../model/topology.js';
 import {
   deleteWall,
   landWallEndpoint,
   setMessage,
   setSelection,
+  setWallCornerAngle,
 } from '../store/elevationSlice.js';
+import { isAngledWall } from './wallOps.js';
 import { ENDPOINT_SNAP_RADIUS, PLAN_BACKGROUND_COLOR } from './constants.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
@@ -158,7 +161,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (entry?.kind === 'wall-draw' && tool !== 'wall') {
       cancelEntry();
     } else if (
-      (entry?.kind === 'wall-perpendicular' || entry?.kind === 'wall-length')
+      (entry?.kind === 'wall-perpendicular' || entry?.kind === 'wall-length' || entry?.kind === 'corner-angle')
       && tool !== 'select'
     ) {
       cancelEntry();
@@ -230,6 +233,30 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     room, tool, entry, beginEntry, cancelEntry, dispatch, stageRef, setEntryPointer,
     handleContextMenu,
   });
+
+  const beginCornerAngle = useCallback((mark, event) => {
+    event.cancelBubble = true;
+    if (tool !== 'select' || entry || event.evt?.button > 0 || mark.angle >= 180) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const choices = mark.walls.map((id, index) => ({
+      wall: room.walls.find((wall) => wall.id === id), endpoint: mark.endpoints[index],
+    })).filter(({ wall, endpoint }) => wall && endpoint);
+    choices.sort((a, b) => Number(isAngledWall(b.wall)) - Number(isAngledWall(a.wall))
+      || room.walls.indexOf(b.wall) - room.walls.indexOf(a.wall));
+    if (!choices.length) return;
+    setEntryPointer(pointer);
+    beginEntry({
+      kind: 'corner-angle',
+      modes: choices.map(({ wall }) => ({
+        key: wall.id, label: `Swings ${wallLabel(room, wall)}`,
+        value: mark.angle, unit: '°', min: 15, max: 345,
+      })),
+      onCommit: (angle, wallId) => dispatch(setWallCornerAngle({
+        wallId, endpoint: choices.find(({ wall }) => wall.id === wallId).endpoint, angle,
+      })),
+    });
+  }, [beginEntry, dispatch, entry, room, tool]);
 
   usePlanKeys({
     entry, cancelEntry, commitEntry, startMoveMode, beginGroupMove, canMoveGroup, tool,
@@ -365,6 +392,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               handleWallEndpointDrag={handleWallEndpointDrag}
               endpointFaceLabel={endpointFaceLabel}
               beginWallLength={beginWallLength}
+              beginCornerAngle={beginCornerAngle}
               cursor={cursor}
               showsMoveHandle={showsMoveHandle}
               moveHandle={moveHandle}
@@ -420,11 +448,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       {entry && (
         <LiveEntryInput
           entry={entry}
+          heading={entry.kind === 'corner-angle' ? 'Corner angle' : undefined}
+          showLocks={entry.kind !== 'corner-angle'}
           position={entryPointer}
           containerRef={containerRef}
           containerSize={viewport}
           onTyped={setEntryTyped}
-          onCycle={cycleEntry}
+          onCycle={() => {
+            cycleEntry();
+            // The modes choose a pivot wall, sharing the same typed angle.
+            if (entry.kind === 'corner-angle') setEntryTyped(String(entryValue));
+          }}
           onCommit={commitEntry}
           onCancel={cancelEntry}
         />

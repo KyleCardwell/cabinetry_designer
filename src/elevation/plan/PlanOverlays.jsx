@@ -7,6 +7,7 @@ import { wallOutline } from '../model/wallOutline.js';
 import { elevationMarkers } from './elevationMarkers.js';
 import PlanElevationMarker from './PlanElevationMarker.jsx';
 import PlanNearMisses from './PlanNearMisses.jsx';
+import PlanCornerAngles from './PlanCornerAngles.jsx';
 
 export default function PlanOverlays({
   room,
@@ -22,6 +23,7 @@ export default function PlanOverlays({
   handleWallEndpointDrag,
   endpointFaceLabel,
   beginWallLength,
+  beginCornerAngle,
   cursor,
   showsMoveHandle,
   moveHandle,
@@ -53,6 +55,14 @@ export default function PlanOverlays({
         entry={entry}
         cursor={cursor}
         onLand={onLand}
+      />
+      <PlanCornerAngles
+        room={room}
+        scale={scale}
+        tool={tool}
+        entry={entry}
+        cursor={cursor}
+        onEdit={beginCornerAngle}
       />
       {wallMovePreview?.room && (
         <Group listening={false}>
