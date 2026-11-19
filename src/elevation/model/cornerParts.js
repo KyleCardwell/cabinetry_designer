@@ -59,9 +59,21 @@ function joinedProfileBands(room, wall, settings, shapes) {
   });
 }
 
+/**
+ * A return piece's x on this face at `offset` deep: from the corner's x on this face, along the true plan
+ * directions of the return's end (exact at any angle; `cornerX ± offset` at 90°). Measured from the corner,
+ * not from plan points, so back faces (frames shifted by the wall thickness) and landings stay put.
+ */
+function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
+  const along = dot(neighborFrame.r, frame.r);
+  const across = dot(neighborFrame.n, frame.r);
+  return (offset) => cornerX + along * (endX - neighborCornerX) + across * offset;
+}
+
 /** Runs anchored into landings on this face, with depth mapped to its x and the free end. */
 export function landedReturns(room, view) {
   const returns = [];
+  const frame = wallSideFrame(room, view.sideSource ?? view, view.side);
   for (const { wallId, a, b } of landingsOn(room, view)) {
     const landed = room.walls.find((candidate) => candidate.id === wallId);
     if (!landed) continue;
@@ -73,11 +85,13 @@ export function landedReturns(room, view) {
       const landedFrame = wallSideFrame(room, landed, corner.neighborWallSide);
       for (const run of landedView.runs) {
         if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
+        const endX = corner.neighborSide === 'left' ? run.x : run.x + run.width;
         returns.push({
           key: `landing:${wallId}:${end}:${run.id}`,
           wallId, run, landedView, landedFrame,
           end: corner.neighborSide === 'left' ? 'right' : 'left',
-          xOf: (offset) => (end === 'left' ? b + offset / sine : a - offset / sine),
+          xOf: returnX(frame, landedFrame, end === 'left' ? b : a,
+            corner.neighborSide === 'left' ? 0 : landedFrame.length, endX),
         });
       }
     }
@@ -210,9 +224,11 @@ function buildCornerShapes(room, wall, side, settings,
     const neighborFrame = wallSideFrame(room, neighbor, corner.neighborWallSide);
     for (const run of neighborView.runs) {
       if (!anchoredToCorner(run.anchors?.[corner.neighborSide], corner) || run.height <= 0) continue;
+      const endX = corner.neighborSide === 'left' ? run.x : run.x + run.width;
       cut(`${end}:${neighbor.id}:${run.id}`, neighbor, neighborView, neighborFrame, run,
         corner.neighborSide === 'left' ? 'right' : 'left',
-        (offset) => (end === 'left' ? offset / sine : length - offset / sine));
+        returnX(frame, neighborFrame, end === 'left' ? 0 : length,
+          corner.neighborSide === 'left' ? 0 : neighborFrame.length, endX));
     }
     // A host run passing across the landed wall is cut through, so it is always a section (DR5).
     for (const run of crossingRuns(room, corner)) {
