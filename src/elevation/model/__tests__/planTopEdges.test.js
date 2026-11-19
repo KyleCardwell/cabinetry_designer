@@ -8,6 +8,8 @@ import { elevationToPlan } from '../geometry.js';
 import { planTopEdges } from '../planTops.js';
 import { wallSideFrame } from '../wallSides.js';
 import { syncRoom } from '../room.js';
+import { settingsFromSnapshot } from '../settingsSnapshot.js';
+import { woodTopCorners } from '../woodTopGroups.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 import { connectWallStops } from './helpers/wallStops.js';
 
@@ -55,6 +57,31 @@ function expectChains(actual, expected) {
 }
 
 describe('exposed plan top edges (PT2)', () => {
+  it('pairs all four N4 nosing corners with joints to the tops’ front corners (GC6.4)', () => {
+    const stored = JSON.parse(readFileSync(new URL(
+      '../../../../../specs/fixtures/golden/N4-wip.json', import.meta.url,
+    ), 'utf8'));
+    const { settingsSnapshot } = JSON.parse(readFileSync(new URL(
+      '../../../../../specs/fixtures/golden/N2-built-ins.json', import.meta.url,
+    ), 'utf8'));
+    const frozen = settingsFromSnapshot(settingsSnapshot);
+    expect(frozen.ok).toBe(true);
+    const subject = syncRoom(stored, frozen.settings);
+    const pairs = woodTopCorners(subject, frozen.settings);
+    expect(pairs).toHaveLength(4);
+    expect(pairs.every(({ mode }) => mode === 'miter')).toBe(true);
+
+    // Plan inches, y up: N2's nosing puts the fronts 25 7/8 inches from each wall.
+    // At 135 degrees the meeting point is 25.875 * (sqrt(2) - 1) along the corner.
+    const joints = planTopEdges(subject, frozen.settings).filter(({ kind }) => kind === 'joint');
+    expectChains(joints, [
+      [[-72, 60.5], [-46.125, 34.625]],
+      [[46.125, 34.625], [72, 60.5]],
+      [[46.125, -24.782224], [72, -35.5]],
+      [[46.5, -61], [35.782224, -35.125]],
+    ].map((points, i) => ({ id: `top-joint:0:${i}`, kind: 'joint', closed: false, points })));
+  });
+
   it.each([
     ['1: wood miter', 'wood', 'miter', [[0, 0], [25.625, 25.625]]],
     ['2: wood butt', 'wood', 'butt', [[25.625, 0], [25.625, 25.625]]],

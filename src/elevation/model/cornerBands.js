@@ -111,6 +111,17 @@ export function cornerBandEdge(getShapes, run, side, band, z, height) {
     ...(part.outline ? { outline: part.outline } : {}) };
 }
 
+/**
+ * Whether a band's end at `at` dies into a corner return's band `edge` (cornerBandEdge): it lands within the
+ * return's span, from where the return's band is cut (`edge.x`) back to the corner (`edge.reach`). A profiled
+ * top or nosing cuts back past `edge.x`, so its drawn end isn't exactly there (GC6.4).
+ */
+export function endsAtCornerEdge(at, edge, side) {
+  if (!edge) return false;
+  const [low, high] = side === 'left' ? [edge.reach, edge.x] : [edge.x, edge.reach];
+  return at >= Math.min(low, high) - EPSILON && at <= Math.max(low, high) + EPSILON;
+}
+
 /** cornerShapes for a resolved wall face, computed on first use. */
 export function lazyCornerShapes(room, wall, settings) {
   let shapes = null;

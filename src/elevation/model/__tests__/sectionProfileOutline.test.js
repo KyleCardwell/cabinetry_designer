@@ -16,6 +16,19 @@ const cove35 = {
 };
 
 describe('SPEC-50.3 step 475 true arc outlines', () => {
+  it('flattens a foreshortened semicircle within its mapped bounds and keeps identity bulges (GC6.4)', () => {
+    const outline = [[0, -1, 1], [0, 1, 0]];
+    const mapped = transformOutline(outline, ([x, y]) => [x * 0.7071, y]);
+    expect(mapped.every(([, , bulge]) => bulge === 0)).toBe(true);
+    const bounds = outlineBounds(mapped);
+    expect(bounds.minX).toBeGreaterThanOrEqual(0);
+    expect(bounds.maxX).toBeLessThanOrEqual(0.7071);
+    expect(bounds.maxX).toBeCloseTo(0.7071, 3);
+    expect(bounds.minY).toBeGreaterThanOrEqual(-1);
+    expect(bounds.maxY).toBeLessThanOrEqual(1);
+    expect(transformOutline(outline, ([x, y]) => [x, y])).toEqual(outline);
+  });
+
   it('keeps the cove arc and its inward bounds', () => {
     const outline = sectionProfileOutline(cove35.geometry);
     expect(outline).toEqual([[0, 0, 0], [3, 0, 0], [3, -0.5, 0.414214], [0.5, -3, 0], [0.5, -3.5, 0], [0, -3.5, 0]]);

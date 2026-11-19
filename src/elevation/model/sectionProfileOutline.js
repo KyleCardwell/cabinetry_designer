@@ -92,9 +92,25 @@ export function outlineBounds(outline) {
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
 }
 
-/** Place outline points and preserve their bulges, negating them when orientation flips. */
+/**
+ * Place outline points and preserve their bulges, negating them when orientation flips. A bulge only
+ * carries a circular arc, so when the mapping doesn't keep an arc circular (a return seen at an angle is
+ * foreshortened in x only, or a point is clamped to the face) the outline is flattened first (GC6.4).
+ */
 export function transformOutline(outline, fn, mirrored = false) {
-  return outline.map(([x, y, bulge = 0]) => [...fn([x, y]), roundBulge(mirrored ? -bulge : bulge)]);
+  const mapped = outline.map(([x, y, bulge = 0]) => [...fn([x, y]), roundBulge(mirrored ? -bulge : bulge)]);
+  const keepsArcs = outline.every((point, index) => {
+    const arc = arcGeometry(point, outline[(index + 1) % outline.length]);
+    if (!arc) return true;
+    const mappedArc = arcGeometry(mapped[index], mapped[(index + 1) % mapped.length]);
+    if (!mappedArc) return false;
+    const middle = arc.start + arc.sweep / 2;
+    const [mx, my] = fn([arc.cx + arc.radius * Math.cos(middle), arc.cy + arc.radius * Math.sin(middle)]);
+    const mappedMiddle = mappedArc.start + mappedArc.sweep / 2;
+    return Math.hypot(mx - (mappedArc.cx + mappedArc.radius * Math.cos(mappedMiddle)),
+      my - (mappedArc.cy + mappedArc.radius * Math.sin(mappedMiddle))) <= 1e-4;
+  });
+  return keepsArcs ? mapped : flattenOutline(outline).map((point) => [...fn(point), 0]);
 }
 
 function area(outline) {

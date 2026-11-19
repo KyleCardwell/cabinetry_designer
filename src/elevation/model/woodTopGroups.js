@@ -1,7 +1,7 @@
 import { buildCacheFor } from './buildCache.js';
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
+import { cornerBandEdge, endsAtCornerEdge, lazyCornerShapes } from './cornerBands.js';
 import { cornerAt, cornerEndActive, cornerOwnersAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { compareRuns } from './parts.js';
@@ -38,7 +38,7 @@ function topEntries(room, source, side, settings) {
       const corners = Object.fromEntries(['left', 'right'].map((end) => {
         const edge = cornerBandEdge(shapes, run, end, 'countertop', z, height);
         const at = end === 'left' ? band.x : band.x + band.width;
-        return [end, edge && same(at, edge.x) ? edge : null];
+        return [end, endsAtCornerEdge(at, edge, end) ? edge : null];
       }));
       const scribe = ['left', 'right'].map((endSide, index) => {
         const reachesEnd = index === 0 ? same(band.x, run.x)

@@ -1,6 +1,6 @@
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerBandEdge, cornerBandTurns, lazyCornerShapes } from './cornerBands.js';
+import { cornerBandEdge, cornerBandTurns, endsAtCornerEdge, lazyCornerShapes } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
 import { cornerLegBands } from './cornerLegBands.js';
 import { cornerReturnPoint, frontDepth } from './corners.js';
@@ -224,7 +224,7 @@ function topPieces(room, settings) {
             for (const end of ['left', 'right']) {
               const edge = cornerBandEdge(shapes, run, end, 'countertop', band.z, band.height);
               const at = end === 'left' ? piece.u0 : piece.u1;
-              if (edge && Math.abs(at - edge.x) <= EPSILON) piece[end === 'left' ? 'u0' : 'u1'] = edge.reach;
+              if (endsAtCornerEdge(at, edge, end)) piece[end === 'left' ? 'u0' : 'u1'] = edge.reach;
             }
           }
           pieces.push(piece);
