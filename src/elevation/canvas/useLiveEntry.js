@@ -10,6 +10,7 @@ function normalizeMode(mode) {
   const max = Number.isFinite(mode.max) ? mode.max : Infinity;
   return {
     ...mode,
+    unit: mode.unit ?? 'in',
     value: clamp(mode.value, min, max),
     min,
     max,
@@ -19,7 +20,11 @@ function normalizeMode(mode) {
 /** Resolve the value currently represented by a live entry. */
 export function resolveLiveEntryValue(entry) {
   if (!entry) return null;
-  const parsed = entry.typed === null ? null : parseInches(entry.typed);
+  const parsed = entry.typed === null || entry.typed.trim() === ''
+    ? null
+    : (entry.unit === '°'
+      ? (Number.isFinite(Number(entry.typed)) ? Number(entry.typed) : null)
+      : parseInches(entry.typed));
   const value = parsed === null ? entry.value : parsed;
   return clamp(value, entry.min, entry.max);
 }
@@ -58,7 +63,8 @@ export function createLiveEntryController(notify = () => {}) {
       typed: null,
       min: activeMode.min,
       max: activeMode.max,
-      unit: 'in',
+      unit: activeMode.unit,
+      locked: {},
       ...(modes ? {
         modes,
         modeIndex: 0,
@@ -72,27 +78,46 @@ export function createLiveEntryController(notify = () => {}) {
     notify();
   };
 
-  const update = (value) => {
-    if (!entry || entry.typed !== null || !Number.isFinite(value)) return;
-    entry = { ...entry, value: clamp(value, entry.min, entry.max) };
+  const update = (value, modeKey = entry?.modeKey) => {
+    if (!entry || !Number.isFinite(value)) return;
+    const modes = entry.modes?.map((mode) => mode.key === modeKey
+      ? { ...mode, value: clamp(value, mode.min, mode.max) }
+      : mode);
+    const active = modeKey === entry.modeKey && (entry.typed === null || entry.typed.trim() === '');
+    const nextValue = active ? clamp(value, entry.min, entry.max) : entry.value;
+    if (nextValue === entry.value && (!modes || modes.every((mode, i) => mode.value === entry.modes[i].value))) return;
+    entry = { ...entry, value: nextValue, ...(modes ? { modes } : {}) };
     notify();
   };
 
   const setTyped = (text) => {
     if (!entry) return;
-    entry = { ...entry, typed: String(text) };
+    const locked = { ...entry.locked };
+    if (String(text).trim() === '') delete locked[entry.modeKey];
+    const empty = String(text).trim() === '';
+    const mode = entry.modes?.[entry.modeIndex];
+    entry = {
+      ...entry,
+      typed: String(text),
+      value: empty && mode ? mode.value : entry.value,
+      locked,
+    };
     notify();
   };
 
   const cycle = () => {
     if (!entry?.modes || entry.modes.length < 2) return;
+    const locked = { ...entry.locked };
+    if (entry.typed?.trim()) locked[entry.modeKey] = resolveLiveEntryValue(entry);
     const modeIndex = (entry.modeIndex + 1) % entry.modes.length;
     const mode = entry.modes[modeIndex];
     entry = {
       ...entry,
       label: mode.label,
       value: mode.value,
-      typed: null,
+      typed: locked[mode.key] === undefined ? null : String(locked[mode.key]),
+      locked,
+      unit: mode.unit,
       min: mode.min,
       max: mode.max,
       modeIndex,
@@ -105,10 +130,11 @@ export function createLiveEntryController(notify = () => {}) {
     if (!entry) return;
     const value = resolveLiveEntryValue(entry);
     const modeKey = entry.modeKey;
+    const locked = { ...entry.locked };
+    if (modeKey !== undefined && entry.typed?.trim()) locked[modeKey] = value;
     const onCommit = callbacks?.onCommit;
     clear();
-    if (modeKey === undefined) onCommit?.(value);
-    else onCommit?.(value, modeKey);
+    onCommit?.(value, modeKey, locked);
   };
 
   return {

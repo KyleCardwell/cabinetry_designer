@@ -330,12 +330,34 @@ export function disconnectWallEndpoint(walls, wallId, endpoint) {
   return next;
 }
 
-/** Snap a moving point horizontally or vertically relative to its fixed endpoint. */
-export function snapPointOrtho(fixed, moving, enabled = true) {
+/** Drawing direction; previousDir points along the previous wall toward the start.
+ * side is the sign of its cross product with the pointer offset (plan Y is screen-down).
+ */
+export function drawDirection({ previousDir, angle, side = 1 }) {
+  const radians = (previousDir ? Math.abs(180 - angle) * side : -angle) * Math.PI / 180;
+  const reference = previousDir ? normalize(previousDir) : { x: 1, y: 0 };
+  return {
+    x: reference.x * Math.cos(radians) - reference.y * Math.sin(radians),
+    y: reference.x * Math.sin(radians) + reference.y * Math.cos(radians),
+  };
+}
+
+/** Snap along the nearest axis, preserving distance projected onto that axis. */
+export function snapPointOrtho(fixed, moving, enabled = true, step = 90) {
   if (!enabled) return { ...moving };
-  const dx = Math.abs(moving.x - fixed.x);
-  const dy = Math.abs(moving.y - fixed.y);
-  return dx >= dy
-    ? { x: moving.x, y: fixed.y }
-    : { x: fixed.x, y: moving.y };
+  if (step === 90) {
+    const dx = Math.abs(moving.x - fixed.x);
+    const dy = Math.abs(moving.y - fixed.y);
+    return dx >= dy
+      ? { x: moving.x, y: fixed.y }
+      : { x: fixed.x, y: moving.y };
+  }
+  const delta = subtract(moving, fixed);
+  const radians = step * Math.PI / 180;
+  const angle = Math.round(Math.atan2(delta.y, delta.x) / radians) * radians;
+  const direction = {
+    x: Math.abs(Math.cos(angle)) < ORTHO_EPSILON ? 0 : Math.cos(angle),
+    y: Math.abs(Math.sin(angle)) < ORTHO_EPSILON ? 0 : Math.sin(angle),
+  };
+  return add(fixed, scale(direction, dot(delta, direction)));
 }

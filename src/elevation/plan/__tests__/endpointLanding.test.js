@@ -129,7 +129,7 @@ describe('drag an existing wall end onto a face (WL2)', () => {
       const result = snapDrawPoint({ x: -123.5 + x, y: 13.5 }, { x: -80, y: 50 });
       expect(result).toEqual({
         point: { x: -123.5 + x, y: 13.5 }, connect: null,
-        land: { wallId: 'wall-3', side: 'back', x }, faceLabel: text,
+        land: { wallId: 'wall-3', side: 'back', x }, faceLabel: text, guides: [],
       });
     }
   });
@@ -152,7 +152,7 @@ describe('drag an existing wall end onto a face (WL2)', () => {
     const { snapDrawPoint } = harness().hooks();
     expect(snapDrawPoint({ x: -38.5, y: 13.5 }, { x: -80, y: 50 })).toEqual({
       point: { x: -38.5, y: 15.5 },
-      connect: { wallId: 'wall-2', endpoint: 'end' }, land: null, faceLabel: null,
+      connect: { wallId: 'wall-2', endpoint: 'end' }, land: null, faceLabel: null, guides: [],
     });
   });
 

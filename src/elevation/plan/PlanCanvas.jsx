@@ -155,7 +155,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [cancelDrawing, tool]);
 
   useEffect(() => {
-    if (entry?.kind === 'wall-draw' && (tool !== 'wall' || !settings.orthoWalls)) {
+    if (entry?.kind === 'wall-draw' && tool !== 'wall') {
       cancelEntry();
     } else if (
       (entry?.kind === 'wall-perpendicular' || entry?.kind === 'wall-length')
@@ -163,7 +163,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     ) {
       cancelEntry();
     }
-  }, [cancelEntry, entry?.kind, settings.orthoWalls, tool]);
+  }, [cancelEntry, entry?.kind, tool]);
 
   useEffect(() => {
     setWallMovePreview(null);
@@ -238,8 +238,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     selection, walls, selectedWall,
   });
 
-  const { gridAndOrtho, applyAlignment, snapDrawPoint } = usePlanWallDraw({
-    room, walls, adaptedWalls, settings, tool, entry, scale, dispatch, beginEntry,
+  const { gridAndOrtho, applyAlignment, snapDrawPoint, updateDrawPointer, drawPreview, drawGuides } = usePlanWallDraw({
+    room, walls, adaptedWalls, settings, tool, entry, scale, dispatch, beginEntry, updateEntry,
     cancelDrawing, liveGestureRef, wallDrawStart, setWallDrawStart, setMouseWorldPos,
     setAlignmentGuides,
   });
@@ -247,7 +247,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     settings, tool, entry, dispatch, stageRef, panRef, spacePressedRef,
     suppressClickRef, liveGestureRef, toWorld, measure, closeContextMenu,
     commitEntry, updateEntry, updateMovePointer, updateGroupPointer, pickAt, moveHandle, gridAndOrtho,
-    snapDrawPoint, wallDrawStart, setWallDrawStart, setMouseWorldPos,
+    snapDrawPoint, updateDrawPointer, wallDrawStart, setWallDrawStart, setMouseWorldPos,
     setAlignmentGuides, setEntryPointer,
   });
 
@@ -288,7 +288,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     closePicker, showMessage, messageTimeoutRef,
   });
 
-  const drawGesture = liveGestureRef.current;
   const showsMoveHandle = Boolean(
     tool === 'select' && selectedWall && moveHandle && !entry,
   );
@@ -298,15 +297,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       moveHandleCursor.release('group-move');
     }
   }, [moveHandleCursor, showsMoveHandle]);
-  const liveWallDrawEnd = entry?.kind === 'wall-draw'
-    && wallDrawStart
-    && drawGesture?.kind === 'wall-draw'
-    && drawGesture.direction
-    ? {
-        x: wallDrawStart.x + drawGesture.direction.x * entryValue,
-        y: wallDrawStart.y + drawGesture.direction.y * entryValue,
-      }
-    : null;
 
   return (
     <div
@@ -335,7 +325,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             scaleY={scale}
           >
             <AxisGuides scale={scale} />
-            <PlanAlignmentGuides guides={alignmentGuides} scale={scale} />
+            <PlanAlignmentGuides guides={drawGuides ?? alignmentGuides} scale={scale} />
             <PlanScene
               walls={sceneRoom?.walls ?? walls}
               room={sceneRoom}
@@ -383,8 +373,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               canMoveGroup={canMoveGroup}
               beginGroupMove={beginGroupMove}
               wallDrawStart={wallDrawStart}
-              liveWallDrawEnd={liveWallDrawEnd}
-              mouseWorldPos={mouseWorldPos}
+              liveWallDrawEnd={drawPreview}
+              mouseWorldPos={entry?.kind === 'wall-draw' ? drawPreview : mouseWorldPos}
             />
             <PlanRoomLines
               room={sceneRoom}

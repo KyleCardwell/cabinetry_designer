@@ -6,6 +6,7 @@ const EDGE_GAP = 8;
 
 function displayValue(entry) {
   if (entry.typed !== null) return entry.typed;
+  if (entry.unit === '°') return String(Math.round(entry.value * 10) / 10);
   if (['wall-perpendicular', 'run-move'].includes(entry.kind)
     && Math.abs(entry.value) > 1e-9) {
     return `${entry.value > 0 ? '+' : '−'}${formatInches(Math.abs(entry.value))}`;
@@ -28,10 +29,9 @@ export default function LiveEntryInput({
   const [placement, setPlacement] = useState({ left: EDGE_GAP, top: EDGE_GAP });
 
   useEffect(() => {
-    if (entry.typed !== null) return;
     inputRef.current?.focus();
     inputRef.current?.select();
-  }, [entry.kind, entry.label, entry.value, entry.typed]);
+  }, [entry.kind, entry.label]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -64,7 +64,7 @@ export default function LiveEntryInput({
       onPointerDown={(event) => event.stopPropagation()}
     >
       <label className="block text-xs font-medium text-cyan-200">
-        {entry.label}
+        {entry.label} <span className="text-gray-400">({entry.unit})</span>
         <input
           ref={inputRef}
           type="text"
@@ -89,6 +89,14 @@ export default function LiveEntryInput({
           className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-cyan-500 focus:outline-none"
         />
       </label>
+      {Object.entries(entry.locked).map(([key, value]) => {
+        const mode = entry.modes?.find((candidate) => candidate.key === key);
+        return (
+          <span key={key} className="mr-1 mt-1 inline-block rounded bg-gray-800 px-1 text-[10px] text-cyan-200">
+            {mode?.label} {mode?.unit === '°' ? `${Math.round(value * 10) / 10}°` : `${formatInches(value)} in`}
+          </span>
+        );
+      })}
       <p className="mt-1.5 text-[10px] text-gray-500">
         Enter to set
         {entry.modes?.length > 1 && ' · Tab ⇥ next'}

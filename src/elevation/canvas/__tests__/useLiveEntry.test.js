@@ -31,14 +31,14 @@ describe('useLiveEntry state', () => {
     live.begin(typed);
     live.setTyped('7 1/2');
     live.commit();
-    expect(typed.onCommit).toHaveBeenCalledWith(7.5);
+    expect(typed.onCommit).toHaveBeenCalledWith(7.5, undefined, {});
     expect(live.entry).toBeNull();
 
     const fallback = config({ value: 4 });
     live.begin(fallback);
     live.setTyped('not inches');
     live.commit();
-    expect(fallback.onCommit).toHaveBeenCalledWith(4);
+    expect(fallback.onCommit).toHaveBeenCalledWith(4, undefined, {});
   });
 
   it('clamps initial, pointer, and typed commit values', () => {
@@ -50,7 +50,7 @@ describe('useLiveEntry state', () => {
     expect(live.entry.value).toBe(10);
     live.setTyped('18');
     live.commit();
-    expect(initial.onCommit).toHaveBeenCalledWith(10);
+    expect(initial.onCommit).toHaveBeenCalledWith(10, undefined, {});
   });
 
   it('cancels the first entry before beginning a second one', () => {
@@ -82,7 +82,7 @@ describe('useLiveEntry state', () => {
     expect(live.entry).toMatchObject({ label: 'First', value: 4, min: 1, max: 8 });
   });
 
-  it('clears typed text on cycle and commits the active mode key', () => {
+  it('locks typed text on cycle and commits the active mode key (MW1)', () => {
     const entry = config({
       modes: [
         { key: 'first', label: 'First', value: 4, min: 1, max: 8 },
@@ -96,6 +96,33 @@ describe('useLiveEntry state', () => {
 
     expect(live.entry.typed).toBeNull();
     live.commit();
-    expect(entry.onCommit).toHaveBeenCalledWith(12, 'second');
+    expect(entry.onCommit).toHaveBeenCalledWith(12, 'second', { first: 7 });
   });
+
+  it('commits typed angle and length together after cycling (MW1)', () => {
+    const entry = config({
+      modes: [
+        { key: 'length', label: 'Length', value: 0, min: 0 },
+        { key: 'angle', label: 'Angle', unit: '°', value: 90 },
+      ],
+    });
+    const live = createLiveEntryController();
+    live.begin(entry);
+    expect(live.entry.unit).toBe('in');
+    live.cycle();
+    expect(live.entry.unit).toBe('°');
+    live.setTyped('135');
+    live.cycle();
+    expect(live.entry.locked).toEqual({ angle: 135 });
+    live.cycle();
+    expect(live.entry.typed).toBe('135');
+    live.setTyped('');
+    expect(live.entry.locked).toEqual({});
+    live.setTyped('135');
+    live.cycle();
+    live.setTyped('30');
+    live.commit();
+    expect(entry.onCommit).toHaveBeenCalledWith(30, 'length', { angle: 135, length: 30 });
+  });
+
 });

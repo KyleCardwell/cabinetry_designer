@@ -7,7 +7,7 @@ export default function usePlanStageGestures({
   settings, tool, entry, dispatch, stageRef, panRef, spacePressedRef,
   suppressClickRef, liveGestureRef, toWorld, measure, closeContextMenu,
   commitEntry, updateEntry, updateMovePointer, updateGroupPointer, pickAt, moveHandle, gridAndOrtho,
-  snapDrawPoint, wallDrawStart, setWallDrawStart, setMouseWorldPos,
+  snapDrawPoint, updateDrawPointer, wallDrawStart, setWallDrawStart, setMouseWorldPos,
   setAlignmentGuides, setEntryPointer,
 }) {
   const handleStageClick = useCallback((event) => {
@@ -38,8 +38,9 @@ export default function usePlanStageGestures({
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     const fixed = wallDrawStart ? { x: wallDrawStart.x, y: wallDrawStart.y } : null;
-    const snapped = gridAndOrtho(toWorld(pointer), fixed);
-    const { point, connect, land, faceLabel } = snapDrawPoint(snapped, fixed);
+    const snapped = gridAndOrtho(toWorld(pointer), fixed, 45);
+    const { point, connect, land, faceLabel, guides } = snapDrawPoint(snapped, fixed);
+    setAlignmentGuides(guides);
 
     if (!wallDrawStart) {
       setEntryPointer(pointer);
@@ -77,7 +78,15 @@ export default function usePlanStageGestures({
     dispatch,
     entry,
     gridAndOrtho,
-    measure.click,
+    measure,
+    panRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setMouseWorldPos,
+    setWallDrawStart,
+    spacePressedRef,
+    stageRef,
+    suppressClickRef,
     pickAt,
     snapDrawPoint,
     toWorld,
@@ -107,23 +116,9 @@ export default function usePlanStageGestures({
         );
         updateEntry(roundTo(delta, settings.planGrid));
       } else if (entry.kind === 'wall-draw' && wallDrawStart) {
-        const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
-        const { point, connect, land, faceLabel } = snapDrawPoint(
-          snapped,
-          wallDrawStart,
-        );
-        const dx = point.x - wallDrawStart.x;
-        const dy = point.y - wallDrawStart.y;
-        const length = Math.hypot(dx, dy);
-        liveGestureRef.current = {
-          kind: 'wall-draw',
-          direction: length > 0 ? { x: dx / length, y: dy / length } : null,
-          connectEnd: connect,
-          landEnd: land,
-          pointerLength: length,
-        };
-        setMouseWorldPos({ ...point, _faceLabel: faceLabel });
-        updateEntry(length);
+        const draw = updateDrawPointer(toWorld(pointer));
+        setMouseWorldPos({ ...draw.point, _faceLabel: draw.faceLabel });
+        setAlignmentGuides(draw.guides);
       } else if (entry.kind === 'wall-length') {
         const gesture = liveGestureRef.current;
         if (gesture?.kind === 'wall-length') {
@@ -141,19 +136,28 @@ export default function usePlanStageGestures({
     }
     if (tool !== 'wall' || panRef.current) return;
     const fixed = wallDrawStart ?? null;
-    const snapped = gridAndOrtho(toWorld(pointer), fixed);
-    const { point, faceLabel } = snapDrawPoint(snapped, fixed);
+    const snapped = gridAndOrtho(toWorld(pointer), fixed, 45);
+    const { point, faceLabel, guides } = snapDrawPoint(snapped, fixed);
+    setAlignmentGuides(guides);
     setMouseWorldPos({ ...point, _faceLabel: faceLabel });
   }, [
     entry,
     gridAndOrtho,
-    measure.move,
+    measure,
+    liveGestureRef,
+    panRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setMouseWorldPos,
+    spacePressedRef,
+    stageRef,
     moveHandle,
     settings.planGrid,
     snapDrawPoint,
     toWorld,
     tool,
     updateEntry,
+    updateDrawPointer,
     updateMovePointer,
     updateGroupPointer,
     wallDrawStart,
