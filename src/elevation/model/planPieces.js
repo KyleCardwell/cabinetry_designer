@@ -2,10 +2,14 @@ import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { cornerPlanPieces } from './cornerPlan.js';
-import { faceFrontOffset, frontDepth, runBackOffset, runFaceThickness } from './corners.js';
+import {
+  anchoredToCorner, cornerForRunSide, cornerReserveParts,
+  faceFrontOffset, frontDepth, runBackOffset, runFaceThickness,
+} from './corners.js';
 import { runFaceStyles } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { frameRegions } from './frames.js';
+import { dot, elevationToPlan, lineIntersection, planPointToWallX } from './geometry.js';
 import { runItems } from './grid.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection } from './nosing.js';
@@ -15,6 +19,7 @@ import { teeFillers } from './tees.js';
 import { topOverhangs } from './topOverhang.js';
 import { runTop } from './tops.js';
 import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
+import { wallSideFrame, wallSideOf, wallViewForRun } from './wallSides.js';
 
 const WIDTH_EPSILON = 1e-6;
 
@@ -175,6 +180,72 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
       }];
     }
     return [];
+  });
+}
+
+/** Replace only the corner-side edge of a flex filler face with the angled miter. */
+function miterFillerFaces(room, wall, run, settings, pieces, faces) {
+  const flexFiller = (candidate, side) => candidate.ends?.[side]?.type === 'filler'
+    && candidate.ends[side].width == null;
+  const cuts = new Map();
+  for (const side of ['left', 'right']) {
+    if (!flexFiller(run, side)) continue;
+    const corner = cornerForRunSide(room, wall, run, side);
+    if (corner.type !== 'inside' || Math.abs(corner.angle - 90) <= 0.5
+      || !anchoredToCorner(run.anchors?.[side], corner)) continue;
+    const reserve = cornerReserveParts(room, wall, side, run, settings, { laps: false });
+    const neighborWall = room.walls.find(({ id }) => id === corner.neighborWallId);
+    const neighbor = neighborWall?.runs.find(({ id }) => id === reserve.neighborRunId);
+    const neighborSide = corner.neighborSide;
+    if (!neighbor || !flexFiller(neighbor, neighborSide) || reserve.source !== 'auto') continue;
+    const other = cornerReserveParts(room, wallViewForRun(neighborWall, neighbor),
+      neighborSide, neighbor, settings, { laps: false });
+    // Typed clearances and the deep/shallow case do not place both ends at the fronts' intersection.
+    if (other.source !== 'auto' || other.neighborRunId !== run.id
+      || reserve.total <= 0 || other.total <= 0) continue;
+    const frame = wallSideFrame(room, wall, wallSideOf(run));
+    const neighborFrame = wallSideFrame(room, neighborWall, wallSideOf(neighbor));
+    const depth = frontDepth(run, settings);
+    const meeting = lineIntersection(elevationToPlan(frame, 0, depth), frame.r,
+      elevationToPlan(neighborFrame, 0, frontDepth(neighbor, settings)), neighborFrame.r);
+    if (!meeting) continue;
+    // The sum of the unit rays pointing away from the corner is its internal bisector.
+    const ownSign = side === 'left' ? 1 : -1;
+    const otherSign = neighborSide === 'left' ? 1 : -1;
+    const bisector = {
+      x: ownSign * frame.r.x + otherSign * neighborFrame.r.x,
+      y: ownSign * frame.r.y + otherSign * neighborFrame.r.y,
+    };
+    const slope = dot(bisector, frame.r) / dot(bisector, frame.n);
+    const u = planPointToWallX(frame, meeting);
+    const v = depth - runBackOffset(run);
+    const piece = pieces.find((piece) => endSideOf(piece) === side && piece.kind === 'filler');
+    if (piece) cuts.set(piece.id, { side, uAt: (offset) => u + (offset - v) * slope });
+  }
+  return faces.map((face) => {
+    const cut = cuts.get(face.key);
+    if (face.kind !== 'filler' || !cut) return face;
+    // Let the back of the bevel reach the line too: a square end at P would leave a notch.
+    const back = cut.uAt(face.back);
+    const front = cut.uAt(face.front);
+    const left = cut.side === 'left';
+    const start = left ? Math.min(face.start, back, front) : face.start;
+    const end = left ? face.end : Math.max(face.end, back, front);
+    const rectangle = [[start, face.back], [end, face.back], [end, face.front], [start, face.front]];
+    const distance = ([u, v]) => (left ? 1 : -1) * (u - cut.uAt(v));
+    const polygon = rectangle.flatMap((p, i) => {
+      const q = rectangle[(i + 1) % rectangle.length];
+      const sp = distance(p);
+      const sq = distance(q);
+      const kept = sp >= -WIDTH_EPSILON ? [p] : [];
+      if ((sp > WIDTH_EPSILON && sq < -WIDTH_EPSILON)
+        || (sp < -WIDTH_EPSILON && sq > WIDTH_EPSILON)) {
+        const t = sp / (sp - sq);
+        kept.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
+      }
+      return kept;
+    });
+    return { ...face, polygon };
   });
 }
 
@@ -436,7 +507,8 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const waterfallLegs = planWaterfallLegs(room, wall, run, settings);
   const corner = cornerPlanPieces(room, wall, run, settings, layout, faceLayouts, teeFaces);
   const cornerBoxes = boxes.map((box) => ({ ...box, ...corner.boxes.get(box.key) }));
-  const cornerFaces = [...teeFaces.filter(({ key }) => !corner.dropFaceKeys.has(key)), ...corner.faces];
+  const cornerFaces = miterFillerFaces(room, wall, run, settings, cells.pieces,
+    [...teeFaces.filter(({ key }) => !corner.dropFaceKeys.has(key)), ...corner.faces]);
   const pieces = [...cornerBoxes, ...cornerFaces, ...endReturns, ...teeReturns, ...waterfallLegs];
   const shift = (piece) => (outset
     ? {
