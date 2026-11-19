@@ -1436,8 +1436,8 @@ describe('shipping list rows (RP2)', () => {
     });
     tall.wallOrder.push('neighbor');
     tall = syncRoom(tall, settings);
-    expect(row(tall, 'run:left').description).toBe('Tall Blind Panel');
-    expect(row(tall, 'run:left').size).toBe('27 7/8 x 86 x 13/16');
+    expect(row(tall, 'run:left').description).toBe('Shop-built Tall Blind Panel');
+    expect(row(tall, 'run:left').size).toBe('27 7/8 x 86 x 3/4');
     expect(row(tall).size).toBe('42 x 86 x 24');
   });
 

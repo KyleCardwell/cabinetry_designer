@@ -9,7 +9,7 @@ import { midDefaults, partSizes } from '../doorSizes.js';
 import { doorProfileOffsets } from '../doorProfileLines.js';
 import { panelLevels, resolveDoorStyle } from '../doorStyleResolve.js';
 import { elevationParts } from '../elevationParts.js';
-import { isJoinedEnd, isSheetCell } from '../panelThickness.js';
+import { endPanelSheet, isSheetCell } from '../panelThickness.js';
 import { wallEndPanelPartKey } from '../partNumbers.js';
 import { resolveWall } from '../room.js';
 import { runScene } from '../runScene.js';
@@ -120,7 +120,7 @@ export function doorLines(room, settings) {
             if (part.kind === 'end_panel' && end) {
               addPanel(view, run, piece?.inside ? piece : run.ends?.[end],
                 { width: part.front - part.back, height: part.height },
-                part.id, 'endPanel', !piece?.inside && isJoinedEnd(run, end));
+                part.id, 'endPanel', !piece?.inside && endPanelSheet(room, view, run, end, settings));
             } else if (part.kind === 'panel') {
               const leaf = findLeaf(run.grid, part.id);
               const orientation = panelOrientation({ ...part, depth: part.front - part.back });

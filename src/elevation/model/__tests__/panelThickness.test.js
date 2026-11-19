@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { fixed, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
+import { CABINET_TYPE_IDS } from '../constants.js';
+import { panelLevels, resolveDoorStyle } from '../doorStyleResolve.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { elevationParts } from '../elevationParts.js';
 import { layoutRun } from '../faceLayouts.js';
 import { pickOptions } from '../doorStyleEdits.js';
 import { runScene } from '../runScene.js';
-import { isJoinedEnd, runEndThickness } from '../panelThickness.js';
+import { endPanelSheet, isJoinedEnd, runEndThickness } from '../panelThickness.js';
 import { syncRoom } from '../room.js';
 import { wallEndPanels } from '../wallEndPanels.js';
 import { normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
@@ -42,6 +45,39 @@ function styled(name, edit, s = settings) {
 }
 
 describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {
+  it('defaults a blind tall panel to sheet when an upper dies into it (GC6.4)', () => {
+    for (const dyingIn of [true, false]) {
+      const tall = buildRun({
+        id: 'tall', cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 25, width: 24, z: 4, height: 86, panelStyleId: T.id,
+        ends: { left: { type: 'blind', width: 3 }, right: { type: 'none' } },
+        autoCount: false, items: [fixed('tall-cab', 21)], blind: { left: 42 },
+      });
+      const upper = buildRun({
+        id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+        width: 30, z: 54, height: 36, depth: 12,
+        anchors: { left: false, right: true },
+      });
+      const source = buildRoom({
+        doorStyles: [T],
+        walls: [
+          buildWall({ id: 'host', x1: 0, y1: 0, x2: 120, y2: 0, runs: [tall],
+            connections: { start: { wallId: 'return', endpoint: 'start' }, end: null } }),
+          buildWall({ id: 'return', x1: 0, y1: 0, x2: 0, y2: 96, runs: dyingIn ? [upper] : [],
+            connections: { start: { wallId: 'host', endpoint: 'start' }, end: null } }),
+        ],
+      });
+      const room = syncRoom(source, settings);
+      const wall = room.walls[0];
+      const run = wall.runs[0];
+      const sheet = endPanelSheet(room, wall, run, 'left', settings);
+      const { style } = resolveDoorStyle(room, settings, 'panel',
+        panelLevels(room, wall, run, run.ends.left, { sheet }));
+      expect([sheet, style.id, runEndThickness(room, wall, run, settings).left])
+        .toEqual(dyingIn ? [true, 'sheet', 0.75] : [false, T.id, 1]);
+    }
+  });
+
   it('uses team doors for a free end and sheet for a joined end (G1 tall)', () => {
     const room = syncRoom(stored('G1 Euro kitchen'), settings);
     const tall = runOf(room, G1_TALL);

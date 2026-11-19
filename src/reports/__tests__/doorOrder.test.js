@@ -330,7 +330,7 @@ describe('door order form data', () => {
     }
   });
 
-  it('lists back panels, blind panels and wall end panels once with their own part numbers', () => {
+  it('lists back and wall end panels once and omits sheet blind panels (GC6.4)', () => {
     let r = room([
       run('blind', { id: 'cab', kind: 'cabinet', face: face('open') }, {
         x: 25, width: 24, height: 86, cabinetTypeId: CABINET_TYPE_IDS.TALL, blind: { left: 42, right: null },
@@ -355,7 +355,7 @@ describe('door order form data', () => {
     const numbers = partNumbers(r, settings).byKey;
     expect(order.warnings).toEqual([]);
     expect(lines(order).map(({ number, notes, qty }) => [number, notes, qty])).toEqual(
-      ['wall:endPanel:end', 'blind:left', 'back'].map((key) => [numbers.get(key), 'do not sand edges', 1])
+      ['wall:endPanel:end', 'back'].map((key) => [numbers.get(key), 'do not sand edges', 1])
         .sort((a, b) => a[0] - b[0]),
     );
     expect(lines(order).find(({ number }) => number === numbers.get('wall:endPanel:end')))

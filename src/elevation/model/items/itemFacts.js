@@ -6,7 +6,7 @@ import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
 import { runLegs } from '../legs.js';
 import { runLegFills } from '../legFills.js';
 import {
-  isJoinedEnd, isSheetCell,
+  endPanelSheet, isSheetCell,
 } from '../panelThickness.js';
 import { resolveWall } from '../room.js';
 import { runScene } from '../runScene.js';
@@ -87,7 +87,7 @@ export function itemFacts(room, settings) {
     const shelfBack = part.kind === 'panel' && part.key.endsWith(':back');
     let style;
     if (part.kind === 'end_panel' || part.kind === 'panel' || blindPanel) {
-      const sheet = shelfBack || (!piece?.inside && (end ? isJoinedEnd(run, end) : isSheetCell(leaf)));
+      const sheet = shelfBack || (!piece?.inside && (end ? endPanelSheet(room, view, run, end, settings) : isSheetCell(leaf)));
       style = resolveDoorStyle(room, settings, 'panel',
         panelLevels(room, view, run, piece?.inside ? piece : end ? run.ends?.[end] : leaf, { sheet })).style;
     }

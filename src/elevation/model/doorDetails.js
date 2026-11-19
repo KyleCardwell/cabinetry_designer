@@ -8,7 +8,7 @@ import { defaultFace } from './faces.js';
 import { getFaceNode } from './faceTree.js';
 import { resolveMidLayout } from './midLayout.js';
 import { runItems } from './grid.js';
-import { isJoinedEnd } from './panelThickness.js';
+import { endPanelSheet } from './panelThickness.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
@@ -109,7 +109,7 @@ export function runEndPanelDetail(room, wall, run, end, settings, scene = runSce
   const panel = scene.drawnPieces.find(({ id, kind }) => id === `${run.id}:${end}` && kind === 'end_panel');
   if (!panel) return null;
   const { style, design } = resolveDoorStyle(room, settings, 'panel',
-    panelLevels(room, wallViewForRun(wall, run), run, stored, { sheet: isJoinedEnd(run, end) }));
+    panelLevels(room, wallViewForRun(wall, run), run, stored, { sheet: endPanelSheet(room, wall, run, end, settings) }));
   if (style.id === 'sheet') return null;
   const width = frontDepth(run, settings) - runBackOffset(run);
   if (!(width > 0) || !(panel.height > 0)) return null;
@@ -238,7 +238,9 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     const rect = { x: entry.panel.x, z: run.z, width: entry.panel.width, height: run.height };
     const part = run.ends?.[entry.side] ?? null;
     const resolved = resolveDoorStyle(
-      room, settings, 'panel', panelLevels(room, levelsWall, run, part),
+      room, settings, 'panel', panelLevels(room, levelsWall, run, part, {
+        sheet: endPanelSheet(room, levelsWall, run, entry.side, settings),
+      }),
     );
     addPart(`blind:${entry.side}`, 'blindPanel', entry.endPieceId, null, rect, resolved, part?.sizes);
   }

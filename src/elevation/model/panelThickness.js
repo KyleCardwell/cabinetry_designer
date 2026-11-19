@@ -1,8 +1,16 @@
+import { blindEntries, panelDepth } from './blind.js';
 import { panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
 import { isJointAnchor, isFollowAnchor } from './joints.js';
 
 export function isJoinedEnd(run, side) {
   return isJointAnchor(run.anchors?.[side]) || isFollowAnchor(run.anchors?.[side]);
+}
+
+/** Joined ends and blind panels receiving a return run default to sheet slab. */
+export function endPanelSheet(room, wall, run, side, settings) {
+  return isJoinedEnd(run, side) || (run.ends?.[side]?.type === 'blind'
+    && panelDepth(room, wall, run, side, settings) > 0
+    && blindEntries(room, wall, run, settings).entries.some((entry) => entry.side === side && entry.panel));
 }
 
 /** A panel cell is sheet slab by default unless it's a back panel, whose face shows (SPEC-46.2.1). */
@@ -22,7 +30,7 @@ export function runEndThickness(room, wall, run, settings) {
   return Object.fromEntries(['left', 'right'].map((side) => [
     side,
     panelThickness(room, wall, run, run.ends?.[side] ?? null, settings, {
-      sheet: isJoinedEnd(run, side),
+      sheet: endPanelSheet(room, wall, run, side, settings),
     }),
   ]));
 }

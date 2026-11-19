@@ -8,7 +8,7 @@ import { endFit, endPieceType } from '../../model/endLegs.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
-import { isJoinedEnd } from '../../model/panelThickness.js';
+import { endPanelSheet } from '../../model/panelThickness.js';
 import { frameLegButts } from '../../model/frameLegButts.js';
 import { runScene } from '../../model/runScene.js';
 import { wallViewForRun } from '../../model/wallSides.js';
@@ -394,7 +394,7 @@ export default function EndFields({
             settings={settings}
             partType="panel"
             part={run.ends[side]}
-            levels={panelLevels(room, wall, run, run.ends[side], { sheet: isJoinedEnd(run, side) })}
+            levels={panelLevels(room, wall, run, run.ends[side], { sheet: endPanelSheet(room, wall, run, side, settings) })}
             width={frontDepth(run, settings)}
             height={run.height}
             label={`${side === 'left' ? 'Left' : 'Right'} end panel`}
