@@ -145,6 +145,7 @@ export const {
   setWallEndLegs,
   setWallLanding,
   detachWallLanding,
+  makeWallFirst,
   updateWall,
   deleteWall,
   setActiveWall,

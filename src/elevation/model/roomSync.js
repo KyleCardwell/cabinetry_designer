@@ -332,6 +332,10 @@ export function syncRoom(room, settings) {
       ),
     )),
   }));
+  if (typeof nextRoom.firstWallId !== 'string'
+    || !nextRoom.walls.some((wall) => wall.id === nextRoom.firstWallId)) {
+    delete nextRoom.firstWallId;
+  }
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
   nextRoom.walls = nextRoom.walls.map((wall) => ({ ...wall,
     runs: wall.runs.map((run) => withWallEnds(nextRoom, wall, run)),

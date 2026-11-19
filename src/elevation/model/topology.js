@@ -123,7 +123,7 @@ export function chainOrientation(room, component) {
 
 /**
  * Return a component's wall ids in elevation left-to-right chain order.
- * Cycles retain the previously earliest wall as their first wall.
+ * Cycles start at the room's chosen first wall, else the previously earliest wall.
  *
  * @param {object} room
  * @param {{kind:'path'|'cycle',walls:Array<object>}} component
@@ -135,6 +135,9 @@ function chainOrder(room, component, previousOrder = []) {
   let ordered = component.walls.map((entry) => entry.wallId);
   if (orientation < 0) ordered = ordered.reverse();
   if (component.kind !== 'cycle' || ordered.length === 0) return ordered;
+
+  const firstIndex = ordered.indexOf(room.firstWallId);
+  if (firstIndex !== -1) return [...ordered.slice(firstIndex), ...ordered.slice(0, firstIndex)];
 
   const previousIndex = new Map(previousOrder.map((wallId, index) => [wallId, index]));
   const roomIndex = new Map((room?.walls ?? []).map((wall, index) => [wall.id, index]));
@@ -163,6 +166,7 @@ export function computeWallOrder(room, previousOrder = []) {
   return wallComponents(room)
     .map((component) => ({
       component,
+      first: component.walls.some(({ wallId }) => wallId === room.firstWallId) ? 0 : 1,
       previous: Math.min(...component.walls.map(
         ({ wallId }) => previousIndex.get(wallId) ?? Number.POSITIVE_INFINITY,
       )),
@@ -170,8 +174,23 @@ export function computeWallOrder(room, previousOrder = []) {
         ({ wallId }) => roomIndex.get(wallId) ?? Number.POSITIVE_INFINITY,
       )),
     }))
-    .sort((a, b) => a.previous - b.previous || a.room - b.room)
+    .sort((a, b) => a.first - b.first || a.previous - b.previous || a.room - b.room)
     .flatMap(({ component }) => chainOrder(room, component, previousOrder));
+}
+
+/** Return why a wall cannot be made Wall 1, or null when allowed. */
+export function firstWallBlocker(room, wallId) {
+  const taken = (room?.walls ?? []).find((wall) => wall.id !== wallId && wall.numberOverride === 1);
+  if (taken) return { code: 'number-taken', wallId: taken.id };
+
+  const component = wallComponents(room).find((candidate) => (
+    candidate.walls.some((entry) => entry.wallId === wallId)
+  ));
+  if (component?.kind === 'path' && component.walls.length > 1) {
+    const [firstId] = chainOrder(room, component);
+    if (wallId !== firstId) return { code: 'open-chain', wallId: firstId };
+  }
+  return null;
 }
 
 /** Return the displayed number for every wall id. */

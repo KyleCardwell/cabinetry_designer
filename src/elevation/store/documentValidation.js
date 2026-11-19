@@ -704,6 +704,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 export function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && (room.firstWallId === undefined || typeof room.firstWallId === 'string')
     && (room.tFiller === undefined || T_FILLER_RUN_VALUES.includes(room.tFiller))
     && (room.roomLines === undefined || (Array.isArray(room.roomLines) && room.roomLines.every(isRoomLine)
       && new Set(room.roomLines.map((line) => line.id)).size === room.roomLines.length))

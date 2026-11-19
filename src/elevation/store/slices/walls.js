@@ -15,7 +15,7 @@ import {
 } from '../../model/landings.js';
 import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
 import { flipRunsForWall } from '../../model/room.js';
-import { elevationKey, elevationLeadKey, faceKeyParts } from '../../model/topology.js';
+import { elevationKey, elevationLeadKey, faceKeyParts, firstWallBlocker } from '../../model/topology.js';
 import { moveLandingDistance } from '../../plan/landingMoves.js';
 import {
   extendPastCorner as extendPastCornerPure,
@@ -381,6 +381,13 @@ export const wallReducers = {
         (candidate) => candidate.id === location.wall.id,
       );
       wall.landings[endpoint] = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    makeWallFirst(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location || firstWallBlocker(location.room, location.wall.id)) return;
+      location.room.firstWallId = location.wall.id;
+      location.wall.numberOverride = null;
       syncRoomAt(state, location.roomIndex);
     },
     updateWall(state, action) {
