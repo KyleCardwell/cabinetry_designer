@@ -1,6 +1,7 @@
 import { buildCacheFor } from './buildCache.js';
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
+import { DEFAULT_SETTINGS } from './constants.js';
 import { profileBandJoint } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
 import { cornerLegBands, ownerBands } from './cornerLegBands.js';
@@ -8,12 +9,14 @@ import { anchoredToCorner, cornerAt, cornerReturnPoint, crossingRuns, frontDepth
 import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
+import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { runEndView, runSide } from './runSide.js';
 import { runBandEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { outlineBounds, transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
+import { runTop } from './tops.js';
 import { elevationKey, returnsView } from './topology.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
@@ -68,6 +71,36 @@ function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
   const along = dot(neighborFrame.r, frame.r);
   const across = dot(neighborFrame.n, frame.r);
   return (offset) => cornerX + along * (endX - neighborCornerX) + across * offset;
+}
+
+/** Matching bands at an obtuse corner turn along the wall-corner/front-intersection line,
+ * rather than the cabinet's square end. Its projection also squashes molding profiles. */
+function angledBandX(room, view, end, neighborView, neighborRun, corner, settings) {
+  if (corner.angle <= 90.5) return () => null;
+  const radians = corner.angle * Math.PI / 180;
+  const sine = Math.sin(radians);
+  const cosine = Math.cos(radians);
+  const woodMiter = (settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner) === 'miter'
+    && runTop(neighborView, neighborRun, resolveProfile(settings, room, neighborView)).kind === 'wood';
+  const bands = view.runs.filter((own) => anchoredToCorner(own.anchors?.[end], corner))
+    .flatMap((own) => runSide(room, view, own, settings).filter((piece) => BANDS[piece.piece]
+      && piece.piece !== 'furniture_base'
+      && (piece.piece !== 'countertop' || (woodMiter
+        && runTop(view, own, resolveProfile(settings, room, view)).kind === 'wood'))));
+  return (piece) => {
+    const own = bands.filter((candidate) => candidate.piece === piece.piece
+      && Math.abs(candidate.z - piece.z) <= EPSILON
+      && Math.abs(candidate.height - piece.height) <= EPSILON)
+      .sort((a, b) => b.front - a.front)[0];
+    if (!own || piece.front <= EPSILON) return null;
+    const meet = (piece.front + own.front * cosine) / sine;
+    const neighborMeet = (own.front + piece.front * cosine) / sine;
+    // A front intersection behind either wall is outside the shared miter case.
+    if (meet < 0 || neighborMeet < 0) return null;
+    const cornerX = end === 'left' ? 0 : view.length;
+    const direction = end === 'left' ? 1 : -1;
+    return (depth) => cornerX + direction * meet * depth / piece.front;
+  };
 }
 
 /** Runs anchored into landings on this face, with depth mapped to its x and the free end. */
@@ -179,12 +212,14 @@ function buildCornerShapes(room, wall, side, settings,
   };
 
   /** A neighbour return: `xOf(offset)` maps its wall depth to x here; end is away from the corner. */
-  const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf, { section = false } = {}) => {
+  const cut = (key, neighbor, neighborView, neighborFrame, run, end, endXOf,
+    { section = false, bandXOf = () => null } = {}) => {
     const ends = [run.x, run.x + run.width];
     const asEnd = !section && (endView || jogs.has(neighbor.id));
     const pieces = asEnd ? runEndView(room, neighborView, run, end, settings, { returnEnd: true })
       : runSide(room, neighborView, run, settings);
     const parts = pieces.flatMap((piece) => {
+      const xOf = bandXOf(piece) ?? endXOf;
       const xs = [xOf(piece.back), xOf(piece.front)].map((x) => Math.min(length, Math.max(0, x)));
       const depths = ends.flatMap((x) => [piece.back, piece.front]
         .map((offset) => depthOf(elevationToPlan(neighborFrame, x, offset))));
@@ -228,7 +263,8 @@ function buildCornerShapes(room, wall, side, settings,
       cut(`${end}:${neighbor.id}:${run.id}`, neighbor, neighborView, neighborFrame, run,
         corner.neighborSide === 'left' ? 'right' : 'left',
         returnX(frame, neighborFrame, end === 'left' ? 0 : length,
-          corner.neighborSide === 'left' ? 0 : neighborFrame.length, endX));
+          corner.neighborSide === 'left' ? 0 : neighborFrame.length, endX),
+        { bandXOf: angledBandX(room, view, end, neighborView, run, corner, settings) });
     }
     // A host run passing across the landed wall is cut through, so it is always a section (DR5).
     for (const run of crossingRuns(room, corner)) {

@@ -57,6 +57,41 @@ function expectChains(actual, expected) {
 }
 
 describe('exposed plan top edges (PT2)', () => {
+  it('miters equal wood tops from a 135-degree wall corner to their front-edge intersection (GC6.4)', () => {
+    const subject = syncRoom(room({ walls: [
+      wall({
+        id: 'A', x1: 0, y1: 0, x2: 120, y2: 0,
+        runs: [run({ id: 'base-A', top: 'wood', width: 72, anchors: { right: true } })],
+        connections: { end: { wallId: 'B', endpoint: 'start' } },
+      }),
+      wall({
+        id: 'B', x1: 120, y1: 0, x2: 180, y2: 60,
+        runs: [run({ id: 'base-B', top: 'wood', width: 60, anchors: { left: true } })],
+        connections: {
+          start: { wallId: 'A', endpoint: 'end' },
+          end: { wallId: 'C', endpoint: 'start' },
+        },
+      }),
+      wall({
+        id: 'C', x1: 180, y1: 60, x2: 180, y2: 180,
+        connections: { start: { wallId: 'B', endpoint: 'end' } },
+      }),
+    ] }), settings);
+    const front = 24.875 + 0.75;
+    const meeting = [120 - front * (Math.SQRT2 - 1), -front];
+    const [perimeter, joint] = planTopEdges(subject, settings);
+    expectChains([joint], [{ id: 'top-joint:0:0', kind: 'joint', closed: false,
+      points: [[120, 0], meeting] }]);
+    // The complete perimeter has only the two far ends and the shared corner/front
+    // vertices: neither clipped top leaves a triangle or diamond past the miter.
+    expectChains([perimeter], [{ id: 'top:0:0', kind: 'edge', closed: true,
+      points: [
+        [120, 0], ...planTopPoints(subject, subject.walls[0], [[36.9375, 0], [36.9375, front]]),
+        meeting, ...planTopPoints(subject, subject.walls[1], [[71.0625, front], [71.0625, 0]]),
+      ] }]);
+    expect(planTopEdges(subject, settings)).toHaveLength(2);
+  });
+
   it('pairs all four N4 nosing corners with joints to the tops’ front corners (GC6.4)', () => {
     const { document, settingsSnapshot } = JSON.parse(readFileSync(new URL(
       '../../../../../specs/fixtures/golden/N4-wip.json', import.meta.url,
