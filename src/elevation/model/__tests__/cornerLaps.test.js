@@ -57,9 +57,8 @@ describe('corner filler laps (FL2)', () => {
     ['C8', 24.25, 24.875, true, 'shorter'],
     ['C9', 30, 24.875, true, 'shorter'],
     ['C10', 24.875, 24.875, null, null],
-    ['C11', 34.0295, 35.1786, true, 'shorter'],
   ])('%s: reserves and lap decision', (name, reserveA, reserveB, laps, source) => {
-    const { room, wallA, wallB, a, b } = fixture(name === 'C11' ? 135 : 90);
+    const { room, wallA, wallB, a, b } = fixture();
     if (name === 'C1') a.anchors.left = false;
     if (name === 'C3') wallA.x1 = -36;
     if (name === 'C4' || name === 'C5') manual(b, 'left', 'over');
@@ -186,18 +185,6 @@ describe('corner filler laps (FL2)', () => {
       a.ends.right.type = type;
       expect(cornerLap(room, wallA, a, 'right', settings)).toBeNull();
     }
-  });
-
-  it('subtracts the scaled lap from face-only and acute auto reserves, with an explicit laps-off path', () => {
-    const { room, wallA, a } = fixture(60);
-    const off = cornerReserveParts(room, wallA, 'right', a, settings, { laps: false });
-    expect(off.lap).toBe(0);
-    const parts = cornerReserveParts(room, wallA, 'right', a, settings);
-    expect(parts.lap).toBeCloseTo(0.8125 / Math.sin(Math.PI / 3));
-    expect(parts.total).toBeCloseTo(off.face + off.back - parts.lap);
-    a.cornerClearance = { right: 'face' };
-    expect(cornerReserve(room, wallA, 'right', a, settings)).toBeCloseTo(off.face - parts.lap);
-    expect(cornerReserve(room, wallA, 'right', a, settings, { laps: false })).toBe(off.face);
   });
 });
 

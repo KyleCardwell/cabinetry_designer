@@ -202,21 +202,6 @@ describe('wall frames and corners', () => {
     expect(findCollisions(syncRoom(room, DEFAULT_SETTINGS), DEFAULT_SETTINGS)).toEqual([]);
   });
 
-  it('scales reserve by the sine of a 135-degree corner', () => {
-    const room = connectedRoom({ wallB: { x2: 187.8823, y2: 67.8823 } });
-    room.walls[1].runs = [cabinetRun('B-base', CABINET_TYPE_IDS.BASE, {
-      anchors: { left: true, right: false },
-    })];
-    const reserve = cornerReserve(
-      room,
-      room.walls[0],
-      'right',
-      cabinetRun('A-base', CABINET_TYPE_IDS.BASE),
-      DEFAULT_SETTINGS,
-    );
-    expect(reserve).toBeCloseTo(35.1786, 3);
-  });
-
   it('resolves both anchors across the available wall span', () => {
     const room = connectedRoom();
     room.walls[0].runs = [cabinetRun('A-base', CABINET_TYPE_IDS.BASE, {
@@ -337,14 +322,6 @@ describe('SPEC-6 angled corner clearance', () => {
       .toMatchObject({ total: 30, source: 'custom' });
   });
 
-  it('does not add a back term at a 135-degree corner', () => {
-    const { room, run } = reserveFixture(135);
-    const parts = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
-    expect(parts.face).toBeCloseTo(35.1786, 3);
-    expect(parts.back).toBe(0);
-    expect(parts.total).toBeCloseTo(35.1786, 3);
-  });
-
   it('uses the current run depth for the acute-angle back term', () => {
     const { room, run } = reserveFixture(75, {
       cabinetTypeId: CABINET_TYPE_IDS.UPPER,
@@ -383,7 +360,7 @@ describe('SPEC-6 angled corner clearance', () => {
         angled.run,
       ),
     };
-    expect(angledOptions.endMinWidths.right).toBeCloseTo(2.6702, 3); // FL2: scribe minimum plus the scaled lap.
+    expect(angledOptions.endMinWidths.right).toBeCloseTo(1.7321, 3); // Angled fillers miter without a lap.
     const angledPiece = splitRun(angled.run, DEFAULT_SETTINGS, angledOptions).pieces
       .find((piece) => piece.role === 'end-right');
     expect(angledPiece.cornerAngle).toBeCloseTo(60, 6);

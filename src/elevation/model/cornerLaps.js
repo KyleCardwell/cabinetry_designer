@@ -13,7 +13,7 @@ export function cornerLap(room, wall, run, side, settings, { ignoreOwn = false }
   wall = wallViewForRun(wall, run);
   const corner = cornerForRunSide(room, wall, run, side);
   const anchor = run.anchors?.[side];
-  if (corner.type !== 'inside' || !flexFiller(run, side)
+  if (corner.type !== 'inside' || Math.abs(corner.angle - 90) > 0.5 || !flexFiller(run, side)
     || !anchoredToCorner(anchor, corner)) return null;
 
   const parts = cornerReserveParts(room, wall, side, run, settings, { laps: false });

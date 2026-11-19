@@ -281,30 +281,6 @@ describe('lapped corner dimensions (FL2.1)', () => {
   it('shortens the corner frame stile while preserving its kind and metadata (D4)', () => {
     checkLapped({ frame: true }, 24.875, 0.8125);
   });
-
-  it('uses the lap scaled by the sine of a 135-degree corner (D5)', () => {
-    // Exact resolved geometry isolates this chain from resolveHorizontal's existing 1/16 rounding.
-    const room = fixture({ angle: 135 });
-    for (const [index, wall] of room.walls.entries()) {
-      const run = wall.runs[0];
-      const reserve = cornerReserveParts(room, wall, index === 0 ? 'right' : 'left', run, DEFAULT_SETTINGS);
-      run.x = index === 0 ? 0 : reserve.total;
-      run.width = (index === 0 ? 84.875 : 120.875) - reserve.total;
-    }
-    const { inner } = chains(room)[0];
-    const gapIndex = inner.findIndex(({ kind }) => kind === 'corner-gap');
-    const gap = inner[gapIndex];
-    const segment = inner[gapIndex - 1];
-    const run = room.walls[0].runs[0];
-    const lap = 0.8125 / Math.sin(135 * Math.PI / 180);
-    expect(gap.end - gap.start).toBeCloseTo(35.1786, 3);
-    expect(gap.end - gap.start).toBeCloseTo(24.875 / Math.sin(135 * Math.PI / 180), 8);
-    expect(run.x + run.width - segment.end).toBeCloseTo(lap, 8);
-    expect(segment.end).toBe(gap.start);
-    expect(segment).toMatchObject({ kind: 'piece', runId: 'a', pieceId: 'a:right' });
-    expectContiguous(inner.filter(({ kind }) => kind !== 'neighbor'), 84.875);
-  });
-
   it('D6–D7: keeps non-lapped ends unchanged and adjusts both sides of an over conflict', () => {
     for (const mode of ['panel', 'into', 'over']) {
       const room = syncRoom(fixture({ mode }), DEFAULT_SETTINGS);

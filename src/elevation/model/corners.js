@@ -384,9 +384,11 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
   }
 
   const radians = corner.angle * Math.PI / 180;
+  const obtuse = face > 0 && corner.angle > 90.5 && neighborRunId !== null;
+  const ownDepth = frontDepth(run, settings);
   const back = face > 0 && corner.angle < 90
     ? run.depth * (Math.cos(radians) / sine)
-    : 0;
+    : obtuse ? ownDepth * Math.cos(radians) / sine : 0;
   const decision = laps && source !== 'custom' ? cornerLap(room, wall, run, side, settings) : null;
   const lap = decision?.laps ? decision.amount / sine : 0;
   if (source === 'custom') {
@@ -396,7 +398,14 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
     return { face, back, lap, total: face - lap, source: 'face', neighborRunId };
   }
 
-  return { face, back, lap, total: face - lap + back, source: 'auto', neighborRunId };
+  let total = face - lap + back;
+  if (obtuse) {
+    const neighborDepth = face * sine;
+    // If the deeper neighbor reaches the corner, clear its front corner instead.
+    total = ownDepth + neighborDepth * Math.cos(radians) <= 0
+      ? neighborDepth * sine : Math.max(0, total);
+  }
+  return { face, back, lap, total, source: 'auto', neighborRunId };
 }
 
 /** Return the horizontal reserve required by compatible neighboring corner runs. */
