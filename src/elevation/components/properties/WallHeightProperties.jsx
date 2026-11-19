@@ -15,7 +15,7 @@ import {
   wallNumberWarnings,
 } from '../../model/index.js';
 import { resolveProfile } from '../../model/profile.js';
-import { wallHasCabinets, wallLabel } from '../../model/topology.js';
+import { firstWallBlocker, wallHasCabinets, wallLabel } from '../../model/topology.js';
 import { resolveWall } from '../../model/room.js';
 import { wallBuiltEnds } from '../../model/wallEndPanels.js';
 import { canExtendPast, wallCornerEnd } from '../../plan/cornerLandings.js';
@@ -25,6 +25,7 @@ import {
   extendPastCorner,
   flipWall,
   makeWallCorner,
+  makeWallFirst,
   setDoorStylePick,
   setMessage,
   setPullPick,
@@ -57,6 +58,16 @@ export default function WallHeightProperties({ room, wall, plan }) {
   const settings = useSelector(selectSettings);
   const inheritedChain = useSelector(selectRoomInheritedChain);
   const autoNumber = wallNumbers(room).get(wall.id);
+  const isWallFirst = wall.numberOverride === 1
+    || (wall.numberOverride == null && autoNumber === 1);
+  const firstWallBlock = firstWallBlocker(room, wall.id);
+  const blockingWall = firstWallBlock && room.walls.find((candidate) => candidate.id === firstWallBlock.wallId);
+  const blockingWallLabel = blockingWall && wallLabel(room, { ...blockingWall, name: '' });
+  const firstWallHint = firstWallBlock?.code === 'number-taken'
+    ? `${blockingWallLabel} is typed as number 1. Clear it first.`
+    : firstWallBlock?.code === 'open-chain'
+      ? `An open chain numbers from its left end (${blockingWallLabel}).`
+      : null;
   const duplicateNumber = wallNumberWarnings(room)
     .some((warning) => warning.wallIds.includes(wall.id));
   const inheritedProfile = resolveProfile(settings, room);
@@ -424,6 +435,20 @@ export default function WallHeightProperties({ room, wall, plan }) {
             />
           </Field>
         </div>
+        {!isWallFirst && (
+          <div className="mb-3 space-y-1">
+            <button
+              type="button"
+              disabled={firstWallBlock !== null}
+              title={firstWallHint ?? undefined}
+              onClick={() => dispatch(makeWallFirst({ wallId: wall.id }))}
+              className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700"
+            >
+              Make this Wall 1
+            </button>
+            {firstWallHint && <p className="text-xs text-gray-500">{firstWallHint}</p>}
+          </div>
+        )}
         {!wallHasCabinets(wall) && (
           <label className="mb-3 flex items-center gap-2 text-xs text-gray-300">
             <input
