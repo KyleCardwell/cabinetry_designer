@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { endHeightMode, formatInches, frontDepth, runBlind } from '../../model/index.js';
+import { blindEntries, endHeightMode, formatInches, frontDepth, runBlind } from '../../model/index.js';
 import { cornerDepthBAuto, cornerEnd, defaultLegA } from '../../model/cornerEnd.js';
 import { cornerEndActive, cornerOwnersAt, cornerReturnRuns } from '../../model/corners.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
@@ -40,6 +40,9 @@ export default function EndFields({
   const dispatch = useDispatch();
   const end = run.ends[side];
   const endType = endPieceType(run, side);
+  const hasBlindPanel = Boolean(endType === 'blind' && room && wall
+    && blindEntries(room, wall, run, settings).entries.find((entry) => entry.side === side)?.panel);
+  const hasFiller = endType === 'filler' || (endType === 'blind' && !hasBlindPanel);
   const fitted = endFit(run, side);
   const defaultHeight = endHeightMode({ type: endType });
   const where = { ...actionBase, part: 'runEnd', side };
@@ -290,7 +293,7 @@ export default function EndFields({
           />
         )}
         {endType === 'blind' && (
-          <Field label="Blind box">
+          <Field label="Blind box width">
             <InchInput
               value={runBlind(run)?.[side] ?? null}
               allowBlank
@@ -304,9 +307,9 @@ export default function EndFields({
             />
           </Field>
         )}
-        {(endType === 'filler' || endType === 'blind') && (
+        {hasFiller && (
           <>
-            <Field label="Ordered width">
+            <Field label="Filler ordered width">
               <InchInput
                 value={run.endFiller?.[side]?.width ?? null}
                 {...autoInchProps({ auto: settings.blindFillerWidth, text: endType === 'blind' ? undefined : 'from layout',
@@ -319,7 +322,7 @@ export default function EndFields({
                 aria-label={`${side} end filler ordered width`}
               />
             </Field>
-            <Field label="Return">
+            <Field label="Filler return depth">
               <InchInput
                 value={run.endFiller?.[side]?.returnDepth ?? null}
                 {...autoInchProps({ auto: settings.fillerReturnDepth, text: endType === 'blind' ? '0"' : undefined,
@@ -371,14 +374,21 @@ export default function EndFields({
                 </select>
               </Field>
             )}
-            <p className="mt-1.5 text-xs text-gray-500">
-              {endType === 'blind'
-                ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
-                : 'Ordered width and return depth. The elevation still shows what fits.'}
-            </p>
+            {endType === 'filler' && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Ordered width and return depth. The elevation still shows what fits.
+              </p>
+            )}
           </>
         )}
-        {room && wall && (endType === 'end_panel' || endType === 'blind') && (
+        {endType === 'blind' && (
+          <p className="mt-1.5 text-xs text-gray-500">
+            {hasBlindPanel
+              ? 'Blind box width: the cabinet\'s full box; the extra runs into the corner. The blind panel runs from the wall to the filler\'s edge.'
+              : 'Blind box width: the cabinet\'s full box; the extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'}
+          </p>
+        )}
+        {room && wall && (endType === 'end_panel' || hasBlindPanel) && (
           <PartStyleFields
             room={room}
             settings={settings}
