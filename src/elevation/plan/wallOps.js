@@ -3,10 +3,14 @@ import {
   dot,
   lineIntersection,
   magnitude,
+  normalize,
   scale,
   subtract,
   wallFrame,
 } from '../model/geometry.js';
+import { cornerAt } from '../model/corners.js';
+import { landingOffsetFor } from '../model/landings.js';
+import { wallSideView } from '../model/wallSides.js';
 
 const ORTHO_EPSILON = 1e-6;
 
@@ -221,6 +225,78 @@ export function setWallLength(room, wallId, length, growEnd) {
     return { ok: false, reason: 'parallel-neighbor', walls: room.walls };
   }
   return moveWallPerpendicular(room, neighbor.id, delta * projection, { keepAngle: [wallId] });
+}
+
+/** Swing about a corner, sliding the other end along its neighbour's fixed line. */
+export function setCornerAngle(room, wallId, endpoint, angle) {
+  const refuse = (reason) => ({ ok: false, reason, walls: room.walls });
+  const wall = wallById(room.walls, wallId);
+  if (!wall) return refuse('wall-not-found');
+  if (!Number.isFinite(angle) || angle < 15 || angle > 345 || angle === 180) {
+    return refuse('invalid-angle');
+  }
+  if (endpoint !== 'start' && endpoint !== 'end') return refuse('no-corner');
+  const frame = wallFrame(room, wall);
+  const side = endpoint === frame.leftEndpoint ? 'left' : 'right';
+  const corner = cornerAt(room, wall, side);
+  if (corner.type === 'open') return refuse('no-corner');
+
+  const otherEndpoint = endpoint === 'start' ? 'end' : 'start';
+  if (wall.landings?.[otherEndpoint]) return refuse('landed-far-end');
+  const currentAngle = corner.type === 'straight' ? 180 : corner.angle;
+  if (Math.abs(angle - currentAngle) < 1e-9) {
+    return { ok: true, reason: null, walls: cloneWalls(room.walls) };
+  }
+
+  const pivot = endpointPoint(wall, endpoint);
+  const connection = wall.connections?.[endpoint];
+  const previous = wallById(room.walls, connection?.wallId ?? corner.neighborWallId);
+  let reference;
+  if (connection) {
+    reference = normalize(subtract(
+      endpointPoint(previous, connection.endpoint === 'start' ? 'end' : 'start'),
+      endpointPoint(previous, connection.endpoint),
+    ));
+  } else {
+    const hostFrame = wallFrame(room, wallSideView(previous, wall.landings[endpoint].side));
+    reference = scale(hostFrame.r, corner.neighborSide === 'left' ? 1 : -1);
+  }
+  const rotate = (degrees) => {
+    const radians = degrees * Math.PI / 180;
+    return {
+      x: reference.x * Math.cos(radians) - reference.y * Math.sin(radians),
+      y: reference.x * Math.sin(radians) + reference.y * Math.cos(radians),
+    };
+  };
+  const currentDirection = scale(frame.d, endpoint === 'start' ? 1 : -1);
+  // Match the rotation to the shown angle, including reflex (outside) corners.
+  const sense = corner.type === 'straight'
+    ? (side === 'left' ? -1 : 1)
+    : (dot(rotate(currentAngle), currentDirection) > dot(rotate(-currentAngle), currentDirection) ? 1 : -1);
+  const direction = rotate(sense * angle);
+  const farConnection = wall.connections?.[otherEndpoint];
+  const neighbor = farConnection ? wallById(room.walls, farConnection.wallId) : null;
+  if (farConnection && !neighbor) return refuse('wall-not-found');
+  const farPoint = neighbor
+    ? lineIntersection(pivot, direction,
+      endpointPoint(neighbor, farConnection.endpoint === 'start' ? 'end' : 'start'),
+      wallFrame(room, neighbor).d)
+    : add(pivot, scale(direction, frame.length));
+  if (!farPoint) return refuse('parallel-neighbor');
+  if (dot(subtract(farPoint, pivot), direction) <= 0) return refuse('neighbor-too-short');
+
+  const next = moveConnectedEndpoint(room.walls, wallId, otherEndpoint, farPoint);
+  if (!wallsHold(room.walls, next, neighbor ? [wallId, neighbor.id] : [wallId])) {
+    return refuse('neighbor-too-short');
+  }
+  const landing = wall.landings?.[endpoint];
+  if (landing && !connection) {
+    // The changed footprint must not let landing resolution move the fixed pivot.
+    const moved = wallById(next, wallId);
+    const offset = landingOffsetFor({ ...room, walls: next }, moved, endpoint, landing.ref, landing.to);
+    moved.landings = { ...moved.landings, [endpoint]: { ...landing, offset } };
+  }
+  return { ok: true, reason: null, walls: next };
 }
 
 /** Connect two endpoints bidirectionally, replacing their previous connections. */

@@ -140,6 +140,7 @@ export const {
   makeWallCorner,
   extendPastCorner,
   setWallLength,
+  setWallCornerAngle,
   setWallTFiller,
   setWallEndPanel,
   setWallEndLegs,

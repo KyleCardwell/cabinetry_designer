@@ -15,7 +15,7 @@ import {
 } from '../../model/landings.js';
 import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
 import { flipRunsForWall } from '../../model/room.js';
-import { elevationKey, elevationLeadKey, faceKeyParts, firstWallBlocker } from '../../model/topology.js';
+import { elevationKey, elevationLeadKey, faceKeyParts, firstWallBlocker, wallLabel } from '../../model/topology.js';
 import { moveLandingDistance } from '../../plan/landingMoves.js';
 import {
   extendPastCorner as extendPastCornerPure,
@@ -27,6 +27,7 @@ import {
   disconnectWallEndpoint as disconnectWallEndpointPure,
   moveConnectedEndpoint,
   moveWallPerpendicular as moveWallPerpendicularPure,
+  setCornerAngle,
   setWallLength as setWallLengthPure,
 } from '../../plan/wallOps.js';
 import {
@@ -218,6 +219,25 @@ export const wallReducers = {
       );
       if (!result.ok) {
         state.message = result.reason;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, location.roomIndex, result.walls);
+    },
+    setWallCornerAngle(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { endpoint, angle } = action.payload;
+      const { room, wall } = location;
+      const result = setCornerAngle(room, wall.id, endpoint, angle);
+      if (!result.ok) {
+        if (result.reason === 'landed-far-end') {
+          const otherEndpoint = endpoint === 'start' ? 'end' : 'start';
+          const host = room.walls.find((candidate) => candidate.id === wall.landings[otherEndpoint].wallId);
+          state.message = `${wallLabel(room, wall)}'s other end lands on ${wallLabel(room, host)}. Change the landing instead.`;
+        } else {
+          state.message = angle === 180 ? 'A 180° corner is a straight wall.' : result.reason;
+        }
         return;
       }
       state.message = null;

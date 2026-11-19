@@ -11,6 +11,10 @@ const MESSAGE_TEXT = {
   'follow-cycle': "Can't follow that edge: it would loop back on itself.",
   'joint-same-run': "A run can't join both of its own edges to one joint.",
   'run-not-found': "That run isn't there any more.",
+  'no-corner': 'That wall end has no corner to change.',
+  'invalid-angle': 'Enter a corner angle from 15° to 345° (except 180°).',
+  'parallel-neighbor': "The wall would be parallel to its next wall, so they can't meet.",
+  'neighbor-too-short': 'That would make a wall shorter than 1″ or point backwards.',
 };
 
 /** The current message, under the toolbar, until it's dismissed or times out. */
