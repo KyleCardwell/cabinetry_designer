@@ -5,6 +5,7 @@ import { sweepBand, viewFromWall } from '../bandSweep.js';
 import { cornerEnd } from '../cornerEnd.js';
 import { ownerBandTurnLines } from '../cornerBands.js';
 import { ownerBands } from '../cornerLegBands.js';
+import { floorOpenings } from '../floorOpenings.js';
 import { runBandEnds, runBands, waterfallEnds } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { syncRoom } from '../roomSync.js';
@@ -12,7 +13,7 @@ import { wallNumbers } from '../topology.js';
 import { wallSideFrame, wallSideView } from '../wallSides.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
-const KINDS = new Set(['toeKick', 'topMold', 'crown']);
+const KINDS = new Set(['toeKick', 'topMold', 'crown', 'countertop', 'furnitureBase']);
 const EPSILON = 1e-3;
 const flatOutline = ({ x, z, width, height }) => bandOutline(
   [[x, z, 0], [x, z + height, 0]], [[x + width, z, 0], [x + width, z + height, 0]], z, height,
@@ -49,7 +50,10 @@ function skipReason(path, records) {
   if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
   if ([path.start, path.end].some((end) => end?.type === 'corner')) return 'corner caps';
   if (records.some(({ bands }) => bands.topSegments.length)) return 'top segments';
-  if (records.some(({ bands }) => path.kind === 'toeKick' && bands.toeKicks.length !== 1)) return 'floor openings';
+  if (['toeKick', 'furnitureBase'].includes(path.kind)
+    && records.some(({ run, scene }) => floorOpenings(run, scene.cells).some(({ baseUnder }) => !baseUnder))) {
+    return 'floor openings';
+  }
   if (records.some(({ waterfall }) => waterfall.left || waterfall.right)) return 'waterfall run';
   if (records.some(({ turnLines }) => turnLines)) return 'Corner 45 turn lines';
   for (const rule of [path.start, path.end]) {
@@ -90,8 +94,9 @@ describe('band sweep wall views', () => {
           const run = view.runs.find(({ id }) => id === segment.runId);
           const scene = runScene(room, view, run, settings);
           const bands = runBands(room, view, run, settings, scene);
-          const band = path.kind === 'toeKick' ? bands.toeKicks[0] : bands[path.kind];
-          return { wall, view, run, bands, band,
+          const band = path.kind === 'toeKick' ? bands.toeKicks[0]
+            : path.kind === 'furnitureBase' ? bands.furnitureBases[0] : bands[path.kind];
+          return { wall, view, run, scene, bands, band,
             ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height),
             waterfall: waterfallEnds(room, view, run, settings),
             turnLines: band && hasTurnLines(room, view, run, settings, scene, path.kind, band) };

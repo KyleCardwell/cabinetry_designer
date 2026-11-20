@@ -163,8 +163,8 @@ function endRule(room, settings, entries, entry, side) {
     const corner = cornerAt(room, view, side);
     if (corner.type === 'outside') return rule('return');
     const panel = wallEndPanelAt(room, view, side, settings);
-    if (panel) return kind === 'toeKick'
-      ? rule('die-in', { kind: 'panel', id: wallEndPanelPartKey(view.id, panel.endpoint) }) : rule('return');
+    if (panel) return rule(kind === 'toeKick' ? 'die-in' : 'return',
+      { kind: 'panel', id: wallEndPanelPartKey(view.id, panel.endpoint) });
     return rule('die-in', { kind: corner.anchorWallId ? 'landing' : 'wall',
       id: corner.anchorWallId ?? corner.neighborWallId ?? view.id });
   }
