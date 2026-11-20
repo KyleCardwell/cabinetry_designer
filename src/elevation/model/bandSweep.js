@@ -1,17 +1,16 @@
+import { bandFronts } from './bandParts.js';
 import { bandPaths } from './bandPaths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { insertBaseCutouts } from './baseCutouts.js';
 import { buildCacheFor } from './buildCache.js';
-import { cornerBandEdge, lazyCornerShapes, ownerBandTurnLines, profileBandJoint } from './cornerBands.js';
-import { cornerEnd } from './cornerEnd.js';
-import { ownerBands } from './cornerLegBands.js';
+import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
 import { whileBuildingPaths } from './pathBuilding.js';
 import { runBase, runBaseProfile } from './furnitureBase.js';
 import { add, dot, normalize, planPointToWallX, scale, subtract } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
-import { woodTopSection } from './nosing.js';
+import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { bandPast, freeEdge, runBandEnds, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
@@ -146,14 +145,22 @@ function cornerSweep(room, path, settings) {
     const ownerWall = segment.corner ? room.walls.find(({ id }) => id === segment.corner.ownerWallId) : wall;
     const run = ownerWall.runs.find(({ id }) => id === segment.runId);
     const view = wallSideView(ownerWall, run.wallSide ?? 'front');
-    const band = ownerBands(room, view, run, settings).find(({ kind }) => kind === path.kind);
+    const section = sectionFor(room, view, run, path.kind, settings);
+    const front = bandFronts(room, view, run, settings)[path.kind];
+    const overhangs = topOverhangs(room, view, run, settings);
+    const past = path.kind === 'countertop'
+      ? nosingProjection(moldingProfiles(resolveProfile(settings, room, view), settings, run).nosing)
+      : bandPast(room, view, run, 'left', path.kind, settings);
+    const placedLoop = section && placeAtEnd(section.loop, front - past,
+      path.kind === 'countertop' ? 0 : section.offset, section.reference);
+    const band = { front, overhangs, placedLoop, contour: placedLoop && frontContour(placedLoop) };
     if (segment.diagonal) {
       const r = normalize(subtract(segment.to, segment.from));
       let n = { x: -r.y, y: r.x };
       if (dot(n, frame.n) < 0) n = scale(n, -1);
       frame = { ...frame, r, n };
     }
-    return { ...segment, frame, section: sectionFor(room, view, run, path.kind, settings), band,
+    return { ...segment, frame, section, band,
       ...(!segment.corner ? runSweepDetails(room, view, run, path.kind, settings, segment.x1) : {}) };
   });
   const caps = [path.start, path.end].map((rule, index) => {
@@ -358,7 +365,7 @@ function finishRunBand(sweep, band, edges) {
   return { ...insertBaseCutouts(band, cutouts), hasCutouts: cutouts.length > 0 };
 }
 
-function eligibilityReason(room, path, settings, records, member) {
+function eligibilityReason(room, path, settings, records) {
   if (path.vertices.some(({ type }) => type === 'turn')
     || path.segments.some(({ corner, diagonal }) => corner || diagonal)
     || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) {
@@ -385,9 +392,9 @@ function eligibilityReason(room, path, settings, records, member) {
 
 /** Exclusions shared by every consumer of the straight sweep. */
 export function sweepEligible(room, path, settings, records, member) {
-  if (records) return eligibilityReason(room, path, settings, records, member);
+  if (records) return eligibilityReason(room, path, settings, records);
   const cache = buildCacheFor(room);
-  const build = () => eligibilityReason(room, path, settings, undefined, member);
+  const build = () => eligibilityReason(room, path, settings);
   return cache ? cache.byRoom(`sweepEligible:${path.id}:${member ?? ''}`, room, settings, build) : build();
 }
 

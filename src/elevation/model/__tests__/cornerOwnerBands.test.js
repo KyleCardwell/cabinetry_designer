@@ -4,7 +4,7 @@ import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandFronts } from '../bandParts.js';
 import { frontContour, placeAtEnd } from '../bandEnds.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { cornerBandEdge, cornerBandTurns, ownerBandTurnLines } from '../cornerBands.js';
+import { cornerBandEdge, cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
 import { cornerShapes } from '../cornerParts.js';
 import { moldingPast, moldingProfiles } from '../moldingProfiles.js';
@@ -153,15 +153,10 @@ describe('owner bands meet the return leg (CC7)', () => {
     expect(lines.at(-1).z2).toBeCloseTo(contour.at(-1)[1], 3);
   });
 
-  it('omits inactive and opposite-face legs and turn lines at a band end', () => {
+  it('omits inactive and opposite-face legs', () => {
     owner.ends.left.corner.kind = 45;
-    const { synced, view, run: ownerRun } = resolved();
+    const { synced } = resolved();
     expect(cornerShapes(synced, synced.walls[0], 'back', S)).toEqual([]);
-    const corner = cornerEnd(synced, view, ownerRun, 'left', S);
-    const source = { kind: 'countertop', front: 25.625, z: 34.5, height: 1.5 };
-    const turn = cornerBandTurns(corner, source.kind, source.front).a[0];
-    expect(ownerBandTurnLines(corner, source, { x: turn, width: 20 })).toEqual([]);
-    expect(ownerBandTurnLines(corner, source, { x: turn - 20, width: 20 })).toEqual([]);
     owner.anchors.left = false;
     const inactive = resolved();
     expect(inactive.shapes).toEqual([]);

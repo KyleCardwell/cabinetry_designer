@@ -11,7 +11,7 @@ import { cornerReturnLegs } from '../cornerLegs.js';
 import { faceDrawing } from '../drawingPayload.js';
 import { effectiveSettings } from '../effectiveSettings.js';
 import { resolveWall, syncRoom } from '../room.js';
-import { runBandEnds, runBands } from '../runBands.js';
+import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 
 const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
@@ -107,15 +107,12 @@ describe('profiled return leg bands', () => {
     }],
   ])('%s (CC7.1)', (_, check) => check());
 
-  it('keeps a joint square when the turn lies inside the leg (CC7.1)', () => {
+  it('draws the turn line inside the leg (CC7.1)', () => {
     owner.ends.left.corner.kind = 45;
     owner.ends.left.corner.legB = 72;
     returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
       items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
-    const { synced, view, top } = resolved();
-    const other = view.runs[0];
-    expect(runBandEnds(synced, view, other, S, runScene(synced, view, other, S), 'countertop', 34.5, 1.5)[1])
-      .toEqual({ type: 'square', x: top.x });
+    const { top } = resolved();
     expect(top.lines).toHaveLength(1);
   });
 });
@@ -178,8 +175,6 @@ describe('return leg bands (CC7)', () => {
     const bands = runBands(synced, view, other, S, scene);
     span(bands.countertop, 11.25, 108);
     span(bands.toeKicks[0], 12.25, 108);
-    expect(runBandEnds(synced, view, other, S, scene, 'countertop', 34.5, 1.5)[1])
-      .toEqual({ type: 'square', x: 108 });
   });
 
   it('adds the E45 countertop and toe kick turn lines inside the free leg bands', () => {
@@ -307,23 +302,15 @@ describe('return leg bands (CC7)', () => {
     span(resolved().bands[0], 107.1875, 118.3125);
   });
 
-  it('returns only the deeper band at a joint with unequal fronts', () => {
+  it('returns the deeper leg at a joint with unequal fronts', () => {
     owner.ends.left.corner.depthB = 15;
     returnWall.runs = [run({ id: 'run-2', x: 0, width: 96, anchors: { left: false, right: true },
       items: [auto('r')], ends: { left: { type: 'none' }, right: { type: 'none' } } })];
     let result = resolved();
     span(result.top, 108, 118.375);
-    let other = result.view.runs[0];
-    let scene = runScene(result.synced, result.view, other, S);
-    expect(runBandEnds(result.synced, result.view, other, S, scene, 'countertop', 34.5, 1.5)[1])
-      .toEqual({ type: 'return', x: 108.75, side: 108, facing: 1 });
     owner.ends.left.corner.depthB = 30;
     result = resolved();
     span(result.top, 107.25, 118.375);
-    other = result.view.runs[0];
-    scene = runScene(result.synced, result.view, other, S);
-    expect(runBandEnds(result.synced, result.view, other, S, scene, 'countertop', 34.5, 1.5)[1])
-      .toEqual({ type: 'square', x: 108 });
   });
 
   it('uses filler, absent end pieces and explicit top overhangs on a free leg', () => {

@@ -171,7 +171,6 @@ async function builderSplit(room, settings) {
     const dependencies = [
       [import('../bandParts.js'), 'bandFronts'],
       [import('../cornerBands.js'), 'cornerBandEdge', 'lazyCornerShapes', 'profileBandJoint'],
-      [import('../cornerLegBands.js'), 'cornerLegBandEdge'],
       [import('../corners.js'), 'cornerAt', 'cornerEndActive', 'frontDepth', 'runBackOffset'],
       [import('../floorOpenings.js'), 'floorEndOpen'],
       [import('../furnitureBase.js'), 'runBase'],

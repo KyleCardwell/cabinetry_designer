@@ -5,7 +5,7 @@ import { sweepEligible } from '../bandSweep.js';
 import { cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd } from '../cornerEnd.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
-import { cornerLegBandEdge, cornerLegBandsForOwner, ownerBands } from '../cornerLegBands.js';
+import { cornerLegBandsForOwner, ownerBands } from '../cornerLegBands.js';
 import { cornerAt, cornerEndActive, cornerReturnPoint, cornerReturnRuns } from '../corners.js';
 import { elevationToPlan, planPointToWallX } from '../geometry.js';
 import { wallEndPanelPartKey } from '../parts.js';
@@ -118,7 +118,7 @@ describe('band paths', () => {
 
 });
 
-it('matches corner leg ends, return-run ends and turn points across golden rooms (D4)', () => {
+it('matches corner leg ends and turn points across golden rooms (D4)', () => {
   const counts = {};
   const failures = [];
   for (const { key: roomKey, load } of goldenRooms()) {
@@ -220,20 +220,6 @@ it('matches corner leg ends, return-run ends and turn points across golden rooms
           compare(label, 'jointX', newJointX, old.jointX);
           if (blocked) compare(label, 'blocking run', runs.some((run) => run.id === legEnd?.against?.id
             && run.z + run.height > z + height + 1e-6), true);
-          for (const carrier of old.carriers) {
-            const edge = cornerLegBandEdge(room, returnView, carrier, old.near, kind, settings);
-            if (!edge || blocked) continue;
-            const end = result.ends.get(key(carrier, kind, z, old.near));
-            const returnLabel = `${label}, return run ${carrier.id}`;
-            compare(returnLabel, 'end type', end?.type === 'joined' ? 'square'
-              : end?.type === 'turn' ? 'miter' : end?.type, edge.type);
-            compare(returnLabel, 'end x', end?.x ?? (end?.at && planPointToWallX(returnFrame, end.at)), edge.x);
-            if (end?.type === 'return' || end?.type === 'square') {
-              compare(returnLabel, 'against', end.against?.kind, 'corner');
-              const returnPath = result.paths.find(({ id }) => id === end.pathId);
-              compare(returnLabel, 'eligibility', sweepEligible(room, returnPath, settings), null);
-            }
-          }
         }
       }
     }
@@ -273,7 +259,8 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
           records.set(key(run, path.kind, path.z, side), {
             old: old[index].type,
             corner: cornerEndActive(room, view, run, side).active
-              || cornerLegBandEdge(room, view, run, side, path.kind, settings) !== null,
+              || Boolean(result.ends.get(key(run, path.kind, path.z, side))?.corner
+                || result.ends.get(key(run, path.kind, path.z, side))?.against?.kind === 'corner'),
             label: `${roomKey}, Wall ${numbers.get(wall.id)} ${segment.face}, run ${run.id}, ${path.kind}, ${side}`,
             wall: numbers.get(wall.id), face: segment.face, side,
             angle: cornerAt(room, view, side).angle,

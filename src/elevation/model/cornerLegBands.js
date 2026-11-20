@@ -2,7 +2,7 @@ import { bandFronts } from './bandParts.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandTurns } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
-import { cornerOwnersAt, cornerReturnPoint, cornerReturnRuns, runBackOffset } from './corners.js';
+import { cornerReturnPoint, cornerReturnRuns, runBackOffset } from './corners.js';
 import { floorEndOpen } from './floorOpenings.js';
 import { furnitureBasePast, runBaseProfile } from './furnitureBase.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
@@ -23,6 +23,7 @@ const PART_KINDS = {
 
 // Resolve just the vertical bands and front sections. Calling the owner's runBands here would
 // recurse through cornerShapes; a leg also needs no cabinet scene of its own.
+// plan only, retires in D6
 export function ownerBands(room, view, owner, settings) {
   const profile = resolveProfile(settings, room, view);
   const base = runBaseProfile(room, view, owner, settings);
@@ -101,7 +102,8 @@ export function cornerLegBandJointsForOwner(room, view, ownerWall, owner, side, 
   });
 }
 
-/** One owner's leg bands, including the end treatment needed for shipping footage. */
+/** One owner's leg bands for the plan countertop. */
+// plan only, retires in D6
 export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings) {
   const key = `corner-leg:${ownerWall.id}:${owner.id}:${side}`;
   return cornerLegBandJointsForOwner(room, view, ownerWall, owner, side, settings).map((joint) => {
@@ -154,28 +156,10 @@ export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, setti
 }
 
 /** Bands owned by corner cabinets on other wall faces, in this return elevation's frame. */
+// plan only, retires in D6
 export function cornerLegBands(room, view, settings) {
   return (room.walls ?? []).flatMap((ownerWall) => ownerWall.runs.flatMap((owner) => (
     ['left', 'right'].flatMap((side) => cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings)
       .map(({ part }) => part))
   )));
-}
-
-/** Equal fronts share a 45 miter at the turn; unequal fronts keep their square/return joint. */
-export function cornerLegBandEdge(room, view, run, side, kind, settings) {
-  for (const owner of cornerOwnersAt(room, view, run, side)) {
-    const joint = cornerLegBandsForOwner(room, view, owner.wall, owner.run, owner.side, settings)
-      .find((band) => band.kind === kind && band.near === side && band.carriers.some(({ id }) => id === run.id));
-    if (!joint) continue;
-    const front = bandFronts(room, view, run, settings)[kind];
-    if (joint.edge && Math.abs(front - joint.part.front) <= EPSILON) {
-      return { type: 'miter', x: joint.jointX, edge: joint.edge };
-    }
-    if (front <= joint.part.front + EPSILON) return { type: 'square', x: joint.jointX };
-    const adjusted = { ...run, x: side === 'left' ? joint.jointX : run.x,
-      width: side === 'left' ? run.x + run.width - joint.jointX : joint.jointX - run.x };
-    return { type: 'return', x: freeEdge(room, view, adjusted, side, kind, settings),
-      side: joint.jointX, facing: side === 'left' ? -1 : 1 };
-  }
-  return null;
 }

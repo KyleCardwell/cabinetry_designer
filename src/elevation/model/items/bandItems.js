@@ -1,7 +1,8 @@
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { panelOrientation } from '../cells.js';
-import { cornerLegBandsForOwner } from '../cornerLegBands.js';
-import { cornerReturnPoint, frontDepth, runBackOffset } from '../corners.js';
+import { bandPaths } from '../bandPaths.js';
+import { cornerLegBandParts } from '../bandSweep.js';
+import { frontDepth, runBackOffset } from '../corners.js';
 import { moldingPast, moldingProfiles } from '../moldingProfiles.js';
 import { carriesMolding } from '../parts.js';
 import { resolveProfile } from '../profile.js';
@@ -35,13 +36,9 @@ export function shippingMoldings(room, settings) {
         const scene = runScene(room, wall, run, settings);
         const bands = runBands(room, wall, run, settings, scene);
         const moldings = moldingProfiles(profile, settings, run);
-        const legBands = ['left', 'right'].flatMap((end) => {
-          const point = cornerReturnPoint(room, wall, run, end);
-          if (!point) return [];
-          const returnWall = room.walls.find(({ id }) => id === point.wallId);
-          const view = resolveWall(room, returnWall, point.wallSide);
-          return cornerLegBandsForOwner(room, view, wall, run, end, settings);
-        });
+        const { ends } = bandPaths(room, settings);
+        const legBands = ['left', 'right'].flatMap((end) =>
+          cornerLegBandParts(room, wall.id, run, end, settings));
         for (const kind of kinds) {
           const data = result[kind];
           const picked = moldings[kind];
@@ -64,9 +61,15 @@ export function shippingMoldings(room, settings) {
             data.measured += band.width + band.ends.filter((end) => end.type === 'return').length
               * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
           }
-          for (const leg of legBands.filter((leg) => leg.kind === kind)) {
-            data.measured += leg.part.width;
-            if (kind !== 'toeKick' && leg.returned) data.measured += leg.part.front - leg.part.back;
+          const partKind = kind === 'toeKick' ? 'toe_kick' : kind === 'topMold' ? 'top_mold' : kind;
+          for (const leg of legBands.filter((leg) => leg.kind === partKind)) {
+            data.measured += leg.width;
+            // A dropped leg still has a projected view, owned by the diagonal member.
+            const member = ends.has(`${leg.id}|${kind}|${leg.z}|left`)
+              ? leg.id : leg.id.replace('corner-leg:', 'corner-diagonal:');
+            const returned = ['left', 'right'].some((side) =>
+              ends.get(`${member}|${kind}|${leg.z}|${side}`)?.type === 'return');
+            if (kind !== 'toeKick' && returned) data.measured += leg.front - leg.back;
           }
         }
       }

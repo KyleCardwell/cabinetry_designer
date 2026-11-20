@@ -1,11 +1,11 @@
+import { bandPaths } from './bandPaths.js';
 import { buildCacheFor } from './buildCache.js';
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { profileBandJoint } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
-import { cornerLegBandParts } from './bandSweep.js';
-import { ownerBands } from './cornerLegBands.js';
+import { cornerLegBandParts, sweepBand } from './bandSweep.js';
 import { anchoredToCorner, cornerAt, cornerReturnPoint, crossingRuns, frontDepth, spanCorner } from './corners.js';
 import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
@@ -172,11 +172,14 @@ function buildCornerShapes(room, wall, side, settings,
       const point = cornerReturnPoint(room, view, run, end);
       if (!point) continue;
       const key = `${end}:corner:${run.id}`;
-      const bands = ownerBands(room, view, run, settings);
+      const { paths } = bandPaths(room, settings);
       const xOf = (depth) => corner.cornerX + (end === 'left' ? depth : -depth);
       const parts = cornerLegBandParts(room, view.id, run, end, settings)
         .map((band) => {
-          const ownerBand = bands.find(({ kind }) => kind === BANDS[band.kind]);
+          const path = paths.find(({ segments }) => segments.some(({ memberKey }) =>
+            memberKey === band.id || memberKey === band.id.replace('corner-leg:', 'corner-diagonal:')));
+          const ownerBand = sweepBand(room, path, settings).segments
+            .find((segment) => !segment.corner && segment.runId === run.id).band;
           const outline = ownerBand?.placedLoop && transformOutline(ownerBand.placedLoop, ([depth, z]) => [
             Math.min(length, Math.max(0, xOf(depth + band.front - ownerBand.front))), z,
           ], end === 'right');
