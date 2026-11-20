@@ -4,6 +4,11 @@ import { roomPartList } from '../partList.js';
 import { partNumbers } from '../partNumbers.js';
 import { syncRoom } from '../room.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
+import { bandPaths } from '../bandPaths.js';
+import { sweepBand, viewFromWall } from '../bandSweep.js';
+import { buildCacheFor, withBuildCache } from '../buildCache.js';
+import elevationReducer, { createInitialElevationState, renameRoom } from '../../store/elevationSlice.js';
+import { effectiveSettings } from '../effectiveSettings.js';
 
 const rooms = goldenRooms();
 it.each([
@@ -56,10 +61,51 @@ function medianTime(build) {
 const annotations = ['elevationDimensions', 'elevationMarks', 'elevationPartNumbers',
   'planDimensions', 'planMarks', 'planShapes'];
 
+it('builds band paths once per part list and reuses them for the synced store room (D3)', () => {
+  const { room: source, settings, shop } = rooms.find(({ key }) => key === 'N1').load();
+  const room = syncRoom(source, settings);
+  const check = (room, settings, build) => {
+    const cache = buildCacheFor(room);
+    const byRoom = cache.byRoom;
+    const builds = vi.fn();
+    const spy = vi.spyOn(cache, 'byRoom').mockImplementation((name, room, settings, builder) => (
+      byRoom(name, room, settings, () => {
+        if (name === 'bandPaths') builds();
+        return builder();
+      })
+    ));
+    try {
+      const first = build();
+      expect(bandPaths(room, settings)).toBe(first);
+      expect(builds).toHaveBeenCalledTimes(1);
+      return first;
+    } finally { spy.mockRestore(); }
+  };
+  const build = () => withBuildCache(() => check(room, settings, () => {
+    roomPartList(room, settings);
+    return bandPaths(room, settings);
+  }), room);
+  expect(build()).not.toBe(build());
+
+  const initial = createInitialElevationState({ rooms: [source], settings: shop, activeRoomId: source.id });
+  const state = elevationReducer(initial, renameRoom({ roomId: source.id, name: 'Cache check' }));
+  const stored = state.rooms[0];
+  const screenSettings = effectiveSettings(state, stored);
+  expect(Object.isFrozen(stored)).toBe(true);
+  check(stored, screenSettings, () => {
+    const first = bandPaths(stored, screenSettings);
+    roomPartList(stored, screenSettings);
+    expect(bandPaths(stored, effectiveSettings(state, stored))).toBe(first);
+    return first;
+  });
+});
+
 async function builderSplit(room, settings) {
   const builders = [
     ['elevationParts', import('../elevationParts.js'), 'elevationParts'],
     ['bandParts', import('../bandParts.js'), 'bandParts'],
+    ['bandPaths', import('../bandPaths.js'), 'bandPaths'],
+    ['sweeps', import('../bandSweep.js'), 'sweepBand', 'viewFromWall'],
     ['wallParts', import('../wallParts.js'), 'wallParts'],
     ['corner', import('../cornerParts.js'), 'cornerParts', 'combinedCornerShapes'],
     ['legs/fills', import('../cornerLegPayload.js'), 'cornerLegPayload'],
@@ -77,8 +123,19 @@ async function builderSplit(room, settings) {
     ['planShapes', import('../planParts.js'), 'planShapes'],
   ];
   let active = false;
+  let insideBandPaths = false;
   let totals = {};
   const spies = [];
+  // Test-only entry point: share the part list's scenes/corners and time each path's sweep/view once.
+  const build = () => withBuildCache(() => {
+    const list = roomPartList(room, settings);
+    for (const path of bandPaths(room, settings).paths) {
+      const sweep = sweepBand(room, path, settings);
+      const { wallId, face } = path.segments[0];
+      viewFromWall(room, sweep, room.walls.find(({ id }) => id === wallId), face);
+    }
+    return list;
+  }, room);
   try {
     for (const [category, modulePromise, ...names] of builders) {
       const module = await modulePromise;
@@ -88,24 +145,76 @@ async function builderSplit(room, settings) {
           // Attribute nested builders to their outer builder, avoiding double counting.
           if (active) return build(...args);
           active = true;
+          insideBandPaths = category === 'bandPaths';
           const start = performance.now();
           try { return build(...args); } finally {
             totals[category] = (totals[category] ?? 0) + performance.now() - start;
             active = false;
+            insideBandPaths = false;
           }
         }));
       }
     }
-    roomPartList(room, settings);
+    build();
     const samples = Array.from({ length: 5 }, () => {
       totals = {};
       const start = performance.now();
-      roomPartList(room, settings);
+      build();
       const elapsed = performance.now() - start;
       return { ...totals, geometryOnly: elapsed - annotations.reduce((sum, name) => sum + (totals[name] ?? 0), 0) };
     });
-    return Object.fromEntries([...new Set(builders.map(([category]) => category)), 'geometryOnly']
+    const medians = Object.fromEntries([...new Set(builders.map(([category]) => category)), 'geometryOnly']
       .map((category) => [category, samples.map((row) => row[category] ?? 0).sort((a, b) => a - b)[2]]));
+
+    // Separate diagnostic pass keeps fine-grained spy overhead out of the baseline above.
+    // Attribute nested calls to the outermost imported function used by bandPaths.
+    const dependencies = [
+      [import('../bandParts.js'), 'bandFronts'],
+      [import('../cornerBands.js'), 'cornerBandEdge', 'lazyCornerShapes', 'profileBandJoint'],
+      [import('../cornerLegBands.js'), 'cornerLegBandEdge'],
+      [import('../corners.js'), 'cornerAt', 'cornerEndActive', 'frontDepth', 'runBackOffset'],
+      [import('../floorOpenings.js'), 'floorEndOpen'],
+      [import('../furnitureBase.js'), 'runBase'],
+      [import('../geometry.js'), 'elevationToPlan', 'lineIntersection', 'scale'],
+      [import('../moldingProfiles.js'), 'moldingProfiles'],
+      [import('../nosing.js'), 'woodTopSection'],
+      [import('../parts.js'), 'wallEndPanelPartKey'],
+      [import('../profile.js'), 'resolveProfile'],
+      [import('../recesses.js'), 'recessesOn'],
+      [import('../runBands.js'), 'bandPast', 'carries', 'isOpenWallEnd', 'touching', 'wallReach', 'waterfallEnds'],
+      [import('../runScene.js'), 'runScene'],
+      [import('../topOverhang.js'), 'topOverhangs'],
+      [import('../tops.js'), 'isCountertop', 'runMoldings', 'runTop'],
+      [import('../topology.js'), 'wallNumbers'],
+      [import('../wallSides.js'), 'wallEndPanelAt', 'wallSideFrame', 'wallSideView'],
+    ];
+    let costActive = false;
+    let costs = {};
+    for (const [modulePromise, ...names] of dependencies) {
+      const module = await modulePromise;
+      for (const name of names) {
+        const fn = module[name];
+        spies.push(vi.spyOn(module, name).mockImplementation((...args) => {
+          if (!insideBandPaths || costActive) return fn(...args);
+          costActive = true;
+          const start = performance.now();
+          try { return fn(...args); } finally {
+            costs[name] = (costs[name] ?? 0) + performance.now() - start;
+            costActive = false;
+          }
+        }));
+      }
+    }
+    build();
+    const costSamples = Array.from({ length: 5 }, () => {
+      costs = {};
+      build();
+      return costs;
+    });
+    const bandPathsCosts = Object.fromEntries([...new Set(costSamples.flatMap(Object.keys))]
+      .map((name) => [name, costSamples.map((row) => row[name] ?? 0).sort((a, b) => a - b)[2]])
+      .sort((a, b) => b[1] - a[1]).slice(0, 3));
+    return { ...medians, bandPathsCosts };
   } finally {
     for (const spy of spies) spy.mockRestore();
   }
@@ -123,8 +232,10 @@ it.runIf(process.env.PERF)('builds N1 payload within 300 ms and measures G4 (GC2
     };
   }
   console.log('GC2 medians (ms):', JSON.stringify(medians));
-  const { room, settings } = rooms.find(({ key }) => key === 'N1').load();
-  console.log('GC2 N1 builder medians (ms):', JSON.stringify(await builderSplit(syncRoom(room, settings), settings)));
+  for (const key of ['N1', 'G4']) {
+    const { room, settings } = rooms.find((room) => room.key === key).load();
+    console.log(`D3 ${key} builder medians (ms):`, JSON.stringify(await builderSplit(syncRoom(room, settings), settings)));
+  }
   for (const { key, load } of rooms) {
     const { room: source, settings } = load();
     const list = roomPartList(syncRoom(source, settings), settings);
