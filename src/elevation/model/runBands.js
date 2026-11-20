@@ -131,7 +131,7 @@ function countertopProfile(room, wall, run, settings) {
  * How far a band runs past a free end of a run (SPEC-42.1): a top by its overhang or projection; a
  * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
  */
-function bandPast(room, wall, run, side, band, settings) {
+export function bandPast(room, wall, run, side, band, settings) {
   if (band === 'furnitureBase') return furnitureBasePast(runBaseProfile(room, wall, run, settings));
   const depths = bandDepths(settings);
   if (band === 'countertop') {
@@ -159,7 +159,7 @@ export function freeEdge(room, wall, run, side, band, settings) {
 }
 
 /** Whether a run carries this top family or floor base kind. */
-function carries(room, wall, run, band, settings) {
+export function carries(room, wall, run, band, settings) {
   if (band === 'toeKick') return runBaseProfile(room, wall, run, settings).kind === 'toe_kick';
   if (band === 'furnitureBase') return runBaseProfile(room, wall, run, settings).kind === 'furniture_base';
   const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
@@ -168,7 +168,7 @@ function carries(room, wall, run, band, settings) {
 }
 
 /** Runs meeting this side: other floor bases, or runs overlapping the box in height. */
-function touching(wall, run, side, floorBase = false) {
+export function touching(wall, run, side, floorBase = false) {
   const edge = side === 'left' ? run.x : run.x + run.width;
   return wall.runs.filter((other) => other.id !== run.id
     && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON
@@ -177,7 +177,7 @@ function touching(wall, run, side, floorBase = false) {
 }
 
 /** The blocking wall's reach toward the room, measured from this wall face. */
-function wallReach(room, wall, run, side, settings) {
+export function wallReach(room, wall, run, side, settings) {
   const anchor = run.anchors?.[side];
   if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return 0;
   if (anchor?.to === 'wall') return landingProjection(room, wall, anchor.wallId);
