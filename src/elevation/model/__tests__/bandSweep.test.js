@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { effectiveSettings } from '../effectiveSettings.js';
 import { bandOutline } from '../bandEnds.js';
 import { cornerLegBandsForOwner } from '../cornerLegBands.js';
 import { cornerReturnPoint } from '../corners.js';
@@ -135,4 +138,28 @@ it('projects corner owners and leg members like the drawn bands (D4)', () => {
   console.log('D4 corner views compared:', JSON.stringify(counts));
   console.log('D4 corner view parity mismatches:', mismatches.length ? `\n${mismatches.join('\n')}` : 'none');
   expect(unexpected, unexpected.join('\n')).toEqual([]);
+});
+
+// Forced uneven Corner 45 (shippingListCorners.test.js setup): the owner piece runs to the diagonal's far end.
+it.each([
+  { kind: 'toeKick', piece: 1, end: 151, line: 128.527 },
+  { kind: 'countertop', piece: 0, end: 146.375, line: 126.793 },
+])('runs the $kind owner piece to the uneven Corner 45 diagonal end (D4 c.0)', ({ kind, piece, end, line }) => {
+  const source = JSON.parse(readFileSync(new URL('./fixtures/room8cc.json', import.meta.url), 'utf8'));
+  const storedWall = source.walls.find(({ name }) => name === 'Wall 3');
+  for (const run of storedWall.runs) {
+    for (const side of Object.values(run.ends ?? {})) if (side?.type === 'corner') side.corner.kind = 45;
+  }
+  const BASE = 'b0505231-35e6-4630-8a1e-e9b2181d443c';
+  const stored = storedWall.runs.find((run) => run.grid.cells.some(({ node }) => node.id === BASE));
+  stored.ends.right.corner.depthB = 15;
+  const settings = effectiveSettings({ settings: { ...DEFAULT_SETTINGS } }, source);
+  const room = syncRoom(source, settings);
+  const path = bandPaths(room, settings).paths.find((candidate) => candidate.kind === kind
+    && candidate.vertices.some(({ type }) => type === 'turn')
+    && candidate.segments.some(({ runId, corner }) => runId === stored.id && !corner));
+  const view = viewRun(room, path, stored.id, settings).pieces[piece];
+  expect(view.x + view.width).toBeCloseTo(end, 3);
+  const vertical = view.lines.filter(({ x1, x2 }) => Math.abs(x1 - x2) < 1e-6);
+  expect(vertical.map(({ x1 }) => x1).some((x) => Math.abs(x - line) < 0.001)).toBe(true);
 });

@@ -428,18 +428,22 @@ export function runBands(room, wall, run, settings, scene) {
     const pathId = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
     const path = paths.paths.find((path) => path.id === pathId && Math.abs(path.height - height) <= EPSILON);
     const segment = path?.segments.find(({ runId }) => runId === run.id);
-    if (!segment || Math.abs(segment.x1 - (panelStart ?? run.x)) > EPSILON
-      || Math.abs(segment.x2 - (panelEnd ?? runEnd)) > EPSILON
-      || sweepEligible(room, path, settings) !== null) return null;
+    // The owner's segment ends at the turn, not the run edge, on its corner side.
+    const turnAt = (side) => path?.vertices.some(({ type, corner }) => type === 'turn'
+      && corner?.runId === run.id && corner.side === side);
+    if (!segment || (!turnAt('left') && Math.abs(segment.x1 - (panelStart ?? run.x)) > EPSILON)
+      || (!turnAt('right') && Math.abs(segment.x2 - (panelEnd ?? runEnd)) > EPSILON)
+      || sweepEligible(room, path, settings, undefined, run.id) !== null) return null;
     const view = viewRun(room, path, run.id, settings);
     if (!view) return null;
     sweptKinds.add(kind);
+    const cornerOwner = (turnAt('left') || turnAt('right')) && view.lines?.length > 0;
     // Keep each kind's public fields: plain bands have no outline, and toe kicks have no lines.
     const waterfall = kind === 'countertop'
       && [path.start, path.end].some(({ type }) => type === 'waterfall');
     const publicBand = ({ x, z, width, height, outline, lines, ends, hasCutouts }) => ({ x, z, width, height,
       ...(profiled || waterfall || hasCutouts ? { outline } : {}),
-      ...(profiled || waterfall || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
+      ...(profiled || waterfall || cornerOwner || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
       ...(kind === 'topMold' || kind === 'crown' ? { ends } : {}) });
     sweptPieces.set(kind, view.pieces.map(publicBand));
     return publicBand(view);
@@ -559,21 +563,6 @@ export function runBands(room, wall, run, settings, scene) {
     const edges = countertopEdges ?? [countertop.x, countertop.x + countertop.width]
       .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
     countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
-  }
-  let turnBands;
-  for (const side of ['left', 'right']) {
-    if (run.ends?.[side]?.corner?.kind !== 45) continue;
-    const corner = cornerEnd(room, wall, run, side, settings, scene.result);
-    if (!corner?.active || !corner.shape || !corner.columnId) continue;
-    turnBands ??= ownerBands(room, wall, run, settings);
-    const rects = { toeKick: toeKicks, furnitureBase: furnitureBases,
-      countertop: [countertop], topMold: [topMold], crown: [crown] };
-    for (const band of turnBands) {
-      for (const rect of rects[band.kind].filter(Boolean)) {
-        const lines = ownerBandTurnLines(corner, band, rect);
-        if (lines.length) rect.lines = [...(rect.lines ?? []), ...lines];
-      }
-    }
   }
   return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines,
     ...segmentedCountertop(run, scene, top, sweptKinds.has('countertop') ? null : countertop),

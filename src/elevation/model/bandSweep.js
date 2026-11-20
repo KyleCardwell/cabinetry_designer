@@ -352,28 +352,25 @@ function finishRunBand(sweep, band, edges) {
   return { ...insertBaseCutouts(band, cutouts), hasCutouts: cutouts.length > 0 };
 }
 
-function hasTurnLines(room, view, run, settings, scene, kind, band) {
-  for (const side of ['left', 'right']) {
-    if (run.ends?.[side]?.corner?.kind !== 45) continue;
-    const corner = cornerEnd(room, view, run, side, settings, scene.result);
-    if (!corner?.active || !corner.shape || !corner.columnId) continue;
-    if (ownerBands(room, view, run, settings).filter((entry) => entry.kind === kind)
-      .some((entry) => ownerBandTurnLines(corner, entry, band).length)) return true;
-  }
-  return false;
+/** A run that owns a corner cabinet on this path (its member view is the owner's). */
+function ownsCorner(path, member) {
+  return !!member && path.vertices.some(({ type, corner }) => type === 'turn' && corner?.runId === member)
+    && path.segments.some(({ runId, corner }) => !corner && runId === member);
 }
 
-function eligibilityReason(room, path, settings, records) {
+function eligibilityReason(room, path, settings, records, member) {
   if (path.vertices.some(({ type }) => type === 'turn')
     || path.segments.some(({ corner, diagonal }) => corner || diagonal)
-    || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) return 'corner (D4)';
+    || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) {
+    // Owner walls draw from the sweep (D4 c); legs and return runs wait for d.
+    return ownsCorner(path, member) ? null : 'corner (D4)';
+  }
   if (path.segments.length !== 1 || path.vertices.some(({ type }) => type === 'joined')) return 'joined runs';
   const first = path.segments[0];
   if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';
   if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
   if ([path.start, path.end].some((end) => end?.type === 'corner')) return 'corner caps';
   records ??= eligibilityRecords(room, path, settings);
-  if (records.some(({ turnLines }) => turnLines)) return 'Corner 45 turn lines';
   for (const rule of [path.start, path.end]) {
     const record = records.find(({ run }) => run.id === rule.runId);
     const old = record.ends[rule.side === 'left' ? 0 : 1].type;
@@ -387,11 +384,11 @@ function eligibilityReason(room, path, settings, records) {
 }
 
 /** Exclusions shared by every consumer of the straight sweep. */
-export function sweepEligible(room, path, settings, records) {
-  if (records) return eligibilityReason(room, path, settings, records);
+export function sweepEligible(room, path, settings, records, member) {
+  if (records) return eligibilityReason(room, path, settings, records, member);
   const cache = buildCacheFor(room);
-  const build = () => eligibilityReason(room, path, settings);
-  return cache ? cache.byRoom(`sweepEligible:${path.id}`, room, settings, build) : build();
+  const build = () => eligibilityReason(room, path, settings, undefined, member);
+  return cache ? cache.byRoom(`sweepEligible:${path.id}:${member ?? ''}`, room, settings, build) : build();
 }
 
 function eligibilityRecords(room, path, settings) {
@@ -401,11 +398,7 @@ function eligibilityRecords(room, path, settings) {
     const view = { ...wallSideView(wall, segment.face), length: frame.length };
     const run = view.runs.find(({ id }) => id === segment.runId);
     const scene = runScene(room, view, run, settings);
-    const band = ['left', 'right'].some((side) => run.ends?.[side]?.corner?.kind === 45)
-      ? viewRun(room, path, run.id, settings) : null;
-    return { run,
-      ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height),
-      turnLines: band && hasTurnLines(room, view, run, settings, scene, path.kind, band) };
+    return { run, ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
   });
 }
 
@@ -430,14 +423,29 @@ function mitreMemberEdge(room, sweep, view, run, side, frame, settings) {
 /** Follow the owner's diagonal to the turn where the next member becomes end-on. */
 function ownerCornerEdge(sweep, index, owner, frame) {
   let vertex = sweep.vertices[index];
+  let at = vertex.at;
   let endOn = sweep.segments[index] === owner ? sweep.segments[index + 1] : sweep.segments[index];
+  let direction = endOn.frame.n;
   if (endOn.diagonal) {
     const diagonalIndex = sweep.segments.indexOf(endOn);
-    index = diagonalIndex > sweep.segments.indexOf(owner) ? diagonalIndex : diagonalIndex - 1;
-    vertex = sweep.vertices[index];
-    endOn = sweep.segments[index] === endOn ? sweep.segments[index + 1] : sweep.segments[index];
+    const next = diagonalIndex > sweep.segments.indexOf(owner) ? diagonalIndex : diagonalIndex - 1;
+    if (sweep.vertices[next]) {
+      vertex = sweep.vertices[next];
+      at = vertex.at;
+      endOn = sweep.segments[next] === endOn ? sweep.segments[next + 1] : sweep.segments[next];
+      direction = endOn.frame.n;
+    } else {
+      // The path ends on the diagonal (no leg): the owner still runs to the diagonal's far end,
+      // seen end-on to where leg B would run (square to the owner), never stopping at turn.a.
+      const far = [endOn.from, endOn.to].reduce((a, b) => Math.hypot(a.x - vertex.at.x, a.y - vertex.at.y)
+        >= Math.hypot(b.x - vertex.at.x, b.y - vertex.at.y) ? a : b);
+      const n = owner.frame.n;
+      const perpendicular = { x: -n.y, y: n.x };
+      at = far;
+      direction = dot(perpendicular, endOn.frame.n) >= 0 ? perpendicular : { x: n.y, y: -n.x };
+    }
   }
-  return contourEdge(owner, vertex.at, endOn.frame.n, frame, sweep);
+  return contourEdge(owner, at, direction, frame, sweep);
 }
 
 /** Cut a corner sweep at a member's joins and the turn where its path goes end-on. */
