@@ -69,7 +69,7 @@ export function flattenOutline(outline, maxSagitta = 0.001) {
 }
 
 /** Axis-extreme points an arc passes through; sampled chords can miss them by up to the sagitta. */
-function arcExtremes(outline) {
+export function arcExtremes(outline) {
   return outline.flatMap((point, index) => {
     const arc = arcGeometry(point, outline[(index + 1) % outline.length]);
     if (!arc) return [];

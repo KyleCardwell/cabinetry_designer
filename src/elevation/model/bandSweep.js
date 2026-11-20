@@ -9,7 +9,7 @@ import { woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { bandPast, freeEdge } from './runBands.js';
 import { runScene } from './runScene.js';
-import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
+import { arcExtremes, outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { topOverhangs } from './topOverhang.js';
 import { runTop } from './tops.js';
 import { wallSideFrame, wallSideView } from './wallSides.js';
@@ -138,6 +138,31 @@ function capEdge(cap, section, frame, z, height, index, kind) {
   return cap.returnLength != null ? clipReturnEdge(edge, cap) : edge;
 }
 
+/** Conservative front depths between every section vertex, arc extreme and drawn height. */
+function hidingStrips({ kind, z, height, section, segments }) {
+  const front = segments[0].front;
+  if (!section) return [{ z1: z, z2: z + height, front }];
+  const { loop, reference, lineHeights } = section;
+  const contour = frontContour(loop);
+  // D1's absolute front includes the run face and the kind's forward placement (also for wood tops,
+  // whose front overhang can differ from the side overhang used to place the end section).
+  const { maxX } = outlineBounds(loop);
+  const offset = front - (kind === 'crown' ? maxX : Math.max(0, maxX));
+  const cuts = [z, ...[
+    ...loop.map(([, sectionZ]) => reference + sectionZ),
+    ...arcExtremes(loop).map(([, sectionZ]) => reference + sectionZ),
+    ...(lineHeights ?? []),
+  ].filter((cut) => cut > z + EPSILON && cut < z + height - EPSILON)
+    .sort((a, b) => a - b)
+    .filter((cut, index, all) => !index || cut - all[index - 1] > EPSILON), z + height];
+  return cuts.slice(0, -1).map((z1, index) => {
+    const z2 = cuts[index + 1];
+    return { z1, z2, front: offset + Math.min(
+      endEdgeX(contour, z1 - reference, 1), endEdgeX(contour, z2 - reference, 1),
+    ) };
+  });
+}
+
 /** See the swept band from its own wall face; other faces and turns are deferred. */
 export function viewFromWall(room, sweep, wall, face = wall.side ?? 'front') {
   if (!sweep || !KINDS.has(sweep.kind) || !sweep.segments.length
@@ -154,7 +179,7 @@ export function viewFromWall(room, sweep, wall, face = wall.side ?? 'front') {
     lines.push({ x1: endEdgeX(edges[0], lineZ, -1), z1: lineZ,
       x2: endEdgeX(edges[1], lineZ, 1), z2: lineZ });
   }
-  const band = { x: minX, z, width: maxX - minX, height, outline, lines };
+  const band = { x: minX, z, width: maxX - minX, height, outline, lines, strips: hidingStrips(sweep) };
   return sweep.kind === 'furnitureBase' ? insertBaseCutouts(band, (sweep.cutouts ?? [])
     .filter(({ x0, x1 }) => x0 >= outline[0][0] - EPSILON && x1 <= outline[1][0] + EPSILON)) : band;
 }
