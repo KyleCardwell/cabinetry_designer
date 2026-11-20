@@ -6,13 +6,15 @@ import { followLeaders } from './joints.js';
 import { validateRunPlacement } from './overlap.js';
 import { blindCoversForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { lineEndColumns, pinTargetsForRun, segmentTargets } from './runPins.js';
+import { recessesOn } from './recesses.js';
 import { runFlexNeeds } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 /**
  * Each run flexes only its own edges on the 1/16" grid, within settings.runFlex. Free ends can
  * grow or shrink; opening, soffit and recess offsets can grow only into their gap. Wall anchors
- * at corners, joints, follow edges and edges touching another run hold at zero. Free wall ends grow
+ * at corners, joints, follow edges, edges flush against a projection's side (it is a wall) and
+ * edges touching another run hold at zero. Free wall ends grow
  * only outward, decided by the first front run that moves (lowest z first); other runs follow.
  * Runs with holdWidth, width from cabinets (LL6) or no needs hold their undecided edges. Flex never changes the drawn auto box count.
  *
@@ -109,6 +111,14 @@ function touches(wall, run, side) {
     && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON);
 }
 
+/** Whether a run edge sits flush (offset 0) against a projection's side: that's a wall, so it holds. */
+function againstProjection(wall, run, side) {
+  const anchor = run.anchors?.[side];
+  if (anchor?.to !== 'recess' || Math.abs(anchor.offset ?? 0) > EPSILON) return false;
+  const recess = recessesOn(wall, wallSideOf(run)).find((candidate) => candidate.id === anchor.recessId);
+  return recess?.kind === 'projection';
+}
+
 /** The physical free wall endpoint for a wall-anchored edge, viewed from the run's face. */
 function freeWallEndpoint(room, wall, run, side) {
   if (run.anchors?.[side] !== true) return null;
@@ -127,7 +137,9 @@ function flexRange(room, wall, run, side, settings, t, endMoves) {
     }
     return { kind: 'fixed', move: endMoves[endpoint] ?? 0 };
   }
-  if (run.anchors?.[side] === true || touches(wall, run, side)) return { kind: 'fixed', move: 0 };
+  if (run.anchors?.[side] === true || touches(wall, run, side) || againstProjection(wall, run, side)) {
+    return { kind: 'fixed', move: 0 };
+  }
   const edge = flexEdge(run, side, settings, t);
   return edge.kind === 'hard' ? { kind: 'fixed', move: 0 } : edge;
 }

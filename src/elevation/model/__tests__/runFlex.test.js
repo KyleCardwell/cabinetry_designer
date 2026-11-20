@@ -551,3 +551,14 @@ describe('SPEC-RF1 saved fields', () => {
     }
   });
 });
+
+describe('run flex against a projection', () => {
+  it("holds an edge flush against a projection's side; the free end flexes alone (N2)", async () => {
+    const { goldenRooms } = await import('./helpers/goldenRooms.js');
+    const { room, settings } = goldenRooms().find(({ key }) => key === 'N2').load();
+    const run = syncRoom(room, settings).walls[0].runs[0];
+    expect(run.anchors.right).toMatchObject({ to: 'recess', offset: 0 });
+    expect(run.x + run.width).toBe(60);
+    expect(run.flex?.right ?? 0).toBe(0);
+  });
+});
