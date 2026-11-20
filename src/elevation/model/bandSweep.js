@@ -1,13 +1,17 @@
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { insertBaseCutouts } from './baseCutouts.js';
-import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
+import { buildCacheFor } from './buildCache.js';
+import { cornerBandEdge, lazyCornerShapes, ownerBandTurnLines, profileBandJoint } from './cornerBands.js';
+import { cornerEnd } from './cornerEnd.js';
+import { ownerBands } from './cornerLegBands.js';
 import { frontDepth, runBackOffset } from './corners.js';
+import { floorOpenings } from './floorOpenings.js';
 import { runBase, runBaseProfile } from './furnitureBase.js';
 import { dot, scale } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
-import { bandPast, freeEdge } from './runBands.js';
+import { bandPast, freeEdge, runBandEnds, segmentedCountertop, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { arcExtremes, outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { topOverhangs } from './topOverhang.js';
@@ -66,14 +70,21 @@ function capFor(room, path, rule, view, settings) {
   const returned = (source, end) => {
     const facing = end === 'left' ? -1 : 1;
     const x = freeEdge(room, view, source, end, kind, settings);
+    // An explicit plain source must not inherit the receiving run's profile at a cope.
     return { type, x, side: x - facing * bandPast(room, view, source, end, kind, settings), facing,
-      source: sectionFor(room, view, source, kind, settings, end) };
+      source: sectionFor(room, view, source, kind, settings, end) ?? {} };
   };
   if (type === 'return') {
     if (rule.against?.kind === 'panel') {
       const wallEnd = side === 'left' ? 0 : view.length;
       return { type, x: wallEnd + facing * bandPast(room, view, run, side, kind, settings),
         side: wallEnd, facing, source: sectionFor(room, view, run, kind, settings, side) };
+    }
+    const joint = profileBandJoint(lazyCornerShapes(room, view, settings), run, side,
+      kind, z, height, frontDepth(run, settings));
+    if (joint?.relation === 'through') {
+      const { outline, edge: contour, ...end } = joint.end;
+      return { ...end, source: { outline, edge: contour } };
     }
     return { ...returned(run, side), ...(rule.returnLength != null ? { returnLength: rule.returnLength } : {}) };
   }
@@ -123,7 +134,8 @@ export function sweepBand(room, path, settings) {
 /** The return's outward normal projected onto the viewing face's horizontal axis. */
 function capEdge(cap, section, frame, z, height, index, kind) {
   const source = cap.source ?? section;
-  if (!section && (kind === 'countertop' || kind === 'furnitureBase')) {
+  const plainSource = !source?.loop && !source?.outline;
+  if ((!section || plainSource) && (kind === 'countertop' || kind === 'furnitureBase')) {
     const x = returnedX(cap);
     return [[x, z, 0], [x, z + height, 0]];
   }
@@ -141,7 +153,7 @@ function capEdge(cap, section, frame, z, height, index, kind) {
 /** Conservative front depths between every section vertex, arc extreme and drawn height. */
 function hidingStrips({ kind, z, height, section, segments }) {
   const front = segments[0].front;
-  if (!section) return [{ z1: z, z2: z + height, front }];
+  if (!section?.loop) return [{ z1: z, z2: z + height, front }];
   const { loop, reference, lineHeights } = section;
   const contour = frontContour(loop);
   // D1's absolute front includes the run face and the kind's forward placement (also for wood tops,
@@ -182,4 +194,78 @@ export function viewFromWall(room, sweep, wall, face = wall.side ?? 'front') {
   const band = { x: minX, z, width: maxX - minX, height, outline, lines, strips: hidingStrips(sweep) };
   return sweep.kind === 'furnitureBase' ? insertBaseCutouts(band, (sweep.cutouts ?? [])
     .filter(({ x0, x1 }) => x0 >= outline[0][0] - EPSILON && x1 <= outline[1][0] + EPSILON)) : band;
+}
+
+function hasTurnLines(room, view, run, settings, scene, kind, band) {
+  for (const side of ['left', 'right']) {
+    if (run.ends?.[side]?.corner?.kind !== 45) continue;
+    const corner = cornerEnd(room, view, run, side, settings, scene.result);
+    if (!corner?.active || !corner.shape || !corner.columnId) continue;
+    if (ownerBands(room, view, run, settings).filter((entry) => entry.kind === kind)
+      .some((entry) => ownerBandTurnLines(corner, entry, band).length)) return true;
+  }
+  return false;
+}
+
+function eligibilityReason(room, path, settings, records) {
+  if (path.segments.length !== 1 || path.vertices.some(({ type }) => type === 'joined')) return 'joined runs';
+  const first = path.segments[0];
+  if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';
+  if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
+  if ([path.start, path.end].some((end) => end?.type === 'corner')) return 'corner caps';
+  records ??= eligibilityRecords(room, path, settings);
+  if (records.some(({ bands }) => bands.topSegments.length)) return 'top segments';
+  if (['toeKick', 'furnitureBase'].includes(path.kind)
+    && records.some(({ run, scene }) => floorOpenings(run, scene.cells).some(({ baseUnder }) => !baseUnder))) {
+    return 'floor openings';
+  }
+  if (records.some(({ waterfall }) => waterfall.left || waterfall.right)) return 'waterfall run';
+  if (records.some(({ turnLines }) => turnLines)) return 'Corner 45 turn lines';
+  for (const rule of [path.start, path.end]) {
+    const record = records.find(({ run }) => run.id === rule.runId);
+    const old = record.ends[rule.side === 'left' ? 0 : 1].type;
+    const current = rule.type === 'die-in' ? 'square' : rule.type;
+    if (old !== current) return `cap type ${old} → ${rule.type}`;
+  }
+  return null;
+}
+
+/** D2's exclusions, shared by every consumer of the straight sweep. */
+export function sweepEligible(room, path, settings, records) {
+  if (records) return eligibilityReason(room, path, settings, records);
+  const cache = buildCacheFor(room);
+  const build = () => eligibilityReason(room, path, settings);
+  return cache ? cache.byRoom(`sweepEligible:${path.id}`, room, settings, build) : build();
+}
+
+function eligibilityRecords(room, path, settings) {
+  return path.segments.map((segment) => {
+    const wall = room.walls.find(({ id }) => id === segment.wallId);
+    const frame = wallSideFrame(room, wall, segment.face);
+    const view = { ...wallSideView(wall, segment.face), length: frame.length };
+    const run = view.runs.find(({ id }) => id === segment.runId);
+    const scene = runScene(room, view, run, settings);
+    const top = runTop(view, run, resolveProfile(settings, room, view));
+    const band = ['left', 'right'].some((side) => run.ends?.[side]?.corner?.kind === 45)
+      ? viewRun(room, path, run.id, settings) : null;
+    return { run, scene, bands: segmentedCountertop(run, scene, top, null),
+      ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height),
+      waterfall: waterfallEnds(room, view, run, settings),
+      turnLines: band && hasTurnLines(room, view, run, settings, scene, path.kind, band) };
+  });
+}
+
+/** A one-run path uses the whole wall view; joined runs remain on runBands' end logic. */
+export function viewRun(room, path, runId, settings) {
+  if (path.segments.length !== 1 || path.segments[0].runId !== runId) return null;
+  const sweep = sweepBand(room, path, settings);
+  if (!sweep) return null;
+  const segment = sweep.segments[0];
+  const wall = room.walls.find(({ id }) => id === segment.wallId);
+  const frame = wallSideFrame(room, wall, segment.face);
+  const view = { ...wallSideView(wall, segment.face), length: frame.length };
+  const run = view.runs.find(({ id }) => id === runId);
+  const scene = runScene(room, view, run, settings);
+  const band = viewFromWall(room, sweep, wall, segment.face);
+  return { ...band, ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
 }

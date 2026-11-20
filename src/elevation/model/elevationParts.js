@@ -1,6 +1,6 @@
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
-import { runBands } from './runBands.js';
+import { runChipLines } from './runBands.js';
 import { planRunPieces } from './planPieces.js';
 import { faceFrontOffset, frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
@@ -63,7 +63,7 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
     const faces = new Map(plan.faces.map((entry) => [entry.key, entry]));
     const cells = new Map(scene.cells.pieces.map((piece) => [piece.id, piece]));
     const outset = runBackOffset(run);
-    const { chipLines } = runBands(room, view, run, settings, scene);
+    const chipLines = runChipLines(scene);
 
     for (const box of boxes.values()) {
       const piece = cells.get(box.key);
