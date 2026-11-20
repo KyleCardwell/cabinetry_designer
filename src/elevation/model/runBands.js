@@ -431,8 +431,17 @@ export function runBands(room, wall, run, settings, scene) {
     // The owner's segment ends at the turn, not the run edge, on its corner side.
     const turnAt = (side) => path?.vertices.some(({ type, corner }) => type === 'turn'
       && corner?.runId === run.id && corner.side === side);
-    if (!segment || (!turnAt('left') && Math.abs(segment.x1 - (panelStart ?? run.x)) > EPSILON)
-      || (!turnAt('right') && Math.abs(segment.x2 - (panelEnd ?? runEnd)) > EPSILON)
+    // A return run meeting a corner cabinet starts at the leg's far x, not at its own edge.
+    const atCorner = (side) => {
+      const at = segment?.[side === 'left' ? 'from' : 'to'];
+      return path?.vertices.some(({ type, corner, at: vertex }) => corner && type !== 'mitre' && corner.runId !== run.id
+        && at && Math.hypot(vertex.x - at.x, vertex.y - at.y) <= EPSILON)
+        || [path?.start, path?.end].some((end) => end?.runId === run.id && end.side === side
+          && end.against?.kind === 'corner');
+    };
+    if (!segment
+      || (!turnAt('left') && !atCorner('left') && Math.abs(segment.x1 - (panelStart ?? run.x)) > EPSILON)
+      || (!turnAt('right') && !atCorner('right') && Math.abs(segment.x2 - (panelEnd ?? runEnd)) > EPSILON)
       || sweepEligible(room, path, settings, undefined, run.id) !== null) return null;
     const view = viewRun(room, path, run.id, settings);
     if (!view) return null;

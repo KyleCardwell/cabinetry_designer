@@ -155,7 +155,7 @@ it('matches corner leg ends, return-run ends and turn points across golden rooms
           const path = result.paths.find(({ id }) => id === ownerEnd?.pathId);
           compare(label, 'owner path', Boolean(path), true);
           if (!path || !old) continue;
-          compare(label, 'eligibility', sweepEligible(room, path, settings), 'corner (D4)');
+          compare(label, 'eligibility', sweepEligible(room, path, settings), null);
           const matches = (tag) => tag?.ownerWallId === ownerWall.id && tag.runId === owner.id && tag.side === side;
           const turns = path.vertices.filter(({ type, corner }) => type === 'turn' && matches(corner));
           compare(label, 'turn count', turns.length, corner.kind === 90 ? 1 : 2);
@@ -231,7 +231,7 @@ it('matches corner leg ends, return-run ends and turn points across golden rooms
             if (end?.type === 'return' || end?.type === 'square') {
               compare(returnLabel, 'against', end.against?.kind, 'corner');
               const returnPath = result.paths.find(({ id }) => id === end.pathId);
-              compare(returnLabel, 'eligibility', sweepEligible(room, returnPath, settings), 'corner (D4)');
+              compare(returnLabel, 'eligibility', sweepEligible(room, returnPath, settings), null);
             }
           }
         }

@@ -77,9 +77,9 @@ function createBuildCache(freezeResults = import.meta.env.MODE === 'test') {
       return cachedOrRun(scenes, [room, settings, run, wall.sideSource ?? wall], key, room, settings, build);
     },
     cornerShapes(room, wall, side, settings, options, build) {
-      const { profiles = true, throughBands = false, returns: returnsMode, combined } = options ?? {};
+      const { profiles = true, throughBands = false, legBands = true, returns: returnsMode, combined } = options ?? {};
       if (combined !== undefined) return build();
-      const key = valueKey([side, profiles, throughBands, returnsMode]);
+      const key = valueKey([side, profiles, throughBands, returnsMode, legBands]);
       return cachedOrRun(corners, [room, settings, wall.sideSource ?? wall], key, room, settings, build);
     },
   };

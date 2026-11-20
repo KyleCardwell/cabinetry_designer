@@ -1,3 +1,4 @@
+import { bandPaths } from './bandPaths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { insertBaseCutouts } from './baseCutouts.js';
 import { buildCacheFor } from './buildCache.js';
@@ -6,6 +7,7 @@ import { cornerEnd } from './cornerEnd.js';
 import { ownerBands } from './cornerLegBands.js';
 import { cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
+import { whileBuildingPaths } from './pathBuilding.js';
 import { runBase, runBaseProfile } from './furnitureBase.js';
 import { add, dot, normalize, planPointToWallX, scale, subtract } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
@@ -171,6 +173,10 @@ function cornerSweep(room, path, settings) {
 
 /** Carry a section and its end rules along the path's wall faces and corner turns. */
 export function sweepBand(room, path, settings) {
+  return whileBuildingPaths(() => sweepBandOf(room, path, settings));
+}
+
+function sweepBandOf(room, path, settings) {
   if (!path || !KINDS.has(path.kind) || path.closed || !path.segments.length
     || path.vertices.some(({ type }) => !['joined', 'turn', 'mitre'].includes(type))
     || ![path.start, path.end].every((rule) => rule && CAP_TYPES.has(rule.type))) return null;
@@ -352,18 +358,12 @@ function finishRunBand(sweep, band, edges) {
   return { ...insertBaseCutouts(band, cutouts), hasCutouts: cutouts.length > 0 };
 }
 
-/** A run that owns a corner cabinet on this path (its member view is the owner's). */
-function ownsCorner(path, member) {
-  return !!member && path.vertices.some(({ type, corner }) => type === 'turn' && corner?.runId === member)
-    && path.segments.some(({ runId, corner }) => !corner && runId === member);
-}
-
 function eligibilityReason(room, path, settings, records, member) {
   if (path.vertices.some(({ type }) => type === 'turn')
     || path.segments.some(({ corner, diagonal }) => corner || diagonal)
     || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) {
-    // Owner walls draw from the sweep (D4 c); legs and return runs wait for d.
-    return ownsCorner(path, member) ? null : 'corner (D4)';
+    // Corner paths draw from the sweep for every member: owner, leg and return runs (D4 c, d).
+    return null;
   }
   if (path.segments.length !== 1 || path.vertices.some(({ type }) => type === 'joined')) return 'joined runs';
   const first = path.segments[0];
@@ -416,7 +416,9 @@ function mitreMemberEdge(room, sweep, view, run, side, frame, settings) {
       offset: overhangs[end.facing === -1 ? 'left' : 'right'] };
   }
   source = { ...source, ...(end.outline ? { outline: end.outline } : {}), ...(end.edge ? { edge: end.edge } : {}) };
-  return capEdge({ ...end, source }, sectionFor(room, view, run, sweep.kind, settings), frame,
+  // A profile that comes from the neighbour at the mitre counts as this end's section.
+  const own = sectionFor(room, view, run, sweep.kind, settings);
+  return capEdge({ ...end, source }, source.loop || source.outline ? source : own, frame,
     sweep.z, sweep.height, side === 'left' ? 0 : 1, sweep.kind);
 }
 
@@ -478,7 +480,7 @@ function cornerMemberView(room, path, sweep, member, settings) {
     const turns = sweep.vertices.map((_, i) => i).filter((i) => i !== nearIndex && i !== joint
       && sweep.vertices[i].corner?.runId === owner.id && sweep.vertices[i].corner.side === tag.side);
     const band = cornerView(sweep, frame, [near, far], ownerSegment.section, turns);
-    return { ...band, pieces: [band], ends: [] };
+    return { ...band, pieces: [{ ...band, profiled: !!ownerSegment.section?.loop }], ends: [] };
   }
   const index = sweep.segments.indexOf(segment);
   const wall = room.walls.find(({ id }) => id === segment.wallId);
@@ -502,10 +504,13 @@ function cornerMemberView(room, path, sweep, member, settings) {
   });
   const memberSweep = { ...sweep, ...segment,
     caps: edges.map((edge, i) => ({ type: 'square', x: endEdgeX(edge, path.z, i === 0 ? -1 : 1) })) };
+  const owns = sweep.vertices.some(({ corner }) => corner?.runId === run.id && corner.ownerWallId === wall.id);
+  const turns = owns ? undefined : [];
   const project = (caps) => {
     const memberEdges = caps.map((cap, i) => cap === memberSweep.caps[i] ? edges[i]
       : capEdge(cap, segment.section, frame, path.z, path.height, i, path.kind));
-    return finishRunBand(memberSweep, cornerView(sweep, frame, memberEdges, segment.section), memberEdges);
+    // Only the owner shows its corner's turn contours inside its span; a return run ends at its own edge.
+    return finishRunBand(memberSweep, cornerView(sweep, frame, memberEdges, segment.section, turns), memberEdges);
   };
   const band = project(memberSweep.caps);
   const scene = runScene(room, view, run, settings);
@@ -539,7 +544,10 @@ function splitRunView(room, path, view, run, settings, scene, sweep, band, proje
 
 /** A member's wall view, split at top inserts or open floor spans. */
 export function viewRun(room, path, runId, settings) {
-  if (!path) return null;
+  return path ? whileBuildingPaths(() => viewRunOf(room, path, runId, settings)) : null;
+}
+
+function viewRunOf(room, path, runId, settings) {
   if (path.segments.length !== 1 || path.segments[0].corner) {
     const sweep = sweepBand(room, path, settings);
     return sweep && cornerMemberView(room, path, sweep, runId, settings);
@@ -557,4 +565,55 @@ export function viewRun(room, path, runId, settings) {
   if (!band) return null;
   return splitRunView(room, path, view, run, settings, scene, sweep, band,
     (caps) => viewFromWall(room, { ...sweep, caps }, wall, segment.face));
+}
+
+const legPaths = new WeakMap();
+
+/**
+ * Leg bands carry an outline as before: a profiled 45's always, anything else only when it isn't a plain
+ * rectangle (a profiled Corner 90 leg now draws its profile).
+ */
+const legOutline = ({ outline, x, width, profiled }, kind) => outline && (kind === 45 && profiled
+  || !(outline.length === 4
+    && outline.every(([px]) => Math.abs(px - x) <= EPSILON || Math.abs(px - x - width) <= EPSILON)));
+
+/**
+ * One corner's leg bands on its return face, from the paths' leg members: today's
+ * `cornerLegBandsForOwner` parts (same ids and fields), cut by `viewRun`.
+ */
+export function cornerLegBandParts(room, ownerWallId, owner, side, settings) {
+  const { paths } = bandPaths(room, settings);
+  let index = legPaths.get(paths);
+  if (!index) {
+    index = new Map();
+    for (const path of paths) for (const segment of path.segments) {
+      if (!segment.corner || !segment.memberKey) continue;
+      const key = segment.memberKey.replace('corner-diagonal:', 'corner-leg:');
+      if (!index.has(key)) index.set(key, { path, segment: null });
+      if (segment.corner.leg === 'b') index.get(key).segment = segment;
+    }
+    legPaths.set(paths, index);
+  }
+  const prefix = `corner-leg:${ownerWallId}:${owner.id}:${side}:`;
+  const parts = [];
+  for (const [key, { path, segment }] of index) {
+    if (!key.startsWith(prefix) || sweepEligible(room, path, settings, undefined, key) !== null) continue;
+    const view = viewRun(room, path, key, settings)?.pieces[0];
+    if (!view || view.width <= EPSILON) continue;
+    const diagonal = segment ? null : path.segments.find((candidate) => candidate.diagonal
+      && candidate.memberKey.replace('corner-diagonal:', 'corner-leg:') === key);
+    let front = segment?.front;
+    if (front === undefined) {
+      // A 45 whose diagonal mitres straight into the return run has no leg segment: its far end sits at frontB.
+      const ownerWall = room.walls.find(({ id }) => id === ownerWallId);
+      const point = cornerReturnPoint(room, wallSideView(ownerWall, owner.wallSide ?? 'front'), owner, side);
+      const frame = wallSideFrame(room, room.walls.find(({ id }) => id === point.wallId), point.wallSide);
+      front = dot(subtract(diagonal.to, frame.leftPoint), frame.n);
+    }
+    parts.push({ id: key, kind: key.slice(prefix.length), ownerWallId, runId: owner.id, side,
+      x: view.x, z: view.z, width: view.width, height: view.height, back: runBackOffset(owner), front,
+      ...(legOutline(view, (segment ?? diagonal).corner.kind) ? { outline: view.outline } : {}),
+      ...(view.lines?.length ? { lines: view.lines } : {}) });
+  }
+  return parts;
 }

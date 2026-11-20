@@ -11,6 +11,7 @@ import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { resolveProfile } from './profile.js';
+import { whileBuildingPaths } from './pathBuilding.js';
 import { recessesOn } from './recesses.js';
 import { bandPast, carries, freeEdge, isOpenWallEnd, touching, wallReach, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
@@ -266,8 +267,9 @@ function addCornerEntries(room, settings, entries, rules, sources) {
 /** Front-line plan paths. Stored runs and all drawing geometry remain untouched. */
 export function bandPaths(room, settings) {
   const cache = buildCacheFor(room);
-  if (!cache) return buildBandPaths(room, settings);
-  return cache.byRoom('bandPaths', room, settings, () => buildBandPaths(room, settings));
+  const build = () => whileBuildingPaths(() => buildBandPaths(room, settings));
+  if (!cache) return build();
+  return cache.byRoom('bandPaths', room, settings, build);
 }
 
 function buildBandPaths(room, settings) {

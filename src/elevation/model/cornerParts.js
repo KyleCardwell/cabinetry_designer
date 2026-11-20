@@ -4,7 +4,8 @@ import { jogWalls } from './combinedElevations.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { profileBandJoint } from './cornerBands.js';
 import { cornerEnd } from './cornerEnd.js';
-import { cornerLegBands, ownerBands } from './cornerLegBands.js';
+import { cornerLegBandParts } from './bandSweep.js';
+import { ownerBands } from './cornerLegBands.js';
 import { anchoredToCorner, cornerAt, cornerReturnPoint, crossingRuns, frontDepth, spanCorner } from './corners.js';
 import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
@@ -12,6 +13,7 @@ import { landingsOn } from './landings.js';
 import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { runEndView, runSide } from './runSide.js';
+import { buildingPaths } from './pathBuilding.js';
 import { runBandEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { outlineBounds, transformOutline } from './sectionProfileOutline.js';
@@ -143,6 +145,7 @@ export function landedReturns(room, view) {
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
 export function cornerShapes(room, wall, side, settings, options) {
+  if (buildingPaths() && options?.legBands !== false) options = { ...options, legBands: false };
   const cache = buildCacheFor(room);
   if (!cache) return buildCornerShapes(room, wall, side, settings, options);
   return cache.cornerShapes(room, wall, side, settings, options,
@@ -150,7 +153,7 @@ export function cornerShapes(room, wall, side, settings, options) {
 }
 
 function buildCornerShapes(room, wall, side, settings,
-  { profiles: includeProfiles = true, throughBands = false, returns: returnMode, combined } = {}) {
+  { profiles: includeProfiles = true, throughBands = false, legBands = true, returns: returnMode, combined } = {}) {
   const view = resolveWall(room, wall, side);
   const endView = (returnMode ?? returnsView(room, elevationKey(view.id, view.side))) === 'end';
   const jogs = jogWalls(room, combined);
@@ -161,23 +164,17 @@ function buildCornerShapes(room, wall, side, settings,
   const shapes = [];
 
   // The owner's return leg is seen end-on even when no neighbouring run joins it.
-  const legBands = new Map();
-  for (const run of view.runs) {
+  // Shapes made while the band paths are built or swept leave these out (legBands: false): they come from those paths (D4 d).
+  for (const run of legBands ? view.runs : []) {
     for (const end of ['left', 'right']) {
       const corner = cornerEnd(room, view, run, end, settings);
       if (!corner?.active || !corner.shape || !corner.columnId) continue;
       const point = cornerReturnPoint(room, view, run, end);
       if (!point) continue;
-      const returnKey = elevationKey(point.wallId, point.wallSide);
-      if (!legBands.has(returnKey)) {
-        const neighbor = room.walls.find(({ id }) => id === point.wallId);
-        legBands.set(returnKey, cornerLegBands(room, wallSideView(neighbor, point.wallSide), settings));
-      }
       const key = `${end}:corner:${run.id}`;
       const bands = ownerBands(room, view, run, settings);
       const xOf = (depth) => corner.cornerX + (end === 'left' ? depth : -depth);
-      const parts = legBands.get(returnKey)
-        .filter((band) => band.ownerWallId === view.id && band.runId === run.id && band.side === end)
+      const parts = cornerLegBandParts(room, view.id, run, end, settings)
         .map((band) => {
           const ownerBand = bands.find(({ kind }) => kind === BANDS[band.kind]);
           const outline = ownerBand?.placedLoop && transformOutline(ownerBand.placedLoop, ([depth, z]) => [
