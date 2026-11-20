@@ -8,7 +8,9 @@ import { runBase } from './furnitureBase.js';
 import { elevationToPlan, lineIntersection, scale } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
+import { wallEndPanelPartKey } from './parts.js';
 import { resolveProfile } from './profile.js';
+import { recessesOn } from './recesses.js';
 import { bandPast, carries, isOpenWallEnd, touching, wallReach, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
@@ -129,8 +131,7 @@ function endRule(room, settings, entries, entry, side) {
         const at = lineIntersection(segment.from, entry.frame.r, other.segment.from, other.frame.r);
         if (at) return link(other, otherSide, 'mitre', at);
       }
-      return segment.front <= other.segment.front + 1 / 32
-        ? rule('cope', againstRun(other.run)) : rule('die-in', { kind: 'wall', id: edge.wallId });
+      return rule('cope', againstRun(other.run));
     }
     return rule('cope', edge.runId ? { kind: 'run', id: edge.runId } : { kind: 'wall', id: edge.wallId });
   }
@@ -149,13 +150,20 @@ function endRule(room, settings, entries, entry, side) {
   }
   const anchor = run.anchors?.[side];
   if (anchor?.to === 'recess') {
-    const feature = (view.recesses ?? []).find(({ id }) => id === anchor.recessId);
+    const feature = recessesOn(view).find(({ id }) => id === anchor.recessId);
+    if (feature?.kind === 'projection' && run._plane?.recessId !== feature.id
+      && segment.front > feature.depth) {
+      return rule('return', null, { returnLength: segment.front - feature.depth });
+    }
     return rule('die-in', { kind: feature?.kind === 'projection' ? 'solid' : 'wall', id: anchor.recessId });
   }
   if (anchor?.to === 'wall') return rule('die-in', { kind: 'landing', id: anchor.wallId });
   if (anchor === true && !isOpenWallEnd(room, view, run, side, settings)) {
     const corner = cornerAt(room, view, side);
-    if (corner.type === 'outside' || wallEndPanelAt(room, view, side, settings)) return rule('return');
+    if (corner.type === 'outside') return rule('return');
+    const panel = wallEndPanelAt(room, view, side, settings);
+    if (panel) return kind === 'toeKick'
+      ? rule('die-in', { kind: 'panel', id: wallEndPanelPartKey(view.id, panel.endpoint) }) : rule('return');
     return rule('die-in', { kind: corner.anchorWallId ? 'landing' : 'wall',
       id: corner.anchorWallId ?? corner.neighborWallId ?? view.id });
   }
