@@ -237,6 +237,9 @@ function hasTurnLines(room, view, run, settings, scene, kind, band) {
 }
 
 function eligibilityReason(room, path, settings, records) {
+  if (path.vertices.some(({ type }) => type === 'turn')
+    || path.segments.some(({ corner, diagonal }) => corner || diagonal)
+    || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) return 'corner (D4)';
   if (path.segments.length !== 1 || path.vertices.some(({ type }) => type === 'joined')) return 'joined runs';
   const first = path.segments[0];
   if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';

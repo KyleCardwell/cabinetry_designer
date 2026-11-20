@@ -2,17 +2,17 @@ import { bandFronts } from './bandParts.js';
 import { buildCacheFor } from './buildCache.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
-import { cornerLegBandEdge } from './cornerLegBands.js';
-import { cornerAt, cornerEndActive, frontDepth, runBackOffset } from './corners.js';
+import { cornerLegBandJointsForOwner } from './cornerLegBands.js';
+import { cornerAt, cornerEndActive, cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorEndOpen } from './floorOpenings.js';
 import { runBase } from './furnitureBase.js';
-import { elevationToPlan, lineIntersection, scale } from './geometry.js';
+import { elevationToPlan, lineIntersection, scale, subtract } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { resolveProfile } from './profile.js';
 import { recessesOn } from './recesses.js';
-import { bandPast, carries, isOpenWallEnd, touching, wallReach, waterfallEnds } from './runBands.js';
+import { bandPast, carries, freeEdge, isOpenWallEnd, touching, wallReach, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
@@ -23,7 +23,11 @@ const EPSILON = 1e-6;
 const SIDES = ['left', 'right'];
 const opposite = (side) => side === 'left' ? 'right' : 'left';
 const same = (a, b) => Math.abs(a - b) <= EPSILON;
-const endKey = (entry, side) => `${entry.run.id}|${entry.kind}|${entry.z}|${side}`;
+const endKey = (entry, side) => `${entry.segment.memberKey ?? entry.run.id}|${entry.kind}|${entry.z}|${side}`;
+const PART_KINDS = {
+  toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
+  topMold: 'top_mold', crown: 'crown',
+};
 
 /** The main bands and the section heights passed to runBandEnds, before any end cuts. */
 function runEntries(room, source, face, settings) {
@@ -81,9 +85,10 @@ function endRule(room, settings, entries, entry, side) {
       ? { mode: settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner } : {}),
   });
 
-  // cornerLegBandEdge consults cornerOwnersAt and only accepts bands actually meeting the leg.
-  if (cornerEndActive(room, view, run, side).active
-    || cornerLegBandEdge(room, view, run, side, kind, settings)) return rule('corner');
+  // Valid corner geometry replaces this free end with links after all run entries exist.
+  if (cornerEndActive(room, view, run, side).active) {
+    return rule('return', { kind: 'corner', ownerWallId: view.id, runId: run.id, side });
+  }
   const panel = scene.panelBySide[side];
   if (panel) return rule('die-in', { kind: 'panel', id: `${run.id}:${side}` });
   const waterfall = (floorBand || kind === 'countertop') && waterfallEnds(room, view, run, settings)[side];
@@ -111,7 +116,7 @@ function endRule(room, settings, entries, entry, side) {
   if (carriers.length) {
     const other = carriers.reduce((best, candidate) => candidate.segment.front > best.segment.front ? candidate : best);
     if (same(segment.front, other.segment.front)) {
-      return link(other, opposite(side), 'joined', side === 'left' ? segment.from : segment.to);
+      return rule('square'); // Same-wall joins remain separate run paths until D5.
     }
     return segment.front > other.segment.front ? rule('return') : rule('cope', againstRun(other.run));
   }
@@ -171,6 +176,93 @@ function endRule(room, settings, entries, entry, side) {
   return rule('return');
 }
 
+/** Extend owners around their cabinet fronts, then resolve the leg/return-run joint. */
+function addCornerEntries(room, settings, entries, rules, sources) {
+  const joints = new Map();
+  const setEnd = (entry, side, type, extra = {}) => {
+    rules.set(endKey(entry, side), { type, runId: entry.run.id, side,
+      ...(entry.segment.memberKey ? { memberKey: entry.segment.memberKey } : {}), ...extra });
+  };
+  const connect = (a, aSide, b, bSide, type, at, corner) => {
+    setEnd(a, aSide, type, { other: b, otherSide: bSide, at, corner });
+    setEnd(b, bSide, type, { other: a, otherSide: aSide, at, corner });
+    a.segment[aSide === 'left' ? 'from' : 'to'] = { ...at };
+    b.segment[bSide === 'left' ? 'from' : 'to'] = { ...at };
+  };
+  for (const owner of [...entries]) for (const side of SIDES) {
+    const point = cornerReturnPoint(room, owner.view, owner.run, side);
+    if (!point) continue;
+    const view = wallSideView(sources.get(point.wallId), point.wallSide);
+    const cacheKey = `${owner.run.id}:${side}`;
+    if (!joints.has(cacheKey)) {
+      joints.set(cacheKey, cornerLegBandJointsForOwner(room, view, owner.view, owner.run, side, settings));
+    }
+    const joint = joints.get(cacheKey).find(({ band }) => band.kind === owner.kind
+      && same(band.z, owner.z) && same(band.height, owner.height));
+    if (!joint) continue;
+    const { corner, turn, near, far, carriers, blocked, jointX, deepest, returned, miter, endX, blockingRun } = joint;
+    const tag = { ownerWallId: owner.view.id, runId: owner.run.id, side, kind: corner.kind };
+    const against = { kind: 'corner', ownerWallId: owner.view.id, runId: owner.run.id, side };
+    const frame = wallSideFrame(room, sources.get(point.wallId), point.wallSide);
+    const aX = corner.cornerX + corner.dir * turn.a[0];
+    const bX = point.at + point.dir * turn.b[1];
+    const a = elevationToPlan(owner.frame, aX, turn.frontA);
+    const b = elevationToPlan(frame, bX, turn.frontB);
+    owner.segment[side === 'left' ? 'x1' : 'x2'] = aX;
+    owner.segment[side === 'left' ? 'from' : 'to'] = a;
+    let previous = owner;
+    let exit = side;
+    if (corner.kind === 45) {
+      const delta = subtract(b, a);
+      const diagonal = { ...owner, frame: { ...owner.frame, r: scale(delta, 1 / Math.hypot(delta.x, delta.y)) },
+        segment: { ...owner.segment, memberKey: `corner-diagonal:${owner.view.id}:${owner.run.id}:${side}:${PART_KINDS[owner.kind]}`,
+          corner: tag, diagonal: true, from: a, to: b } };
+      entries.push(diagonal);
+      connect(owner, side, diagonal, 'left', 'turn', a, tag);
+      previous = diagonal;
+      exit = 'right';
+    }
+    // An equal-front 45 may meet its return run directly at the second turn.
+    if (!same(bX, jointX)) {
+      const leg = { ...owner, view, frame,
+        segment: { runId: owner.run.id, wallId: point.wallId, face: point.wallSide,
+          memberKey: `corner-leg:${owner.view.id}:${owner.run.id}:${side}:${PART_KINDS[owner.kind]}`,
+          corner: { ...tag, leg: 'b' }, x1: Math.min(bX, jointX), x2: Math.max(bX, jointX), front: turn.frontB,
+          from: elevationToPlan(frame, Math.min(bX, jointX), turn.frontB),
+          to: elevationToPlan(frame, Math.max(bX, jointX), turn.frontB) } };
+      entries.push(leg);
+      connect(previous, exit, leg, near, 'turn', corner.kind === 45 ? b : a, tag);
+      previous = leg;
+      exit = far;
+    }
+    const legType = blocked ? 'die-in' : returned ? 'return'
+      : same(turn.frontB, deepest) ? (miter ? 'turn' : 'joined') : 'square';
+    setEnd(previous, exit, legType, { x: endX, jointX,
+      ...(blockingRun ? { against: { kind: 'run', id: blockingRun.id } } : {}) });
+    let linked = false;
+    for (const carrier of carriers) {
+      const entry = entries.find((candidate) => !candidate.segment.corner && candidate.run.id === carrier.run.id
+        && candidate.view.id === view.id && candidate.view.side === view.side && candidate.kind === owner.kind);
+      if (!entry || blocked) continue;
+      const front = carrier.fronts[owner.kind];
+      if (!linked && same(front, deepest) && same(front, turn.frontB)
+        && (previous.segment.corner?.leg === 'b' || miter)) {
+        connect(previous, exit, entry, near, miter ? 'turn' : 'joined',
+          elevationToPlan(frame, jointX, turn.frontB), tag);
+        linked = true;
+      } else {
+        const adjusted = { ...carrier.run, x: near === 'left' ? jointX : carrier.run.x,
+          width: near === 'left' ? carrier.run.x + carrier.run.width - jointX : jointX - carrier.run.x };
+        const type = front <= turn.frontB + EPSILON ? 'square' : 'return';
+        setEnd(entry, near, type, { against, jointX,
+          x: type === 'square' ? jointX : freeEdge(room, view, adjusted, near, owner.kind, settings) });
+        entry.segment[near === 'left' ? 'from' : 'to'] = elevationToPlan(frame, jointX, front);
+        entry.segment[near === 'left' ? 'x1' : 'x2'] = jointX;
+      }
+    }
+  }
+}
+
 /** Front-line plan paths. Stored runs and all drawing geometry remain untouched. */
 export function bandPaths(room, settings) {
   const cache = buildCacheFor(room);
@@ -187,6 +279,7 @@ function buildBandPaths(room, settings) {
   for (const entry of entries) for (const side of SIDES) {
     rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side));
   }
+  addCornerEntries(room, settings, entries, rules, sources);
   // Only reciprocal joins can consume both run ends. A one-sided corner meet remains a cope.
   for (const entry of entries) for (const side of SIDES) {
     const key = endKey(entry, side);
@@ -210,18 +303,22 @@ function buildBandPaths(room, settings) {
     while (!visited.has(entry)) {
       visited.add(entry);
       path.segments.push(entry.segment);
-      for (const end of SIDES) ends.set(endKey(entry, end), { type: rules.get(endKey(entry, end)).type, pathId: path.id });
+      for (const end of SIDES) {
+        const endRule = Object.fromEntries(Object.entries(rules.get(endKey(entry, end)))
+          .filter(([key]) => key !== 'other' && key !== 'otherSide'));
+        ends.set(endKey(entry, end), { ...endRule, pathId: path.id });
+      }
       const exit = opposite(side);
       const rule = rules.get(endKey(entry, exit));
       if (!rule.other) { path.end = rule; break; }
-      const { other, otherSide, type, at, mode } = rule;
+      const { other, otherSide, type, at, mode, corner } = rule;
       const direction = scale(entry.frame.r, side === 'left' ? 1 : -1);
       const nextDirection = scale(other.frame.r, otherSide === 'left' ? 1 : -1);
       const turn = type === 'joined' ? 0 : Math.atan2(
         direction.x * nextDirection.y - direction.y * nextDirection.x,
         direction.x * nextDirection.x + direction.y * nextDirection.y,
       ) * 180 / Math.PI;
-      path.vertices.push({ type, turn, at, ...(mode ? { mode } : {}) });
+      path.vertices.push({ type, turn, at, ...(mode ? { mode } : {}), ...(corner ? { corner } : {}) });
       if (type === 'mitre') {
         entry.segment[exit === 'left' ? 'from' : 'to'] = { ...at };
         other.segment[otherSide === 'left' ? 'from' : 'to'] = { ...at };

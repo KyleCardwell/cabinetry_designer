@@ -54,8 +54,8 @@ export function ownerBands(room, view, owner, settings) {
   }).filter(({ height }) => height > EPSILON);
 }
 
-/** One owner's leg bands, including the end treatment needed for shipping footage. */
-export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings) {
+/** Shared corner-band geometry and carrier/end decisions for paths and drawn leg bands. */
+export function cornerLegBandJointsForOwner(room, view, ownerWall, owner, side, settings) {
   const point = cornerReturnPoint(room, ownerWall, owner, side);
   if (!point || point.wallId !== view.id || point.wallSide !== (view.side ?? 'front')) return [];
   const ownerView = wallViewForRun(ownerWall, owner);
@@ -70,9 +70,8 @@ export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, setti
   };
   const { runs } = cornerReturnRuns(room, ownerView, owner, side);
   const returns = runs.map((run) => ({ run, fronts: bandFronts(room, view, run, settings) }));
-  const key = `corner-leg:${ownerWall.id}:${owner.id}:${side}`;
   return ownerBands(room, ownerView, owner, settings).map((band) => {
-    const { kind, front: frontA, z, height, contour, loop, picked, reference, overhang, overhangs } = band;
+    const { kind, front: frontA, z, height } = band;
     const turn = cornerBandTurns(corner, kind, frontA);
     const floor = kind === 'toeKick' || kind === 'furnitureBase';
     const carriers = returns.filter((other) => {
@@ -86,7 +85,8 @@ export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, setti
         ? Math.abs(runBaseProfile(room, view, run, settings).height - height) <= EPSILON
         : Math.abs(run.z + run.height - owner.z - owner.height) <= EPSILON);
     });
-    const blocked = !floor && runs.some((other) => other.z + other.height > z + height + EPSILON);
+    const blockingRun = !floor && runs.find((other) => other.z + other.height > z + height + EPSILON);
+    const blocked = Boolean(blockingRun);
     const dFar = blocked ? corner.reach : carriers.length
       ? Math.max(corner.reach, turn.b[1]) : corner.reach;
     const jointX = at + dir * dFar;
@@ -94,6 +94,20 @@ export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, setti
     const returned = !blocked && (!carriers.length || turn.frontB > deepest + EPSILON);
     const freeRun = { ...legRun, x: Math.min(at, jointX), width: dFar };
     const endX = returned ? freeEdge(room, ownerView, freeRun, far, kind, settings) : jointX;
+    const miter = corner.kind === 45 && !blocked && carriers.length > 0
+      && Math.abs(turn.b[1] - dFar) <= EPSILON && Math.abs(turn.frontB - deepest) <= EPSILON;
+    return { band, corner, point, turn, ownerView, near, far, carriers, blocked, dFar,
+      jointX, deepest, returned, miter, endX, blockingRun };
+  });
+}
+
+/** One owner's leg bands, including the end treatment needed for shipping footage. */
+export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, settings) {
+  const key = `corner-leg:${ownerWall.id}:${owner.id}:${side}`;
+  return cornerLegBandJointsForOwner(room, view, ownerWall, owner, side, settings).map((joint) => {
+    const { band, corner, point: { at, dir }, turn, near, far, carriers,
+      jointX, returned, miter, endX } = joint;
+    const { kind, front: frontA, z, height, contour, loop, picked, reference, overhang, overhangs } = band;
     const startX = at + dir * frontA;
     let x = dir === 1 ? startX : endX;
     let width = dir * (endX - startX);
@@ -101,8 +115,6 @@ export function cornerLegBandsForOwner(room, view, ownerWall, owner, side, setti
     const turnX = at + dir * turn.b[1];
     const points = contour ? flattenOutline(contour) : [[frontA, z], [frontA, z + height]];
     const tangent = corner.kind === 45 ? Math.tan(corner.shape.miters.b * Math.PI / 180) : 0;
-    const miter = corner.kind === 45 && !blocked && carriers.length > 0
-      && Math.abs(turn.b[1] - dFar) <= EPSILON && Math.abs(turn.frontB - deepest) <= EPSILON;
     const edge = miter ? points.map(([q, z]) => [at + dir * (turn.b[1] + (q - frontA) * tangent), z, 0]) : null;
     let outline;
     if (corner.kind === 45 && loop) {
