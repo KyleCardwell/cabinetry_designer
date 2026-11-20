@@ -1,0 +1,236 @@
+{
+  "pages": [
+    {
+      "header": {
+        "appliedMoldings": null,
+        "edgeProfile": "SQUARE",
+        "insideProfile": "SQUARE",
+        "notes": "3\" Stiles & Rails - No Midrails Unless Noted - Horizongal Grain on 5-Piece Drawer Front",
+        "panelProfile": "FLAT",
+        "style": "110",
+        "thickness": "13/16\"",
+        "vendor": "STILLWATER",
+        "wood": null
+      },
+      "sections": [
+        {
+          "id": "doors",
+          "lines": [
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 3,
+              "qty": 2,
+              "size": "12 7/8 x 30 1/4",
+              "width": 12.875
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 7,
+              "qty": 2,
+              "size": "15 7/8 x 30 1/4",
+              "width": 15.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 11,
+              "qty": 1,
+              "size": "18 7/8 x 36",
+              "width": 18.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 12,
+              "qty": 1,
+              "size": "18 7/8 x 36",
+              "width": 18.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 15,
+              "qty": 1,
+              "size": "14 5/16 x 36",
+              "width": 14.3125
+            },
+            {
+              "height": 30,
+              "notes": "",
+              "number": 17,
+              "qty": 1,
+              "size": "18 7/8 x 30",
+              "width": 18.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 18,
+              "qty": 1,
+              "size": "13 9/16 x 36",
+              "width": 13.5625
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 20,
+              "qty": 2,
+              "size": "14 1/8 x 30 1/4",
+              "width": 14.125
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 21,
+              "qty": 2,
+              "size": "14 1/8 x 30 1/4",
+              "width": 14.125
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 24,
+              "qty": 2,
+              "size": "15 5/8 x 36",
+              "width": 15.625
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 25,
+              "qty": 2,
+              "size": "15 5/8 x 36",
+              "width": 15.625
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 28,
+              "qty": 1,
+              "size": "10 13/16 x 30 1/4",
+              "width": 10.8125
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 32,
+              "qty": 1,
+              "size": "18 5/16 x 36",
+              "width": 18.3125
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 35,
+              "qty": 2,
+              "size": "14 7/8 x 30 1/4",
+              "width": 14.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 38,
+              "qty": 1,
+              "size": "23 3/8 x 36",
+              "width": 23.375
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 39,
+              "qty": 1,
+              "size": "23 3/8 x 36",
+              "width": 23.375
+            },
+            {
+              "height": 85.75,
+              "notes": "",
+              "number": 42,
+              "qty": 1,
+              "size": "17 5/16 x 85 3/4",
+              "width": 17.3125
+            },
+            {
+              "height": 86,
+              "notes": "do not sand edges",
+              "number": 43,
+              "qty": 1,
+              "size": "24 7/8 x 86",
+              "width": 24.875
+            },
+            {
+              "height": 36,
+              "notes": "do not sand edges",
+              "number": 44,
+              "qty": 1,
+              "size": "15 x 36",
+              "width": 15
+            },
+            {
+              "height": 33,
+              "notes": "",
+              "number": 45,
+              "qty": 1,
+              "size": "20 x 33",
+              "width": 20
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 48,
+              "qty": 1,
+              "size": "10 15/16 x 30 1/4",
+              "width": 10.9375
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 48,
+              "qty": 1,
+              "size": "4 15/16 x 30 1/4",
+              "width": 4.9375
+            },
+            {
+              "height": 30.5,
+              "notes": "do not sand edges",
+              "number": 49,
+              "qty": 1,
+              "size": "24 x 30 1/2",
+              "width": 24
+            },
+            {
+              "height": 30.25,
+              "notes": "",
+              "number": 50,
+              "qty": 1,
+              "size": "22 7/8 x 30 1/4",
+              "width": 22.875
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 54,
+              "qty": 2,
+              "size": "13 1/8 x 36",
+              "width": 13.125
+            },
+            {
+              "height": 36,
+              "notes": "",
+              "number": 55,
+              "qty": 2,
+              "size": "13 1/8 x 36",
+              "width": 13.125
+            }
+          ],
+          "title": "Doors"
+        }
+      ],
+      "styleId": "default",
+      "type": "doors"
+    }
+  ],
+  "warnings": []
+}

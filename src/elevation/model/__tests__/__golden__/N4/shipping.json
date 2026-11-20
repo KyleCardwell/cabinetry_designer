@@ -1,0 +1,654 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:72daa65d-b2af-4907-82ec-b1c56159ff50",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 1,
+      "size": "29 1/8 x 4 1/2 x 25 11/16"
+    },
+    {
+      "description": "Base Filler",
+      "key": "72daa65d-b2af-4907-82ec-b1c56159ff50:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 2,
+      "size": "2 3/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "0558d2cc-1431-4fd9-8f92-ced7088d8eb2",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 3,
+      "size": "26 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "72daa65d-b2af-4907-82ec-b1c56159ff50:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 4,
+      "size": "1 9/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:72daa65d-b2af-4907-82ec-b1c56159ff50",
+      "kind": "wood_top",
+      "notes": [
+        "Miter L",
+        "Nosing 3"
+      ],
+      "number": 5,
+      "size": "55 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Base Filler",
+      "key": "e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 6,
+      "size": "1 9/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "45e238a0-b729-4f46-ab4d-d77aba69ba03",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 7,
+      "size": "32 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 8,
+      "size": "2 3/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6",
+      "kind": "wood_top",
+      "notes": [
+        "Miter R",
+        "Nosing 3"
+      ],
+      "number": 9,
+      "size": "61 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "f7f82190-9099-43da-bece-ec48fc53f9c9:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 10,
+      "size": "2 3/8 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "30ca358c-6c91-439b-a03d-72af52bef4b3",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hl"
+      ],
+      "number": 11,
+      "size": "19 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "6782dab8-b4b6-4e69-806c-b6f213fb10b7",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hr"
+      ],
+      "number": 12,
+      "size": "19 x 36 x 12"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "f7f82190-9099-43da-bece-ec48fc53f9c9:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 13,
+      "size": "1 9/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "7c170344-40fe-4278-8081-a4b84eb6940d:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 14,
+      "size": "1 3/4 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "0de7ca10-dd37-428f-912d-47c1e5de8c56",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "2 as",
+        "hr"
+      ],
+      "number": 15,
+      "size": "14 1/2 x 36 x 12"
+    },
+    {
+      "description": "Shop-built Upper End Panel",
+      "key": "7c170344-40fe-4278-8081-a4b84eb6940d:right",
+      "kind": "end_panel",
+      "notes": [],
+      "number": 16,
+      "size": "12 7/8 x 36 x 3/4"
+    },
+    {
+      "description": "Upper",
+      "key": "42ccee10-1c05-4452-ac49-fe03633f64bd",
+      "kind": "cabinet",
+      "notes": [
+        "1 as",
+        "hl"
+      ],
+      "number": 17,
+      "size": "19 x 30 x 12"
+    },
+    {
+      "description": "Upper Corner 45",
+      "key": "775a6c03-9e78-4a7d-a9fe-ccb3ca776d45",
+      "kind": "cabinet",
+      "notes": [
+        "12\" left side, 15\" right side",
+        "RV's (5/32\" L & R)",
+        "door x 13 9/16\" wide",
+        "2 as",
+        "hl"
+      ],
+      "number": 18,
+      "size": "24 x 36 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "7b9deabf-fef3-40d8-97a8-ca5ab085e216:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 19,
+      "size": "1 5/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "4bbc1513-af6f-4d3a-a613-951943443607",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 20,
+      "size": "28 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "d9883708-4839-4f54-b5ea-787d1b26cf79",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 21,
+      "size": "28 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "7b9deabf-fef3-40d8-97a8-ca5ab085e216:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 22,
+      "size": "2 3/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:7b9deabf-fef3-40d8-97a8-ca5ab085e216",
+      "kind": "wood_top",
+      "notes": [
+        "Miter both",
+        "Nosing 3"
+      ],
+      "number": 23,
+      "size": "96 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Upper",
+      "key": "a482747b-eb6d-427f-bec5-e44c291257f1",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 24,
+      "size": "31 1/2 x 36 x 15"
+    },
+    {
+      "description": "Upper",
+      "key": "43736e33-a174-455a-8e10-f77a97b60628",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 25,
+      "size": "31 1/2 x 36 x 15"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "66903ebc-0234-4552-909a-b8efd6845a8e:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 26,
+      "size": "2 7/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Base Filler",
+      "key": "21f77ced-7606-4672-97fc-1cdd3cdd4d2c:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 27,
+      "size": "2 1/4 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "2882dc17-056e-44fe-ae5d-274d9fc86bb9",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T, 3/32\" L & R)",
+        "1 as",
+        "hr"
+      ],
+      "number": 28,
+      "size": "11 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "21f77ced-7606-4672-97fc-1cdd3cdd4d2c:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 29,
+      "size": "2 3/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:21f77ced-7606-4672-97fc-1cdd3cdd4d2c",
+      "kind": "wood_top",
+      "notes": [
+        "Miter both",
+        "Nosing 3"
+      ],
+      "number": 30,
+      "size": "36 1/16 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "7739abc1-8b11-45ee-8add-635bf7f936fe:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 31,
+      "size": "2 1/4 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "e4af23b2-08fa-4f8d-be3a-b134380dcfd1",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "2 as",
+        "hr"
+      ],
+      "number": 32,
+      "size": "18 1/2 x 36 x 15"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "7739abc1-8b11-45ee-8add-635bf7f936fe:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 33,
+      "size": "2 3/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Base Filler",
+      "key": "100fcdd9-4232-4031-b819-bd9882debde1:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 34,
+      "size": "2 3/16 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "5a862e56-f097-451c-aa1d-3ebf53d01c35",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as"
+      ],
+      "number": 35,
+      "size": "30 x 30 1/2 x 24"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:100fcdd9-4232-4031-b819-bd9882debde1",
+      "kind": "wood_top",
+      "notes": [
+        "Waterfall R",
+        "Miter L",
+        "Nosing 3"
+      ],
+      "number": 36,
+      "size": "44 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "a6104ff0-661d-4996-b001-522c96251eff:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 37,
+      "size": "2 3/8 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "57b9aac4-73e1-4789-9910-03763874ada4",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hl"
+      ],
+      "number": 38,
+      "size": "23 1/2 x 36 x 15"
+    },
+    {
+      "description": "Upper",
+      "key": "cb03c05c-ea96-417b-9c77-78edb510a869",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hr"
+      ],
+      "number": 39,
+      "size": "23 1/2 x 36 x 15"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "a6104ff0-661d-4996-b001-522c96251eff:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 40,
+      "size": "1 11/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Shop-built Tall Blind Panel",
+      "key": "40e97ee8-713b-4bde-8f4f-e6f1bfe61088:left",
+      "kind": "filler",
+      "notes": [],
+      "number": 41,
+      "size": "17 11/16 x 86 x 3/4"
+    },
+    {
+      "description": "Tall",
+      "key": "84e30027-f7e2-433c-b17b-146c4b5eb72c",
+      "kind": "cabinet",
+      "notes": [
+        "RV's (3/32\" L & R)",
+        "Door x 17 5/16\", Blind x 14 1/2\"",
+        "6 as",
+        "hr"
+      ],
+      "number": 42,
+      "size": "32 x 86 x 24"
+    },
+    {
+      "description": "Tall End Panel",
+      "key": "40e97ee8-713b-4bde-8f4f-e6f1bfe61088:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 43,
+      "size": "24 7/8 x 86 x 13/16"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "af3d4a0c-1843-4949-9056-3b9d40ecb128:left",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 44,
+      "size": "15 x 35 1/4 x 13/16"
+    },
+    {
+      "description": "Upper",
+      "key": "b7ae0ac2-3d32-4b27-8358-045a39fe63ca",
+      "kind": "cabinet",
+      "notes": [
+        "INSET FACE FRAME BOX",
+        "1 as",
+        "hl"
+      ],
+      "number": 45,
+      "size": "21 1/2 x 35 1/4 x 15"
+    },
+    {
+      "description": "Face Frame",
+      "key": "frame:b7ae0ac2-3d32-4b27-8358-045a39fe63ca",
+      "kind": "frame",
+      "notes": [
+        "1 9/16\" left stile (mitered to 13/16\" end panel)",
+        "2 3/8\" right stile (corner lap)"
+      ],
+      "number": 46,
+      "size": "23 15/16 x 36 x 13/16"
+    },
+    {
+      "description": "Furniture Base",
+      "key": "furniture_base:c3dacb3a-ee41-4d65-806a-d65e92b01c8f",
+      "kind": "furniture_base",
+      "notes": [],
+      "number": 47,
+      "size": "34 1/8 x 4 1/2 x 25 11/16"
+    },
+    {
+      "description": "Base Corner 90",
+      "key": "2699e2ed-8f6e-4de3-af5d-65ba3d045a2f",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "24\" L & R sides",
+        "RV's (1/8\" T)",
+        "door x 4 15/16\" wide, door x 10 15/16\" wide",
+        "1 as",
+        "bi-fold doors hinge?"
+      ],
+      "number": 48,
+      "size": "36 x 30 1/2 x 30"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "2699e2ed-8f6e-4de3-af5d-65ba3d045a2f:return",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 49,
+      "size": "24 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Base",
+      "key": "dec0639b-3792-4681-a8ef-7585b52dc77c",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "RV's (1/8\" T)",
+        "1 as",
+        "hr"
+      ],
+      "number": 50,
+      "size": "23 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base Filler",
+      "key": "c3dacb3a-ee41-4d65-806a-d65e92b01c8f:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 51,
+      "size": "1 5/8 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Wood Top",
+      "key": "wood_top:c3dacb3a-ee41-4d65-806a-d65e92b01c8f",
+      "kind": "wood_top",
+      "notes": [
+        "Miter R",
+        "Nosing 3"
+      ],
+      "number": 52,
+      "size": "60 1/2 x 26 3/8 x 1 1/2"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "380ad4eb-cbdd-43cf-a73a-dc007173f784:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 53,
+      "size": "1 15/16 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "b34d2676-a9fe-4999-bcd7-a85223110510",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 54,
+      "size": "26 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "94a77fd4-39d8-4c1c-9936-2d81ec16720c",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 55,
+      "size": "26 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "380ad4eb-cbdd-43cf-a73a-dc007173f784:right",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 56,
+      "size": "1 7/8 x 36 x 3 3/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 57,
+      "size": "Lineal Feet: 24"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3\" deep"
+      ],
+      "number": 58,
+      "size": "Lineal Feet: 40"
+    },
+    {
+      "description": "CM551 Test",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/4\" tall x 3 1/2\" deep"
+      ],
+      "number": 59,
+      "size": "Lineal Feet: 48"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

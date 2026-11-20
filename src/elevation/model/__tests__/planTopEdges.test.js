@@ -94,7 +94,7 @@ describe('exposed plan top edges (PT2)', () => {
 
   it('pairs all four N4 nosing corners with joints to the tops’ front corners (GC6.4)', () => {
     const { document, settingsSnapshot } = JSON.parse(readFileSync(new URL(
-      '../../../../../specs/fixtures/golden/N4-wip.json', import.meta.url,
+      './fixtures/golden/N4-corners-and-bands.json', import.meta.url,
     ), 'utf8'));
     const frozen = settingsFromSnapshot(settingsSnapshot);
     expect(frozen.ok).toBe(true);
