@@ -247,6 +247,8 @@ function eligibilityReason(room, path, settings, records) {
   for (const rule of [path.start, path.end]) {
     const record = records.find(({ run }) => run.id === rule.runId);
     const old = record.ends[rule.side === 'left' ? 0 : 1].type;
+    // Class B stops at the projection face instead of carrying the old return.
+    if (old === 'return' && rule.type === 'die-in' && rule.against?.kind === 'solid') continue;
     const current = rule.type === 'die-in' ? 'square'
       : rule.type === 'waterfall' ? (path.kind === 'countertop' ? 'return' : 'square') : rule.type;
     if (old !== current) return `cap type ${old} → ${rule.type}`;
