@@ -25,6 +25,7 @@ import { wallEndPanelAt } from './wallSides.js';
 import { waterfallBand } from './waterfall.js';
 
 export { bandDepths } from './bandDepths.js';
+export { waterfallBand } from './waterfall.js';
 
 const EPSILON = 1e-6;
 
@@ -338,7 +339,7 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height, s
 }
 
 /** Floor-base spans, retaining the run's outer ends and returning at each opening. */
-export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
+export function runBaseSpans(room, wall, run, settings, scene, kind, base) {
   const outer = runBandEnds(room, wall, run, settings, scene, kind, 0, base.height);
   const segments = [];
   const depths = bandDepths(settings);
@@ -365,7 +366,12 @@ export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
   if (run.x + run.width > start + EPSILON) {
     segments.push({ start, end: run.x + run.width, ends: [left, outer[1]] });
   }
-  return segments.map((segment) => {
+  return segments;
+}
+
+/** Draw the retained floor-base spans with today's profiles and cutouts. */
+export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
+  return runBaseSpans(room, wall, run, settings, scene, kind, base).map((segment) => {
     const [left, right] = segment.ends;
     const band = kind === 'furnitureBase' ? furnitureBaseBand(base, segment.ends)
       : { x: left.x, z: 0, width: right.x - left.x, height: base.height };
@@ -414,6 +420,7 @@ export function runBands(room, wall, run, settings, scene) {
   const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   let paths;
   const sweptKinds = new Set();
+  const sweptPieces = new Map();
   const sweptBand = (kind, z, height, profiled = false) => {
     // Preview runs can differ from the stored room used to build the paths.
     if (!room.walls.find(({ id }) => id === wall.id)?.runs.includes(run)) return null;
@@ -428,11 +435,14 @@ export function runBands(room, wall, run, settings, scene) {
     if (!view) return null;
     sweptKinds.add(kind);
     // Keep each kind's public fields: plain bands have no outline, and toe kicks have no lines.
-    const { x, z: viewZ, width, height: viewHeight, outline, lines, ends } = view;
-    return { x, z: viewZ, width, height: viewHeight,
-      ...(profiled || (kind === 'furnitureBase' && base.cutouts?.length) ? { outline } : {}),
-      ...(profiled || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
-      ...(kind === 'topMold' || kind === 'crown' ? { ends } : {}) };
+    const waterfall = kind === 'countertop'
+      && [path.start, path.end].some(({ type }) => type === 'waterfall');
+    const publicBand = ({ x, z, width, height, outline, lines, ends, hasCutouts }) => ({ x, z, width, height,
+      ...(profiled || waterfall || hasCutouts ? { outline } : {}),
+      ...(profiled || waterfall || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
+      ...(kind === 'topMold' || kind === 'crown' ? { ends } : {}) });
+    sweptPieces.set(kind, view.pieces.map(publicBand));
+    return publicBand(view);
   };
   const band = (kind, z, height) => {
     const [left, right] = endsFor(kind, z, height);
@@ -502,13 +512,12 @@ export function runBands(room, wall, run, settings, scene) {
     ...(part.behind ? { behind: true } : {}),
   }));
   const chipLines = runChipLines(scene);
-  const toeKick = base.kind === 'toe_kick' && sweptBand('toeKick', 0, base.height);
-  const toeKicks = toeKick ? [toeKick] : base.kind === 'toe_kick'
-    ? runBaseSegments(room, wall, run, settings, scene, 'toeKick', base).map(({ band }) => band) : [];
-  const furnitureBase = base.kind === 'furniture_base'
-    && sweptBand('furnitureBase', 0, base.height, !!base.picked);
-  const furnitureBases = furnitureBase ? [furnitureBase]
-    : runFurnitureBaseBand(room, wall, run, settings, base, scene);
+  if (base.kind === 'toe_kick') sweptBand('toeKick', 0, base.height);
+  const toeKicks = sweptPieces.get('toeKick') ?? (base.kind === 'toe_kick'
+    ? runBaseSegments(room, wall, run, settings, scene, 'toeKick', base).map(({ band }) => band) : []);
+  if (base.kind === 'furniture_base') sweptBand('furnitureBase', 0, base.height, !!base.picked);
+  const furnitureBases = sweptPieces.get('furnitureBase')
+    ?? runFurnitureBaseBand(room, wall, run, settings, base, scene);
   const overhangs = topOverhangs(room, wall, run, settings);
   const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
     (runBackOffset(run) - overhangs.back) - (frontDepth(run, settings) + overhangs.front));
@@ -545,7 +554,7 @@ export function runBands(room, wall, run, settings, scene) {
     countertop = { x: minX, z, width: maxX - minX, height, outline, lines };
   }
   const waterfall = waterfallEnds(room, wall, run, settings);
-  if (countertop && (waterfall.left || waterfall.right)) {
+  if (countertop && !sweptKinds.has('countertop') && (waterfall.left || waterfall.right)) {
     const surface = boxTop + top.height;
     const edges = countertopEdges ?? [countertop.x, countertop.x + countertop.width]
       .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
@@ -567,5 +576,6 @@ export function runBands(room, wall, run, settings, scene) {
     }
   }
   return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines,
-    ...segmentedCountertop(run, scene, top, countertop) };
+    ...segmentedCountertop(run, scene, top, sweptKinds.has('countertop') ? null : countertop),
+    ...(sweptKinds.has('countertop') ? { countertops: sweptPieces.get('countertop') } : {}) };
 }

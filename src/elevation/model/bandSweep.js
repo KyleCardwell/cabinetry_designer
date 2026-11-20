@@ -11,7 +11,7 @@ import { dot, scale } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
-import { bandPast, freeEdge, runBandEnds, segmentedCountertop, waterfallEnds } from './runBands.js';
+import { bandPast, freeEdge, runBandEnds, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { arcExtremes, outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { topOverhangs } from './topOverhang.js';
@@ -74,6 +74,12 @@ function capFor(room, path, rule, view, settings) {
     return { type, x, side: x - facing * bandPast(room, view, source, end, kind, settings), facing,
       source: sectionFor(room, view, source, kind, settings, end) ?? {} };
   };
+  if (type === 'waterfall') {
+    if (kind === 'countertop') return returned(run, side);
+    const scene = runScene(room, view, run, settings);
+    const end = runBandEnds(room, view, run, settings, scene, kind, z, height)[side === 'left' ? 0 : 1];
+    return { ...end, type, source: {} };
+  }
   if (type === 'return') {
     if (rule.against?.kind === 'panel') {
       const wallEnd = side === 'left' ? 0 : view.length;
@@ -120,8 +126,25 @@ export function sweepBand(room, path, settings) {
   const caps = [path.start, path.end].sort((a, b) => a.side === b.side ? 0 : a.side === 'left' ? -1 : 1)
     .map((rule) => capFor(room, path, rule, view, settings));
   if (caps.some((cap) => !cap)) return null;
+  const run = view.runs.find(({ id }) => id === first.runId);
+  const top = runTop(view, run, resolveProfile(settings, room, view));
+  // Gap coordinates are distances along this straight path from its first segment's left edge.
+  const gaps = path.segments.flatMap((segment) => {
+    const member = view.runs.find(({ id }) => id === segment.runId);
+    const scene = runScene(room, view, member, settings);
+    const openings = path.kind === 'countertop'
+      ? segmentedCountertop(member, scene, runTop(view, member, resolveProfile(settings, room, view)), null).topSegments
+      : ['toeKick', 'furnitureBase'].includes(path.kind)
+        ? floorOpenings(member, scene.cells).filter(({ baseUnder }) => !baseUnder) : [];
+    return openings.map(({ x, width }) => ({ start: x - first.x1, end: x + width - first.x1 }));
+  });
+  const waterfall = path.kind === 'countertop' && waterfallEnds(room, view, run, settings);
   return {
-    pathId: path.id, kind: path.kind, z: path.z, height: path.height,
+    pathId: path.id, kind: path.kind, z: path.z, height: path.height, gaps,
+    ...(waterfall && (waterfall.left || waterfall.right) ? { waterfall: {
+      ends: waterfall, run, thickness: top.height, surface: run.z + run.height + top.height,
+      overhangs: topOverhangs(room, view, run, settings),
+    } } : {}),
     section: sectionFor(room, view, view.runs.find(({ id }) => id === first.runId), path.kind, settings),
     segments: path.segments.map((segment) => ({ ...segment, frame })), caps,
     ...(path.kind === 'furnitureBase' ? { cutouts: path.segments.flatMap(({ runId }) => {
@@ -143,7 +166,7 @@ function capEdge(cap, section, frame, z, height, index, kind) {
   const returnNormal = scale(frame.r, cap.facing);
   const k = Math.abs(dot(returnNormal, frame.r));
   const loop = source?.loop && transformOutline(source.loop, ([depth, z]) => [k * depth, z]);
-  const outline = source?.outline ?? (loop && ['return', 'cope'].includes(cap.type)
+  const outline = source?.outline ?? (loop && ['return', 'cope', 'waterfall'].includes(cap.type)
     ? placeAtEnd(loop, cap.side, k * source.offset, source.reference, cap.facing) : null);
   const edge = source?.edge ?? (outline && frontContour(outline, cap.facing ?? (index === 0 ? 1 : -1)))
     ?? [[cap.x, z, 0], [cap.x, z + height, 0]];
@@ -191,9 +214,15 @@ export function viewFromWall(room, sweep, wall, face = wall.side ?? 'front') {
     lines.push({ x1: endEdgeX(edges[0], lineZ, -1), z1: lineZ,
       x2: endEdgeX(edges[1], lineZ, 1), z2: lineZ });
   }
-  const band = { x: minX, z, width: maxX - minX, height, outline, lines, strips: hidingStrips(sweep) };
-  return sweep.kind === 'furnitureBase' ? insertBaseCutouts(band, (sweep.cutouts ?? [])
-    .filter(({ x0, x1 }) => x0 >= outline[0][0] - EPSILON && x1 <= outline[1][0] + EPSILON)) : band;
+  let band = { x: minX, z, width: maxX - minX, height, outline, lines, strips: hidingStrips(sweep) };
+  if (sweep.waterfall) {
+    const { ends, run, thickness, surface, overhangs } = sweep.waterfall;
+    band = { ...band, ...waterfallBand(band, edges, ends, run, thickness, surface, overhangs) };
+  }
+  if (sweep.kind !== 'furnitureBase') return band;
+  const cutouts = (sweep.cutouts ?? [])
+    .filter(({ x0, x1 }) => x0 >= outline[0][0] - EPSILON && x1 <= outline[1][0] + EPSILON);
+  return { ...insertBaseCutouts(band, cutouts), hasCutouts: cutouts.length > 0 };
 }
 
 function hasTurnLines(room, view, run, settings, scene, kind, band) {
@@ -214,23 +243,18 @@ function eligibilityReason(room, path, settings, records) {
   if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
   if ([path.start, path.end].some((end) => end?.type === 'corner')) return 'corner caps';
   records ??= eligibilityRecords(room, path, settings);
-  if (records.some(({ bands }) => bands.topSegments.length)) return 'top segments';
-  if (['toeKick', 'furnitureBase'].includes(path.kind)
-    && records.some(({ run, scene }) => floorOpenings(run, scene.cells).some(({ baseUnder }) => !baseUnder))) {
-    return 'floor openings';
-  }
-  if (records.some(({ waterfall }) => waterfall.left || waterfall.right)) return 'waterfall run';
   if (records.some(({ turnLines }) => turnLines)) return 'Corner 45 turn lines';
   for (const rule of [path.start, path.end]) {
     const record = records.find(({ run }) => run.id === rule.runId);
     const old = record.ends[rule.side === 'left' ? 0 : 1].type;
-    const current = rule.type === 'die-in' ? 'square' : rule.type;
+    const current = rule.type === 'die-in' ? 'square'
+      : rule.type === 'waterfall' ? (path.kind === 'countertop' ? 'return' : 'square') : rule.type;
     if (old !== current) return `cap type ${old} → ${rule.type}`;
   }
   return null;
 }
 
-/** D2's exclusions, shared by every consumer of the straight sweep. */
+/** Exclusions shared by every consumer of the straight sweep. */
 export function sweepEligible(room, path, settings, records) {
   if (records) return eligibilityReason(room, path, settings, records);
   const cache = buildCacheFor(room);
@@ -245,17 +269,15 @@ function eligibilityRecords(room, path, settings) {
     const view = { ...wallSideView(wall, segment.face), length: frame.length };
     const run = view.runs.find(({ id }) => id === segment.runId);
     const scene = runScene(room, view, run, settings);
-    const top = runTop(view, run, resolveProfile(settings, room, view));
     const band = ['left', 'right'].some((side) => run.ends?.[side]?.corner?.kind === 45)
       ? viewRun(room, path, run.id, settings) : null;
-    return { run, scene, bands: segmentedCountertop(run, scene, top, null),
+    return { run,
       ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height),
-      waterfall: waterfallEnds(room, view, run, settings),
       turnLines: band && hasTurnLines(room, view, run, settings, scene, path.kind, band) };
   });
 }
 
-/** A one-run path uses the whole wall view; joined runs remain on runBands' end logic. */
+/** A one-run wall view, split at top inserts or open floor spans; joined runs are deferred. */
 export function viewRun(room, path, runId, settings) {
   if (path.segments.length !== 1 || path.segments[0].runId !== runId) return null;
   const sweep = sweepBand(room, path, settings);
@@ -267,5 +289,26 @@ export function viewRun(room, path, runId, settings) {
   const run = view.runs.find(({ id }) => id === runId);
   const scene = runScene(room, view, run, settings);
   const band = viewFromWall(room, sweep, wall, segment.face);
-  return { ...band, ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
+  if (!band) return null;
+  let pieces = [band];
+  if (path.kind === 'countertop') {
+    const top = runTop(view, run, resolveProfile(settings, room, view));
+    const surface = sweep.section || sweep.waterfall ? band
+      : { x: band.x, z: band.z, width: band.width, height: band.height };
+    // The shared top splitter rejects crossed or empty spans before clipping their outlines.
+    pieces = segmentedCountertop(run, scene, top, surface).countertops;
+  } else if (sweep.gaps.length && ['toeKick', 'furnitureBase'].includes(path.kind)) {
+    const base = runBase(room, view, run, settings, scene);
+    pieces = runBaseSpans(room, view, run, settings, scene, path.kind, base)
+      .filter(({ ends: [left, right] }) => right.x > left.x + EPSILON)
+      .map(({ start, end, ends }) => {
+        const caps = ends.map((cap, index) => {
+          if (index === 0 ? start === run.x : end === run.x + run.width) return sweep.caps[index];
+          return { ...cap, ...(cap.base ? { source: sectionFor(room, view, run, path.kind, settings) ?? {} } : {}) };
+        });
+        return viewFromWall(room, { ...sweep, caps }, wall, segment.face);
+      }).filter((piece) => piece.width > EPSILON);
+  }
+  return { ...band, pieces,
+    ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
 }
