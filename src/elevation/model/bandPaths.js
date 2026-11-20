@@ -1,4 +1,5 @@
 import { bandFronts } from './bandParts.js';
+import { buildCacheFor } from './buildCache.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerLegBandEdge } from './cornerLegBands.js';
@@ -172,6 +173,12 @@ function endRule(room, settings, entries, entry, side) {
 
 /** Front-line plan paths. Stored runs and all drawing geometry remain untouched. */
 export function bandPaths(room, settings) {
+  const cache = buildCacheFor(room);
+  if (!cache) return buildBandPaths(room, settings);
+  return cache.byRoom('bandPaths', room, settings, () => buildBandPaths(room, settings));
+}
+
+function buildBandPaths(room, settings) {
   const sources = new Map((room.walls ?? []).map((wall) => [wall.id, wall]));
   const entries = [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).flatMap(([id]) => (
     WALL_SIDES.flatMap((face) => runEntries(room, sources.get(id), face, settings))
