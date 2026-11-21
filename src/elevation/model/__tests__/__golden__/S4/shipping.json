@@ -1,0 +1,172 @@
+{
+  "roomNote": null,
+  "rows": [
+    {
+      "description": "Base Filler",
+      "key": "Base-L:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape"
+      ],
+      "number": 1,
+      "size": "2 x 30 1/2 x 3 3/16"
+    },
+    {
+      "description": "Base",
+      "key": "Base-L:1",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 2,
+      "size": "29 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "Base-L:2",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 3,
+      "size": "29 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "Base-R:1",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 4,
+      "size": "29 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base",
+      "key": "Base-R:2",
+      "kind": "cabinet",
+      "notes": [
+        "full top",
+        "1 as"
+      ],
+      "number": 5,
+      "size": "29 1/2 x 30 1/2 x 24"
+    },
+    {
+      "description": "Base End Panel",
+      "key": "Base-R:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 6,
+      "size": "24 7/8 x 30 1/2 x 13/16"
+    },
+    {
+      "description": "Upper Filler",
+      "key": "Upper-L:left",
+      "kind": "filler",
+      "notes": [
+        "L-shape",
+        "return up 1/8\""
+      ],
+      "number": 7,
+      "size": "2 x 36 x 3 3/16"
+    },
+    {
+      "description": "Upper",
+      "key": "Upper-L:1",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 8,
+      "size": "29 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "Upper-L:2",
+      "kind": "cabinet",
+      "notes": [
+        "2 as"
+      ],
+      "number": 9,
+      "size": "29 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "Upper-R:1",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hl"
+      ],
+      "number": 10,
+      "size": "17 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper",
+      "key": "Upper-R:2",
+      "kind": "cabinet",
+      "notes": [
+        "2 as",
+        "hr"
+      ],
+      "number": 11,
+      "size": "17 1/2 x 36 x 12"
+    },
+    {
+      "description": "Upper End Panel",
+      "key": "Upper-R:right",
+      "kind": "end_panel",
+      "notes": [
+        "do not sand edges"
+      ],
+      "number": 12,
+      "size": "12 7/8 x 36 x 13/16"
+    },
+    {
+      "description": "Toe Kick",
+      "key": "molding:toeKick",
+      "kind": "molding",
+      "notes": [
+        "3 7/8\" tall"
+      ],
+      "number": 13,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Top Mold",
+      "key": "molding:topMold",
+      "kind": "molding",
+      "notes": [
+        "3\" tall x 3/4\" deep"
+      ],
+      "number": 14,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Crown",
+      "key": "molding:crown",
+      "kind": "molding",
+      "notes": [
+        "4 1/2\" tall x 2 3/4\" deep"
+      ],
+      "number": 15,
+      "size": "Lineal Feet: 16"
+    },
+    {
+      "description": "Adjustable Shelves",
+      "key": "adjustable-shelves",
+      "kind": "adjustable_shelves",
+      "notes": [],
+      "number": null,
+      "size": ""
+    }
+  ],
+  "wallNotes": [],
+  "warnings": []
+}

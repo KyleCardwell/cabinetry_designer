@@ -17,7 +17,7 @@ export function goldenRooms() {
       return { room: document.rooms[index], settings: document.settings, shop: document.settings };
     },
   }));
-  for (const [index, file] of ['room8cc.json', 'room10w8.json', 'room9b.json'].entries()) {
+  for (const [index, file] of ['room8cc.json', 'room10w8.json', 'room9b.json', 'room-d5-joined.json'].entries()) {
     rooms.push({
       key: `S${index + 1}`,
       name: read(file).name,

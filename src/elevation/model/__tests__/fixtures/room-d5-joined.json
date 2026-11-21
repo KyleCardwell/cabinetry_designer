@@ -1,0 +1,510 @@
+{
+  "id": "room-d5-joined",
+  "name": "Joined runs",
+  "profile": {
+    "wallHeight": 96,
+    "toeKickHeight": 4,
+    "baseKind": "toe_kick",
+    "furnitureBaseProud": 0.8125,
+    "furnitureBaseProfileId": null,
+    "baseCutoutProfileId": null,
+    "baseBoxHeight": 30.5,
+    "countertopThickness": 1.5,
+    "nosingProfileId": null,
+    "upperClearance": 18,
+    "crownTop": 96,
+    "topMoldHeight": 3,
+    "topMoldOverhang": 0.25,
+    "topMoldProfileId": "golden-top-mold",
+    "crownProfileId": "golden-crown",
+    "crownHeight": 4.5,
+    "crownStackHeight": 6
+  },
+  "wallOrder": [
+    "W1"
+  ],
+  "walls": [
+    {
+      "id": "W1",
+      "name": "Wall 1",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": 0,
+      "y1": 0,
+      "x2": 144,
+      "y2": 0,
+      "height": 96,
+      "thickness": 4.5,
+      "flipped": false,
+      "connections": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "openings": [],
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "soffits": [],
+      "joints": [
+        {
+          "id": "J1",
+          "x": 60,
+          "wallSide": "front"
+        },
+        {
+          "id": "J2",
+          "x": 60,
+          "wallSide": "front"
+        }
+      ],
+      "runs": [
+        {
+          "cabinetTypeId": 1,
+          "z": 4,
+          "height": 30.5,
+          "depth": 24,
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "heightMode": "manual",
+          "overrides": {},
+          "id": "Base-L",
+          "x": 0,
+          "width": 60,
+          "ends": {
+            "left": {
+              "type": "filler",
+              "width": null
+            },
+            "right": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            }
+          },
+          "anchors": {
+            "left": true,
+            "right": {
+              "to": "joint",
+              "jointId": "J1",
+              "offset": 0
+            }
+          },
+          "grid": {
+            "id": "Base-L:grid",
+            "cols": [
+              {
+                "id": "Base-L:1:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "Base-L:2:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "Base-L:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Base-L:1",
+                  "kind": "cabinet"
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Base-L:2",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "top": "stone",
+          "wallSide": "front"
+        },
+        {
+          "cabinetTypeId": 1,
+          "z": 4,
+          "height": 30.5,
+          "depth": 24,
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "heightMode": "manual",
+          "overrides": {},
+          "id": "Base-R",
+          "x": 60,
+          "width": 60,
+          "ends": {
+            "left": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            },
+            "right": {
+              "type": "end_panel",
+              "width": null
+            }
+          },
+          "anchors": {
+            "left": {
+              "to": "joint",
+              "jointId": "J1",
+              "offset": 0
+            },
+            "right": false
+          },
+          "grid": {
+            "id": "Base-R:grid",
+            "cols": [
+              {
+                "id": "Base-R:1:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "Base-R:2:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "Base-R:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Base-R:1",
+                  "kind": "cabinet"
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Base-R:2",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "top": "stone",
+          "wallSide": "front"
+        },
+        {
+          "cabinetTypeId": 2,
+          "z": 54,
+          "height": 36,
+          "depth": 12,
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "heightMode": "manual",
+          "overrides": {},
+          "id": "Upper-L",
+          "x": 0,
+          "width": 60,
+          "ends": {
+            "left": {
+              "type": "filler",
+              "width": null
+            },
+            "right": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            }
+          },
+          "anchors": {
+            "left": true,
+            "right": {
+              "to": "joint",
+              "jointId": "J2",
+              "offset": 0
+            }
+          },
+          "grid": {
+            "id": "Upper-L:grid",
+            "cols": [
+              {
+                "id": "Upper-L:1:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "Upper-L:2:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "Upper-L:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Upper-L:1",
+                  "kind": "cabinet"
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Upper-L:2",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "top": "crown",
+          "wallSide": "front"
+        },
+        {
+          "cabinetTypeId": 2,
+          "z": 54,
+          "height": 36,
+          "depth": 12,
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "heightMode": "manual",
+          "overrides": {},
+          "id": "Upper-R",
+          "x": 60,
+          "width": 36,
+          "ends": {
+            "left": {
+              "type": "none",
+              "width": null,
+              "auto": true
+            },
+            "right": {
+              "type": "end_panel",
+              "width": null
+            }
+          },
+          "anchors": {
+            "left": {
+              "to": "joint",
+              "jointId": "J2",
+              "offset": 0
+            },
+            "right": false
+          },
+          "grid": {
+            "id": "Upper-R:grid",
+            "cols": [
+              {
+                "id": "Upper-R:1:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "Upper-R:2:col",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "rows": [
+              {
+                "id": "Upper-R:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Upper-R:1",
+                  "kind": "cabinet"
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "Upper-R:2",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "top": "crown",
+          "wallSide": "front"
+        }
+      ]
+    }
+  ],
+  "partNumberStart": 1,
+  "partNumberOverrides": {},
+  "settingsOverrides": {
+    "sectionProfiles": [
+      {
+        "id": "golden-top-mold",
+        "name": "Top Mold",
+        "kind": "top_mold",
+        "geometry": {
+          "units": "in",
+          "points": {
+            "a": [
+              -0.75,
+              0
+            ],
+            "b": [
+              0,
+              0
+            ],
+            "c": [
+              0,
+              3
+            ],
+            "d": [
+              -0.75,
+              3
+            ]
+          },
+          "loops": [
+            {
+              "id": "L1",
+              "closed": true,
+              "segs": [
+                {
+                  "type": "line",
+                  "from": "a",
+                  "to": "b"
+                },
+                {
+                  "type": "line",
+                  "from": "b",
+                  "to": "c"
+                },
+                {
+                  "type": "line",
+                  "from": "c",
+                  "to": "d"
+                },
+                {
+                  "type": "line",
+                  "from": "d",
+                  "to": "a"
+                }
+              ]
+            }
+          ]
+        },
+        "drawnPoints": {
+          "elevation": []
+        },
+        "stretch": {
+          "y": 1.5
+        },
+        "version": 1,
+        "archived": false
+      },
+      {
+        "id": "golden-crown",
+        "name": "Crown",
+        "kind": "crown",
+        "geometry": {
+          "units": "in",
+          "points": {
+            "a": [
+              0,
+              -4.5
+            ],
+            "b": [
+              2.75,
+              -4.5
+            ],
+            "c": [
+              2.75,
+              0
+            ],
+            "d": [
+              0,
+              0
+            ]
+          },
+          "loops": [
+            {
+              "id": "L1",
+              "closed": true,
+              "segs": [
+                {
+                  "type": "line",
+                  "from": "a",
+                  "to": "b"
+                },
+                {
+                  "type": "line",
+                  "from": "b",
+                  "to": "c"
+                },
+                {
+                  "type": "line",
+                  "from": "c",
+                  "to": "d"
+                },
+                {
+                  "type": "line",
+                  "from": "d",
+                  "to": "a"
+                }
+              ]
+            }
+          ]
+        },
+        "drawnPoints": {
+          "elevation": []
+        },
+        "version": 1,
+        "archived": false
+      }
+    ],
+    "plotScale": 12
+  }
+}
