@@ -117,7 +117,7 @@ function endRule(room, settings, entries, entry, side) {
   if (carriers.length) {
     const other = carriers.reduce((best, candidate) => candidate.segment.front > best.segment.front ? candidate : best);
     if (same(segment.front, other.segment.front)) {
-      return rule('square'); // Same-wall joins remain separate run paths until D5.
+      return link(other, opposite(side), 'joined', segment[side === 'left' ? 'from' : 'to']);
     }
     return segment.front > other.segment.front ? rule('return') : rule('cope', againstRun(other.run));
   }
@@ -289,7 +289,7 @@ function buildBandPaths(room, settings) {
     if (!rule.other) continue;
     const back = rules.get(endKey(rule.other, rule.otherSide));
     if (back.other !== entry || back.otherSide !== side || back.type !== rule.type) {
-      rules.set(key, { type: rule.type === 'mitre' ? 'cope' : 'return', runId: entry.run.id, side,
+      rules.set(key, { type: rule.type === 'mitre' ? 'cope' : rule.type === 'joined' ? 'square' : 'return', runId: entry.run.id, side,
         ...(rule.type === 'mitre' ? { against: { kind: 'run', id: rule.other.run.id } } : {}) });
     }
   }

@@ -223,13 +223,6 @@ it('matches corner leg ends and turn points across golden rooms (D4)', () => {
         }
       }
     }
-    for (const path of result.paths) path.vertices.forEach((vertex, index) => {
-      if (vertex.type !== 'joined') return;
-      const pair = [path.segments[index], path.segments[(index + 1) % path.segments.length]];
-      compare(`${roomKey}, ${path.id}`, 'joined leg and return run',
-        pair.filter(({ corner }) => corner?.leg === 'b').length === 1
-          && pair.filter(({ corner }) => !corner).length === 1, true);
-    });
   }
   console.log('D4 corner ends compared:', JSON.stringify(counts));
   expect(failures, failures.join('\n')).toEqual([]);

@@ -372,7 +372,7 @@ function eligibilityReason(room, path, settings, records) {
     // Corner paths draw from the sweep for every member: owner, leg and return runs (D4 c, d).
     return null;
   }
-  if (path.segments.length !== 1 || path.vertices.some(({ type }) => type === 'joined')) return 'joined runs';
+  if (path.vertices.some(({ type }) => type === 'mitre')) return 'mitre (D5)';
   const first = path.segments[0];
   if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';
   if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
@@ -524,7 +524,7 @@ function cornerMemberView(room, path, sweep, member, settings) {
   return splitRunView(room, path, view, run, settings, scene, memberSweep, band, project);
 }
 
-/** D3's run splitting, shared by straight and corner-owner members. */
+/** D3's run splitting, shared by straight, joined and corner-owner members. */
 function splitRunView(room, path, view, run, settings, scene, sweep, band, project) {
   let pieces = [band];
   if (path.kind === 'countertop') {
@@ -555,23 +555,29 @@ export function viewRun(room, path, runId, settings) {
 }
 
 function viewRunOf(room, path, runId, settings) {
-  if (path.segments.length !== 1 || path.segments[0].corner) {
-    const sweep = sweepBand(room, path, settings);
-    return sweep && cornerMemberView(room, path, sweep, runId, settings);
-  }
-  if (path.segments[0].runId !== runId) return null;
   const sweep = sweepBand(room, path, settings);
   if (!sweep) return null;
-  const segment = sweep.segments[0];
+  if (sweep.vertices) return cornerMemberView(room, path, sweep, runId, settings);
+  const segment = sweep.segments.find(({ runId: id }) => id === runId);
+  if (!segment) return null;
   const wall = room.walls.find(({ id }) => id === segment.wallId);
   const frame = wallSideFrame(room, wall, segment.face);
   const view = { ...wallSideView(wall, segment.face), length: frame.length };
   const run = view.runs.find(({ id }) => id === runId);
   const scene = runScene(room, view, run, settings);
-  const band = viewFromWall(room, sweep, wall, segment.face);
+  const memberSweep = sweep.segments.length === 1 ? sweep : {
+    ...sweep, waterfall: null, ...runSweepDetails(room, view, run, path.kind, settings, segment.x1),
+    section: sectionFor(room, view, run, path.kind, settings), segments: [segment],
+    caps: ['left', 'right'].map((side, index) => {
+      if ([path.start, path.end].some((end) => end.runId === runId && end.side === side)) return sweep.caps[index];
+      const x = segment[index === 0 ? 'x1' : 'x2'];
+      return { type: 'square', x, side: x, facing: index === 0 ? -1 : 1 };
+    }),
+  };
+  const band = viewFromWall(room, memberSweep, wall, segment.face);
   if (!band) return null;
-  return splitRunView(room, path, view, run, settings, scene, sweep, band,
-    (caps) => viewFromWall(room, { ...sweep, caps }, wall, segment.face));
+  return splitRunView(room, path, view, run, settings, scene, memberSweep, band,
+    (caps) => viewFromWall(room, { ...memberSweep, caps }, wall, segment.face));
 }
 
 const legPaths = new WeakMap();

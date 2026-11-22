@@ -8,7 +8,7 @@ import { cornerReturnPoint } from '../corners.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
-import { sweepBand, viewFromWall, viewRun } from '../bandSweep.js';
+import { sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
@@ -162,4 +162,20 @@ it.each([
   expect(view.x + view.width).toBeCloseTo(end, 3);
   const vertical = view.lines.filter(({ x1, x2 }) => Math.abs(x1 - x2) < 1e-6);
   expect(vertical.map(({ x1 }) => x1).some((x) => Math.abs(x - line) < 0.001)).toBe(true);
+});
+
+it.each(['toeKick', 'crown'])('cuts each joined %s member at its run edge (D3)', (kind) => {
+  const { room: source, settings } = goldenRooms().find(({ key }) => key === 'S4').load();
+  const room = syncRoom(source, settings);
+  const path = bandPaths(room, settings).paths.find((candidate) => candidate.kind === kind);
+  expect(path.segments).toHaveLength(2);
+  expect(path.vertices).toMatchObject([{ type: 'joined', turn: 0 }]);
+  expect(sweepEligible(room, path, settings)).toBeNull();
+  const [left, right] = path.segments.toSorted((a, b) => a.x1 - b.x1);
+  const leftPieces = viewRun(room, path, left.runId, settings).pieces;
+  const rightPieces = viewRun(room, path, right.runId, settings).pieces;
+  const joint = leftPieces.at(-1).x + leftPieces.at(-1).width;
+  expect(joint).toBeCloseTo(left.x2, 6);
+  expect(rightPieces[0].x).toBeCloseTo(right.x1, 6);
+  expect(joint).toBeCloseTo(rightPieces[0].x, 6);
 });
