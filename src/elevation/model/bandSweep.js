@@ -281,6 +281,14 @@ function vertexEdge(sweep, index, frame) {
   return contourEdge(owner ?? a, vertex.at, direction, frame, sweep, true);
 }
 
+/** A mitre member's own section, using the same vertex and bisector as D4's turn contour. */
+export function mitreEdge(sweep, index, member, frame) {
+  const a = sweep.segments[index];
+  const b = sweep.segments[index + 1];
+  const direction = scale(add(a.frame.n, b.frame.n), 1 / (1 + dot(a.frame.n, b.frame.n)));
+  return contourEdge(member, sweep.vertices[index].at, direction, frame, sweep);
+}
+
 function projectedCap(sweep, index, frame) {
   const segment = index === 0 ? sweep.segments[0] : sweep.segments.at(-1);
   const cap = sweep.caps[index];
@@ -410,7 +418,7 @@ function eligibilityRecords(room, path, settings) {
 }
 
 /** Keep today's member-end treatment at a D5 mitre, including its own profile source. */
-function mitreMemberEdge(room, sweep, view, run, side, frame, settings) {
+export function mitreMemberEdge(room, sweep, view, run, side, frame, settings) {
   const scene = runScene(room, view, run, settings);
   const end = runBandEnds(room, view, run, settings, scene, sweep.kind, sweep.z, sweep.height)[side === 'left' ? 0 : 1];
   let source = sectionFor(room, view, run, sweep.kind, settings) ?? {};

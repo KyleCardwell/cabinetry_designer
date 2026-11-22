@@ -2,21 +2,80 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { effectiveSettings } from '../effectiveSettings.js';
-import { bandOutline } from '../bandEnds.js';
+import { bandOutline, endEdgeX } from '../bandEnds.js';
 import { cornerLegBandsForOwner } from '../cornerLegBands.js';
 import { cornerReturnPoint } from '../corners.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
-import { sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
+import { mitreEdge, mitreMemberEdge, sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
 import { wallSideView } from '../wallSides.js';
+import { outlineBounds } from '../sectionProfileOutline.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
 const PART_KINDS = { toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
   topMold: 'top_mold', crown: 'crown' };
+
+it('compares every mitre member contour with today’s end (D5)', () => {
+  const mismatches = [];
+  const unexpected = [];
+  const turns = {};
+  let members = 0;
+  const equivalent = (a, b) => {
+    if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 0.001;
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
+      && a.every((value, i) => equivalent(value, b[i]));
+  };
+  for (const { key, load } of goldenRooms()) {
+    const loaded = load();
+    const { settings } = loaded;
+    const room = syncRoom(loaded.room, settings);
+    const numbers = wallNumbers(room);
+    for (const path of bandPaths(room, settings).paths) {
+      if (!path.vertices.some(({ type }) => type === 'mitre')) continue;
+      const sweep = sweepBand(room, path, settings);
+      sweep.vertices.forEach((vertex, index) => {
+        if (vertex.type !== 'mitre') return;
+        const turn = Math.round(Math.abs(vertex.turn));
+        turns[turn] = (turns[turn] ?? 0) + 1;
+        const pair = sweep.segments.slice(index, index + 2);
+        const walls = pair.map(({ wallId }) => numbers.get(wallId));
+        for (const member of pair) {
+          members += 1;
+          const wall = room.walls.find(({ id }) => id === member.wallId);
+          const view = wallSideView(wall, member.face);
+          const run = view.runs.find(({ id }) => id === member.runId);
+          const side = Math.hypot(vertex.at.x - member.from.x, vertex.at.y - member.from.y) < 1e-6
+            ? 'left' : 'right';
+          const old = mitreMemberEdge(room, sweep, view, run, side, member.frame, settings);
+          const actual = mitreEdge(sweep, index, member, member.frame);
+          const compare = (field, before, after) => {
+            if (equivalent(before, after)) return;
+            const mismatch = `${key}, ${path.kind}, W${walls.join('→W')} (W${numbers.get(wall.id)} ${side}), turn=${vertex.turn}, ${field}, old=${JSON.stringify(before)}, new=${JSON.stringify(after)}`;
+            mismatches.push(mismatch);
+            const allowed = key === 'N4' && Math.abs(Math.abs(vertex.turn) - 45) < 1e-6
+              && ['2,3', '3,4'].includes(walls.join(','));
+            if (!allowed) unexpected.push(mismatch);
+          };
+          const front = side === 'left' ? 'maxX' : 'minX';
+          compare('front x', outlineBounds(old)[front], outlineBounds(actual)[front]);
+          compare('outline end points', old, actual);
+          const facing = side === 'left' ? -1 : 1;
+          const heights = [...new Set(member.section?.lineHeights ?? [])]
+            .filter((z) => z > sweep.z + 1e-6 && z < sweep.z + sweep.height - 1e-6);
+          for (const z of heights) compare(`line end x at z=${z}`,
+            endEdgeX(old, z, facing), endEdgeX(actual, z, facing));
+        }
+      });
+    }
+  }
+  console.log('D5 mitre members compared:', members, 'vertices by absolute turn:', JSON.stringify(turns));
+  console.log('D5 mitre parity mismatches:', mismatches.length ? `\n${mismatches.join('\n')}` : 'none');
+  expect(unexpected, unexpected.join('\n')).toEqual([]);
+});
 
 describe('band sweep wall views', () => {
   it('covers profiled crowns and plain toe kicks with conservative hiding strips (D2)', () => {
