@@ -2,79 +2,77 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { effectiveSettings } from '../effectiveSettings.js';
-import { bandOutline, endEdgeX } from '../bandEnds.js';
+import { bandOutline } from '../bandEnds.js';
 import { cornerLegBandsForOwner } from '../cornerLegBands.js';
 import { cornerReturnPoint } from '../corners.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
-import { mitreEdge, mitreMemberEdge, sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
+import { buildCacheFor, withBuildCache } from '../buildCache.js';
+import { sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
 import { wallSideView } from '../wallSides.js';
-import { outlineBounds } from '../sectionProfileOutline.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
 const PART_KINDS = { toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
   topMold: 'top_mold', crown: 'crown' };
 
-it('compares every mitre member contour with today’s end (D5)', () => {
-  const mismatches = [];
-  const unexpected = [];
-  const turns = {};
-  let members = 0;
-  const equivalent = (a, b) => {
-    if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 0.001;
-    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
-      && a.every((value, i) => equivalent(value, b[i]));
-  };
+it('makes every golden band path sweep eligible (D5)', () => {
+  const excluded = [];
   for (const { key, load } of goldenRooms()) {
-    const loaded = load();
-    const { settings } = loaded;
-    const room = syncRoom(loaded.room, settings);
+    const { room: source, settings } = load();
+    const room = syncRoom(source, settings);
     const numbers = wallNumbers(room);
     for (const path of bandPaths(room, settings).paths) {
-      if (!path.vertices.some(({ type }) => type === 'mitre')) continue;
-      const sweep = sweepBand(room, path, settings);
-      sweep.vertices.forEach((vertex, index) => {
-        if (vertex.type !== 'mitre') return;
-        const turn = Math.round(Math.abs(vertex.turn));
-        turns[turn] = (turns[turn] ?? 0) + 1;
-        const pair = sweep.segments.slice(index, index + 2);
-        const walls = pair.map(({ wallId }) => numbers.get(wallId));
-        for (const member of pair) {
-          members += 1;
-          const wall = room.walls.find(({ id }) => id === member.wallId);
-          const view = wallSideView(wall, member.face);
-          const run = view.runs.find(({ id }) => id === member.runId);
-          const side = Math.hypot(vertex.at.x - member.from.x, vertex.at.y - member.from.y) < 1e-6
-            ? 'left' : 'right';
-          const old = mitreMemberEdge(room, sweep, view, run, side, member.frame, settings);
-          const actual = mitreEdge(sweep, index, member, member.frame);
-          const compare = (field, before, after) => {
-            if (equivalent(before, after)) return;
-            const mismatch = `${key}, ${path.kind}, W${walls.join('→W')} (W${numbers.get(wall.id)} ${side}), turn=${vertex.turn}, ${field}, old=${JSON.stringify(before)}, new=${JSON.stringify(after)}`;
-            mismatches.push(mismatch);
-            const allowed = key === 'N4' && Math.abs(Math.abs(vertex.turn) - 45) < 1e-6
-              && ['2,3', '3,4'].includes(walls.join(','));
-            if (!allowed) unexpected.push(mismatch);
-          };
-          const front = side === 'left' ? 'maxX' : 'minX';
-          compare('front x', outlineBounds(old)[front], outlineBounds(actual)[front]);
-          compare('outline end points', old, actual);
-          const facing = side === 'left' ? -1 : 1;
-          const heights = [...new Set(member.section?.lineHeights ?? [])]
-            .filter((z) => z > sweep.z + 1e-6 && z < sweep.z + sweep.height - 1e-6);
-          for (const z of heights) compare(`line end x at z=${z}`,
-            endEdgeX(old, z, facing), endEdgeX(actual, z, facing));
-        }
-      });
+      const reason = sweepEligible(room, path, settings);
+      if (reason !== null) excluded.push({ room: key, kind: path.kind,
+        walls: path.segments.map(({ wallId }) => numbers.get(wallId)), reason });
     }
   }
-  console.log('D5 mitre members compared:', members, 'vertices by absolute turn:', JSON.stringify(turns));
-  console.log('D5 mitre parity mismatches:', mismatches.length ? `\n${mismatches.join('\n')}` : 'none');
-  expect(unexpected, unexpected.join('\n')).toEqual([]);
+  expect(excluded, JSON.stringify(excluded, null, 2)).toEqual([]);
+});
+
+it('builds each sweep, member view and eligibility once per path in a build (D5)', () => {
+  const { room: source, settings } = goldenRooms().find(({ key }) => key === 'N4').load();
+  const room = syncRoom(source, settings);
+  let first;
+  withBuildCache(() => {
+    const cache = buildCacheFor(room);
+    const byPath = cache.byPath;
+    const counts = new Map();
+    cache.byPath = (name, room, path, settings, member, build) => byPath(name, room, path, settings, member, () => {
+      const key = `${name}:${path.id}:${member ?? ''}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      return build();
+    });
+    try {
+      for (const path of bandPaths(room, settings).paths) {
+        const sweep = sweepBand(room, path, settings);
+        first ??= { path, sweep };
+        expect(sweepBand(room, path, settings)).toBe(sweep);
+        for (const runId of new Set(path.segments.filter(({ corner }) => !corner).map(({ runId }) => runId))) {
+          const view = viewRun(room, path, runId, settings);
+          expect(viewRun(room, path, runId, settings)).toBe(view);
+          expect(sweepEligible(room, path, settings, undefined, runId)).toBeNull();
+          expect(sweepEligible(room, path, settings, undefined, runId)).toBeNull();
+        }
+      }
+      expect([...counts.values()].every((count) => count === 1)).toBe(true);
+    } finally { cache.byPath = byPath; }
+    // A derived path may retain its id while cutting its segments for a particular view.
+    expect(sweepBand(room, { ...first.path }, settings)).not.toBe(first.sweep);
+    const runId = first.path.segments.find(({ corner }) => !corner).runId;
+    const view = viewRun(room, first.path, runId, settings);
+    const freshRoom = syncRoom(source, settings);
+    const changedSettings = { ...settings };
+    expect(sweepBand(freshRoom, first.path, settings)).not.toBe(first.sweep);
+    expect(viewRun(freshRoom, first.path, runId, settings)).not.toBe(view);
+    expect(sweepBand(room, first.path, changedSettings)).not.toBe(first.sweep);
+    expect(viewRun(room, first.path, runId, changedSettings)).not.toBe(view);
+  }, room);
+  withBuildCache(() => expect(sweepBand(room, first.path, settings)).not.toBe(first.sweep), room);
 });
 
 describe('band sweep wall views', () => {

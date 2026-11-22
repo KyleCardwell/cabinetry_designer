@@ -48,9 +48,11 @@ it('tags a run\'s second furniture base and extra wood tops with their own items
   expect(owned.filter(({ key }) => !tagged.has(key))).toEqual([]);
 });
 
-function medianTime(build) {
+function medianTime(build, prepare = () => {}) {
+  prepare();
   build();
   const times = Array.from({ length: 5 }, () => {
+    prepare();
     const start = performance.now();
     build();
     return performance.now() - start;
@@ -100,7 +102,8 @@ it('builds band paths once per part list and reuses them for the synced store ro
   });
 });
 
-async function builderSplit(room, settings) {
+async function builderSplit(room, settings, freshSource) {
+  const prepare = () => { if (freshSource) room = syncRoom(freshSource, settings); };
   const builders = [
     ['elevationParts', import('../elevationParts.js'), 'elevationParts'],
     ['bandParts', import('../bandParts.js'), 'bandParts'],
@@ -155,8 +158,10 @@ async function builderSplit(room, settings) {
         }));
       }
     }
+    prepare();
     build();
     const samples = Array.from({ length: 5 }, () => {
+      prepare();
       totals = {};
       const start = performance.now();
       build();
@@ -204,8 +209,10 @@ async function builderSplit(room, settings) {
         }));
       }
     }
+    prepare();
     build();
     const costSamples = Array.from({ length: 5 }, () => {
+      prepare();
       costs = {};
       build();
       return costs;
@@ -219,21 +226,25 @@ async function builderSplit(room, settings) {
   }
 }
 
-it.runIf(process.env.PERF)('builds N1 payload within 300 ms and measures G4 (GC2)', async () => {
+it.runIf(process.env.PERF)('builds N1 payload within 300 ms and measures G4 and N4 (GC2)', async () => {
+  const fresh = process.env.PERF_FRESH === '1';
+  const perfRooms = fresh ? ['N1', 'N4'] : ['N1', 'G4', 'N4'];
   const medians = {};
-  for (const key of ['N1', 'G4']) {
+  for (const key of perfRooms) {
     const { room: source, settings } = rooms.find((room) => room.key === key).load();
-    const room = syncRoom(source, settings);
+    let room = syncRoom(source, settings);
+    const prepare = fresh ? () => { room = syncRoom(source, settings); } : undefined;
     medians[key] = {
-      roomPartList: medianTime(() => roomPartList(room, settings)),
-      toDrawingPayload: medianTime(() => toDrawingPayload(room, settings)),
-      partNumbers: medianTime(() => partNumbers(room, settings)),
+      roomPartList: medianTime(() => roomPartList(room, settings), prepare),
+      toDrawingPayload: medianTime(() => toDrawingPayload(room, settings), prepare),
+      partNumbers: medianTime(() => partNumbers(room, settings), prepare),
     };
   }
+  if (fresh) console.log('PERF_FRESH: new syncRoom before every sample; sync time excluded');
   console.log('GC2 medians (ms):', JSON.stringify(medians));
-  for (const key of ['N1', 'G4']) {
+  for (const key of perfRooms) {
     const { room, settings } = rooms.find((room) => room.key === key).load();
-    console.log(`D3 ${key} builder medians (ms):`, JSON.stringify(await builderSplit(syncRoom(room, settings), settings)));
+    console.log(`D3 ${key} builder medians (ms):`, JSON.stringify(await builderSplit(syncRoom(room, settings), settings, fresh ? room : undefined)));
   }
   for (const { key, load } of rooms) {
     const { room: source, settings } = load();

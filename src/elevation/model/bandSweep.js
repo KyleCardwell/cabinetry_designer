@@ -79,6 +79,15 @@ function capFor(room, path, rule, view, settings) {
     return { type, x, side: x - facing * bandPast(room, view, source, end, kind, settings), facing,
       source: sectionFor(room, view, source, kind, settings, end) ?? {} };
   };
+  // Switching mitre-only paths retains their profiled cap at a solid. Toe kicks
+  // instead die into that solid without the free-end setback.
+  if (type === 'die-in' && rule.against?.kind === 'solid' && kind !== 'toeKick'
+    && path.vertices.some(({ type }) => type === 'mitre')
+    && path.vertices.every(({ type }) => type === 'mitre' || type === 'joined')) {
+    const scene = runScene(room, view, run, settings);
+    const end = runBandEnds(room, view, run, settings, scene, kind, z, height)[side === 'left' ? 0 : 1];
+    if (end.type === 'return') return { ...end, source: sectionFor(room, view, run, kind, settings, side) };
+  }
   if (type === 'waterfall') {
     if (kind === 'countertop') return returned(run, side);
     const scene = runScene(room, view, run, settings);
@@ -144,7 +153,8 @@ function cornerSweep(room, path, settings) {
     let frame = wallSideFrame(room, wall, segment.face);
     const ownerWall = segment.corner ? room.walls.find(({ id }) => id === segment.corner.ownerWallId) : wall;
     const run = ownerWall.runs.find(({ id }) => id === segment.runId);
-    const view = wallSideView(ownerWall, run.wallSide ?? 'front');
+    const view = { ...wallSideView(ownerWall, run.wallSide ?? 'front'),
+      length: wallSideFrame(room, ownerWall, run.wallSide ?? 'front').length };
     const section = sectionFor(room, view, run, path.kind, settings);
     const front = bandFronts(room, view, run, settings)[path.kind];
     const overhangs = topOverhangs(room, view, run, settings);
@@ -166,7 +176,7 @@ function cornerSweep(room, path, settings) {
   const caps = [path.start, path.end].map((rule, index) => {
     const segment = index === 0 ? segments[0] : segments.at(-1);
     const wall = room.walls.find(({ id }) => id === segment.wallId);
-    const view = wallSideView(wall, segment.face);
+    const view = { ...wallSideView(wall, segment.face), length: segment.frame.length };
     if (!rule.memberKey) return capFor(room, path, rule, view, settings);
     const source = segment.section && { ...segment.section,
       offset: path.kind === 'countertop' ? segment.band.overhangs[rule.side] : segment.section.offset };
@@ -180,7 +190,10 @@ function cornerSweep(room, path, settings) {
 
 /** Carry a section and its end rules along the path's wall faces and corner turns. */
 export function sweepBand(room, path, settings) {
-  return whileBuildingPaths(() => sweepBandOf(room, path, settings));
+  if (!path) return null;
+  const cache = buildCacheFor(room);
+  const build = () => whileBuildingPaths(() => sweepBandOf(room, path, settings));
+  return cache ? cache.byPath('sweepBand', room, path, settings, undefined, build) : build();
 }
 
 function sweepBandOf(room, path, settings) {
@@ -286,7 +299,9 @@ export function mitreEdge(sweep, index, member, frame) {
   const a = sweep.segments[index];
   const b = sweep.segments[index + 1];
   const direction = scale(add(a.frame.n, b.frame.n), 1 / (1 + dot(a.frame.n, b.frame.n)));
-  return contourEdge(member, sweep.vertices[index].at, direction, frame, sweep);
+  const other = a === member ? b : a;
+  // An unpicked neighbour meets the section with a plain, vertical boundary.
+  return contourEdge(other.section ? member : other, sweep.vertices[index].at, direction, frame, sweep);
 }
 
 function projectedCap(sweep, index, frame) {
@@ -374,13 +389,12 @@ function finishRunBand(sweep, band, edges) {
 }
 
 function eligibilityReason(room, path, settings, records) {
-  if (path.vertices.some(({ type }) => type === 'turn')
+  if (path.vertices.some(({ type }) => type === 'turn' || type === 'mitre')
     || path.segments.some(({ corner, diagonal }) => corner || diagonal)
     || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) {
-    // Corner paths draw from the sweep for every member: owner, leg and return runs (D4 c, d).
+    // Corner and mitre paths draw from the sweep for every member.
     return null;
   }
-  if (path.vertices.some(({ type }) => type === 'mitre')) return 'mitre (D5)';
   const first = path.segments[0];
   if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';
   if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
@@ -403,7 +417,7 @@ export function sweepEligible(room, path, settings, records, member) {
   if (records) return eligibilityReason(room, path, settings, records);
   const cache = buildCacheFor(room);
   const build = () => eligibilityReason(room, path, settings);
-  return cache ? cache.byRoom(`sweepEligible:${path.id}:${member ?? ''}`, room, settings, build) : build();
+  return cache ? cache.byPath('sweepEligible', room, path, settings, member, build) : build();
 }
 
 function eligibilityRecords(room, path, settings) {
@@ -415,26 +429,6 @@ function eligibilityRecords(room, path, settings) {
     const scene = runScene(room, view, run, settings);
     return { run, ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
   });
-}
-
-/** Keep today's member-end treatment at a D5 mitre, including its own profile source. */
-export function mitreMemberEdge(room, sweep, view, run, side, frame, settings) {
-  const scene = runScene(room, view, run, settings);
-  const end = runBandEnds(room, view, run, settings, scene, sweep.kind, sweep.z, sweep.height)[side === 'left' ? 0 : 1];
-  let source = sectionFor(room, view, run, sweep.kind, settings) ?? {};
-  if (end.base) {
-    const { picked, height, proud } = end.base;
-    source = { loop: picked && sectionProfileOutline(picked.geometry), reference: height, offset: proud };
-  } else if (end.countertop) {
-    const { picked, reference, overhangs } = end.countertop;
-    source = { loop: picked && sectionProfileOutline(picked.geometry), reference,
-      offset: overhangs[end.facing === -1 ? 'left' : 'right'] };
-  }
-  source = { ...source, ...(end.outline ? { outline: end.outline } : {}), ...(end.edge ? { edge: end.edge } : {}) };
-  // A profile that comes from the neighbour at the mitre counts as this end's section.
-  const own = sectionFor(room, view, run, sweep.kind, settings);
-  return capEdge({ ...end, source }, source.loop || source.outline ? source : own, frame,
-    sweep.z, sweep.height, side === 'left' ? 0 : 1, sweep.kind);
 }
 
 /** Follow the owner's diagonal to the turn where the next member becomes end-on. */
@@ -500,7 +494,7 @@ function cornerMemberView(room, path, sweep, member, settings) {
   const index = sweep.segments.indexOf(segment);
   const wall = room.walls.find(({ id }) => id === segment.wallId);
   const frame = wallSideFrame(room, wall, segment.face);
-  const view = wallSideView(wall, segment.face);
+  const view = { ...wallSideView(wall, segment.face), length: segment.frame.length };
   const run = view.runs.find(({ id }) => id === member);
   const edges = ['left', 'right'].map((side) => {
     const at = segment[side === 'left' ? 'from' : 'to'];
@@ -508,14 +502,23 @@ function cornerMemberView(room, path, sweep, member, settings) {
       && Math.hypot(vertex.at.x - at.x, vertex.at.y - at.y) <= EPSILON);
     if (joint >= 0) {
       const vertex = sweep.vertices[joint];
-      if (vertex.type === 'mitre') return mitreMemberEdge(room, sweep, view, run, side, frame, settings);
+      if (vertex.type === 'mitre') {
+        const edge = mitreEdge(sweep, joint, segment, frame);
+        const other = sweep.segments[joint] === segment ? sweep.segments[joint + 1] : sweep.segments[joint];
+        // Return sections measure depth from the neighbour's wall face; its back-face
+        // origin includes wall thickness, which is already accounted for by that section.
+        const otherWall = room.walls.find(({ id }) => id === other.wallId);
+        const offset = other.face === 'back' ? Math.max(0, otherWall.thickness ?? 0) : 0;
+        return offset ? transformOutline(edge, ([x, z]) => [x - offset * dot(other.frame.n, frame.r), z]) : edge;
+      }
       const tag = vertex.corner;
       if (tag?.runId === run.id && tag.ownerWallId === wall.id) {
         return ownerCornerEdge(sweep, joint, segment, frame);
       }
       return vertexEdge(sweep, joint, frame);
     }
-    return projectedCap(sweep, index === 0 ? 0 : 1, frame);
+    const cap = [path.start, path.end].findIndex((end) => end.runId === run.id && end.side === side);
+    return projectedCap(sweep, cap, frame);
   });
   const memberSweep = { ...sweep, ...segment,
     caps: edges.map((edge, i) => ({ type: 'square', x: endEdgeX(edge, path.z, i === 0 ? -1 : 1) })) };
@@ -559,7 +562,10 @@ function splitRunView(room, path, view, run, settings, scene, sweep, band, proje
 
 /** A member's wall view, split at top inserts or open floor spans. */
 export function viewRun(room, path, runId, settings) {
-  return path ? whileBuildingPaths(() => viewRunOf(room, path, runId, settings)) : null;
+  if (!path) return null;
+  const cache = buildCacheFor(room);
+  const build = () => whileBuildingPaths(() => viewRunOf(room, path, runId, settings));
+  return cache ? cache.byPath('viewRun', room, path, settings, runId, build) : build();
 }
 
 function viewRunOf(room, path, runId, settings) {

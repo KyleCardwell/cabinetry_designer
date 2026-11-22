@@ -40,6 +40,7 @@ function createBuildCache(freezeResults = import.meta.env.MODE === 'test') {
   const scenes = new WeakMap();
   const corners = new WeakMap();
   const rooms = new Map();
+  const paths = new WeakMap();
   const inputs = new WeakSet();
   const inputRoots = new WeakSet();
   const frozen = new WeakSet();
@@ -70,6 +71,9 @@ function createBuildCache(freezeResults = import.meta.env.MODE === 'test') {
     byRoom(name, room, settings, build) {
       if (!rooms.has(name)) rooms.set(name, new WeakMap());
       return cachedOrRun(rooms.get(name), [room], settings, room, settings, build);
+    },
+    byPath(name, room, path, settings, member, build) {
+      return cachedOrRun(paths, [room, settings, path], valueKey([name, member]), room, settings, build);
     },
     runScene(room, wall, run, settings, build) {
       if (!storedView(room, wall)) return build();
