@@ -12,7 +12,7 @@ import { runBands } from '../../elevation/model/runBands.js';
 import { runScene } from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { shippingList } from '../shippingList.js';
-import { linealFeet, shippingMoldings } from '../../elevation/model/items/bandItems.js';
+import { moldingFeet, shippingMoldings } from '../../elevation/model/items/bandItems.js';
 
 const golden = normalizeElevationDocument(JSON.parse(readFileSync(
   new URL('../../elevation/model/__tests__/fixtures/golden.json', import.meta.url), 'utf8',
@@ -51,6 +51,18 @@ function runFootage(synced, kind) {
 }
 
 describe('corner leg molding footage', () => {
+  it('measures G2 moldings and toe kick returns at the same-wall step (RP2.5)', () => {
+    const subject = syncRoom(golden.rooms[1], golden.settings);
+    const measured = shippingMoldings(subject, golden.settings);
+    for (const [kind, previous, added, feet] of [
+      ['crown', 166.8125, 3, 15], ['topMold', 161.3125, 0.25, 14], ['toeKick', 156.6875, 1, 14],
+    ]) {
+      expect(measured[kind].measured).toBe(previous + added);
+      expect(shippingList(subject, golden.settings).rows.find(({ key }) => key === `molding:${kind}`).size)
+        .toBe(`${feet} feet\nsend 1 extra length`);
+    }
+  });
+
   it.each([true, false])('adds free leg footage when a corner end is %s (CC7)', (hasCorner) => {
     if (!hasCorner) owner.ends.left = { type: 'none' };
     const synced = syncRoom(subject, settings);
@@ -65,7 +77,7 @@ describe('corner leg molding footage', () => {
       const measured = shippingMoldings(synced, settings)[kind].measured;
       expect(measured - runFootage(synced, kind)).toBeCloseTo(added, 8);
       expect(shippingList(synced, settings).rows.find(({ key }) => key === `molding:${kind}`).size)
-        .toBe(`Lineal Feet: ${linealFeet(measured)}`);
+        .toBe(`${moldingFeet(measured)} feet\nsend 1 extra length`);
     }
   });
 });

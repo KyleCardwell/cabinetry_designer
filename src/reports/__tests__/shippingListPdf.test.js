@@ -14,7 +14,7 @@ const list = {
   rows: [
     { number: 1, description: 'Base', notes: ['MAPLE PLY BOX', 'hl'], size: '24 x 30 1/2 x 23 3/4' },
     { number: 2, description: 'Filler', notes: [], size: '3 1/8 x 30 1/2 x 3/4' },
-    { number: 3, description: 'Crown', notes: ['3 sticks'], size: "24'" },
+    { number: 3, description: 'Crown', notes: [], size: '24 feet\nsend 1 extra length' },
     { number: null, description: 'Adjustable Shelves', notes: [], size: '' },
   ],
   roomNote: null, warnings: [],
@@ -85,12 +85,12 @@ describe('shipping list PDF definition (RP2)', () => {
     expect(input).toEqual(before);
   });
 
-  it('preserves lineal feet, blank shelf sizes, integers and simple fractions (RP2.3)', () => {
-    const sizes = ['Lineal Feet: 24', '', '24 x 30 x 3/4'];
+  it('centres both molding size lines and keeps blank and simple sizes (RP2.5)', () => {
+    const sizes = ['24 feet\nsend 1 extra length', '', '24 x 30 x 3/4'];
     const input = { ...list, rows: sizes.map((size) => ({ ...list.rows[0], size })) };
     const rows = shippingListDocument(input, header, ['master']).content[0].table.body.slice(2);
     expect(rows.map((row) => row[5])).toEqual(
-      ['Lineal Feet: 24', '', '24 x\u00a030 x\u00a03/4'].map((text) => ({ text, alignment: 'center', border: allBorders })),
+      ['24 feet\nsend 1 extra length', '', '24 x\u00a030 x\u00a03/4'].map((text) => ({ text, alignment: 'center', border: allBorders })),
     );
   });
 

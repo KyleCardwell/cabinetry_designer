@@ -281,7 +281,8 @@ exports[`SH7.2 step b leg fill parts > anchor 4: preserves parts, part numbers a
           "3 7/8" tall",
         ],
         "number": 7,
-        "size": "Lineal Feet: 8",
+        "size": "3 feet
+send 1 extra length",
       },
       {
         "description": "Adjustable Shelves",

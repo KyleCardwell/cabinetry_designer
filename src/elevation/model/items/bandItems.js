@@ -3,23 +3,51 @@ import { panelOrientation } from '../cells.js';
 import { bandPaths } from '../bandPaths.js';
 import { cornerLegBandParts } from '../bandSweep.js';
 import { frontDepth, runBackOffset } from '../corners.js';
+import { planPointToWallX } from '../geometry.js';
 import { moldingPast, moldingProfiles } from '../moldingProfiles.js';
 import { carriesMolding } from '../parts.js';
 import { resolveProfile } from '../profile.js';
 import { resolveWall } from '../room.js';
-import { runBands, waterfallEnds } from '../runBands.js';
+import { bandPast, runBands, waterfallEnds } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { sectionProfileBounds } from '../sectionProfiles.js';
 import { isShelvesOnlyRun } from '../wallEndPanels.js';
-import { WALL_SIDES } from '../wallSides.js';
+import { WALL_SIDES, wallSideFrame } from '../wallSides.js';
 import { formatInch, formatSize } from './format.js';
 
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
-const MOLDING_EXTRA = 24;
 
-/** Order eight-foot lengths, allowing two extra feet for fitting. */
-export function linealFeet(inches) {
-  return Math.ceil((inches + MOLDING_EXTRA) / 96) * 8;
+/** Whole measured feet, allowing a sixteenth over a whole foot. */
+export function moldingFeet(inches) {
+  return Math.ceil((inches - 1 / 16) / 12);
+}
+
+function insideMitreExtra(room, wall, run, settings, kind, drawnEnds, paths) {
+  const frame = wallSideFrame(room, wall, wall.side ?? 'front');
+  const addedEnds = new Set();
+  let extra = 0;
+  for (const path of paths.filter((path) => path.kind === kind)) {
+    path.vertices.forEach((vertex, index) => {
+      if (vertex.type !== 'mitre') return;
+      const pair = [path.segments[index], path.segments[(index + 1) % path.segments.length]];
+      const returned = pair.find((segment) => segment.return);
+      const member = pair.find((segment) => !segment.return && !segment.corner && segment.runId === run.id
+        && segment.wallId === wall.id && segment.face === (wall.side ?? 'front'));
+      if (!returned || !member || returned.wallId !== member.wallId || returned.face !== member.face
+        || member.front >= returned.front) return;
+      const side = Math.hypot(member.from.x - vertex.at.x, member.from.y - vertex.at.y) < 1e-6
+        ? 'left' : 'right';
+      if (addedEnds.has(side)) return;
+      addedEnds.add(side);
+      const deeper = wall.runs.find(({ id }) => id === returned.runId);
+      // The path follows the return's face; its inside vertex is back on the deeper run's side line.
+      const insideX = planPointToWallX(frame, vertex.at) - (returned.returnSide === 'left' ? -1 : 1)
+        * bandPast(room, wall, deeper, returned.returnSide, kind, settings);
+      const distance = drawnEnds[side === 'left' ? 0 : 1] - insideX;
+      extra += kind === 'toeKick' ? Math.max(0, distance * (side === 'left' ? 1 : -1)) : Math.abs(distance);
+    });
+  }
+  return extra;
 }
 
 export function shippingMoldings(room, settings) {
@@ -54,18 +82,24 @@ export function shippingMoldings(room, settings) {
             const depth = run.depth + moldingPast(moldings, kind, settings);
             shelfDepths.set(formatInch(depth), depth);
           }
+          const returned = paths.flatMap((path) => path.kind === kind ? path.segments.filter((segment) =>
+            segment.return && segment.runId === run.id && segment.wallId === wall.id && segment.face === side) : []);
           if (kind === 'toeKick') {
             data.measured += bands.toeKicks.reduce((sum, band) => sum + band.width, 0);
+            if (bands.toeKicks.length) {
+              const drawnEnds = [Math.min(...bands.toeKicks.map((band) => band.x)),
+                Math.max(...bands.toeKicks.map((band) => band.x + band.width))];
+              data.measured += insideMitreExtra(room, wall, run, settings, kind, drawnEnds, paths);
+            }
           } else {
             const band = bands[kind];
-            const returned = paths.flatMap((path) => path.kind === kind ? path.segments.filter((segment) =>
-              segment.return && segment.runId === run.id && segment.wallId === wall.id && segment.face === side) : []);
             data.measured += band.width + band.ends.filter((end, index) => end.type === 'return'
               && !returned.some((segment) => segment.returnSide === (index === 0 ? 'left' : 'right'))).length
               * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
-            data.measured += returned.reduce((sum, segment) => sum
-              + Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y), 0);
+            data.measured += insideMitreExtra(room, wall, run, settings, kind, band.ends.map(({ x }) => x), paths);
           }
+          data.measured += returned.reduce((sum, segment) => sum
+            + Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y), 0);
           const partKind = kind === 'toeKick' ? 'toe_kick' : kind === 'topMold' ? 'top_mold' : kind;
           for (const leg of legBands.filter((leg) => leg.kind === partKind)) {
             data.measured += leg.width;
@@ -110,7 +144,7 @@ export const bandItems = {
     return item.kind === 'furniture_base' ? 'Furniture Base' : 'Wood Top';
   },
   size(item, facts) {
-    if (item.kind === 'molding') return `Lineal Feet: ${linealFeet(facts.molding.measured)}`;
+    if (item.kind === 'molding') return `${moldingFeet(facts.molding.measured)} feet\nsend 1 extra length`;
     if (item.kind === 'furniture_base') {
       const { base } = facts;
       return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
