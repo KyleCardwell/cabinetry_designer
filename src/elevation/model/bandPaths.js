@@ -124,6 +124,7 @@ function endRule(room, settings, entries, entry, side) {
     if (same(segment.front, other.segment.front)) {
       return link(other, opposite(side), 'joined', segment[side === 'left' ? 'from' : 'to']);
     }
+    if (siteBand(kind)) return link(other, opposite(side), 'step');
     return segment.front > other.segment.front ? rule('return') : rule('cope', againstRun(other.run));
   }
   if ((furniture && neighbors.length)
@@ -180,6 +181,39 @@ function endRule(room, settings, entries, entry, side) {
       id: corner.anchorWallId ?? corner.neighborWallId ?? view.id });
   }
   return rule('return');
+}
+
+/** Join reciprocal same-face steps through the deeper member's shortened return. */
+function addStepEntries(room, settings, entries, rules) {
+  for (const entry of [...entries]) for (const side of SIDES) {
+    const rule = rules.get(endKey(entry, side));
+    if (rule.type !== 'step') continue;
+    const { other, otherSide } = rule;
+    const back = rules.get(endKey(other, otherSide));
+    if (back?.other !== entry || back.otherSide !== side || back.type !== 'step') {
+      rules.set(endKey(entry, side), { type: entry.segment.front > other.segment.front ? 'return' : 'cope',
+        runId: entry.run.id, side,
+        ...(entry.segment.front < other.segment.front ? { against: { kind: 'run', id: other.run.id } } : {}) });
+      continue;
+    }
+    if (entry.segment.front < other.segment.front) continue;
+    const x = freeEdge(room, entry.view, entry.run, side, entry.kind, settings);
+    const from = elevationToPlan(entry.frame, x, entry.segment.front);
+    const to = elevationToPlan(entry.frame, x, other.segment.front);
+    const returned = { ...entry,
+      frame: { ...entry.frame, r: scale(entry.frame.n, -1) },
+      segment: { ...entry.segment, memberKey: `return:${entry.view.id}:${entry.run.id}:${side}:${entry.kind}`,
+        return: true, returnSide: side, x1: x, x2: x, from, to } };
+    entries.push(returned);
+    const connect = (a, aSide, b, bSide, at) => {
+      rules.set(endKey(a, aSide), { type: 'mitre', runId: a.run.id, side: aSide,
+        ...(a.segment.memberKey ? { memberKey: a.segment.memberKey } : {}), other: b, otherSide: bSide, at });
+      rules.set(endKey(b, bSide), { type: 'mitre', runId: b.run.id, side: bSide,
+        ...(b.segment.memberKey ? { memberKey: b.segment.memberKey } : {}), other: a, otherSide: aSide, at });
+    };
+    connect(entry, side, returned, 'left', from);
+    connect(returned, 'right', other, otherSide, to);
+  }
 }
 
 /** Extend owners around their cabinet fronts, then resolve the leg/return-run joint. */
@@ -312,6 +346,7 @@ function buildBandPaths(room, settings) {
       other: entry, otherSide: side, at });
   }
   addCornerEntries(room, settings, entries, rules, sources);
+  addStepEntries(room, settings, entries, rules);
   // Only reciprocal joins can consume both run ends. A one-sided corner meet remains a cope.
   for (const entry of entries) for (const side of SIDES) {
     const key = endKey(entry, side);

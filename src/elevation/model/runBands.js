@@ -341,7 +341,7 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height,
       const id = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
       path = paths.paths.find((path) => path.id === id && Math.abs(path.height - height) <= EPSILON);
     }
-    const memberIndex = path?.segments.findIndex(({ runId, corner }) => runId === run.id && !corner);
+    const memberIndex = path?.segments.findIndex((segment) => segment.runId === run.id && !segment.corner && !segment.return);
     const segment = path?.segments[memberIndex];
     mitres = ['left', 'right'].map((side) => {
       if (!segment) return null;
@@ -350,10 +350,11 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height,
         && (i === memberIndex || i + 1 === memberIndex)
         && Math.hypot(at.x - end.x, at.y - end.y) <= EPSILON);
       const pair = path.segments.slice(index, index + 2);
-      if (index < 0 || pair.length !== 2 || pair[0].wallId === pair[1].wallId
-        || Math.abs(pair[0].front - pair[1].front) <= 1 / 32) return null;
+      const stepped = pair.some((segment) => segment.return);
+      if (index < 0 || pair.length !== 2 || (!stepped && (pair[0].wallId === pair[1].wallId
+        || Math.abs(pair[0].front - pair[1].front) <= 1 / 32))) return null;
       const sweep = sweepBand(room, path, settings);
-      const member = sweep.segments.find(({ runId, corner }) => runId === run.id && !corner);
+      const member = sweep.segments.find((segment) => segment.runId === run.id && !segment.corner && !segment.return);
       const frame = wallSideFrame(room, wall, wall.side ?? 'front');
       const x = planPointToWallX(frame, end);
       const today = side === 'left' ? left : right;
@@ -453,7 +454,7 @@ export function runBands(room, wall, run, settings, scene) {
     paths ??= bandPaths(room, settings);
     const pathId = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
     const path = paths.paths.find((path) => path.id === pathId && Math.abs(path.height - height) <= EPSILON);
-    const segment = path?.segments.find(({ runId }) => runId === run.id);
+    const segment = path?.segments.find((segment) => segment.runId === run.id && !segment.return);
     // The owner's segment ends at the turn, not the run edge, on its corner side.
     const turnAt = (side) => path?.vertices.some(({ type, corner }) => type === 'turn'
       && corner?.runId === run.id && corner.side === side);

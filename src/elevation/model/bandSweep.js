@@ -170,8 +170,12 @@ function cornerSweep(room, path, settings) {
       if (dot(n, frame.n) < 0) n = scale(n, -1);
       frame = { ...frame, r, n };
     }
+    if (segment.return) {
+      frame = { ...frame, r: normalize(subtract(segment.to, segment.from)),
+        n: scale(frame.r, segment.returnSide === 'left' ? -1 : 1) };
+    }
     return { ...segment, frame, section, band,
-      ...(!segment.corner ? runSweepDetails(room, view, run, path.kind, settings, segment.x1) : {}) };
+      ...(!segment.corner && !segment.return ? runSweepDetails(room, view, run, path.kind, settings, segment.x1) : {}) };
   });
   const caps = [path.start, path.end].map((rule, index) => {
     const segment = index === 0 ? segments[0] : segments.at(-1);
@@ -463,7 +467,7 @@ function ownerCornerEdge(sweep, index, owner, frame) {
 function cornerMemberView(room, path, sweep, member, settings) {
   const leg = member.startsWith('corner-leg:');
   const segment = sweep.segments.find((segment) => leg ? segment.memberKey === member
-    : !segment.corner && segment.runId === member);
+    : !segment.corner && !segment.return && segment.runId === member);
   // A 45 leg can have zero plan length; its diagonal still has a projected leg part.
   const diagonal = leg && sweep.segments.find((segment) => segment.diagonal
     && segment.memberKey.replace('corner-diagonal:', 'corner-leg:') === member);

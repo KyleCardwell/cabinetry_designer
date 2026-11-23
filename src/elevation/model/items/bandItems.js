@@ -36,7 +36,7 @@ export function shippingMoldings(room, settings) {
         const scene = runScene(room, wall, run, settings);
         const bands = runBands(room, wall, run, settings, scene);
         const moldings = moldingProfiles(profile, settings, run);
-        const { ends } = bandPaths(room, settings);
+        const { ends, paths } = bandPaths(room, settings);
         const legBands = ['left', 'right'].flatMap((end) =>
           cornerLegBandParts(room, wall.id, run, end, settings));
         for (const kind of kinds) {
@@ -58,8 +58,13 @@ export function shippingMoldings(room, settings) {
             data.measured += bands.toeKicks.reduce((sum, band) => sum + band.width, 0);
           } else {
             const band = bands[kind];
-            data.measured += band.width + band.ends.filter((end) => end.type === 'return').length
+            const returned = paths.flatMap((path) => path.kind === kind ? path.segments.filter((segment) =>
+              segment.return && segment.runId === run.id && segment.wallId === wall.id && segment.face === side) : []);
+            data.measured += band.width + band.ends.filter((end, index) => end.type === 'return'
+              && !returned.some((segment) => segment.returnSide === (index === 0 ? 'left' : 'right'))).length
               * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
+            data.measured += returned.reduce((sum, segment) => sum
+              + Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y), 0);
           }
           const partKind = kind === 'toeKick' ? 'toe_kick' : kind === 'topMold' ? 'top_mold' : kind;
           for (const leg of legBands.filter((leg) => leg.kind === partKind)) {

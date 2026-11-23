@@ -36,6 +36,24 @@ const ruleFor = (run, kind, side) => {
 };
 
 describe('band paths', () => {
+  it('mitres the crown through the deeper run return on G2 Wall 1 (D5)', () => {
+    const { room: source, settings } = goldenRooms().find(({ key }) => key === 'G2').load();
+    const room = syncRoom(source, settings);
+    const wallId = [...wallNumbers(room)].find(([, number]) => number === 1)[0];
+    const path = bandPaths(room, settings).paths.find((path) => path.kind === 'crown'
+      && path.segments.some((segment) => segment.wallId === wallId && segment.return));
+    expect(path).toBeDefined();
+    const index = path.segments.findIndex((segment) => segment.return);
+    const returned = path.segments[index];
+    const fronts = [path.segments[index - 1], path.segments[index + 1]];
+    const deeper = fronts.reduce((a, b) => a.front > b.front ? a : b);
+    expect(returned.runId).toBe(deeper.runId);
+    expect(path.vertices.slice(index - 1, index + 1).map(({ type, turn }) => [type, turn]).sort())
+      .toEqual([['mitre', -90], ['mitre', 90]]);
+    expect(Math.hypot(returned.to.x - returned.from.x, returned.to.y - returned.from.y))
+      .toBeCloseTo(Math.abs(fronts[0].front - fronts[1].front), 6);
+  });
+
   it('mitres the blind tall moldings into the upper at their front intersection (D5)', () => {
     const tall = runs(5, CABINET_TYPE_IDS.TALL)[0];
     const upper = runs(4, CABINET_TYPE_IDS.UPPER)[0];
@@ -76,7 +94,7 @@ describe('band paths', () => {
     for (const path of result.paths) {
       representedEnds += (path.start ? 1 : 0) + (path.end ? 1 : 0) + path.vertices.length * 2
         - path.segments.filter(({ corner }) => corner).length * 2;
-      for (const segment of path.segments.filter(({ corner }) => !corner)) for (const side of ['left', 'right']) {
+      for (const segment of path.segments.filter((segment) => !segment.corner && !segment.return)) for (const side of ['left', 'right']) {
         const endKey = `${segment.runId}|${path.kind}|${path.z}|${side}`;
         actual.push(endKey);
         expect(result.ends.get(endKey)?.pathId).toBe(path.id);
@@ -257,7 +275,7 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
     const partners = new Map();
     const joints = [];
     for (const path of result.paths) {
-      for (const segment of path.segments.filter(({ corner }) => !corner)) {
+      for (const segment of path.segments.filter((segment) => !segment.corner && !segment.return)) {
         const wall = room.walls.find(({ id }) => id === segment.wallId);
         const view = wallSideView(wall, segment.face);
         const run = view.runs.find(({ id }) => id === segment.runId);
@@ -293,11 +311,12 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
             return Math.hypot(point.x - vertex.at.x, point.y - vertex.at.y) < 1e-6;
           });
           expect(side, `${roomKey}: mitre must meet a segment end`).toBeDefined();
-          return `${segment.runId}|${path.kind}|${path.z}|${side}`;
+          return `${segment.memberKey ?? segment.runId}|${path.kind}|${path.z}|${side}`;
         });
-        const equalFronts = Math.abs(pair[0].front - pair[1].front) <= 1 / 32;
-        partners.set(ends[0], { other: ends[1], equalFronts });
-        partners.set(ends[1], { other: ends[0], equalFronts });
+        const returned = pair.some((segment) => segment.return);
+        const equalFronts = !returned && Math.abs(pair[0].front - pair[1].front) <= 1 / 32;
+        partners.set(ends[0], { other: ends[1], equalFronts, returned });
+        partners.set(ends[1], { other: ends[0], equalFronts, returned });
         joints.push({ ends, kind: path.kind, z: path.z, equalFronts });
       });
     }
@@ -306,7 +325,7 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
     const classB = [];
     const classW = [];
     for (const [endKey, { type }] of result.ends) {
-      if (endKey.startsWith('corner-')) continue;
+      if (endKey.startsWith('corner-') || endKey.startsWith('return:')) continue;
       const record = records.get(endKey);
       expect(record, `${roomKey}: missing legacy end ${endKey}`).toBeDefined();
       const pair = `${record.old} → ${type}`;
@@ -319,11 +338,13 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
         && record.projection && record.front <= record.projection.depth
         && record.rule?.against?.kind === 'solid' && record.rule.against.id === record.projection.id;
       const waterfall = record.old === 'return' && type === 'waterfall' && record.waterfall;
-      const allowed = record.old === 'mitre' ? type === 'mitre' : record.corner || record.old === 'miter'
+      const step = partner?.returned && type === 'mitre'
+        && ['crown', 'topMold', 'toeKick'].includes(record.kind) && ['return', 'cope'].includes(record.old);
+      const allowed = step || (record.old === 'mitre' ? type === 'mitre' : record.corner || record.old === 'miter'
         ? ['turn', 'joined', 'square', 'return', 'die-in'].includes(type)
         : record.old === 'square' ? ['joined', 'die-in', 'square', 'waterfall'].includes(type)
           : record.old === 'return' ? type === 'return' || blockedProjection || waterfall
-            : record.old === 'cope' && (type === 'cope' || classA);
+            : record.old === 'cope' && (type === 'cope' || classA));
       if (!allowed) failures.push(`${record.label}: ${pair}`);
       if (blockedProjection) classB.push({ end: record.label, front: record.front, depth: record.projection.depth });
       if (waterfall) classW.push(record.label);
