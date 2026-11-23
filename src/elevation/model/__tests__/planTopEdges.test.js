@@ -9,7 +9,6 @@ import { planTopEdges } from '../planTops.js';
 import { wallSideFrame } from '../wallSides.js';
 import { syncRoom } from '../room.js';
 import { settingsFromSnapshot } from '../settingsSnapshot.js';
-import { woodTopCorners } from '../woodTopGroups.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 import { connectWallStops } from './helpers/wallStops.js';
 
@@ -99,9 +98,6 @@ describe('exposed plan top edges (PT2)', () => {
     const frozen = settingsFromSnapshot(settingsSnapshot);
     expect(frozen.ok).toBe(true);
     const subject = syncRoom(document, frozen.settings);
-    const pairs = woodTopCorners(subject, frozen.settings);
-    expect(pairs).toHaveLength(4);
-    expect(pairs.every(({ mode }) => mode === 'miter')).toBe(true);
 
     // Plan inches, y up: the room's nosing puts the fronts 25 7/8 inches from each wall.
     // At 135 degrees the meeting point is 25.875 * (sqrt(2) - 1) along the corner.

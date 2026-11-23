@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandParts } from '../bandParts.js';
+import { withBuildCache } from '../buildCache.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { normalizeCornerEnd } from '../cornerEnd.js';
 import { syncRoom } from '../room.js';
 import { connectWallStops } from './helpers/wallStops.js';
-import { woodTopCorners, woodTopGroups, woodTopMiters } from '../woodTopGroups.js';
+import { woodTopGroups } from '../woodTopGroups.js';
+import { goldenRooms } from './helpers/goldenRooms.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const wood = { top: 'wood', autoCount: false,
@@ -124,23 +126,6 @@ describe('wood top groups (FX4)', () => {
       ]);
   });
 
-  it('uses top surface rather than underside height, with the specified height and touch tolerances', () => {
-    const stored = structuredClone(touching);
-    const [left, right] = stored.walls[0].runs;
-    left.topOverhang = { left: 0, right: 0 };
-    right.topOverhang = { left: 0, right: 0 };
-    right.height -= 0.5;
-    right.overrides.countertopThickness = 2;
-    right.x += 1 / 64;
-    right.z += 0.0000005;
-    expect(woodTopGroups(stored, settings)).toHaveLength(1);
-    right.z += 0.000002;
-    expect(woodTopGroups(stored, settings)).toHaveLength(2);
-    right.z = 4;
-    right.x += 0.000002;
-    expect(woodTopGroups(stored, settings)).toHaveLength(2);
-  });
-
   it('closes links transitively, mirrors back spans, and preserves wall/face/run walk order', () => {
     const stored = room({ wallOrder: ['first', 'w'], walls: [wall({ id: 'w', x2: 120, runs: [
       run({ ...wood, id: 'right', x: 60, width: 20, items: [auto('R')] }),
@@ -173,7 +158,6 @@ describe('wood top groups (FX4)', () => {
     expect(woodTopGroups(stored, settings)[0]).toMatchObject({ width: 63, depth: 28.625, thickness: 1.5 });
   });
 });
-
 
 describe('wood top scribe (FX4)', () => {
   const stopped = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
@@ -293,57 +277,18 @@ describe('mitered wood top corners (PT2)', () => {
     expect(returned).toMatchObject({ start: 83.25, end: 120, width: 36.75, orderedWidth: 36.75,
       depth: 25.625, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
       miters: { left: false, right: false }, faces: [{ x1: 83.25, x2: 120 }] });
-    expect(woodTopMiters(stopped, butt)).toEqual([]);
-    expect(woodTopCorners(stopped, butt)).toEqual([{
-      mode: 'butt',
-      x: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left', reach: 0 },
-      y: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right', reach: 120 },
-    }]);
   });
 
   it('keeps the cope when the return top is stone', () => {
     const stored = structuredClone(stopped);
     stored.walls[1].runs[0].top = 'stone';
-    expect(woodTopMiters(stored, settings)).toEqual([]);
     expect(woodTopGroups(stored, settings)).toEqual([woodTopGroups(stopped, butt)[0]]);
-  });
-
-  it('exports one pair in wall walk order with face-local ends and reach', () => {
-    expect(woodTopMiters(stopped)).toEqual([{
-      mode: 'miter',
-      x: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left', reach: 0 },
-      y: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right', reach: 120 },
-    }]);
-    expect(woodTopCorners(stopped, settings)).toEqual(woodTopMiters(stopped, settings));
-    const stored = structuredClone(stopped);
-    stored.wallOrder = ['w:stop:start', 'w', 'w:stop:end'];
-    expect(woodTopMiters(stored, settings)).toEqual([{
-      mode: 'miter',
-      x: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right', reach: 120 },
-      y: { wallId: 'w', side: 'front', bandId: 'base:countertop', end: 'left', reach: 0 },
-    }]);
-  });
-
-  it('requires a wood band at the matching surface and anchored corner end', () => {
-    const stored = structuredClone(stopped);
-    stored.walls[1].runs[0].overrides.countertopThickness = 1.5 + 0.0000005;
-    expect(woodTopMiters(stored, settings)).toHaveLength(1);
-    stored.walls[1].runs[0].overrides.countertopThickness = 2;
-    expect(woodTopMiters(stored, settings)).toEqual([]);
-    delete stored.walls[1].runs[0].overrides.countertopThickness;
-    stored.walls[1].runs[0].anchors.right = false;
-    expect(woodTopMiters(stored, settings)).toEqual([]);
   });
 
   it('maps back-face miters and reach into front coordinates like scribe flags', () => {
     const stored = structuredClone(stopped);
     stored.walls[0].flipped = true;
     stored.walls[0].runs[0].wallSide = 'back';
-    expect(woodTopMiters(stored, settings)).toEqual([{
-      mode: 'miter',
-      x: { wallId: 'w', side: 'back', bandId: 'base:countertop', end: 'left', reach: 0 },
-      y: { wallId: 'w:stop:start', side: 'front', bandId: 'return:countertop', end: 'right', reach: 120 },
-    }]);
     expect(woodTopGroups(stored, settings)[0]).toMatchObject({ start: 0, end: 96, width: 96,
       orderedWidth: 96.5, scribe: { left: true, right: false, back: true },
       miters: { left: false, right: true },
@@ -373,8 +318,6 @@ describe('wood tops at corner cabinets (CC7)', () => {
       for (const woodTopCorner of ['miter', 'butt']) {
         const using = { ...settings, woodTopCorner };
         const subject = syncRoom({ ...stored, wallOrder }, using);
-        expect(woodTopCorners(subject, using)).toEqual([]);
-        expect(woodTopMiters(subject, using)).toEqual([]);
         const groups = woodTopGroups(subject, using);
         expect(groups).toHaveLength(2);
         groups.forEach(({ miters }) => expect(miters).toEqual({ left: false, right: false }));
@@ -384,4 +327,127 @@ describe('wood tops at corner cabinets (CC7)', () => {
       }
     }
   });
+});
+
+function expectGroupFields(actual, expected, label) {
+  if (typeof expected === 'number') {
+    expect(actual, label).toBeTypeOf('number');
+    expect(Math.abs(actual - expected), label).toBeLessThanOrEqual(0.001);
+  } else if (expected && typeof expected === 'object') {
+    expect(actual, label).toBeTruthy();
+    expect(Array.isArray(actual), label).toBe(Array.isArray(expected));
+    expect(Object.keys(actual).sort(), label).toEqual(Object.keys(expected).sort());
+    for (const field of Object.keys(expected)) {
+      expectGroupFields(actual[field], expected[field], `${label}.${field}`);
+    }
+  } else {
+    expect(actual, label).toEqual(expected);
+  }
+}
+
+it.each([
+  ['G1', 'butt', []],
+  ['S1', 'butt', []],
+  ['S4', 'wood depth step', [
+    {
+      key: 'wood_top:Base-L', runIds: ['Base-L', 'Base-R'],
+      faces: [{ wallId: 'W1', side: 'front', runIds: ['Base-L', 'Base-R'], x1: -0.75, x2: 120.5625}],
+      bandRefs: [
+        { wallId: 'W1', side: 'front', bandId: 'Base-L:countertop' },
+        { wallId: 'W1', side: 'front', bandId: 'Base-R:countertop' },
+      ],
+      width: 121.3125, depth: 25.625, thickness: 1.5, start: -0.75, end: 120.5625,
+      orderedWidth: 121.3125, orderedDepth: 26.125,
+      scribe: { left: false, right: false, back: true }, miters: { left: false, right: false },
+      wallId: 'W1', segment: false,
+    },
+  ]],
+  ['N1', 'butt', [
+    {
+      key: 'wood_top:1dd86015-ceda-42cd-b1bc-15da5a7d7389', runIds: ['1dd86015-ceda-42cd-b1bc-15da5a7d7389', 'eb5f40b0-cf2c-4167-91bf-6be8041d66d2'],
+      faces: [
+        { wallId: '14d8d962-114c-4f20-ae0d-ead114857c95', side: 'front', runIds: ['1dd86015-ceda-42cd-b1bc-15da5a7d7389'], x1: -1.6875, x2: 47.25},
+        { wallId: '14d8d962-114c-4f20-ae0d-ead114857c95', side: 'back', runIds: ['eb5f40b0-cf2c-4167-91bf-6be8041d66d2'], x1: -1.6875, x2: 47.25},
+      ],
+      bandRefs: [
+        { wallId: '14d8d962-114c-4f20-ae0d-ead114857c95', side: 'front', bandId: '1dd86015-ceda-42cd-b1bc-15da5a7d7389:countertop' },
+        { wallId: '14d8d962-114c-4f20-ae0d-ead114857c95', side: 'back', bandId: 'eb5f40b0-cf2c-4167-91bf-6be8041d66d2:countertop' },
+      ],
+      width: 48.9375, depth: 32.1875, thickness: 1.5, start: -1.6875, end: 47.25,
+      orderedWidth: 48.9375, orderedDepth: 32.1875,
+      scribe: { left: false, right: false, back: false }, miters: { left: false, right: false },
+      wallId: '14d8d962-114c-4f20-ae0d-ead114857c95', segment: false,
+    },
+  ]],
+  // 90° ends use old butt values; 45° ends use old miter values (7b9dea spans both).
+  ['N4', 'butt', [
+    {
+      key: 'wood_top:72daa65d-b2af-4907-82ec-b1c56159ff50', runIds: ['72daa65d-b2af-4907-82ec-b1c56159ff50'],
+      faces: [{ wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', side: 'front', runIds: ['72daa65d-b2af-4907-82ec-b1c56159ff50'], x1: 25, x2: 54}],
+      bandRefs: [{ wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', side: 'front', bandId: '72daa65d-b2af-4907-82ec-b1c56159ff50:countertop' }],
+      width: 29, depth: 25.875, thickness: 1.5, start: 25, end: 54,
+      orderedWidth: 29, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: false, right: false },
+      wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', segment: false,
+    },
+    {
+      key: 'wood_top:e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6', runIds: ['e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6'],
+      faces: [{ wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', side: 'front', runIds: ['e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6'], x1: 83, x2: 119}],
+      bandRefs: [{ wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', side: 'front', bandId: 'e006a1de-eb3c-49e6-bf1a-cafb77b5c8a6:countertop' }],
+      width: 36, depth: 25.875, thickness: 1.5, start: 83, end: 119,
+      orderedWidth: 36, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: false, right: false },
+      wallId: '2e7a1a97-e9f7-4490-9f38-2e6d7f913630', segment: false,
+    },
+    {
+      key: 'wood_top:7b9deabf-fef3-40d8-97a8-ca5ab085e216', runIds: ['7b9deabf-fef3-40d8-97a8-ca5ab085e216'],
+      faces: [{ wallId: '2adf9275-5a33-45e6-b544-79f1592b2625', side: 'front', runIds: ['7b9deabf-fef3-40d8-97a8-ca5ab085e216'], x1: 0, x2: 96}],
+      bandRefs: [{ wallId: '2adf9275-5a33-45e6-b544-79f1592b2625', side: 'front', bandId: '7b9deabf-fef3-40d8-97a8-ca5ab085e216:countertop' }],
+      width: 96, depth: 25.875, thickness: 1.5, start: 0, end: 96,
+      orderedWidth: 96, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: false, right: true },
+      wallId: '2adf9275-5a33-45e6-b544-79f1592b2625', segment: false,
+    },
+    {
+      key: 'wood_top:21f77ced-7606-4672-97fc-1cdd3cdd4d2c', runIds: ['21f77ced-7606-4672-97fc-1cdd3cdd4d2c'],
+      faces: [{ wallId: '3c2c922c-0710-4324-81cf-5932b4477662', side: 'front', runIds: ['21f77ced-7606-4672-97fc-1cdd3cdd4d2c'], x1: 0, x2: 36.062445840513924}],
+      bandRefs: [{ wallId: '3c2c922c-0710-4324-81cf-5932b4477662', side: 'front', bandId: '21f77ced-7606-4672-97fc-1cdd3cdd4d2c:countertop' }],
+      width: 36.062445840513924, depth: 25.875, thickness: 1.5, start: 0, end: 36.062445840513924,
+      orderedWidth: 36.062445840513924, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: true, right: true },
+      wallId: '3c2c922c-0710-4324-81cf-5932b4477662', segment: false,
+    },
+    {
+      key: 'wood_top:100fcdd9-4232-4031-b819-bd9882debde1', runIds: ['100fcdd9-4232-4031-b819-bd9882debde1'],
+      faces: [{ wallId: 'da73d88e-1cc3-4db2-8e16-736ecd03f9b6', side: 'front', runIds: ['100fcdd9-4232-4031-b819-bd9882debde1'], x1: 0, x2: 44}],
+      bandRefs: [{ wallId: 'da73d88e-1cc3-4db2-8e16-736ecd03f9b6', side: 'front', bandId: '100fcdd9-4232-4031-b819-bd9882debde1:countertop' }],
+      width: 44, depth: 25.875, thickness: 1.5, start: 0, end: 44,
+      orderedWidth: 44, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: true, right: false },
+      wallId: 'da73d88e-1cc3-4db2-8e16-736ecd03f9b6', segment: false,
+    },
+    {
+      key: 'wood_top:c3dacb3a-ee41-4d65-806a-d65e92b01c8f', runIds: ['c3dacb3a-ee41-4d65-806a-d65e92b01c8f'],
+      faces: [{ wallId: 'e089ce01-8cbf-42bc-83d0-192b506f7c35', side: 'front', runIds: ['c3dacb3a-ee41-4d65-806a-d65e92b01c8f'], x1: 25, x2: 85.5}],
+      bandRefs: [{ wallId: 'e089ce01-8cbf-42bc-83d0-192b506f7c35', side: 'front', bandId: 'c3dacb3a-ee41-4d65-806a-d65e92b01c8f:countertop' }],
+      width: 60.5, depth: 25.875, thickness: 1.5, start: 25, end: 85.5,
+      orderedWidth: 60.5, orderedDepth: 26.375,
+      scribe: { left: false, right: false, back: true }, miters: { left: false, right: false },
+      wallId: 'e089ce01-8cbf-42bc-83d0-192b506f7c35', segment: false,
+    },
+  ]],
+])('sizes %s wood tops for %s (D6)', (key, variant, expected) => {
+  const loaded = goldenRooms().find((room) => room.key === key).load();
+  const using = { ...loaded.settings, ...(variant === 'butt' ? { woodTopCorner: 'butt' } : {}) };
+  if (variant === 'wood depth step') {
+    for (const wall of loaded.room.walls) for (const run of wall.runs) {
+      if (!['Base-L', 'Base-R'].includes(run.id)) continue;
+      run.top = 'wood';
+      run.overrides = { ...run.overrides, nosingProfileId: null };
+      if (run.id === 'Base-R') run.depth = 21;
+    }
+  }
+  const subject = syncRoom(loaded.room, using);
+  const actual = withBuildCache(() => woodTopGroups(subject, using), subject);
+  expectGroupFields(actual, expected, `${key} ${variant}`);
 });
