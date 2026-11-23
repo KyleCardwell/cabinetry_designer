@@ -6,7 +6,7 @@ import { cornerLegBandJointsForOwner } from './cornerLegBands.js';
 import { cornerAt, cornerEndActive, cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorEndOpen } from './floorOpenings.js';
 import { runBase } from './furnitureBase.js';
-import { elevationToPlan, lineIntersection, scale, subtract } from './geometry.js';
+import { elevationToPlan, lineIntersection, planPointToWallX, scale, subtract } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
 import { wallEndPanelPartKey } from './parts.js';
@@ -24,6 +24,11 @@ const EPSILON = 1e-6;
 const SIDES = ['left', 'right'];
 const opposite = (side) => side === 'left' ? 'right' : 'left';
 const same = (a, b) => Math.abs(a - b) <= EPSILON;
+const siteBand = (kind) => ['crown', 'topMold', 'toeKick'].includes(kind);
+const contains = (entry, at) => {
+  const x = planPointToWallX(entry.frame, at);
+  return x >= entry.segment.x1 - EPSILON && x <= entry.segment.x2 + EPSILON;
+};
 const endKey = (entry, side) => `${entry.segment.memberKey ?? entry.run.id}|${entry.kind}|${entry.z}|${side}`;
 const PART_KINDS = {
   toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
@@ -280,6 +285,31 @@ function buildBandPaths(room, settings) {
   const rules = new Map();
   for (const entry of entries) for (const side of SIDES) {
     rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side));
+  }
+  // A return seen from either wall can reach through the other member's blind panel
+  // (or another early end rule). Resolve site mitres together before reciprocity.
+  for (const entry of entries.filter(({ kind }) => siteBand(kind))) for (const side of SIDES) {
+    const edge = cornerBandEdge(entry.shapes, entry.run, side, entry.kind, entry.z, entry.height);
+    const other = edge && entries.find((candidate) => candidate.view.id === edge.wallId
+      && candidate.view.id !== entry.view.id && candidate.run.id === edge.runId
+      && candidate.kind === entry.kind && same(candidate.z, entry.z) && same(candidate.height, entry.height));
+    if (!other) continue;
+    // Keep today's reciprocal mitres, including their point and path order. The
+    // segment check below applies to the new links replacing early ends or copes.
+    const current = rules.get(endKey(entry, side));
+    const back = current.other && rules.get(endKey(current.other, current.otherSide));
+    if (current.type === 'mitre' && current.other === other
+      && back?.other === entry && back.otherSide === side && back.type === 'mitre') continue;
+    const at = lineIntersection(entry.segment.from, entry.frame.r, other.segment.from, other.frame.r);
+    if (!at || !contains(entry, at) || !contains(other, at)) continue;
+    const otherSide = SIDES.find((end) => {
+      const back = cornerBandEdge(other.shapes, other.run, end, entry.kind, entry.z, entry.height);
+      return back?.runId === entry.run.id && back.wallId === entry.view.id;
+    }) ?? SIDES.find((end) => cornerAt(room, other.view, end).neighborWallId === entry.view.id);
+    if (!otherSide) continue;
+    rules.set(endKey(entry, side), { type: 'mitre', runId: entry.run.id, side, other, otherSide, at });
+    rules.set(endKey(other, otherSide), { type: 'mitre', runId: other.run.id, side: otherSide,
+      other: entry, otherSide: side, at });
   }
   addCornerEntries(room, settings, entries, rules, sources);
   // Only reciprocal joins can consume both run ends. A one-sided corner meet remains a cope.

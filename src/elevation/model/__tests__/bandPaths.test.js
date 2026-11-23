@@ -36,6 +36,25 @@ const ruleFor = (run, kind, side) => {
 };
 
 describe('band paths', () => {
+  it('mitres the blind tall moldings into the upper at their front intersection (D5)', () => {
+    const tall = runs(5, CABINET_TYPE_IDS.TALL)[0];
+    const upper = runs(4, CABINET_TYPE_IDS.UPPER)[0];
+    const tallWall = wallSideView(wall(5), 'front');
+    const upperFrame = wallSideFrame(room, wall(4), 'front');
+    for (const [kind, start, end] of [['crown', 19.625, 53.875], ['topMold', 16.125, 57.375]]) {
+      const path = pathFor(tall, kind);
+      const [tallEnd] = runBandEnds(room, tallWall, tall, settings,
+        runScene(room, tallWall, tall, settings), kind, path.z, path.height);
+      expect(tallEnd.x).toBeCloseTo(start, 6);
+      expect(planPointToWallX(wallSideFrame(room, wall(5), 'front'),
+        result.ends.get(key(tall, kind, path.z, 'left')).at)).toBeCloseTo(start, 6);
+      expect(result.ends.get(key(tall, kind, path.z, 'left')).type).toBe('mitre');
+      const upperEnd = result.ends.get(key(upper, kind, path.z, 'right'));
+      expect(upperEnd.type).toBe('mitre');
+      expect(planPointToWallX(upperFrame, upperEnd.at)).toBeCloseTo(end, 6);
+    }
+  });
+
   it('accounts for every drawn run band end exactly once (D1)', () => {
     const expected = [];
     for (const source of room.walls) for (const face of WALL_SIDES) {
@@ -300,7 +319,7 @@ it.each(goldenRooms().map(({ key, load }) => [key, load]))(
         && record.projection && record.front <= record.projection.depth
         && record.rule?.against?.kind === 'solid' && record.rule.against.id === record.projection.id;
       const waterfall = record.old === 'return' && type === 'waterfall' && record.waterfall;
-      const allowed = record.corner || record.old === 'miter'
+      const allowed = record.old === 'mitre' ? type === 'mitre' : record.corner || record.old === 'miter'
         ? ['turn', 'joined', 'square', 'return', 'die-in'].includes(type)
         : record.old === 'square' ? ['joined', 'die-in', 'square', 'waterfall'].includes(type)
           : record.old === 'return' ? type === 'return' || blockedProjection || waterfall

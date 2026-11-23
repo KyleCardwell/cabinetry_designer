@@ -557,7 +557,7 @@ function splitRunView(room, path, view, run, settings, scene, sweep, band, proje
       }).filter((piece) => piece.width > EPSILON);
   }
   return { ...band, pieces,
-    ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
+    ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height, undefined, path) };
 }
 
 /** A member's wall view, split at top inserts or open floor spans. */

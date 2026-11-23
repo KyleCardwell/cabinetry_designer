@@ -1,5 +1,5 @@
 import { bandPaths } from './bandPaths.js';
-import { sweepEligible, viewRun } from './bandSweep.js';
+import { mitreEdge, sweepBand, sweepEligible, viewRun } from './bandSweep.js';
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
@@ -8,18 +8,19 @@ import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { endLegList } from './endLegs.js';
 import { floorEndOpen, floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
-import { wallFrame } from './geometry.js';
+import { planPointToWallX, wallFrame } from './geometry.js';
 import { landingProjection } from './landings.js';
 import { legRoom } from './legRoom.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
+import { buildingPaths } from './pathBuilding.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 import { resolveTopSegments } from './topSegments.js';
-import { wallEndPanelAt } from './wallSides.js';
+import { wallEndPanelAt, wallSideFrame } from './wallSides.js';
 import { waterfallBand } from './waterfall.js';
 
 export { bandDepths } from './bandDepths.js';
@@ -312,7 +313,8 @@ export function waterfallEnds(room, wall, run, settings) {
   return result;
 }
 
-export function runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes = lazyCornerShapes(room, wall, settings)) {
+export function runBandEnds(room, wall, run, settings, scene, kind, z, height,
+  shapes = lazyCornerShapes(room, wall, settings), path) {
   const { panelBySide } = scene;
   const runEnd = run.x + run.width;
   const panelStart = panelBySide.left
@@ -331,7 +333,35 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height, s
   const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
     ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
     ?? bandEdge(room, wall, run, 'right', kind, settings, z, height, shapes);
-  return [left, right];
+  let mitres;
+  if ((path || !buildingPaths()) && ['crown', 'topMold', 'toeKick'].includes(kind)
+    && room.walls.find(({ id }) => id === wall.id)?.runs.includes(run)) {
+    if (!path) {
+      const paths = bandPaths(room, settings);
+      const id = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
+      path = paths.paths.find((path) => path.id === id && Math.abs(path.height - height) <= EPSILON);
+    }
+    const memberIndex = path?.segments.findIndex(({ runId, corner }) => runId === run.id && !corner);
+    const segment = path?.segments[memberIndex];
+    mitres = ['left', 'right'].map((side) => {
+      if (!segment) return null;
+      const end = segment[side === 'left' ? 'from' : 'to'];
+      const index = path.vertices.findIndex(({ type, at }, i) => type === 'mitre'
+        && (i === memberIndex || i + 1 === memberIndex)
+        && Math.hypot(at.x - end.x, at.y - end.y) <= EPSILON);
+      const pair = path.segments.slice(index, index + 2);
+      if (index < 0 || pair.length !== 2 || pair[0].wallId === pair[1].wallId
+        || Math.abs(pair[0].front - pair[1].front) <= 1 / 32) return null;
+      const sweep = sweepBand(room, path, settings);
+      const member = sweep.segments.find(({ runId, corner }) => runId === run.id && !corner);
+      const frame = wallSideFrame(room, wall, wall.side ?? 'front');
+      const x = planPointToWallX(frame, end);
+      const today = side === 'left' ? left : right;
+      return { type: 'mitre', x: Math.abs(x - today.x) <= EPSILON ? today.x : x,
+        outline: mitreEdge(sweep, index, member, frame) };
+    });
+  }
+  return [mitres?.[0] ?? left, mitres?.[1] ?? right];
 }
 
 /** Floor-base spans, retaining the run's outer ends and returning at each opening. */
