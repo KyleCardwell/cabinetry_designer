@@ -609,8 +609,7 @@ const legOutline = ({ outline, x, width, profiled }, kind) => outline && (kind =
     && outline.every(([px]) => Math.abs(px - x) <= EPSILON || Math.abs(px - x - width) <= EPSILON)));
 
 /**
- * One corner's leg bands on its return face, from the paths' leg members: today's
- * `cornerLegBandsForOwner` parts (same ids and fields), cut by `viewRun`.
+ * One corner's leg bands on its return face, from the paths' leg members, cut by `viewRun`.
  */
 export function cornerLegBandParts(room, ownerWallId, owner, side, settings) {
   const cache = buildCacheFor(room);

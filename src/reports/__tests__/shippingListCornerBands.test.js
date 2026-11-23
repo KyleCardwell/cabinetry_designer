@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../../elevation/model/constants.js';
 import { normalizeCornerEnd } from '../../elevation/model/cornerEnd.js';
-import { cornerLegBands } from '../../elevation/model/cornerLegBands.js';
+import { cornerLegBandParts } from '../../elevation/model/bandSweep.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { moldingPast, moldingProfiles } from '../../elevation/model/moldingProfiles.js';
 import { resolveProfile } from '../../elevation/model/profile.js';
@@ -69,7 +69,7 @@ describe('corner leg molding footage', () => {
     const ownerView = resolveWall(synced, synced.walls[0]);
     expect(moldingProfiles(resolveProfile(settings, synced, ownerView), settings, ownerView.runs[0]).crown)
       .toBeTruthy();
-    const legs = cornerLegBands(synced, resolveWall(synced, synced.walls[1]), settings);
+    const legs = cornerLegBandParts(synced, ownerWall.id, synced.walls[0].runs[0], 'left', settings);
     expect(legs.some(({ kind }) => kind === 'crown')).toBe(hasCorner);
     for (const [kind, partKind] of [['crown', 'crown'], ['topMold', 'top_mold']]) {
       const leg = legs.find(({ kind }) => kind === partKind);

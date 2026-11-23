@@ -5,7 +5,7 @@ import { sweepEligible } from '../bandSweep.js';
 import { cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd } from '../cornerEnd.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
-import { cornerLegBandsForOwner, ownerBands } from '../cornerLegBands.js';
+import { cornerLegBandJointsForOwner, ownerBands } from '../cornerLegBands.js';
 import { cornerAt, cornerEndActive, cornerReturnPoint, cornerReturnRuns } from '../corners.js';
 import { elevationToPlan, planPointToWallX } from '../geometry.js';
 import { wallEndPanelPartKey } from '../parts.js';
@@ -179,15 +179,14 @@ it('matches corner leg ends and turn points across golden rooms (D4)', () => {
         const returnView = wallSideView(returnWall, point.wallSide);
         const returnFrame = wallSideFrame(room, returnWall, point.wallSide);
         const corner = cornerEnd(room, view, owner, side, settings);
-        const oldLegs = cornerLegBandsForOwner(room, returnView, view, owner, side, settings);
+        const joints = cornerLegBandJointsForOwner(room, returnView, view, owner, side, settings);
         for (const band of ownerBands(room, view, owner, settings)) {
           const { kind, z, height, front } = band;
           const label = `${roomKey}, Wall ${numbers.get(ownerWall.id)} ${face}, run ${owner.id}, ${side}, ${kind}`;
-          const old = oldLegs.find((leg) => leg.kind === kind);
+          const old = joints.find((joint) => joint.band.kind === kind);
           // Invalid corner geometry has no drawn leg to compare.
           if (!corner.shape || !corner.columnId) continue;
           counts[roomKey] += 1;
-          compare(label, 'legacy leg', Boolean(old), true);
           const ownerEnd = result.ends.get(key(owner, kind, z, side));
           const path = result.paths.find(({ id }) => id === ownerEnd?.pathId);
           compare(label, 'owner path', Boolean(path), true);
@@ -249,9 +248,9 @@ it('matches corner leg ends and turn points across golden rooms (D4)', () => {
           const { runs } = cornerReturnRuns(room, view, owner, side);
           const blocked = !['toeKick', 'furnitureBase'].includes(kind)
             && runs.some((run) => run.z + run.height > z + height + 1e-6);
-          const deepest = Math.max(...old.carriers.map((run) => bandFronts(room, returnView, run, settings)[kind]));
-          const expectedType = blocked ? 'die-in' : old.returned ? 'return' : old.edge ? 'turn'
-            : Math.abs(old.part.front - deepest) <= 1e-6 ? 'joined' : 'square';
+          const deepest = Math.max(...old.carriers.map(({ run }) => bandFronts(room, returnView, run, settings)[kind]));
+          const expectedType = blocked ? 'die-in' : old.returned ? 'return' : old.miter ? 'turn'
+            : Math.abs(old.turn.frontB - deepest) <= 1e-6 ? 'joined' : 'square';
           compare(label, 'leg end type', legEnd?.type, expectedType);
           const newJointX = legEnd?.jointX ?? (legEnd?.at && planPointToWallX(returnFrame, legEnd.at));
           compare(label, 'jointX', newJointX, old.jointX);

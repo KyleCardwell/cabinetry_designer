@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { effectiveSettings } from '../effectiveSettings.js';
 import { bandOutline } from '../bandEnds.js';
-import { cornerLegBandsForOwner } from '../cornerLegBands.js';
-import { cornerReturnPoint } from '../corners.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
@@ -16,8 +14,6 @@ import { wallNumbers } from '../topology.js';
 import { wallSideView } from '../wallSides.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
-const PART_KINDS = { toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
-  topMold: 'top_mold', crown: 'crown' };
 
 it('makes every golden band path sweep eligible (D5)', () => {
   const excluded = [];
@@ -128,7 +124,7 @@ describe('band sweep wall views', () => {
   });
 });
 
-it('projects corner owners and leg members like the drawn bands (D4)', () => {
+it('projects corner owner members like the drawn bands (D4)', () => {
   const mismatches = [];
   const unexpected = [];
   const counts = {};
@@ -157,7 +153,7 @@ it('projects corner owners and leg members like the drawn bands (D4)', () => {
     const { settings } = loaded;
     const room = syncRoom(loaded.room, settings);
     const numbers = wallNumbers(room);
-    counts[roomKey] = { owners: 0, legs: 0 };
+    counts[roomKey] = { owners: 0 };
     for (const path of bandPaths(room, settings).paths) {
       const corners = [...new Map(path.vertices.filter(({ type }) => type === 'turn').map(({ corner }) => [
         `${corner.ownerWallId}:${corner.runId}:${corner.side}`, corner,
@@ -170,16 +166,8 @@ it('projects corner owners and leg members like the drawn bands (D4)', () => {
         const old = runBands(room, ownerView, owner, settings, runScene(room, ownerView, owner, settings));
         const oldBands = { toeKick: old.toeKicks, furnitureBase: old.furnitureBases,
           countertop: old.countertops, topMold: [old.topMold], crown: [old.crown] }[path.kind].filter(Boolean);
-        const point = cornerReturnPoint(room, ownerView, owner, tag.side);
-        const returnWall = room.walls.find(({ id }) => id === point.wallId);
-        const returnView = wallSideView(returnWall, point.wallSide);
-        const oldLeg = cornerLegBandsForOwner(room, returnView, ownerView, owner, tag.side, settings)
-          .find(({ kind }) => kind === path.kind);
-        const legKey = `corner-leg:${ownerWall.id}:${owner.id}:${tag.side}:${PART_KINDS[path.kind]}`;
-        for (const [member, wall, role, expected] of [
-          [owner.id, ownerWall, 'owner', oldBands], [legKey, returnWall, 'leg', oldLeg ? [oldLeg.part] : []],
-        ]) {
-          counts[roomKey][role === 'owner' ? 'owners' : 'legs'] += 1;
+        for (const [member, wall, role, expected] of [[owner.id, ownerWall, 'owner', oldBands]]) {
+          counts[roomKey].owners += 1;
           const actual = viewRun(room, path, member, settings)?.pieces ?? [];
           const runNumber = ownerView.runs.toSorted((a, b) => a.x - b.x).findIndex(({ id }) => id === owner.id) + 1;
           const label = `${roomKey}, Wall ${numbers.get(wall.id)}, run ${owner.id} (Wall ${numbers.get(ownerWall.id)} Run ${runNumber}), ${tag.side}, ${path.kind}`;
@@ -187,11 +175,8 @@ it('projects corner owners and leg members like the drawn bands (D4)', () => {
             if (equivalent(a, b)) return;
             const mismatch = `${label}, ${role} ${field}`;
             mismatches.push(`${mismatch}: old=${JSON.stringify(b)}; new=${JSON.stringify(a)}`);
-            const known = roomKey === 'N4' && ((role === 'owner' && numbers.get(ownerWall.id) === 1
-              && runNumber === 6 && tag.side === 'right' && path.kind === 'crown' && field === 'lines')
-              || (role === 'leg' && numbers.get(ownerWall.id) === 7 && runNumber === 1 && tag.side === 'left'
-                && numbers.get(wall.id) === 6 && ['furnitureBase', 'countertop'].includes(path.kind)
-                && ['width', 'outline', 'lines'].includes(field)));
+            const known = roomKey === 'N4' && numbers.get(ownerWall.id) === 1
+              && runNumber === 6 && tag.side === 'right' && path.kind === 'crown' && field === 'lines';
             if (!known) unexpected.push(`${mismatch}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`);
           };
           if (!actual.length && expected.length) console.log('D4 missing view:', JSON.stringify({
