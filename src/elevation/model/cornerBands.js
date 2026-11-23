@@ -8,7 +8,7 @@ const PART_KINDS = {
 };
 
 /** Where a band's front turns between legs, in the corner's wall A / wall B frame. */
-// plan only, retires in D6
+// corner members in bandPaths
 export function cornerBandTurns(corner, kind, frontA) {
   const { depthA, depthB, offsetA, offsetB, shape, faceLayout } = corner;
   const toeKick = kind === 'toeKick';

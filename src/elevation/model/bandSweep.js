@@ -613,6 +613,14 @@ const legOutline = ({ outline, x, width, profiled }, kind) => outline && (kind =
  * `cornerLegBandsForOwner` parts (same ids and fields), cut by `viewRun`.
  */
 export function cornerLegBandParts(room, ownerWallId, owner, side, settings) {
+  const cache = buildCacheFor(room);
+  const build = () => buildCornerLegBandParts(room, ownerWallId, owner, side, settings);
+  // Resolved wall views can clone the owner; every consumer shares its stored wall/run/end key.
+  const key = `cornerLegBandParts:${ownerWallId}:${owner.id}:${side}`;
+  return cache ? cache.byRoom(key, room, settings, build) : build();
+}
+
+function buildCornerLegBandParts(room, ownerWallId, owner, side, settings) {
   const { paths } = bandPaths(room, settings);
   let index = legPaths.get(paths);
   if (!index) {

@@ -9,7 +9,7 @@ import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
 import { buildCacheFor, withBuildCache } from '../buildCache.js';
-import { sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
+import { cornerLegBandParts, sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
@@ -34,14 +34,19 @@ it('makes every golden band path sweep eligible (D5)', () => {
   expect(excluded, JSON.stringify(excluded, null, 2)).toEqual([]);
 });
 
-it('builds each sweep, member view and eligibility once per path in a build (D5)', () => {
+it('builds each sweep, member view, eligibility and corner leg once per build (D6)', () => {
   const { room: source, settings } = goldenRooms().find(({ key }) => key === 'N4').load();
   const room = syncRoom(source, settings);
   let first;
   withBuildCache(() => {
     const cache = buildCacheFor(room);
     const byPath = cache.byPath;
+    const byRoom = cache.byRoom;
     const counts = new Map();
+    cache.byRoom = (name, room, settings, build) => byRoom(name, room, settings, () => {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+      return build();
+    });
     cache.byPath = (name, room, path, settings, member, build) => byPath(name, room, path, settings, member, () => {
       const key = `${name}:${path.id}:${member ?? ''}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -59,8 +64,19 @@ it('builds each sweep, member view and eligibility once per path in a build (D5)
           expect(sweepEligible(room, path, settings, undefined, runId)).toBeNull();
         }
       }
+      for (const { segments } of bandPaths(room, settings).paths) {
+        for (const { corner } of segments.filter(({ corner }) => corner)) {
+          const owner = room.walls.find(({ id }) => id === corner.ownerWallId).runs
+            .find(({ id }) => id === corner.runId);
+          const parts = cornerLegBandParts(room, corner.ownerWallId, owner, corner.side, settings);
+          expect(cornerLegBandParts(room, corner.ownerWallId, { ...owner }, corner.side, settings)).toBe(parts);
+        }
+      }
       expect([...counts.values()].every((count) => count === 1)).toBe(true);
-    } finally { cache.byPath = byPath; }
+    } finally {
+      cache.byPath = byPath;
+      cache.byRoom = byRoom;
+    }
     // A derived path may retain its id while cutting its segments for a particular view.
     expect(sweepBand(room, { ...first.path }, settings)).not.toBe(first.sweep);
     const runId = first.path.segments.find(({ corner }) => !corner).runId;

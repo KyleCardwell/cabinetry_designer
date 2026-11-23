@@ -1,15 +1,11 @@
+import { bandFootprints } from './bandFootprints.js';
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerBandEdge, cornerBandTurns, endsAtCornerEdge, lazyCornerShapes } from './cornerBands.js';
-import { cornerEnd } from './cornerEnd.js';
-import { cornerLegBands } from './cornerLegBands.js';
-import { cornerReturnPoint, frontDepth } from './corners.js';
-import { wallLength } from './geometry.js';
-import { ccw, clipToSide, cross, lineIntersection, signedArea, toPlan } from './planPolygons.js';
+import { frontDepth } from './corners.js';
+import { cross } from './planPolygons.js';
 import { resolveWall } from './room.js';
 import { topOverhangs } from './topOverhang.js';
-import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
-import { woodTopCorners, woodTopGroups } from './woodTopGroups.js';
+import { WALL_SIDES } from './wallSides.js';
 
 const EPSILON = 1e-6;
 export const PLAN_TOP_DIM_MIN = 3;
@@ -49,7 +45,6 @@ export function planTopOverhangs(room, settings = DEFAULT_SETTINGS) {
 
 const OFFSET = 1 / 256;
 const COVER_KINDS = new Set(['cabinet', 'face', 'filler', 'end_panel', 'panel', 'frame', 'wall_end_panel']);
-const refKey = (wallId, side, bandId) => `${wallId}|${side}|${bandId}`;
 const near = (a, b) => Math.abs(a[0] - b[0]) <= EPSILON && Math.abs(a[1] - b[1]) <= EPSILON;
 
 /** Strictly inside (ray cast); points within EPSILON of an edge count as outside. */
@@ -98,128 +93,6 @@ function splitParams(a, b, polygons) {
   const tolerance = EPSILON / Math.sqrt(length2);
   return [...new Set(ts.filter((t) => t >= 0 && t <= 1))].sort((x, y) => x - y)
     .filter((t, i, sorted) => i === 0 || t - sorted[i - 1] > tolerance);
-}
-
-/** Corner legs and diagonal fills share the owner's top part, hiding their internal seams. */
-function cornerTopPieces(room, settings, pieces) {
-  const result = [];
-  const legBands = new Map();
-  for (const wall of room?.walls ?? []) {
-    for (const side of WALL_SIDES) {
-      const view = wallSideView(wall, side);
-      for (const run of view.runs) {
-        for (const end of ['left', 'right']) {
-          if (run.ends?.[end]?.type !== 'corner') continue;
-          const corner = cornerEnd(room, view, run, end, settings);
-          if (!corner?.active || !corner.shape || !corner.columnId) continue;
-          const point = cornerReturnPoint(room, view, run, end);
-          if (!point) continue;
-          const returned = room.walls.find(({ id }) => id === point.wallId);
-          const key = `${point.wallId}|${point.wallSide}`;
-          if (!legBands.has(key)) {
-            legBands.set(key, cornerLegBands(room, wallSideView(returned, point.wallSide), settings));
-          }
-          const leg = legBands.get(key).find((band) => band.kind === 'countertop'
-            && band.ownerWallId === wall.id && band.runId === run.id && band.side === end);
-          if (!leg) continue;
-          const owner = pieces.find((piece) => {
-            if (piece.wallId !== wall.id || piece.side !== side || piece.band?.runId !== run.id
-              || Math.abs(piece.surface - leg.z - leg.height) > EPSILON) return false;
-            const at = end === 'left' ? piece.band.x : piece.band.x + piece.band.width;
-            return Math.abs(at - corner.cornerX - corner.dir * leg.front) <= EPSILON;
-          });
-          if (!owner) continue;
-          const frame = wallSideFrame(room, returned, point.wallSide);
-          const far = point.dir === 1 ? leg.x + leg.width : leg.x;
-          const add = (polygon) => result.push({ surface: owner.surface, part: owner.part, polygon: ccw(polygon) });
-          add(toPlan(frame, [[point.at, leg.back], [far, leg.back], [far, leg.front], [point.at, leg.front]]));
-          if (corner.kind === 45) {
-            const { a, b } = cornerBandTurns(corner, 'countertop', owner.band.front);
-            const fill = [[0, 0], [a[0], 0], a, b, [0, b[1]]]
-              .map(([x, y]) => [corner.cornerX + corner.dir * x, y]);
-            add(toPlan(owner.frame, fill));
-          }
-        }
-      }
-    }
-  }
-  return result;
-}
-
-/** Every countertop band as a piece in plan (y up), plus PT1's island bridges. */
-function topPieces(room, settings) {
-  const parts = new Map(woodTopGroups(room, settings).flatMap(({ key, bandRefs = [] }) =>
-    bandRefs.map(({ wallId, side, bandId }) => [refKey(wallId, side, bandId), key])));
-  const pieces = [];
-  for (const wall of room?.walls ?? []) {
-    const length = wallLength(wall);
-    const thickness = wall.thickness ?? 0;
-    const bySide = {};
-    for (const side of WALL_SIDES) {
-      const frame = wallSideFrame(room, wall, side);
-      const view = { ...wallSideView(wall, side), length };
-      const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
-      const shapes = lazyCornerShapes(room, view, settings);
-      bySide[side] = bandParts(room, wall, side, settings)
-        .filter(({ kind }) => kind === 'countertop')
-        .map((band) => {
-          const ref = refKey(wall.id, side, band.id);
-          const piece = { ref, wallId: wall.id, side, band, frame,
-            u0: band.x, u1: band.x + band.width, v0: band.back, v1: band.front,
-            surface: band.z + band.height, part: parts.get(ref) ?? 'stone' };
-          // Stone that stops at a corner return's top runs on into the corner (one surface);
-          // the overlap is a seam. Wood corners follow woodTopCorners below.
-          const run = runs.get(band.runId);
-          if (piece.part === 'stone' && run) {
-            for (const end of ['left', 'right']) {
-              const edge = cornerBandEdge(shapes, run, end, 'countertop', band.z, band.height);
-              const at = end === 'left' ? piece.u0 : piece.u1;
-              if (endsAtCornerEdge(at, edge, end)) piece[end === 'left' ? 'u0' : 'u1'] = edge.reach;
-            }
-          }
-          pieces.push(piece);
-          return piece;
-        });
-    }
-    const front = wallSideFrame(room, wall, 'front');
-    for (const top of bySide.front) {
-      for (const back of bySide.back) {
-        const u0 = Math.max(top.u0, length - back.u1);
-        const u1 = Math.min(top.u1, length - back.u0);
-        if (u1 - u0 > EPSILON && Math.abs(top.surface - back.surface) <= EPSILON) {
-          pieces.push({ ref: `${top.ref}|bridge|${back.band.id}`, wallId: wall.id, side: 'front', frame: front,
-            u0, u1, v0: -thickness - back.band.back, v1: top.band.back,
-            surface: top.surface, part: top.part, bridge: true });
-        }
-      }
-    }
-  }
-  const byRef = new Map(pieces.map((piece) => [piece.ref, piece]));
-  const miters = woodTopCorners(room, settings).flatMap(({ mode, x, y }) => {
-    const pieceX = byRef.get(refKey(x.wallId, x.side, x.bandId));
-    const pieceY = byRef.get(refKey(y.wallId, y.side, y.bandId));
-    if (!pieceX || !pieceY) return [];
-    // Same ends as woodTopGroups: butt runs Y into the corner square; a miter runs both in.
-    if (y.reach !== null) pieceY[y.end === 'left' ? 'u0' : 'u1'] = y.reach;
-    if (mode !== 'miter') return [];
-    pieceX[x.end === 'left' ? 'u0' : 'u1'] = x.reach;
-    return [{ x: pieceX, xEnd: x.end, y: pieceY, yEnd: y.end }];
-  });
-  for (const piece of pieces) {
-    const { frame, u0, u1, v0, v1 } = piece;
-    piece.polygon = ccw(toPlan(frame, [[u0, v0], [u1, v0], [u1, v1], [u0, v1]]));
-    piece.line = (v) => toPlan(frame, [[u0, v], [u1, v]]);
-    piece.farEnd = (end) => toPlan(frame, [[end === 'left' ? u1 : u0, (v0 + v1) / 2]])[0];
-  }
-  for (const { x, xEnd, y, yEnd } of miters) {
-    const i = lineIntersection(x.line(x.v0), y.line(y.v0));
-    const o = lineIntersection(x.line(x.v1), y.line(y.v1));
-    if (!i || !o || near(i, o)) continue;
-    x.polygon = clipToSide(x.polygon, i, o, x.farEnd(xEnd));
-    y.polygon = clipToSide(y.polygon, i, o, y.farEnd(yEnd));
-  }
-  return [...pieces, ...cornerTopPieces(room, settings, pieces)]
-    .filter(({ polygon }) => polygon.length >= 3 && Math.abs(signedArea(polygon)) > EPSILON);
 }
 
 /** Walls taller than the surface and solids standing through it, as plain polygons. */
@@ -279,9 +152,9 @@ function chains(segments) {
  * different parts at one surface. `solids` = planSolidParts(room, settings, { bottoms: true }).
  * → [{ id, kind: 'edge' | 'joint', points: [[x, y], …] (plan inches, y up), closed }]
  */
-export function planTopEdges(room, settings = DEFAULT_SETTINGS, solids = [], { pieces = topPieces(room, settings) } = {}) {
+export function planTopEdges(room, settings = DEFAULT_SETTINGS, solids = []) {
   const groups = [];
-  for (const piece of pieces) {
+  for (const piece of bandFootprints(room, settings)) {
     let group = groups.find(({ surface }) => Math.abs(surface - piece.surface) <= EPSILON);
     if (!group) groups.push(group = { surface: piece.surface, pieces: [] });
     group.pieces.push(piece);
