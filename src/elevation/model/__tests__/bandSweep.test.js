@@ -107,11 +107,10 @@ describe('band sweep wall views', () => {
     expect(crown.strips.at(-1).z2).toBe(crown.z + crown.height);
     crown.strips.forEach((strip, index) => {
       expect(strip.z2).toBeGreaterThan(strip.z1);
-      expect(strip.front).toBeLessThanOrEqual(16 + 5 / 8);
       if (index) expect(strip.z1).toBe(crown.strips[index - 1].z2);
     });
-    expect(crown.strips.at(-1).front).toBe(Math.max(...crown.strips.map(({ front }) => front)));
-    expect(crown.strips.at(-1).front).toBeGreaterThan(crown.strips[0].front);
+    expect(crown.strips.some(({ inset }) => inset > 0)).toBe(true);
+    expect(crown.strips.every(({ inset }) => inset >= 0)).toBe(true);
     const toePath = paths.find((path) => path.kind === 'toeKick'
       && path.segments.some(({ runId }) => runId === base2.id));
     // This toe-kick path turns onto other walls; isolate its straight segment for D2's wall view.
@@ -120,7 +119,7 @@ describe('band sweep wall views', () => {
       end: { type: 'square', runId: base2.id, side: 'right' },
     };
     const toe = viewFromWall(room, sweepBand(room, straightToe, settings), wall, 'front');
-    expect(toe.strips).toEqual([{ z1: toe.z, z2: toe.z + toe.height, front: 21 }]);
+    expect(toe.strips).toEqual([{ z1: toe.z, z2: toe.z + toe.height, inset: 0 }]);
   });
 });
 

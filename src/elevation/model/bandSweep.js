@@ -1,5 +1,6 @@
 import { bandFronts } from './bandParts.js';
 import { bandPaths } from './bandPaths.js';
+import { partStrips } from './bandStrips.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { insertBaseCutouts } from './baseCutouts.js';
 import { buildCacheFor } from './buildCache.js';
@@ -247,16 +248,15 @@ function capEdge(cap, section, frame, z, height, index, kind) {
   return cap.returnLength != null ? clipReturnEdge(edge, cap) : edge;
 }
 
-/** Conservative front depths between every section vertex, arc extreme and drawn height. */
-function hidingStrips({ kind, z, height, section, segments }) {
-  const front = segments[0].front;
-  if (!section?.loop) return [{ z1: z, z2: z + height, front }];
+/**
+ * Conservative insets between every section vertex, arc extreme and drawn height (SPEC-D7): how far each
+ * strip's shallower edge sits behind the profile's deepest point over the band's height. The part adds
+ * its own front (`partStrips`).
+ */
+function hidingStrips({ z, height, section }) {
+  if (!section?.loop) return [{ z1: z, z2: z + height, inset: 0 }];
   const { loop, reference, lineHeights } = section;
   const contour = frontContour(loop);
-  // D1's absolute front includes the run face and the kind's forward placement (also for wood tops,
-  // whose front overhang can differ from the side overhang used to place the end section).
-  const { maxX } = outlineBounds(loop);
-  const offset = front - (kind === 'crown' ? maxX : Math.max(0, maxX));
   const cuts = [z, ...[
     ...loop.map(([, sectionZ]) => reference + sectionZ),
     ...arcExtremes(loop).map(([, sectionZ]) => reference + sectionZ),
@@ -264,12 +264,11 @@ function hidingStrips({ kind, z, height, section, segments }) {
   ].filter((cut) => cut > z + EPSILON && cut < z + height - EPSILON)
     .sort((a, b) => a - b)
     .filter((cut, index, all) => !index || cut - all[index - 1] > EPSILON), z + height];
-  return cuts.slice(0, -1).map((z1, index) => {
-    const z2 = cuts[index + 1];
-    return { z1, z2, front: offset + Math.min(
-      endEdgeX(contour, z1 - reference, 1), endEdgeX(contour, z2 - reference, 1),
-    ) };
-  });
+  const edges = cuts.map((cut) => endEdgeX(contour, cut - reference, 1));
+  const deepest = Math.max(...edges);
+  return cuts.slice(0, -1).map((z1, index) => ({
+    z1, z2: cuts[index + 1], inset: deepest - Math.min(edges[index], edges[index + 1]),
+  }));
 }
 
 function flatEdge(x, { z, height }) {
@@ -340,10 +339,8 @@ function cornerView(sweep, frame, edges, section, turns = sweep.vertices.map((_,
     const edge = vertexEdge(sweep, index, frame);
     lines.push(...edge.slice(1).map(([x2, z2], i) => ({ x1: edge[i][0], z1: edge[i][1], x2, z2 })));
   }
-  const shown = sweep.segments.find((segment) => !segment.diagonal
-    && Math.abs(dot(segment.frame.r, frame.r)) > EPSILON) ?? sweep.segments[0];
   return { x: minX, z: sweep.z, width: maxX - minX, height: sweep.height, outline, lines,
-    strips: hidingStrips({ ...sweep, section, segments: [shown] }) };
+    strips: hidingStrips({ ...sweep, section }) };
 }
 
 function cornerWallView(sweep, frame) {
@@ -648,10 +645,12 @@ function buildCornerLegBandParts(room, ownerWallId, owner, side, settings) {
       const frame = wallSideFrame(room, room.walls.find(({ id }) => id === point.wallId), point.wallSide);
       front = dot(subtract(diagonal.to, frame.leftPoint), frame.n);
     }
-    parts.push({ id: key, kind: key.slice(prefix.length), ownerWallId, runId: owner.id, side,
+    const part = { id: key, kind: key.slice(prefix.length), ownerWallId, runId: owner.id, side,
       x: view.x, z: view.z, width: view.width, height: view.height, back: runBackOffset(owner), front,
       ...(legOutline(view, (segment ?? diagonal).corner.kind) ? { outline: view.outline } : {}),
-      ...(view.lines?.length ? { lines: view.lines } : {}) });
+      ...(view.lines?.length ? { lines: view.lines } : {}) };
+    const strips = partStrips(view.strips, { z: view.z, height: view.height, front });
+    parts.push(strips ? { ...part, strips } : part);
   }
   return parts;
 }

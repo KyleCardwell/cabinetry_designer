@@ -1,4 +1,5 @@
 import { bandPaths } from './bandPaths.js';
+import { attachStrips } from './bandStrips.js';
 import { mitreEdge, sweepBand, sweepEligible, viewRun } from './bandSweep.js';
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
@@ -477,10 +478,14 @@ export function runBands(room, wall, run, settings, scene) {
     // Keep each kind's public fields: plain bands have no outline, and toe kicks have no lines.
     const waterfall = kind === 'countertop'
       && [path.start, path.end].some(({ type }) => type === 'waterfall');
-    const publicBand = ({ x, z, width, height, outline, lines, ends, hasCutouts }) => ({ x, z, width, height,
-      ...(profiled || waterfall || hasCutouts ? { outline } : {}),
-      ...(profiled || waterfall || cornerOwner || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
-      ...(kind === 'topMold' || kind === 'crown' ? { ends } : {}) });
+    const publicBand = ({ x, z, width, height, outline, lines, ends, hasCutouts, strips }) => {
+      const result = { x, z, width, height,
+        ...(profiled || waterfall || hasCutouts ? { outline } : {}),
+        ...(profiled || waterfall || cornerOwner || ['topMold', 'crown', 'furnitureBase'].includes(kind) ? { lines } : {}),
+        ...(kind === 'topMold' || kind === 'crown' ? { ends } : {}) };
+      attachStrips(result, strips);
+      return result;
+    };
     sweptPieces.set(kind, view.pieces.map(publicBand));
     return publicBand(view);
   };

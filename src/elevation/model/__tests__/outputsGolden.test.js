@@ -99,6 +99,45 @@ describe.sequential('GC0 golden outputs', () => {
   }
 });
 
+it.each([
+  ['carry contiguous strips that reach back from the part front', (parts) => {
+    for (const part of parts.filter(({ strips }) => strips)) {
+      expect(part.strips.length).toBeGreaterThan(1);
+      expect(part.strips[0].z1).toBeCloseTo(part.z, 6);
+      expect(part.strips.at(-1).z2).toBeCloseTo(part.z + part.height, 6);
+      part.strips.forEach((strip, index) => {
+        expect(strip.z2).toBeGreaterThan(strip.z1);
+        expect(strip.front).toBeLessThanOrEqual(part.front + 1e-6);
+        if (index) expect(strip.z1).toBeCloseTo(part.strips[index - 1].z2, 6);
+      });
+      expect(part.strips.some(({ front }) => front < part.front - 1e-6)).toBe(true);
+    }
+  }],
+  ['leave toe kicks, stone tops and parts below runs without strips', (parts) => {
+    const plain = parts.filter(({ kind }) => !['crown', 'top_mold', 'furniture_base', 'countertop'].includes(kind));
+    expect(plain.filter(({ strips }) => strips)).toEqual([]);
+  }],
+  ['give crowns at one height the same insets (N4)', (parts, key) => {
+    if (key !== 'N4') return;
+    const byHeight = new Map();
+    for (const part of parts.filter(({ kind, strips }) => kind === 'crown' && strips)) {
+      const insets = part.strips.map(({ z1, z2, front }) => [z1 - part.z, z2 - part.z, part.front - front]);
+      const known = byHeight.get(`${part.z}:${part.height}`);
+      if (!known) byHeight.set(`${part.z}:${part.height}`, insets);
+      else {
+        expect(insets).toHaveLength(known.length);
+        insets.forEach((row, i) => row.forEach((value, j) => expect(value).toBeCloseTo(known[i][j], 6)));
+      }
+    }
+    expect(byHeight.size).toBeGreaterThan(0);
+  }],
+])('band parts %s (D7)', (_title, check) => {
+  expect(goldenPayloads).toHaveLength(goldenRooms().length);
+  for (const { key, payload } of goldenPayloads) {
+    check(payload.elevations.flatMap(({ parts }) => parts), key);
+  }
+});
+
 it('places every golden elevation badge without overlapping another box (GC5)', () => {
   expect(goldenPayloads).toHaveLength(goldenRooms().length);
   for (const { key, payload } of goldenPayloads) {

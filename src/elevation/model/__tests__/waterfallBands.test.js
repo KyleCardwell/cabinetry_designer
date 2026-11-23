@@ -60,6 +60,8 @@ const anchors = [
     outline: [[28.5, 0, 0], [30, 0, 0], [30, 34.5, 0], [66.5, 34.5, 0],
       [66.5, 35.75, 0], [66.25, 36, 0], [28.5, 36, 0]],
     lines: [miter(28.5, 36, 30, 34.5), miter(28.75, 35.75, 66.5, 35.75), miter(28.75, 0, 28.75, 35.75)],
+    // D7: the leg below the top's section is one inset-0 strip; the chamfer is inset 0.25.
+    strips: [{ z1: 0, z2: 35.75, front: 25.375 }, { z1: 35.75, z2: 36, front: 25.125 }],
   },
   {
     name: 'stone both with a right overhang (anchor 4)',
@@ -71,11 +73,12 @@ const anchors = [
 ];
 
 describe('SPEC-50.10 step 505 waterfall elevation bands', () => {
-  it.each(anchors)('$name', ({ props, x, width, outline, lines }) => {
+  it.each(anchors)('$name', ({ props, x, width, outline, lines, strips }) => {
     const { bands, part } = setup(props);
     expect(bands.countertop).toEqual({ x, z: 0, width, height: 36, outline, lines });
     expect(part).toEqual({ ...bands.countertop, id: 'base:countertop', kind: 'countertop',
-      runId: 'base', back: 0, front: props.top === 'wood' ? 25.375 : 25.625, coversBoxEdges: false });
+      runId: 'base', back: 0, front: props.top === 'wood' ? 25.375 : 25.625, coversBoxEdges: false,
+      ...(strips ? { strips } : {}) });
   });
 
   it('mirrors a right wood leg and clips both ends of the level line to their miters', () => {

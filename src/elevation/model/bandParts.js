@@ -1,3 +1,4 @@
+import { partStrips, stripsOf } from './bandStrips.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { furnitureBasePast, runBaseProfile } from './furnitureBase.js';
 import { bandDepths, runBands } from './runBands.js';
@@ -53,10 +54,12 @@ export function bandParts(room, wall, side, settings) {
     const addPart = (rect, id, kind, front, partBack = back) => {
       if (!rect || rect.width <= EPSILON || rect.height <= EPSILON) return;
       const { x, z, width, height } = rect;
+      const strips = partStrips(stripsOf(rect), { z, height, front });
       parts.push({
         id, kind, runId: run.id, x, z, width, height, back: partBack, front, coversBoxEdges: false,
         ...(rect.lines?.length ? { lines: rect.lines } : {}),
         ...(rect.outline ? { outline: rect.outline } : {}),
+        ...(strips ? { strips } : {}),
       });
     };
 

@@ -50,6 +50,7 @@ export function cornerLegPayload(room, view, settings) {
         id: band.id, kind: band.kind, runId: run.id, ...rect(band),
         back: band.back, front: band.front, coversBoxEdges: false,
         ...(band.outline ? { outline: band.outline } : {}),
+        ...(band.strips ? { strips: band.strips } : {}),
         ...(band.lines ? { lines: band.lines } : {}),
       });
     }
