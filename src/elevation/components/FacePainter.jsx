@@ -44,12 +44,22 @@ function partGeometry(part, transform, doorsOff) {
 export default function FacePainter({ entries, transform, after, doorsOff = false }) {
   return (
     <Group listening={false}>
-      {entries.map(({ part, doorDetail, pulls, swingMarks, legLoops }) => {
+      {entries.map(({ part, clip, doorDetail, pulls, swingMarks, legLoops }) => {
         const { hatch, ...style } = screenPartStyle(part);
         const { rect, geometry, clipFunc } = partGeometry(part, transform, doorsOff);
         const PartShape = part.outline || part.holes?.length ? Shape : Rect;
+        const Slice = clip ? Group : Fragment;
+        const sliceRect = clip && wallRectToScreen({
+          x: part.x, width: part.width, z: clip.z1, height: clip.z2 - clip.z1,
+        }, transform);
+        const sliceProps = clip ? {
+          clipX: sliceRect.x - style.strokeWidth,
+          clipY: sliceRect.y - style.strokeWidth,
+          clipWidth: sliceRect.width + 2 * style.strokeWidth,
+          clipHeight: sliceRect.height + 2 * style.strokeWidth,
+        } : {};
         return (
-          <Fragment key={part.id}>
+          <Slice key={clip ? `${part.id}:${clip.z1}:${clip.z2}` : part.id} {...sliceProps}>
             {part.kind === 'leg' ? (
               <LegShapes legs={[{ leg: part, outlines: legLoops.map(({ closed, points }) => ({
                 closed, outline: points,
@@ -82,7 +92,7 @@ export default function FacePainter({ entries, transform, after, doorsOff = fals
             )}
             <SwingMarks marks={swingMarks} transform={transform} />
             <Pulls pulls={pulls} transform={transform} />
-          </Fragment>
+          </Slice>
         );
       })}
     </Group>

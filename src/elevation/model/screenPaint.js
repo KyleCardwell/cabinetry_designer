@@ -35,17 +35,23 @@ function byPartId(entries) {
 export function paintEntries(drawing, { doorsOff = false, runIds = null } = {}) {
   const parts = drawing.parts
     .filter((part) => runIds === null || runIds.has(part.runId))
-    .filter((part) => !doorsOff || part.kind !== 'face')
-    .sort((a, b) => a.front - b.front);
+    .filter((part) => !doorsOff || part.kind !== 'face');
   const details = new Map((drawing.doorDetails ?? []).map((entry) => [entry.partId, entry]));
   const pulls = byPartId(drawing.pulls);
   const swings = byPartId(drawing.swingMarks);
   const legs = byPartId((drawing.shapes ?? []).filter(({ kind }) => kind === 'leg'));
-  return parts.map((part) => ({
-    part,
-    doorDetail: details.get(part.id) ?? null,
-    pulls: pulls.get(part.id) ?? [],
-    swingMarks: swings.get(part.id) ?? [],
-    legLoops: (legs.get(part.id) ?? []).flatMap(({ loops }) => loops),
-  }));
+  return parts.flatMap((part) => {
+    const slices = part.strips?.length
+      ? part.strips.map(({ z1, z2, front }) => ({ clip: { z1, z2 }, front }))
+      : [{ clip: null, front: part.front }];
+    const deepest = slices.reduce((a, b) => b.front > a.front ? b : a);
+    return slices.map((slice) => ({
+      part,
+      ...slice,
+      doorDetail: slice === deepest ? details.get(part.id) ?? null : null,
+      pulls: slice === deepest ? pulls.get(part.id) ?? [] : [],
+      swingMarks: slice === deepest ? swings.get(part.id) ?? [] : [],
+      legLoops: slice === deepest ? (legs.get(part.id) ?? []).flatMap(({ loops }) => loops) : [],
+    }));
+  }).sort((a, b) => a.front - b.front);
 }

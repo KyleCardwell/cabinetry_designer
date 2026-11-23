@@ -54,9 +54,43 @@ it.each([
     expect(entries.map(({ part }) => part.id)).toEqual(ids);
     expect(entries).toEqual(ids.map((id) => ({
       part: drawing.parts.find((part) => part.id === id),
+      clip: null, front: drawing.parts.find((part) => part.id === id).front,
       doorDetail: null, pulls: [], swingMarks: [], legLoops: [], ...attachments[id],
     })));
   }
+});
+
+it.each([
+  ['interleaves band strips with other parts at their depths', {
+    parts: [
+      { id: 'C', kind: 'crown', front: 17, strips: [
+        { z1: 90, z2: 93, front: 14 }, { z1: 93, z2: 95, front: 17 },
+      ] },
+      { id: 'P', kind: 'projection', front: 15 },
+    ],
+    doorDetails: [{ ...detail, partId: 'C' }],
+    pulls: [{ ...pull, partId: 'C' }],
+    swingMarks: [{ ...swing, partId: 'C' }],
+    shapes: [{ partId: 'C', kind: 'leg', loops: [loop] }],
+  }, [
+    { id: 'C', clip: { z1: 90, z2: 93 }, front: 14 },
+    { id: 'P', clip: null, front: 15 },
+    { id: 'C', clip: { z1: 93, z2: 95 }, front: 17 },
+  ]],
+  ['paints a part without strips in one unclipped entry', {
+    parts: [{ id: 'B', kind: 'cabinet', front: 24 }],
+  }, [{ id: 'B', clip: null, front: 24 }]],
+])('%s (D7)', (_name, drawing, expected) => {
+  const entries = paintEntries(drawing);
+  expect(entries.map(({ part, clip, front }) => ({ id: part.id, clip, front }))).toEqual(expected);
+  expect(entries.map(({ doorDetail, pulls, swingMarks, legLoops }) => ({
+    doorDetail, pulls, swingMarks, legLoops,
+  }))).toEqual(expected.map((_entry, index) => ({
+    doorDetail: index === entries.length - 1 ? drawing.doorDetails?.[0] ?? null : null,
+    pulls: index === entries.length - 1 ? drawing.pulls ?? [] : [],
+    swingMarks: index === entries.length - 1 ? drawing.swingMarks ?? [] : [],
+    legLoops: index === entries.length - 1 ? drawing.shapes?.[0].loops ?? [] : [],
+  })));
 });
 
 it('matches the first separate golden face drawing parts before ownership tags (GC6)', () => {
