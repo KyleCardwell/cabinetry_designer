@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
+import { withBuildCache } from '../buildCache.js';
+import { goldenRooms } from './helpers/goldenRooms.js';
 import { room as buildRoom, run as buildRun, wall as buildWall, auto } from '../../../test/builders.js';
 import { connectWallStops } from './helpers/wallStops.js';
 import { syncRoom } from '../room.js';
@@ -156,4 +158,24 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
       expect(groups(stored)).toHaveLength(2);
     }
   });
+});
+
+it('orders one furniture base with two depth steps across joined runs (D6)', () => {
+  const loaded = goldenRooms().find(({ key }) => key === 'S4').load();
+  loaded.room.profile = { ...loaded.room.profile, baseKind: 'furniture_base' };
+  for (const wall of loaded.room.walls) for (const run of wall.runs) {
+    if (run.id === 'Base-R') run.depth = 21;
+  }
+  const subject = syncRoom(loaded.room, loaded.settings);
+  const actual = withBuildCache(() => furnitureBaseGroups(subject, loaded.settings), subject);
+  expect(actual).toEqual([{
+    key: 'furniture_base:Base-L', runIds: ['Base-L', 'Base-R'],
+    bandIds: ['Base-L:furniture_base', 'Base-R:furniture_base'],
+    height: 4, orderedHeight: 4.5, width: 121.4375, orderedWidth: 121.4375, depth: 25.6875,
+    steps: [
+      { wallId: 'W1', side: 'front', x1: -0.8125, x2: 60, depth: 25.6875 },
+      { wallId: 'W1', side: 'front', x1: 60, x2: 120.625, depth: 22.6875 },
+    ],
+    faces: [{ wallId: 'W1', side: 'front', runIds: ['Base-L', 'Base-R'] }],
+  }]);
 });

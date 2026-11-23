@@ -1,4 +1,5 @@
 import { buildCacheFor } from './buildCache.js';
+import { bandPaths } from './bandPaths.js';
 import { endEdgeX, frontContour } from './bandEnds.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { frontDepth } from './corners.js';
@@ -46,14 +47,6 @@ function baseEntries(room, wall, run, settings) {
       runStart: mapX(wall.side === 'back' ? segmentEnd : start),
       runEnd: mapX(wall.side === 'back' ? start : segmentEnd) };
   });
-}
-
-function linked(a, b) {
-  if (!same(a.height, b.height)) return false;
-  if (a.wall.side === b.wall.side) {
-    return same(a.runEnd, b.runStart) || same(b.runEnd, a.runStart);
-  }
-  return Math.min(a.runEnd, b.runEnd) > Math.max(a.runStart, b.runStart);
 }
 
 function groupSize(entries, settings) {
@@ -104,13 +97,16 @@ export function furnitureBaseGroups(room, settings = DEFAULT_SETTINGS) {
     () => buildFurnitureBaseGroups(room, settings));
 }
 
-function buildFurnitureBaseGroups(room, settings) {
+function groupsFromEntries(room, settings, members, links) {
   const byId = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
   const walls = [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).map(([id]) => byId.get(id));
   return walls.flatMap((source) => {
     const entries = WALL_SIDES.flatMap((side) => {
       const wall = { ...wallSideView(source, side), length: wallLength(source) };
-      return [...wall.runs].sort(compareRuns).flatMap((run) => baseEntries(room, wall, run, settings));
+      return [...wall.runs].sort(compareRuns).flatMap((run) => {
+        const match = members.get(`${source.id}|${side}|${run.id}`);
+        return baseEntries(room, wall, run, settings).map((entry) => ({ ...entry, ...match }));
+      });
     });
     const remaining = new Set(entries);
     const groups = [];
@@ -119,7 +115,7 @@ function buildFurnitureBaseGroups(room, settings) {
       const connected = [first];
       for (let i = 0; i < connected.length; i += 1) {
         for (const candidate of remaining) {
-          if (!linked(connected[i], candidate)) continue;
+          if (!links(connected[i], candidate)) continue;
           remaining.delete(candidate);
           connected.push(candidate);
         }
@@ -129,4 +125,42 @@ function buildFurnitureBaseGroups(room, settings) {
     }
     return groups;
   });
+}
+
+function buildFurnitureBaseGroups(room, settings) {
+  const { paths, ends } = bandPaths(room, settings);
+  const bases = paths.filter(({ kind }) => kind === 'furnitureBase');
+  const members = new Map();
+  const joins = new Map();
+  const join = (a, b) => {
+    if (!joins.has(a)) joins.set(a, new Set());
+    joins.get(a).add(b);
+  };
+  for (const path of bases) {
+    for (const member of path.segments) {
+      if (!member.corner && !member.return) {
+        members.set(`${member.wallId}|${member.face}|${member.runId}`, { path, member });
+      }
+    }
+    path.vertices.forEach((vertex, index) => {
+      if (vertex.type !== 'joined') return;
+      const a = path.segments[index];
+      const b = path.segments[(index + 1) % path.segments.length];
+      join(a, b);
+      join(b, a);
+    });
+  }
+  const against = (a, b) => a.member && ['left', 'right'].some((end) => {
+    const rule = ends.get(`${a.member.memberKey ?? a.member.runId}|furnitureBase|${a.path.z}|${end}`);
+    return ['cope', 'step'].includes(rule?.type)
+      && rule.against?.kind === 'run' && rule.against.id === b.run.id;
+  });
+  const links = (a, b) => {
+    if (!same(a.height, b.height)) return false;
+    if (a.wall.side !== b.wall.side) {
+      return Math.min(a.runEnd, b.runEnd) > Math.max(a.runStart, b.runStart);
+    }
+    return Boolean(joins.get(a.member)?.has(b.member)) || against(a, b) || against(b, a);
+  };
+  return groupsFromEntries(room, settings, members, links);
 }
