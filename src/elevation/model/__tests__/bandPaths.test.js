@@ -1,19 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { bandPaths } from '../bandPaths.js';
 import { bandFronts } from '../bandParts.js';
-import { cornerBandTurns } from '../cornerBands.js';
+import { cornerBandTurns } from '../cornerLegBands.js';
 import { cornerEnd } from '../cornerEnd.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { cornerLegBandJointsForOwner, ownerBands } from '../cornerLegBands.js';
-import { cornerAt, cornerEndActive, cornerReturnPoint, cornerReturnRuns } from '../corners.js';
+import { cornerEndActive, cornerReturnPoint, cornerReturnRuns } from '../corners.js';
 import { elevationToPlan, planPointToWallX } from '../geometry.js';
-import { wallEndPanelPartKey } from '../parts.js';
-import { recessesOn } from '../recesses.js';
-import { runBandEnds, runBands, waterfallEnds } from '../runBands.js';
+import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
-import { WALL_SIDES, wallEndPanelAt, wallSideFrame, wallSideView } from '../wallSides.js';
+import { WALL_SIDES, wallSideFrame, wallSideView } from '../wallSides.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
 const loaded = goldenRooms().find(({ key }) => key === 'N4').load();
@@ -56,13 +54,9 @@ describe('band paths', () => {
   it('mitres the blind tall moldings into the upper at their front intersection (D5)', () => {
     const tall = runs(5, CABINET_TYPE_IDS.TALL)[0];
     const upper = runs(4, CABINET_TYPE_IDS.UPPER)[0];
-    const tallWall = wallSideView(wall(5), 'front');
     const upperFrame = wallSideFrame(room, wall(4), 'front');
     for (const [kind, start, end] of [['crown', 19.625, 53.875], ['topMold', 16.125, 57.375]]) {
       const path = pathFor(tall, kind);
-      const [tallEnd] = runBandEnds(room, tallWall, tall, settings,
-        runScene(room, tallWall, tall, settings), kind, path.z, path.height);
-      expect(tallEnd.x).toBeCloseTo(start, 6);
       expect(planPointToWallX(wallSideFrame(room, wall(5), 'front'),
         result.ends.get(key(tall, kind, path.z, 'left')).at)).toBeCloseTo(start, 6);
       expect(result.ends.get(key(tall, kind, path.z, 'left')).type).toBe('mitre');
@@ -82,7 +76,7 @@ describe('band paths', () => {
           ['toeKick', bands.toeKicks[0]], ['furnitureBase', bands.furnitureBases[0]],
           ['countertop', bands.countertop], ['topMold', bands.topMold], ['crown', bands.crown],
         ]) {
-          // A waterfall's final envelope reaches the floor; runBandEnds receives the main top's z.
+          // A waterfall's final envelope reaches the floor; its path uses the main top's z.
           const z = kind === 'countertop' ? run.z + run.height : band?.z;
           if (band) for (const side of ['left', 'right']) expected.push(key(run, kind, z, side));
         }
@@ -261,118 +255,3 @@ it('matches corner leg ends and turn points across golden rooms (D4)', () => {
   console.log('D4 corner ends compared:', JSON.stringify(counts));
   expect(failures, failures.join('\n')).toEqual([]);
 });
-
-it.each(goldenRooms().map(({ key, load }) => [key, load]))(
-  'allows only specified band end transitions in %s (D1)', (roomKey, load) => {
-    const { room: source, settings } = load();
-    const room = syncRoom(source, settings);
-    const numbers = wallNumbers(room);
-    const result = bandPaths(room, settings);
-    const records = new Map();
-    const partners = new Map();
-    const joints = [];
-    for (const path of result.paths) {
-      for (const segment of path.segments.filter((segment) => !segment.corner && !segment.return)) {
-        const wall = room.walls.find(({ id }) => id === segment.wallId);
-        const view = wallSideView(wall, segment.face);
-        const run = view.runs.find(({ id }) => id === segment.runId);
-        const scene = runScene(room, view, run, settings);
-        const old = runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height);
-        const front = bandFronts(room, view, run, settings)[path.kind];
-        for (const [index, side] of ['left', 'right'].entries()) {
-          const anchor = run.anchors?.[side];
-          const projection = anchor?.to === 'recess' && run._plane?.recessId !== anchor.recessId
-            ? recessesOn(view).find(({ id, kind }) => id === anchor.recessId && kind === 'projection') : null;
-          records.set(key(run, path.kind, path.z, side), {
-            old: old[index].type,
-            corner: cornerEndActive(room, view, run, side).active
-              || Boolean(result.ends.get(key(run, path.kind, path.z, side))?.corner
-                || result.ends.get(key(run, path.kind, path.z, side))?.against?.kind === 'corner'),
-            label: `${roomKey}, Wall ${numbers.get(wall.id)} ${segment.face}, run ${run.id}, ${path.kind}, ${side}`,
-            wall: numbers.get(wall.id), face: segment.face, side,
-            angle: cornerAt(room, view, side).angle,
-            runId: run.id, kind: path.kind, front, projection,
-            waterfall: Boolean(waterfallEnds(room, view, run, settings)[side]),
-            wallPanel: anchor === true ? wallEndPanelAt(room, view, side, settings) : null,
-            wallId: wall.id,
-            rule: [path.start, path.end].find((end) => end?.runId === run.id && end.side === side),
-          });
-        }
-      }
-      path.vertices.forEach((vertex, index) => {
-        if (vertex.type !== 'mitre') return;
-        const pair = [path.segments[index], path.segments[(index + 1) % path.segments.length]];
-        const ends = pair.map((segment) => {
-          const side = ['left', 'right'].find((side) => {
-            const point = side === 'left' ? segment.from : segment.to;
-            return Math.hypot(point.x - vertex.at.x, point.y - vertex.at.y) < 1e-6;
-          });
-          expect(side, `${roomKey}: mitre must meet a segment end`).toBeDefined();
-          return `${segment.memberKey ?? segment.runId}|${path.kind}|${path.z}|${side}`;
-        });
-        const returned = pair.some((segment) => segment.return);
-        const equalFronts = !returned && Math.abs(pair[0].front - pair[1].front) <= 1 / 32;
-        partners.set(ends[0], { other: ends[1], equalFronts, returned });
-        partners.set(ends[1], { other: ends[0], equalFronts, returned });
-        joints.push({ ends, kind: path.kind, z: path.z, equalFronts });
-      });
-    }
-    const counts = {};
-    const failures = [];
-    const classB = [];
-    const classW = [];
-    for (const [endKey, { type }] of result.ends) {
-      if (endKey.startsWith('corner-') || endKey.startsWith('return:')) continue;
-      const record = records.get(endKey);
-      expect(record, `${roomKey}: missing legacy end ${endKey}`).toBeDefined();
-      const pair = `${record.old} → ${type}`;
-      counts[pair] = (counts[pair] ?? 0) + 1;
-      const partner = partners.get(endKey);
-      const classA = record.old === 'cope' && type === 'mitre' && partner?.equalFronts
-        && records.get(partner.other)?.old === 'cope'
-        && result.ends.get(partner.other)?.type === 'mitre';
-      const blockedProjection = record.old === 'return' && type === 'die-in'
-        && record.projection && record.front <= record.projection.depth
-        && record.rule?.against?.kind === 'solid' && record.rule.against.id === record.projection.id;
-      const waterfall = record.old === 'return' && type === 'waterfall' && record.waterfall;
-      const step = partner?.returned && type === 'mitre'
-        && ['crown', 'topMold', 'toeKick'].includes(record.kind) && ['return', 'cope'].includes(record.old);
-      const allowed = step || (record.old === 'mitre' ? type === 'mitre' : record.corner || record.old === 'miter'
-        ? ['turn', 'joined', 'square', 'return', 'die-in'].includes(type)
-        : record.old === 'square' ? ['joined', 'die-in', 'square', 'waterfall'].includes(type)
-          : record.old === 'return' ? type === 'return' || blockedProjection || waterfall
-            : record.old === 'cope' && (type === 'cope' || classA));
-      if (!allowed) failures.push(`${record.label}: ${pair}`);
-      if (blockedProjection) classB.push({ end: record.label, front: record.front, depth: record.projection.depth });
-      if (waterfall) classW.push(record.label);
-      if (record.projection && record.front > record.projection.depth) {
-        expect(record.rule, record.label).toMatchObject({
-          type: 'return', returnLength: record.front - record.projection.depth,
-        });
-      }
-      if (record.kind === 'toeKick' && record.wallPanel && !record.waterfall && !record.corner) {
-        expect(record.rule, record.label).toMatchObject({
-          type: 'die-in', against: { kind: 'panel', id: wallEndPanelPartKey(record.wallId, record.wallPanel.endpoint) },
-        });
-      }
-    }
-    if (process.env.PERF) {
-      const classA = joints.filter(({ ends, equalFronts }) => equalFronts
-        && ends.every((end) => records.get(end).old === 'cope' && !records.get(end).corner))
-        .map(({ ends, kind, z }) => ({ kind, z,
-          walls: ends.map((end) => {
-            const { wall, face, side, angle } = records.get(end);
-            return { wall, face, side, angle };
-          }),
-        }));
-      console.log('D1 parity:', JSON.stringify({ room: roomKey, counts, classA, classB, classW, failures }));
-      if (roomKey === 'N1') {
-        bandPaths(room, settings);
-        const start = performance.now();
-        bandPaths(room, settings);
-        console.log('D1 N1 warm bandPaths (ms):', performance.now() - start);
-      }
-    }
-    expect(failures, failures.join('\n')).toEqual([]);
-  },
-);

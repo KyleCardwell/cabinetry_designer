@@ -4,13 +4,13 @@ import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandFronts } from '../bandParts.js';
 import { frontContour, placeAtEnd } from '../bandEnds.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { cornerBandEdge, cornerBandTurns } from '../cornerBands.js';
+import { cornerBandTurns } from '../cornerLegBands.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
 import { cornerShapes } from '../cornerParts.js';
 import { moldingPast, moldingProfiles } from '../moldingProfiles.js';
 import { resolveProfile } from '../profile.js';
 import { resolveWall, syncRoom } from '../room.js';
-import { runBandEnds, runBands } from '../runBands.js';
+import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { flattenOutline, sectionProfileOutline } from '../sectionProfileOutline.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -59,15 +59,10 @@ describe('owner bands meet the return leg (CC7)', () => {
       anchors: { left: false, right: true }, items: [auto('r')],
       ends: { left: { type: 'none' }, right: { type: 'none' } },
     })];
-    const { synced, view, run: ownerRun, scene, bands, shapes } = resolved();
+    const { bands } = resolved();
     span(bands.countertop, 25.625, 120.75);
     span(bands.toeKicks[0], 21, 119.75);
     expect(bands.countertop.lines).toBeUndefined();
-    const end = runBandEnds(synced, view, ownerRun, S, scene, 'countertop', 34.5, 1.5)[0];
-    expect(end).toMatchObject({ type: 'cope', x: 25.625, wallId: 'wall-2', runId: 'run-1' });
-    // A tied return section must lose even if it appears before the owner's leg.
-    expect(cornerBandEdge(() => [...shapes].reverse(), ownerRun, 'left', 'countertop', 34.5, 1.5))
-      .toMatchObject({ runId: 'run-1', x: 25.625 });
   });
 
   it('adds only nonopaque leg bands in the owner frame, with their far depths', () => {

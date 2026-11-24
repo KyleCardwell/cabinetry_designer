@@ -4,9 +4,7 @@ import { connectWallStops } from './helpers/wallStops.js';
 import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { bandParts } from '../bandParts.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
-import { cornerBandEdge } from '../cornerBands.js';
 import { toDrawingPayload } from '../drawingPayload.js';
-import { furnitureBaseBand, runBase } from '../furnitureBase.js';
 import { runItems } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
@@ -146,28 +144,6 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
       endPanels: { start: null, end: { width: 0.75 } } });
     expect(paneled.bandsOf({ ...paneled.wall.runs[0], anchors: { right: true } }).furnitureBases[0].outline.slice(1, 4))
       .toEqual([[120.8125, 0, 0], [120.8125, 3.6875, 0], [120.5, 4, 0]]);
-  });
-
-  it('matches corner return furniture bases by kind, bottom and height on inside and wing walls', () => {
-    const outline = [[24.875, 4, 0], [25.375, 4, 0], [25.6875, 3.6875, 0],
-      [25.6875, 0, 0], [24.875, 0, 0]];
-    const part = { kind: 'furniture_base', x: 24.875, z: 0, width: 0.8125, height: 4, outline };
-    const shapes = () => [{ kind: 'return', key: 'left:base', parts: [part] },
-      { kind: 'return', key: 'landing:wing:right:base', parts: [{ ...part, x: 94.3125 }] }];
-    const run = { anchors: { left: true, right: { to: 'wall', wallId: 'wing' } } };
-    expect(cornerBandEdge(shapes, run, 'left', 'furnitureBase', 0, 4))
-      .toEqual({ type: 'cope', x: 25.6875, outline, reach: 24.875, wallId: undefined, runId: undefined });
-    const base = runBase({ profile: { baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' } }, {}, baseRun, settings);
-    const band = furnitureBaseBand(base, [cornerBandEdge(shapes, run, 'left', 'furnitureBase', 0, 4),
-      { type: 'return', x: 66.8125, side: 66, facing: 1 }]);
-    expect(band.outline).toEqual([[25.6875, 0, 0], ...OUTLINE.slice(1, 4),
-      [25.375, 4, 0], [25.6875, 3.6875, 0]]);
-    expect(band.lines).toEqual([line(25.6875, 66.8125, 3.6875)]);
-    expect(cornerBandEdge(shapes, run, 'right', 'furnitureBase', 0, 4).x).toBe(94.3125);
-    expect(cornerBandEdge(shapes, run, 'left', 'furnitureBase', 0, 6)).toBeNull();
-    expect(cornerBandEdge(shapes, run, 'left', 'furnitureBase', 1, 4)).toBeNull();
-    expect(cornerBandEdge(() => [{ kind: 'return', key: 'left:base', parts: [{ ...part, kind: 'toe_kick' }] }],
-      run, 'left', 'furnitureBase', 0, 4)).toBeNull();
   });
 
   it('copes on the neighbor profile and proud, including mirrored ends and positive profile projection', () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
 import { resolveWall, syncRoom } from '../room.js';
-import { runBandEnds, runBands } from '../runBands.js';
+import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -30,7 +30,6 @@ function setup(props = {}, profile = {}) {
   const run = wall.runs[0];
   const scene = runScene(room, wall, run, settings);
   return { bands: runBands(room, wall, run, settings, scene),
-    ends: (kind) => runBandEnds(room, wall, run, settings, scene, kind, 0, 4),
     groups: furnitureBaseGroups(room, settings) };
 }
 
@@ -78,7 +77,7 @@ describe('SPEC-50.10 step 506 bases at waterfall ends', () => {
       for (const kind of ['toeKick', 'furnitureBase']) {
         const profile = kind === 'furnitureBase' ? { ...furniture, furnitureBaseProfileId: 'fb4' } : {};
         const right = setup({ top, waterfall: { right: { baseToLeg: true } }, topOverhang: { right: 12 } }, profile);
-        expect(right.ends(kind)[1]).toEqual({ type: 'square', x: 78 });
+        expect(right.bands[`${kind}s`][0].x + right.bands[`${kind}s`][0].width).toBe(78);
         const both = setup({ top, waterfall: { left: {}, right: { baseToLeg: true } },
           topOverhang: { right: 12 } }, profile);
         expect(both.bands[`${kind}s`][0]).toMatchObject({ x: 30, width: 48 });

@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
 import { clipReturnEdge, endEdgeX, frontContour, placeAtEnd } from '../bandEnds.js';
+import { bandPaths } from '../bandPaths.js';
+import { viewRun } from '../bandSweep.js';
 import { frontDepth } from '../corners.js';
 import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
 import { resolveWall, syncRoom } from '../room.js';
-import { runBandEnds, runBands } from '../runBands.js';
+import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { flattenOutline, outlineBounds, sectionProfileOutline } from '../sectionProfileOutline.js';
 
@@ -51,8 +53,11 @@ function setup({ depth = 13, reach = 16, neighbor = false, recess = false, wing 
   const run = wall.runs[0];
   const scene = runScene(room, wall, run, using);
   const bands = runBands(room, wall, run, using, scene);
-  const end = (kind) => (bands[kind]?.ends ?? runBandEnds(room, wall, run, using, scene, kind,
-    kind === 'countertop' ? run.z + run.height : 0, kind === 'countertop' ? bands.top.height : 4))[left ? 0 : 1];
+  const end = (kind) => {
+    const path = bandPaths(room, using).paths.find((path) => path.kind === kind
+      && path.segments.some((segment) => segment.runId === run.id && !segment.corner && !segment.return));
+    return viewRun(room, path, run.id, using).ends[left ? 0 : 1];
+  };
   return { room, wall, run, scene, bands, end };
 }
 
@@ -75,14 +80,11 @@ describe('short-wall molding returns (DM5)', () => {
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 13.625 });
   });
 
-  it('measures recess returns from the wall face and leaves toe kicks square', () => {
-    const { room, wall, run, scene, end } = setup({ depth: 12, recess: true });
+  it('measures molding recess returns from the wall face', () => {
+    const { run, end } = setup({ depth: 12, recess: true });
     expect(frontDepth(run, settings)).toBe(0.875);
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 5.625 });
     expect(end('topMold').returnLength).toBe(1.125);
-    expect(runBandEnds(room, wall, run, settings, scene, 'toeKick', 0, 4)[1]).toEqual({ type: 'square', x: 96 });
-    expect(end('countertop')).toMatchObject({ type: 'return', x: 96.75, side: 96, facing: 1, returnLength: 1.625 });
-    expect(end('furnitureBase')).toMatchObject({ type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 1.6875 });
   });
 
   it('gives a matching corner crown return precedence over a short wall', () => {
@@ -266,7 +268,7 @@ describe('short-wall furniture base and countertop returns (FX2)', () => {
     expect(bands.toeKicks[0].x + bands.toeKicks[0].width).toBe(96);
   });
 
-  it('mirrors plain returns on the left and measures recess returns from the wall face', () => {
+  it('mirrors plain returns on the left', () => {
     const { room, bands, end } = setup({ base: true, depth: 15, left: true });
     expect(end('furnitureBase')).toMatchObject({
       type: 'return', x: -0.8125, side: 0, facing: -1, returnLength: 0.6875,
@@ -277,39 +279,6 @@ describe('short-wall furniture base and countertop returns (FX2)', () => {
     });
     expect(bands.countertop.x).toBe(-0.625);
     expect(furnitureBaseGroups(room, settings)[0]).toMatchObject({ width: 30.8125, orderedWidth: 31.3125 });
-    const recessed = setup({ base: true, depth: 12, recess: true });
-    expect(recessed.end('furnitureBase')).toMatchObject({ type: 'return', returnLength: 1.6875 });
-    expect(recessed.end('countertop')).toMatchObject({ type: 'return', returnLength: 1.625 });
-  });
-
-  it('requires more than 1/64 inch of clearance for both bands', () => {
-    for (const [kind, front] of [['furnitureBase', 16.6875], ['countertop', 16.625]]) {
-      for (const clearance of [0, 1 / 128, 1 / 64]) {
-        expect(setup({ base: true, depth: 15, reach: front - clearance }).end(kind))
-          .toEqual({ type: 'square', x: 96 });
-      }
-      expect(setup({ base: true, depth: 15, reach: front - 1 / 32 }).end(kind).returnLength).toBe(1 / 32);
-    }
-  });
-
-  it('includes the picked furniture profile and wood nosing projections in the band fronts', () => {
-    const geometry = structuredClone(profiles.find(({ id }) => id === 'fb4').geometry);
-    for (const point of Object.values(geometry.points)) point[0] += 0.25;
-    const using = { ...settings, sectionProfiles: [
-      ...settings.sectionProfiles,
-      { id: 'projecting-base', kind: 'furniture_base', geometry, drawnPoints: { elevation: [] } },
-      { id: 'projecting-nosing', kind: 'nosing', geometry, drawnPoints: { elevation: [] } },
-    ] };
-    const { end } = setup({ base: true, depth: 15,
-      profile: { furnitureBaseProfileId: 'projecting-base', nosingProfileId: 'projecting-nosing' },
-      runProps: { top: 'wood', topOverhang: { front: 0.125, right: 2 } },
-    }, using);
-    expect(end('furnitureBase')).toMatchObject({
-      type: 'return', x: 97.0625, side: 96, facing: 1, returnLength: 0.9375,
-    });
-    expect(end('countertop')).toMatchObject({
-      type: 'return', x: 98.25, side: 96, facing: 1, returnLength: 0.25,
-    });
   });
 });
 

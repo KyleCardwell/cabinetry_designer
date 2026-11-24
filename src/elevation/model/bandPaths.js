@@ -39,7 +39,7 @@ const PART_KINDS = {
   topMold: 'top_mold', crown: 'crown',
 };
 
-/** The main bands and the section heights passed to runBandEnds, before any end cuts. */
+/** The main bands and their section heights, before any end cuts. */
 function runEntries(room, source, face, settings) {
   const frame = wallSideFrame(room, source, face);
   const view = { ...wallSideView(source, face), length: frame.length };

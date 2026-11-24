@@ -1,26 +1,24 @@
 import { bandPaths } from './bandPaths.js';
 import { attachStrips } from './bandStrips.js';
-import { memberCaps, mitreEdge, sweepBand, viewRun } from './bandSweep.js';
+import { memberCaps, viewRun } from './bandSweep.js';
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
-import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { endLegList } from './endLegs.js';
-import { floorEndOpen, floorOpenings } from './floorOpenings.js';
+import { floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
-import { planPointToWallX, wallFrame } from './geometry.js';
+import { wallFrame } from './geometry.js';
 import { landingProjection } from './landings.js';
 import { legRoom } from './legRoom.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
-import { buildingPaths } from './pathBuilding.js';
 import { outlineBounds } from './sectionProfileOutline.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 import { resolveTopSegments } from './topSegments.js';
-import { wallEndPanelAt, wallSideFrame } from './wallSides.js';
+import { wallEndPanelAt } from './wallSides.js';
 
 export { bandDepths } from './bandDepths.js';
 export { waterfallBand } from './waterfall.js';
@@ -209,86 +207,6 @@ export function waterfallFloorEnd(room, view, run, side, kind, settings) {
 }
 
 /**
- * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold',
- * 'crown' or 'furnitureBase'. Against a run that carries the band on (a top or furniture base at the
- * same height, or a toe kick): the deeper run's band returns as at a free end, and the shallower one's
- * meets it there; at equal depths it
- * runs straight through. A top dies into a taller run. Otherwise: over a wall end panel a top runs past
- * the panel; it stops at a wall or at the side of the recess the run sits in, unless the band's
- * front clears that wall's reach; anything else is free.
- */
-function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
-  const edge = side === 'left' ? run.x : run.x + run.width;
-  const square = { type: 'square', x: edge };
-  const waterfall = waterfallFloorEnd(room, wall, run, side, band, settings);
-  if (waterfall) return waterfall;
-  const returned = (source, end) => {
-    const x = freeEdge(room, wall, source, end, band, settings);
-    const s = end === 'left' ? -1 : 1;
-    return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s,
-      ...(band === 'countertop' ? { countertop: countertopProfile(room, wall, source, settings) } : {}),
-      ...(band === 'furnitureBase' ? { base: runBaseProfile(room, wall, source, settings) } : {}) };
-  };
-  const opposite = side === 'left' ? 'right' : 'left';
-  const furniture = band === 'furnitureBase';
-  const neighbors = touching(wall, run, side, furniture);
-  const boxTop = run.z + run.height;
-  if (band !== 'toeKick' && !furniture
-    && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return square;
-  // A neighbour whose floor opening reaches this joint has no floor base there to meet.
-  const floorEnds = new Map();
-  const floorEnd = (other) => {
-    if (!floorEnds.has(other.id)) {
-      floorEnds.set(other.id, floorEndOpen(other, runScene(room, wall, other, settings), opposite));
-    }
-    return floorEnds.get(other.id);
-  };
-  const floorBand = band === 'toeKick' || furniture;
-  const carriers = neighbors.filter((other) => !(floorBand && floorEnd(other).open) && (furniture
-    ? Math.abs(runBaseProfile(room, wall, other, settings).height - runBaseProfile(room, wall, run, settings).height) <= EPSILON
-    : band === 'toeKick' || Math.abs(other.z + other.height - boxTop) <= EPSILON)
-    && carries(room, wall, other, band, settings));
-  if (carriers.length > 0) {
-    const depth = frontDepth(run, settings);
-    const deepest = carriers.reduce((best, other) => (
-      frontDepth(other, settings) > frontDepth(best, settings) ? other : best));
-    const theirs = frontDepth(deepest, settings);
-    if (depth > theirs + EPSILON) return returned(run, side);
-    if (depth < theirs - EPSILON) return { ...returned(deepest, opposite), type: 'cope' };
-    return square;
-  }
-  if (furniture && neighbors.length > 0) return square;
-  // An open-bottom neighbour's end piece drawn to the floor stops the toe kick at the joint.
-  if (band === 'toeKick' && neighbors.some((other) => floorEnd(other).open && floorEnd(other).onFloor)) {
-    return square;
-  }
-  if (band === 'toeKick'
-    && neighbors.some((other) => carries(room, wall, other, 'furnitureBase', settings))) return square;
-  const joint = profileBandJoint(shapes, run, side, band, z, height, frontDepth(run, settings));
-  if (joint) return joint.relation === 'free' ? returned(run, side) : joint.end;
-  const anchor = run.anchors?.[side];
-  if (band === 'topMold' || band === 'crown' || furniture || band === 'countertop') {
-    const reach = wallReach(room, wall, run, side, settings);
-    const { picked, overhangs } = band === 'countertop' ? countertopProfile(room, wall, run, settings) : {};
-    const front = frontDepth(run, settings) + (band === 'countertop'
-      ? overhangs.front + nosingProjection(picked) : bandPast(room, wall, run, side, band, settings));
-    if (reach !== null && front > reach + 1 / 64) {
-      return { ...returned(run, side), returnLength: front - reach };
-    }
-  }
-  if (anchor === true && !isOpenWallEnd(room, wall, run, side, settings)) {
-    if (cornerAt(room, wall, side).type === 'outside') return returned(run, side);
-    if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
-    const past = bandPast(room, wall, run, side, band, settings);
-    return { type: 'return', x: side === 'left' ? -past : wall.length + past,
-      side: side === 'left' ? 0 : wall.length, facing: side === 'left' ? -1 : 1 };
-  }
-  if (anchor?.to === 'wall') return square;
-  if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return square;
-  return returned(run, side);
-}
-
-/**
  * A run anchored to an open wall end with no wall end panel has nothing beyond it,
  * so its bands end as at a free end, regardless of wall thickness.
  */
@@ -308,7 +226,7 @@ export function waterfallEnds(room, wall, run, settings) {
     const pick = run.waterfall[side];
     if (!pick || typeof pick !== 'object' || Array.isArray(pick)) continue;
     const anchor = run.anchors?.[side];
-    // Do not resolve bandEdge's return here: its overhang consults waterfallEnds.
+    // Check blockers directly: resolving a return's overhang consults waterfallEnds.
     const blocked = touching(wall, run, side).length > 0
       || (anchor === true && !isOpenWallEnd(room, wall, run, side, settings))
       || anchor?.to === 'wall' || anchor?.to === 'recess'
@@ -318,58 +236,6 @@ export function waterfallEnds(room, wall, run, settings) {
     else result[side] = { baseToLeg: pick.baseToLeg === true };
   }
   return result;
-}
-
-export function runBandEnds(room, wall, run, settings, scene, kind, z, height,
-  shapes = lazyCornerShapes(room, wall, settings), path) {
-  const { panelBySide } = scene;
-  const runEnd = run.x + run.width;
-  const panelStart = panelBySide.left
-    ? Math.min(panelBySide.left.x, run.x)
-    : null;
-  const panelEnd = panelBySide.right
-    ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
-    : null;
-  /**
-   * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
-   * return's band (SPEC-42.3); otherwise bandEdge.
-   */
-  const left = (panelStart === null ? null : { type: 'square', x: panelStart })
-    ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
-    ?? bandEdge(room, wall, run, 'left', kind, settings, z, height, shapes);
-  const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
-    ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
-    ?? bandEdge(room, wall, run, 'right', kind, settings, z, height, shapes);
-  let mitres;
-  if ((path || !buildingPaths()) && ['crown', 'topMold', 'toeKick'].includes(kind)
-    && room.walls.find(({ id }) => id === wall.id)?.runs.includes(run)) {
-    if (!path) {
-      const paths = bandPaths(room, settings);
-      const id = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
-      path = paths.paths.find((path) => path.id === id && Math.abs(path.height - height) <= EPSILON);
-    }
-    const memberIndex = path?.segments.findIndex((segment) => segment.runId === run.id && !segment.corner && !segment.return);
-    const segment = path?.segments[memberIndex];
-    mitres = ['left', 'right'].map((side) => {
-      if (!segment) return null;
-      const end = segment[side === 'left' ? 'from' : 'to'];
-      const index = path.vertices.findIndex(({ type, at }, i) => type === 'mitre'
-        && (i === memberIndex || i + 1 === memberIndex)
-        && Math.hypot(at.x - end.x, at.y - end.y) <= EPSILON);
-      const pair = path.segments.slice(index, index + 2);
-      const stepped = pair.some((segment) => segment.return);
-      if (index < 0 || pair.length !== 2 || (!stepped && (pair[0].wallId === pair[1].wallId
-        || Math.abs(pair[0].front - pair[1].front) <= 1 / 32))) return null;
-      const sweep = sweepBand(room, path, settings);
-      const member = sweep.segments.find((segment) => segment.runId === run.id && !segment.corner && !segment.return);
-      const frame = wallSideFrame(room, wall, wall.side ?? 'front');
-      const x = planPointToWallX(frame, end);
-      const today = side === 'left' ? left : right;
-      return { type: 'mitre', x: Math.abs(x - today.x) <= EPSILON ? today.x : x,
-        outline: mitreEdge(sweep, index, member, frame) };
-    });
-  }
-  return [mitres?.[0] ?? left, mitres?.[1] ?? right];
 }
 
 /** Floor-base spans, retaining the run's outer ends and returning at each opening. */

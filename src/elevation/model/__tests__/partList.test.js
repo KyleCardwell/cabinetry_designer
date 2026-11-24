@@ -175,7 +175,6 @@ async function builderSplit(room, settings, freshSource) {
     // Attribute nested calls to the outermost imported function used by bandPaths.
     const dependencies = [
       [import('../bandParts.js'), 'bandFronts'],
-      [import('../cornerBands.js'), 'cornerBandEdge', 'lazyCornerShapes', 'profileBandJoint'],
       [import('../corners.js'), 'cornerAt', 'cornerEndActive', 'frontDepth', 'runBackOffset'],
       [import('../floorOpenings.js'), 'floorEndOpen'],
       [import('../furnitureBase.js'), 'runBase'],

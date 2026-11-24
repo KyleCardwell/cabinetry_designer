@@ -13,7 +13,7 @@ import { gridFromItems } from '../../elevation/model/grid.js';
 import { splitSection } from '../../elevation/model/interiorTree.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
-import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
+import { runBands } from '../../elevation/model/runBands.js';
 import * as sceneModel from '../../elevation/model/runScene.js';
 import * as shelfModel from '../../elevation/model/shelves.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
@@ -1692,10 +1692,9 @@ describe('molding rows (RP2)', () => {
 
   it('uses the band width of a square-ended 96-inch crown', () => {
     const r = upper();
-    const { wall, run, scene, bands } = bandsOf(r);
+    const { bands } = bandsOf(r);
     expect(bands.crown.width).toBe(96);
     for (const kind of ['topMold', 'crown']) {
-      expect(bands[kind].ends).toEqual(runBandEnds(r, wall, run, settings, scene, kind, bands[kind].z));
       expect(bands[kind].ends.map(({ type }) => type)).toEqual(['square', 'square']);
       expect(row(r, `molding:${kind}`).size).toBe('8 feet\nsend 1 extra length');
     }

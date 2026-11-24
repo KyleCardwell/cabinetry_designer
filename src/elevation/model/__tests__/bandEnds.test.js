@@ -6,7 +6,6 @@ import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../
 import { runItems } from '../grid.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from '../bandEnds.js';
 import { bandParts } from '../bandParts.js';
-import { cornerBandEdge, lazyCornerShapes } from '../cornerBands.js';
 import { toDrawingPayload } from '../drawingPayload.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
@@ -101,14 +100,10 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
   });
 
   it('copes on the actual inside corner return, measured from the corner at zero', () => {
-    const { room, wall, bands: [{ crown }] } = setup({ corner: true });
+    const { bands: [{ crown }] } = setup({ corner: true });
     expect(crown.outline).toEqual([[13.625, 92.5, 0], ...CROWN.slice(1, 5),
       [16.125, 96, 0], [16.125, 95.5, 0.414214], [13.625, 93, 0]]);
     expect(crown.lines).toEqual([line(16.125, 69.25, 95.5), line(13.625, 66.75, 93)]);
-    const end = cornerBandEdge(lazyCornerShapes(room, wall, settings), wall.runs[0], 'left', 'crown', 92.5);
-    expect(end).toMatchObject({ type: 'cope', x: 16.125 });
-    expect(end.outline).toEqual([[13.125, 96, 0], [16.125, 96, 0], [16.125, 95.5, 0.414214],
-      [13.625, 93, 0], [13.625, 92.5, 0], [13.125, 92.5, 0]]);
   });
 
   it('omits both bands when both picks are None', () => {

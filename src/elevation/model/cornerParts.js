@@ -24,7 +24,7 @@ const BODY = new Set(['box', 'faces']);
 const BANDS = { toe_kick: 'toeKick', furniture_base: 'furnitureBase', countertop: 'countertop',
   top_mold: 'topMold', crown: 'crown' };
 
-/** Apply the profile junctions stored on the path ends, retaining raw pieces for band lookup. */
+/** Apply the profile junctions stored on the path ends. */
 function joinedProfileBands(room, wall, settings, shapes) {
   if (buildingPaths()) throw new Error('joinedProfileBands ran while buildingPaths() is true');
   const { ends } = bandPaths(room, settings);
@@ -146,7 +146,6 @@ export function landedReturns(room, view) {
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
 export function cornerShapes(room, wall, side, settings, options) {
-  if (buildingPaths() && options?.legBands !== false) options = { ...options, legBands: false };
   const cache = buildCacheFor(room);
   if (!cache) return buildCornerShapes(room, wall, side, settings, options);
   return cache.cornerShapes(room, wall, side, settings, options,
@@ -154,7 +153,7 @@ export function cornerShapes(room, wall, side, settings, options) {
 }
 
 function buildCornerShapes(room, wall, side, settings,
-  { profiles: includeProfiles = true, throughBands = false, legBands = true, returns: returnMode, combined } = {}) {
+  { throughBands = false, returns: returnMode, combined } = {}) {
   const view = resolveWall(room, wall, side);
   const endView = (returnMode ?? returnsView(room, elevationKey(view.id, view.side))) === 'end';
   const jogs = jogWalls(room, combined);
@@ -165,8 +164,7 @@ function buildCornerShapes(room, wall, side, settings,
   const shapes = [];
 
   // The owner's return leg is seen end-on even when no neighbouring run joins it.
-  // Shapes made while the band paths are built or swept leave these out (legBands: false): they come from those paths (D4 d).
-  for (const run of legBands ? view.runs : []) {
+  for (const run of view.runs) {
     for (const end of ['left', 'right']) {
       const corner = cornerEnd(room, view, run, end, settings);
       if (!corner?.active || !corner.shape || !corner.columnId) continue;
@@ -297,8 +295,6 @@ function buildCornerShapes(room, wall, side, settings,
     });
   }
 
-  // End views resolve their band ends against returns without recursively building other profiles.
-  if (!includeProfiles) return shapes;
   const profiles = [];
   const handled = new Set();
   for (const endpoint of ['start', 'end']) {

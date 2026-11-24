@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandFronts, bandParts } from '../bandParts.js';
-import { cornerBandTurns } from '../cornerBands.js';
+import { cornerBandTurns } from '../cornerLegBands.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { cornerEnd, normalizeCornerEnd } from '../cornerEnd.js';
 import { resolveWall, syncRoom } from '../room.js';
