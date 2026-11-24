@@ -23,7 +23,7 @@ function baseEntries(room, wall, run, settings) {
     const bandEnds = ends.map((end, index) => {
       const side = index === 0 ? 'left' : 'right';
       let x = index === 0 ? band.x : band.x + band.width;
-      if (end.type === 'cope' && end.outline) {
+      if (!['return', 'square'].includes(end.type) && end.outline) {
         x = endEdgeX(frontContour(end.outline, index === 0 ? 1 : -1), 0, index === 0 ? 1 : -1);
       }
       if (end.returnLength != null) x = end.side;

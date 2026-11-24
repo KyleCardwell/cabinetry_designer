@@ -86,7 +86,7 @@ describe('short-wall molding returns (DM5)', () => {
   });
 
   it('gives a matching corner crown return precedence over a short wall', () => {
-    expect(setup({ neighbor: true }).end('crown').type).toBe('cope');
+    expect(setup({ neighbor: true }).end('crown').type).toBe('mitre');
   });
 
   it('mirrors left returns and projects angled wall lengths toward the room', () => {

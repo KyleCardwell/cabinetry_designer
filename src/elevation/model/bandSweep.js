@@ -12,7 +12,7 @@ import { add, dot, normalize, planPointToWallX, scale, subtract } from './geomet
 import { moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
-import { bandPast, freeEdge, runBandEnds, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds, waterfallFloorEnd } from './runBands.js';
+import { bandPast, freeEdge, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds, waterfallFloorEnd } from './runBands.js';
 import { runScene } from './runScene.js';
 import { arcExtremes, flattenOutline, outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { topOverhangs } from './topOverhang.js';
@@ -77,7 +77,8 @@ function capFor(room, path, rule, view, settings) {
     const x = freeEdge(room, view, source, end, kind, settings);
     // An explicit plain source must not inherit the receiving run's profile at a cope.
     return { type, x, side: x - facing * bandPast(room, view, source, end, kind, settings), facing,
-      source: sectionFor(room, view, source, kind, settings, end) ?? {} };
+      source: sectionFor(room, view, source, kind, settings, end) ?? {},
+      ...(kind === 'furnitureBase' ? { base: runBaseProfile(room, view, source, settings) } : {}) };
   };
   // Switching mitre-only paths retains their profiled cap at a solid. Toe kicks
   // instead die into that solid without the free-end setback.
@@ -138,7 +139,7 @@ function runSweepDetails(room, view, run, kind, settings, origin) {
 }
 
 /** Resolve each corner member in its own face, retaining the owner's section on leg B. */
-function cornerSweep(room, path, settings) {
+function cornerSweep(room, path, settings, details = true) {
   const segments = path.segments.map((segment) => {
     const wall = room.walls.find(({ id }) => id === segment.wallId);
     let frame = wallSideFrame(room, wall, segment.face);
@@ -166,7 +167,7 @@ function cornerSweep(room, path, settings) {
         n: scale(frame.r, segment.returnSide === 'left' ? -1 : 1) };
     }
     return { ...segment, frame, section, band,
-      ...(!segment.corner && !segment.return ? runSweepDetails(room, view, run, path.kind, settings, segment.x1) : {}) };
+      ...(details && !segment.corner && !segment.return ? runSweepDetails(room, view, run, path.kind, settings, segment.x1) : {}) };
   });
   const caps = [path.start, path.end].map((rule, index) => {
     const segment = index === 0 ? segments[0] : segments.at(-1);
@@ -217,6 +218,40 @@ function sweepBandOf(room, path, settings) {
       cutouts: details.flatMap(({ cutouts }) => cutouts).sort((a, b) => a.x0 - b.x0),
     } : {}),
   };
+}
+
+/** A member's public ends from its caps, without building cutouts or another member view. */
+export function memberCaps(room, path, view, run, settings, sweep) {
+  const index = path.segments.findIndex((segment) => segment.wallId === view.id
+    && segment.face === (view.side ?? 'front') && segment.runId === run.id && !segment.corner && !segment.return);
+  if (index < 0) return [];
+  const segment = path.segments[index];
+  const frame = wallSideFrame(room, view, segment.face);
+  return ['left', 'right'].map((side, endIndex) => {
+    const capIndex = [path.start, path.end].findIndex((end, capIndex) =>
+      index === (capIndex === 0 ? 0 : path.segments.length - 1)
+      && end.runId === run.id && end.side === side);
+    if (capIndex >= 0) {
+      const cap = sweep?.caps[capIndex] ?? capFor(room, path, [path.start, path.end][capIndex], view, settings);
+      const { source, ...end } = cap;
+      const type = cap.type === 'die-in' ? 'square'
+        : cap.type === 'waterfall' ? (path.kind === 'countertop' ? 'return' : 'square') : cap.type;
+      const fields = type === 'square' ? { type, x: end.x } : { ...end, type };
+      return { ...fields, ...(source?.outline ? { outline: source.outline } : {}),
+        ...(source?.edge ? { edge: source.edge } : {}) };
+    }
+    const at = segment[side === 'left' ? 'from' : 'to'];
+    const joint = path.vertices.findIndex((vertex, i) => (i === index || i + 1 === index)
+      && Math.hypot(vertex.at.x - at.x, vertex.at.y - at.y) <= EPSILON);
+    const x = planPointToWallX(frame, at);
+    const type = path.vertices[joint]?.type ?? 'joined';
+    const end = { type, x, side: x, facing: endIndex === 0 ? -1 : 1 };
+    if (type !== 'mitre') return { ...end, edge: [[x, path.z, 0], [x, path.z + path.height, 0]] };
+    // Floor spans also resolve while a sweep's cutouts are being built. Only the
+    // section geometry is needed here, so that lookup never builds those cutouts again.
+    sweep ??= cornerSweep(room, path, settings, false);
+    return { ...end, outline: mitreEdge(sweep, joint, sweep.segments[index], frame) };
+  });
 }
 
 /** The return's outward normal projected onto the viewing face's horizontal axis. */
@@ -480,11 +515,12 @@ function cornerMemberView(room, path, sweep, member, settings) {
   };
   const band = project(memberSweep.caps);
   const scene = runScene(room, view, run, settings);
-  return splitRunView(room, path, view, run, settings, scene, memberSweep, band, project);
+  return splitRunView(room, path, view, run, settings, scene, memberSweep, band, project,
+    memberCaps(room, path, view, run, settings, sweep));
 }
 
 /** D3's run splitting, shared by straight, joined and corner-owner members. */
-function splitRunView(room, path, view, run, settings, scene, sweep, band, project) {
+function splitRunView(room, path, view, run, settings, scene, sweep, band, project, ends) {
   let pieces = [band];
   if (path.kind === 'countertop') {
     const top = runTop(view, run, resolveProfile(settings, room, view));
@@ -494,7 +530,7 @@ function splitRunView(room, path, view, run, settings, scene, sweep, band, proje
     pieces = segmentedCountertop(run, scene, top, surface).countertops;
   } else if (sweep.gaps.length && ['toeKick', 'furnitureBase'].includes(path.kind)) {
     const base = runBase(room, view, run, settings, scene);
-    pieces = runBaseSpans(room, view, run, settings, scene, path.kind, base)
+    pieces = runBaseSpans(run, settings, scene, path.kind, base, sweep.caps)
       .filter(({ ends: [left, right] }) => right.x > left.x + EPSILON)
       .map(({ start, end, ends }) => {
         const caps = ends.map((cap, index) => {
@@ -504,8 +540,7 @@ function splitRunView(room, path, view, run, settings, scene, sweep, band, proje
         return project(caps);
       }).filter((piece) => piece.width > EPSILON);
   }
-  return { ...band, pieces,
-    ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height, undefined, path) };
+  return { ...band, pieces, ends };
 }
 
 /** A member's wall view, split at top inserts or open floor spans. */
@@ -539,7 +574,8 @@ function viewRunOf(room, path, runId, settings) {
   const band = viewFromWall(room, memberSweep, wall, segment.face);
   if (!band) return null;
   return splitRunView(room, path, view, run, settings, scene, memberSweep, band,
-    (caps) => viewFromWall(room, { ...memberSweep, caps }, wall, segment.face));
+    (caps) => viewFromWall(room, { ...memberSweep, caps }, wall, segment.face),
+    memberCaps(room, path, view, run, settings, sweep));
 }
 
 const legPaths = new WeakMap();

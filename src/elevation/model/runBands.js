@@ -1,6 +1,6 @@
 import { bandPaths } from './bandPaths.js';
 import { attachStrips } from './bandStrips.js';
-import { mitreEdge, sweepBand, viewRun } from './bandSweep.js';
+import { memberCaps, mitreEdge, sweepBand, viewRun } from './bandSweep.js';
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
@@ -373,8 +373,7 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height,
 }
 
 /** Floor-base spans, retaining the run's outer ends and returning at each opening. */
-export function runBaseSpans(room, wall, run, settings, scene, kind, base) {
-  const outer = runBandEnds(room, wall, run, settings, scene, kind, 0, base.height);
+export function runBaseSpans(run, settings, scene, kind, base, outer) {
   const segments = [];
   const depths = bandDepths(settings);
   const openingEnd = (x, side, neighbour) => {
@@ -405,7 +404,13 @@ export function runBaseSpans(room, wall, run, settings, scene, kind, base) {
 
 /** Draw the retained floor-base spans with today's profiles and cutouts. */
 export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
-  return runBaseSpans(room, wall, run, settings, scene, kind, base).map((segment) => {
+  const { paths } = bandPaths(room, settings);
+  const path = paths.find((path) => path.kind === kind && Math.abs(path.height - base.height) <= EPSILON
+    && path.segments.some((segment) => segment.wallId === wall.id && segment.face === (wall.side ?? 'front')
+      && segment.runId === run.id && !segment.corner && !segment.return));
+  if (!path) return [];
+  const outer = memberCaps(room, path, wall, run, settings);
+  return runBaseSpans(run, settings, scene, kind, base, outer).map((segment) => {
     const [left, right] = segment.ends;
     const band = kind === 'furnitureBase' ? furnitureBaseBand(base, segment.ends)
       : { x: left.x, z: 0, width: right.x - left.x, height: base.height };
