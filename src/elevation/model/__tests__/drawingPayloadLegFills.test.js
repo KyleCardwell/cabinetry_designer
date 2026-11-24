@@ -93,10 +93,10 @@ describe('leg fill drawing payloads (SH7.2)', () => {
 
   it('preserves the entire payload without fills, with and without legs', () => {
     // Captured before step c, including elevation parts and plan parts/shapes; PT2 c changed only the top lines.
-    // GC5: part number placement
+    // GC5: part number placement; GC5.2: smaller plan elevation markers
     for (const [legs, hash] of [
-      [four, '65e8f13c2dcb8a250e1e9b353cd5d52d9753dfbd10e6c6c095f2448bc8692c9e'],
-      [[], 'a8d0978686bac67812b702c6ff3887eee6af9bf8c1d683d2fbe950ed77f7cdcb'],
+      [four, '9585ddd6f808b8f4d3b9f04d7a66ef70cd4514d939a88f57747c8b14d4bb35fc'],
+      [[], '4177ef76908322e8ac7e7b3b74ed4093a621debc6bd2790632133bed39891de9'],
     ]) {
       const input = room({ walls: [wall({ ...W, runs: [run({ ...R, legs })] })] });
       expect(createHash('sha256').update(JSON.stringify(toDrawingPayload(input, settings))).digest('hex')).toBe(hash);

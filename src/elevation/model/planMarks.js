@@ -9,14 +9,14 @@ import { openingPlanDepths, recessGeometry, recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { formatInches } from './units.js';
 import {
-  PLAN_MARKER_CLEARANCE, PLAN_MARKER_HALF_BASE, planSideReach, planWallRows,
+  PLAN_MARKER_CLEARANCE, PLAN_MARKER_HALF_BASE, PLAN_MARKER_SCALE, planSideReach, planWallRows,
 } from './planDimensions.js';
 import { WALL_SIDES, wallSideFrame } from './wallSides.js';
 
 /** Paper inches a marker moves along its wall when its face has no runs (the canvas's MARKER_SHIFT). */
 const PLAN_MARKER_SHIFT = 0.5;
-// Keep today's preferred point past the rows, independently of the new symbol's tip.
-const PLAN_MARKER_REST_REACH = 0.4375;
+// Preferred point past the rows, scaled with the symbol.
+const PLAN_MARKER_REST_REACH = 0.4375 * PLAN_MARKER_SCALE;
 
 const EPSILON = 1e-6;
 const up = (point) => [point.x + 0, 0 - point.y];
@@ -147,8 +147,12 @@ export function planMarkPlacementInput(dimensions, marks, parts, scale) {
         || one.a - two.a || two.b - one.b);
       items.push({
         key: `mark:${i}`, at: mark.at, axes: [u, v],
-        half: [0.35 * scale, PLAN_MARKER_HALF_BASE * scale], shift: times(u, 0.1 * scale),
-        steps: candidates.map(({ a, b }) => add(times(u, -a * 0.7625 * scale), times(v, b * 0.8125 * scale))),
+        half: [0.35 * PLAN_MARKER_SCALE * scale, PLAN_MARKER_HALF_BASE * scale],
+        shift: times(u, 0.1 * PLAN_MARKER_SCALE * scale),
+        steps: candidates.map(({ a, b }) => add(
+          times(u, -a * 0.7625 * PLAN_MARKER_SCALE * scale),
+          times(v, b * 0.8125 * PLAN_MARKER_SCALE * scale),
+        )),
       });
     });
   return {

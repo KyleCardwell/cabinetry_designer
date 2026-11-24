@@ -190,21 +190,21 @@ const dm1Rows = (room) => planDimensions(room, settings).filter(({ row }) => WAL
 const through = (room) => planDimensions(room, settings).filter(({ row }) => row === 'through');
 
 describe('anchors (DM1)', () => {
-  it('keeps a perimeter wall row at 13 1/2 and marker A at 41 3/8', () => {
+  it('keeps a perimeter wall row at 13 1/2 and places the smaller marker A at 37.175 (GC5.2)', () => {
     const room = dm1Room({ back: false });
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 13.5], [96, 13.5]]]);
-    expect(marks(room)).toContainEqual(markerAt([48, -41.375], 'A'));
+    expect(marks(room)).toContainEqual(markerAt([48, -37.175], 'A'));
   });
 
-  it('puts island rows at 38 3/8 and the back marker at 57 7/8', () => {
+  it('puts island rows at 38 3/8 and the smaller back marker at 53.675 (GC5.2)', () => {
     const room = dm1Room();
     expect(planSideReach(room, room.walls[0], 'back', settings)).toBe(24.875);
     expect(dm1Rows(room).map(lineEnds)).toEqual([[[0, 38.375], [96, 38.375]]]);
-    expect(marks(room)).toContainEqual(markerAt([48, 57.875], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 53.675], 'B', [0, -1]));
     expect(through(room)).toEqual([]);
   });
 
-  it('labels the window at depth -32, rows at 38 3/8 and 47 3/8, marker at 66 7/8', () => {
+  it('labels the window at depth -32, rows at 38 3/8 and 47 3/8, smaller marker at 62.675 (GC5.2)', () => {
     const room = dm1Room({ window: true });
     const rows = dm1Rows(room);
     expect(rows.filter(({ row }) => row === 'front').map((row) => lineEnds(row)[0][1]))
@@ -213,7 +213,7 @@ describe('anchors (DM1)', () => {
     expect(marks(room)).toContainEqual({
       kind: 'label', at: [48, 32], text: 'W1 · 36"', rotation: 0,
     });
-    expect(marks(room)).toContainEqual(markerAt([48, 66.875], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 62.675], 'B', [0, -1]));
   });
 
   it('measures through the start panel from -29 3/8 to +24 7/8, 9 past its outer edge', () => {
@@ -271,16 +271,16 @@ describe('anchors (DM1)', () => {
     }
   });
 
-  it('keeps markers past moved text levels on both sides', () => {
+  it('keeps smaller markers past moved text levels on both sides (GC5.2)', () => {
     const room = dm1Room({ window: true });
     room.walls[0].openings[0].offset = 1;
-    expect(marks(room)).toContainEqual(markerAt([48, 70.625], 'B', [0, -1]));
+    expect(marks(room)).toContainEqual(markerAt([48, 66.425], 'B', [0, -1]));
     room.walls[0].recesses = [{
       id: 'back-recess', label: 'R1', kind: 'recess', wallSide: 'back',
       width: 2, depth: 6, bottom: 0, height: null, offset: 30, offsetFrom: 'left',
     }];
     // Front runs reach 24 7/8; one back row, one moved-text level, then the marker's symbol.
-    expect(marks(room)).toContainEqual(markerAt([48, -57.125], 'A'));
+    expect(marks(room)).toContainEqual(markerAt([48, -52.925], 'A'));
   });
 
   it('labels recesses and projections past the opposite runs, including a recess bump-out', () => {

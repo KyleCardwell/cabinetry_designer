@@ -189,13 +189,14 @@ describe('DM8 step b end-view panel payload', () => {
 // GC4: opaque wall solids
 // GC5: part number placement
 // GC5.1: plan mark placement
+// GC5.2: smaller plan elevation markers
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': 'e82c1e88920be380ba1b4bfc8b6772de9205bee2efbf88cb35be52f113c04436',
-  'G2 Face frame kitchen': '52e555bf79b43848f1b8922be2b0afea906f53962d17d4bb6f99f400b0300d76',
-  'G3 Bath alcove': '25c004dda428e80b385e273dd28fc8fbef0932020201c1e5420dc08407ee61a9',
-  'G4 T-filler run': 'dd3128076e119384cc318a16cae0aaa28ca9e7c9bcd781e92a752fb065724cd9',
-  'G5 Recess room': '67aa07c8845af0597643edc685d0f9834b77ee1e91d576da9c8428608d873f4a',
-  'G6 Stacked runs': '94b5ffea54656e17ac948aba63c80ad0230d1496652b613e24c1b66b38b85ae5',
+  'G1 Euro kitchen': 'b9ad84ac2b063e2bbe1a8032bd5ff5216acdedbb135f84d84a3939f2ab663cf6',
+  'G2 Face frame kitchen': '4a0fe077a0de261b7aae418da976ec89565918e5066b9409df2da3764538859a',
+  'G3 Bath alcove': 'ca847f434b3fded3c5cec4449e2df66b705e5db3970689d0a67b0bf920e9a6b8',
+  'G4 T-filler run': 'a9776abec71021ef26580fac45daa611e13b33ae514ba6ff10820772636030ab',
+  'G5 Recess room': '6d7c0208f890eb9124d7e80ed501a59f4a57cd75a712a4ea61415e760656388a',
+  'G6 Stacked runs': '6667e43e4d4e7d18d4493cac4c638d5ee950aac70e28d816516b9a34f1b01554',
 };
 
 // GC5.2's depth text moves are covered by the payload goldens; restore their old positions

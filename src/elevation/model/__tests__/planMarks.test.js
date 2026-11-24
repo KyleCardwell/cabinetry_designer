@@ -19,12 +19,12 @@ const marks = (room, use = settings) => {
 const marker = (at, text, direction) => ({ kind: 'elevation', at, text, direction });
 
 describe('SPEC-45.1 elevation markers and labels in plan', () => {
-  it('puts each lettered face\'s marker past its runs and dimension rows (G1)', () => {
+  it('puts each lettered face\'s marker past its runs and dimension rows (GC5.2)', () => {
     expect(marks(stored('G1 Euro kitchen'))).toEqual([
-      marker([-17.625, -25.53125], 'A', [-1, 0]),
-      marker([6.4375, 42.625], 'B', [0, 1]),
-      marker([74.75, 37.5], 'C', [0, -1]),
-      marker([55.25, -45.25], 'D', [0, 1]),
+      marker([expect.closeTo(-21.825, 10), -17.73125], 'A', [-1, 0]),
+      marker([6.4375, 46.825], 'B', [0, 1]),
+      marker([43.55, 33.3], 'C', [0, -1]),
+      marker([55.25, -41.05], 'D', [0, 1]),
       { kind: 'label', at: [-67.125, -12], text: 'W1 · 48"', rotation: 90 },
     ]);
   });
@@ -39,22 +39,22 @@ describe('SPEC-45.1 elevation markers and labels in plan', () => {
     ]);
   });
 
-  it('sizes the symbol and the label gap for paper at the plot scale (G4 at 1/4" = 1\'-0")', () => {
-    expect(marks(stored('G4 T-filler run'))).toEqual([marker([6.5, -18.8125], 'A', [0, 1])]);
+  it('sizes smaller markers for paper at both plot scales (GC5.2)', () => {
+    expect(marks(stored('G4 T-filler run'))).toEqual([marker([6.5, expect.closeTo(-14.6125, 10)], 'A', [0, 1])]);
     expect(marks(stored('G4 T-filler run'), { ...settings, plotScale: 48 }))
-      .toEqual([marker([-32.5, -29.3125], 'A', [0, 1])]);
+      .toEqual([marker([6.5, -20.9125], 'A', [0, 1])]);
   });
 
-  it('places a forced face marker clear of the surrounding plan (GC5.1)', () => {
+  it('places a forced face marker clear of the surrounding plan (GC5.2)', () => {
     const room = structuredClone(stored('G1 Euro kitchen'));
     room.walls.find(({ id }) => id === '8cf88b99-0a56-4ec4-96c2-ffdcaeef4051').elevationForced = true;
     expect(marks(room).filter(({ kind }) => kind === 'elevation').map(({ text, at }) => [text, at])).toEqual([
-      ['A', [-17.625, -25.53125]],
-      ['B', [6.4375, 42.625]],
+      ['A', [expect.closeTo(-21.825, 10), -17.73125]],
+      ['B', [6.4375, 46.825]],
       // Its preferred point is blocked; the clear candidate is outward and sideways.
-      ['C', [expect.closeTo(-11.4, 10), 19.5]],
-      ['D', [74.75, 37.5]],
-      ['E', [55.25, -45.25]],
+      ['C', [47.7, 46.8]],
+      ['D', [43.55, 33.3]],
+      ['E', [55.25, -41.05]],
     ]);
   });
 });

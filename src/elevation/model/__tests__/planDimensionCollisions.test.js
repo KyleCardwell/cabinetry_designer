@@ -56,7 +56,6 @@ it('clears golden plan marks and moved text except named candidate fallbacks (GC
   const expectedFallbacks = {
     N1: [{ text: '13/16', hits: 1 }, { text: '4 1/2', hits: 2 }],
     N3: [{ text: '12 7/8', hits: 1 }],
-    N4: [{ text: 'E', hits: 2 }, { text: 'G', hits: 2 }],
   };
   for (const { key, load } of goldenRooms()) {
     const { room, settings } = load();
@@ -82,8 +81,8 @@ it('clears golden plan marks and moved text except named candidate fallbacks (GC
       const v = [-u[1], u[0]];
       const marker = mark.kind === 'elevation';
       movable.push({ key: `mark:${i}`, box: grow({
-        center: mark.at.map((value, axis) => value + (marker ? u[axis] * 0.1 * scale : 0)),
-        axes: [u, v], half: marker ? [0.35 * scale, 0.375 * scale]
+        center: mark.at.map((value, axis) => value + (marker ? u[axis] * 0.06 * scale : 0)),
+        axes: [u, v], half: marker ? [0.21 * scale, 0.225 * scale]
           : [mark.text.length * 0.5 * (3 / 32) * scale / 2, (3 / 32) * scale / 2],
       }) });
     });

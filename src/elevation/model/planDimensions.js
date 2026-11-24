@@ -12,11 +12,12 @@ import { wallFaceSegments } from './wallFaceRow.js';
 import { wallBuiltEnds, wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
 
-/** Elevation marker paper inches (GC5.1): radius, tip beyond the circle, half base and letter height. */
-export const PLAN_MARKER_RADIUS = 0.25;
-export const PLAN_MARKER_FLAG = 0.2;
-export const PLAN_MARKER_HALF_BASE = 0.375;
-export const PLAN_MARKER_TEXT = 0.2;
+/** Elevation marker paper inches at canvas proportions (GC5.2). */
+export const PLAN_MARKER_SCALE = 0.6;
+export const PLAN_MARKER_RADIUS = 0.25 * PLAN_MARKER_SCALE;
+export const PLAN_MARKER_FLAG = 0.2 * PLAN_MARKER_SCALE;
+export const PLAN_MARKER_HALF_BASE = 0.375 * PLAN_MARKER_SCALE;
+export const PLAN_MARKER_TEXT = 0.2 * PLAN_MARKER_SCALE;
 /** Drawing inches from a face's deepest run to its marker (the canvas's MARKER_CLEARANCE). */
 export const PLAN_MARKER_CLEARANCE = 6;
 
