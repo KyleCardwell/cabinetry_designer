@@ -5,8 +5,7 @@ import { DEFAULT_SETTINGS } from './constants.js';
 import { elevationToPlan, lineIntersection, planPointToWallX, wallLength } from './geometry.js';
 import { compareRuns } from './parts.js';
 import { resolveProfile } from './profile.js';
-import { isOpenWallEnd, runBandEnds, waterfallEnds } from './runBands.js';
-import { runScene } from './runScene.js';
+import { isOpenWallEnd, waterfallEnds } from './runBands.js';
 import { runTop } from './tops.js';
 import { wallNumbers } from './topology.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
@@ -16,7 +15,6 @@ const same = (a, b) => Math.abs(a - b) <= EPSILON;
 
 const SIDES = ['left', 'right'];
 const pathEndKey = (member, path, end) => `${member.memberKey ?? member.runId}|countertop|${path.z}|${end}`;
-const isVertexEnd = (rule) => ['joined', 'mitre', 'turn', 'step'].includes(rule?.type);
 
 function topEntries(room, source, side, settings, members, pathEnds) {
   const wall = { ...wallSideView(source, side), length: wallLength(source) };
@@ -29,12 +27,8 @@ function topEntries(room, source, side, settings, members, pathEnds) {
       && (segments.get(band.id)?.kind ?? top.kind) === 'wood');
     if (!woodBands.length) return [];
     const waterfall = waterfallEnds(room, wall, run, settings);
-    const scene = runScene(room, wall, run, settings);
     return woodBands.map((band) => {
       const segment = segments.get(band.id);
-      const z = segment ? band.z : run.z + run.height;
-      const height = segment ? band.height : top.height;
-      const ends = runBandEnds(room, wall, run, settings, scene, 'countertop', z, height);
       const match = members.get(`${source.id}|${side}|${run.id}`);
       const { path, member } = match && same(band.z + band.height, match.path.z + match.path.height)
         ? match : {};
@@ -45,8 +39,9 @@ function topEntries(room, source, side, settings, members, pathEnds) {
         const anchor = run.anchors?.[endSide];
         // A wall-end anchor can be pushed inward to a taller return's face (Room 9).
         const atWallEnd = index === 0 ? same(run.x, 0) : same(run.x + run.width, wall.length);
-        return reachesEnd && ends[index].type === 'square'
-          && !isVertexEnd(member && pathEnds.get(pathEndKey(member, path, endSide)))
+        const endType = member && pathEnds.get(pathEndKey(member, path, endSide))?.type;
+        // Only die-in and square path rules map to square countertop ends.
+        return reachesEnd && ['die-in', 'square'].includes(endType)
           && ((anchor === true && atWallEnd && !isOpenWallEnd(room, wall, run, endSide, settings))
             || anchor?.to === 'wall'
             || (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId));
