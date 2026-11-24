@@ -55,7 +55,17 @@ function setup({ profile = picks, runs = [{}], corner = false, neighborProfile =
   // Test the specified x=30 band end; syncing an anchor normally moves the run to the corner.
   if (corner) room.walls[0].runs[0].x = runs[0].x ?? 30;
   const view = resolveWall(room, room.walls[0]);
-  const bandsOf = (run, scene = runScene(room, view, run, using)) => runBands(room, view, run, using, scene);
+  const bandsOf = (run, scene) => {
+    if (view.runs.includes(run)) return runBands(room, view, run, using,
+      scene ?? runScene(room, view, run, using));
+    const current = { ...room, walls: room.walls.map((storedWall) => storedWall.id === view.id
+      ? { ...storedWall, runs: storedWall.runs.map((storedRun) => storedRun.id === run.id ? run : storedRun) }
+      : storedWall) };
+    const currentWall = resolveWall(current, current.walls.find((storedWall) => storedWall.id === view.id));
+    const currentRun = currentWall.runs.find((storedRun) => storedRun.id === run.id);
+    return runBands(current, currentWall, currentRun, using,
+      scene ?? runScene(current, currentWall, currentRun, using));
+  };
   return { room, wall: view, bands: view.runs.map((run) => bandsOf(run)), bandsOf };
 }
 
@@ -149,9 +159,6 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
     const run = wall.runs[0];
     expect(bandsOf({ ...run, _plane: { recessId: 'recess', offset: -24 }, anchors: { right: { to: 'recess', recessId: 'recess' } } }).crown.outline.slice(1, 3))
       .toEqual([[66, 92.5, 0], [66, 96, 0]]);
-    const scene = runScene({}, wall, run, settings);
-    scene.panelBySide.right = { x: 66, width: 54 };
-    expect(bandsOf(run, scene).crown.outline.slice(1, 3)).toEqual([[120, 92.5, 0], [120, 96, 0]]);
     const paneled = setup({ endPanels: { start: null, end: { width: 0.75 } } });
     expect(paneled.bandsOf({ ...paneled.wall.runs[0], anchors: { right: true } }).crown.outline.slice(1, 5))
       .toEqual([[120.75, 92.5, 0], [120.75, 93, -0.414214], [123.25, 95.5, 0], [123.25, 96, 0]]);

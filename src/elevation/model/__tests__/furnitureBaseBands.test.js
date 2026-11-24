@@ -34,7 +34,17 @@ function setup({ profile = {}, runs = [{}], endPanels, wallStops = false } = {},
   if (wallStops) connectWallStops(stored, stored.walls[0]);
   const room = syncRoom(stored, using);
   const wall = resolveWall(room, room.walls[0]);
-  const bandsOf = (run, scene = runScene(room, wall, run, using)) => runBands(room, wall, run, using, scene);
+  const bandsOf = (run, scene) => {
+    if (wall.runs.includes(run)) return runBands(room, wall, run, using,
+      scene ?? runScene(room, wall, run, using));
+    const current = { ...room, walls: room.walls.map((storedWall) => storedWall.id === wall.id
+      ? { ...storedWall, runs: storedWall.runs.map((storedRun) => storedRun.id === run.id ? run : storedRun) }
+      : storedWall) };
+    const currentWall = resolveWall(current, current.walls.find((storedWall) => storedWall.id === wall.id));
+    const currentRun = currentWall.runs.find((storedRun) => storedRun.id === run.id);
+    return runBands(current, currentWall, currentRun, using,
+      scene ?? runScene(current, currentWall, currentRun, using));
+  };
   return { room, wall, bandsOf, bands: wall.runs.map((run) => bandsOf(run)),
     parts: bandParts(room, room.walls[0], 'front', using) };
 }
@@ -123,7 +133,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
   });
 
   it('squares wall and blind ends and returns at recess sides and over an anchored wall end panel', () => {
-    const { room, wall, bandsOf } = setup({ profile: { furnitureBaseProfileId: 'fb4' }, wallStops: true });
+    const { wall, bandsOf } = setup({ profile: { furnitureBaseProfileId: 'fb4' }, wallStops: true });
     const run = wall.runs[0];
     for (const anchor of [true, { to: 'wall', wallId: 'wall' }]) {
       const band = bandsOf({ ...run, _plane: { recessId: 'recess' }, anchors: { right: anchor } }).furnitureBases[0];
@@ -132,9 +142,6 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     const recessed = bandsOf({ ...run, _plane: { recessId: 'recess' },
       anchors: { right: { to: 'recess', recessId: 'recess' } } }).furnitureBases[0];
     expect(recessed.outline.slice(1, 4)).toEqual([[66.8125, 0, 0], [66.8125, 3.6875, 0], [66.5, 4, 0]]);
-    const scene = runScene(room, wall, run, settings);
-    scene.panelBySide.right = { x: 66, width: 54 };
-    expect(bandsOf(run, scene).furnitureBases[0].outline.slice(1, 3)).toEqual([[120, 0, 0], [120, 4, 0]]);
     const paneled = setup({ profile: { furnitureBaseProfileId: 'fb4' },
       endPanels: { start: null, end: { width: 0.75 } } });
     expect(paneled.bandsOf({ ...paneled.wall.runs[0], anchors: { right: true } }).furnitureBases[0].outline.slice(1, 4))

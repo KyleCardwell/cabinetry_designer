@@ -2,12 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { effectiveSettings } from '../effectiveSettings.js';
-import { bandOutline } from '../bandEnds.js';
-import { runBands } from '../runBands.js';
-import { runScene } from '../runScene.js';
 import { bandPaths } from '../bandPaths.js';
 import { buildCacheFor, withBuildCache } from '../buildCache.js';
-import { cornerLegBandParts, sweepBand, sweepEligible, viewFromWall, viewRun } from '../bandSweep.js';
+import { cornerLegBandParts, sweepBand, viewFromWall, viewRun } from '../bandSweep.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { syncRoom } from '../roomSync.js';
 import { wallNumbers } from '../topology.js';
@@ -15,22 +12,7 @@ import { wallSideView } from '../wallSides.js';
 import { goldenRooms } from './helpers/goldenRooms.js';
 
 
-it('makes every golden band path sweep eligible (D5)', () => {
-  const excluded = [];
-  for (const { key, load } of goldenRooms()) {
-    const { room: source, settings } = load();
-    const room = syncRoom(source, settings);
-    const numbers = wallNumbers(room);
-    for (const path of bandPaths(room, settings).paths) {
-      const reason = sweepEligible(room, path, settings);
-      if (reason !== null) excluded.push({ room: key, kind: path.kind,
-        walls: path.segments.map(({ wallId }) => numbers.get(wallId)), reason });
-    }
-  }
-  expect(excluded, JSON.stringify(excluded, null, 2)).toEqual([]);
-});
-
-it('builds each sweep, member view, eligibility and corner leg once per build (D6)', () => {
+it('builds each sweep, member view and corner leg once per build (D6)', () => {
   const { room: source, settings } = goldenRooms().find(({ key }) => key === 'N4').load();
   const room = syncRoom(source, settings);
   let first;
@@ -56,8 +38,6 @@ it('builds each sweep, member view, eligibility and corner leg once per build (D
         for (const runId of new Set(path.segments.filter(({ corner }) => !corner).map(({ runId }) => runId))) {
           const view = viewRun(room, path, runId, settings);
           expect(viewRun(room, path, runId, settings)).toBe(view);
-          expect(sweepEligible(room, path, settings, undefined, runId)).toBeNull();
-          expect(sweepEligible(room, path, settings, undefined, runId)).toBeNull();
         }
       }
       for (const { segments } of bandPaths(room, settings).paths) {
@@ -123,80 +103,6 @@ describe('band sweep wall views', () => {
   });
 });
 
-it('projects corner owner members like the drawn bands (D4)', () => {
-  const mismatches = [];
-  const unexpected = [];
-  const counts = {};
-  const equivalent = (a, b) => {
-    if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 0.001;
-    if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, i) => equivalent(value, b[i]));
-    if (a && b && typeof a === 'object' && typeof b === 'object') {
-      return Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((key) => equivalent(a[key], b[key]));
-    }
-    return a === b;
-  };
-  const outline = (band) => {
-    if (!band) return null;
-    const points = (band.outline ?? bandOutline(
-      [[band.x, band.z, 0], [band.x, band.z + band.height, 0]],
-      [[band.x + band.width, band.z, 0], [band.x + band.width, band.z + band.height, 0]], band.z, band.height,
-    )).filter((point, i, all) => !equivalent(point, all[(i + all.length - 1) % all.length]));
-    return points;
-  };
-  const lines = (band) => (band?.lines ?? []).map(({ x1, z1, x2, z2 }) => {
-    const points = [[x1, z1], [x2, z2]].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-    return points.flat();
-  }).sort((a, b) => a[1] - b[1] || a[0] - b[0] || a[3] - b[3] || a[2] - b[2]);
-  for (const { key: roomKey, load } of goldenRooms()) {
-    const loaded = load();
-    const { settings } = loaded;
-    const room = syncRoom(loaded.room, settings);
-    const numbers = wallNumbers(room);
-    counts[roomKey] = { owners: 0 };
-    for (const path of bandPaths(room, settings).paths) {
-      const corners = [...new Map(path.vertices.filter(({ type }) => type === 'turn').map(({ corner }) => [
-        `${corner.ownerWallId}:${corner.runId}:${corner.side}`, corner,
-      ])).values()];
-      for (const tag of corners) {
-        const ownerWall = room.walls.find(({ id }) => id === tag.ownerWallId);
-        const owner = ownerWall.runs.find(({ id }) => id === tag.runId);
-        const ownerSegment = path.segments.find((segment) => !segment.corner && segment.runId === owner.id);
-        const ownerView = wallSideView(ownerWall, ownerSegment.face);
-        const old = runBands(room, ownerView, owner, settings, runScene(room, ownerView, owner, settings));
-        const oldBands = { toeKick: old.toeKicks, furnitureBase: old.furnitureBases,
-          countertop: old.countertops, topMold: [old.topMold], crown: [old.crown] }[path.kind].filter(Boolean);
-        for (const [member, wall, role, expected] of [[owner.id, ownerWall, 'owner', oldBands]]) {
-          counts[roomKey].owners += 1;
-          const actual = viewRun(room, path, member, settings)?.pieces ?? [];
-          const runNumber = ownerView.runs.toSorted((a, b) => a.x - b.x).findIndex(({ id }) => id === owner.id) + 1;
-          const label = `${roomKey}, Wall ${numbers.get(wall.id)}, run ${owner.id} (Wall ${numbers.get(ownerWall.id)} Run ${runNumber}), ${tag.side}, ${path.kind}`;
-          const compare = (field, a, b) => {
-            if (equivalent(a, b)) return;
-            const mismatch = `${label}, ${role} ${field}`;
-            mismatches.push(`${mismatch}: old=${JSON.stringify(b)}; new=${JSON.stringify(a)}`);
-            const known = roomKey === 'N4' && numbers.get(ownerWall.id) === 1
-              && runNumber === 6 && tag.side === 'right' && path.kind === 'crown' && field === 'lines';
-            if (!known) unexpected.push(`${mismatch}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`);
-          };
-          if (!actual.length && expected.length) console.log('D4 missing view:', JSON.stringify({
-            label, role, old: expected.map(({ x, width, outline, lines }) => ({ x, width, outline, lines })),
-            new: null, start: path.start, end: path.end, vertices: path.vertices.map(({ type }) => type),
-          }));
-          compare('pieces', actual.length, expected.length);
-          for (let i = 0; i < Math.min(actual.length, expected.length); i += 1) {
-            for (const field of ['x', 'width']) compare(field, actual[i][field], expected[i][field]);
-            compare('outline', outline(actual[i]), outline(expected[i]));
-            compare('lines', lines(actual[i]), lines(expected[i]));
-          }
-        }
-      }
-    }
-  }
-  console.log('D4 corner views compared:', JSON.stringify(counts));
-  console.log('D4 corner view parity mismatches:', mismatches.length ? `\n${mismatches.join('\n')}` : 'none');
-  expect(unexpected, unexpected.join('\n')).toEqual([]);
-});
-
 // Forced uneven Corner 45 (shippingListCorners.test.js setup): the owner piece runs to the diagonal's far end.
 it.each([
   { kind: 'toeKick', piece: 1, end: 151, line: 128.527 },
@@ -227,7 +133,6 @@ it.each(['toeKick', 'crown'])('cuts each joined %s member at its run edge (D3)',
   const path = bandPaths(room, settings).paths.find((candidate) => candidate.kind === kind);
   expect(path.segments).toHaveLength(2);
   expect(path.vertices).toMatchObject([{ type: 'joined', turn: 0 }]);
-  expect(sweepEligible(room, path, settings)).toBeNull();
   const [left, right] = path.segments.toSorted((a, b) => a.x1 - b.x1);
   const leftPieces = viewRun(room, path, left.runId, settings).pieces;
   const rightPieces = viewRun(room, path, right.runId, settings).pieces;

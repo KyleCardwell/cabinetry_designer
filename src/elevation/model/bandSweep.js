@@ -389,49 +389,6 @@ function finishRunBand(sweep, band, edges) {
   return { ...insertBaseCutouts(band, cutouts), hasCutouts: cutouts.length > 0 };
 }
 
-function eligibilityReason(room, path, settings, records) {
-  if (path.vertices.some(({ type }) => type === 'turn' || type === 'mitre')
-    || path.segments.some(({ corner, diagonal }) => corner || diagonal)
-    || [path.start, path.end].some((end) => end?.against?.kind === 'corner')) {
-    // Corner and mitre paths draw from the sweep for every member.
-    return null;
-  }
-  const first = path.segments[0];
-  if (path.segments.some(({ wallId, face }) => wallId !== first.wallId || face !== first.face)) return 'multiple faces';
-  if (path.closed || path.vertices.some(({ type }) => type !== 'joined')) return 'non-joined vertices';
-  if ([path.start, path.end].some((end) => end?.type === 'corner')) return 'corner caps';
-  records ??= eligibilityRecords(room, path, settings);
-  for (const rule of [path.start, path.end]) {
-    const record = records.find(({ run }) => run.id === rule.runId);
-    const old = record.ends[rule.side === 'left' ? 0 : 1].type;
-    // Class B stops at the projection face instead of carrying the old return.
-    if (old === 'return' && rule.type === 'die-in' && rule.against?.kind === 'solid') continue;
-    const current = rule.type === 'die-in' ? 'square'
-      : rule.type === 'waterfall' ? (path.kind === 'countertop' ? 'return' : 'square') : rule.type;
-    if (old !== current) return `cap type ${old} → ${rule.type}`;
-  }
-  return null;
-}
-
-/** Exclusions shared by every consumer of the straight sweep. */
-export function sweepEligible(room, path, settings, records, member) {
-  if (records) return eligibilityReason(room, path, settings, records);
-  const cache = buildCacheFor(room);
-  const build = () => eligibilityReason(room, path, settings);
-  return cache ? cache.byPath('sweepEligible', room, path, settings, member, build) : build();
-}
-
-function eligibilityRecords(room, path, settings) {
-  return path.segments.map((segment) => {
-    const wall = room.walls.find(({ id }) => id === segment.wallId);
-    const frame = wallSideFrame(room, wall, segment.face);
-    const view = { ...wallSideView(wall, segment.face), length: frame.length };
-    const run = view.runs.find(({ id }) => id === segment.runId);
-    const scene = runScene(room, view, run, settings);
-    return { run, ends: runBandEnds(room, view, run, settings, scene, path.kind, path.z, path.height) };
-  });
-}
-
 /** Follow the owner's diagonal to the turn where the next member becomes end-on. */
 function ownerCornerEdge(sweep, index, owner, frame) {
   let vertex = sweep.vertices[index];
@@ -632,7 +589,7 @@ function buildCornerLegBandParts(room, ownerWallId, owner, side, settings) {
   const prefix = `corner-leg:${ownerWallId}:${owner.id}:${side}:`;
   const parts = [];
   for (const [key, { path, segment }] of index) {
-    if (!key.startsWith(prefix) || sweepEligible(room, path, settings, undefined, key) !== null) continue;
+    if (!key.startsWith(prefix)) continue;
     const view = viewRun(room, path, key, settings)?.pieces[0];
     if (!view || view.width <= EPSILON) continue;
     const diagonal = segment ? null : path.segments.find((candidate) => candidate.diagonal

@@ -1,9 +1,8 @@
 import { bandPaths } from './bandPaths.js';
 import { attachStrips } from './bandStrips.js';
-import { mitreEdge, sweepBand, sweepEligible, viewRun } from './bandSweep.js';
+import { mitreEdge, sweepBand, viewRun } from './bandSweep.js';
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
-import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { endLegList } from './endLegs.js';
@@ -17,17 +16,17 @@ import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { buildingPaths } from './pathBuilding.js';
-import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
+import { outlineBounds } from './sectionProfileOutline.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 import { resolveTopSegments } from './topSegments.js';
 import { wallEndPanelAt, wallSideFrame } from './wallSides.js';
-import { waterfallBand } from './waterfall.js';
 
 export { bandDepths } from './bandDepths.js';
 export { waterfallBand } from './waterfall.js';
 
 const EPSILON = 1e-6;
+const missingBandPaths = new WeakMap();
 
 /** Clip a countertop outline at a vertical cut, preserving the uncut ends and their arcs. */
 function clipTopOutline(outline, cut, direction) {
@@ -407,13 +406,6 @@ export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
   }).filter(({ band }) => band.width > 0);
 }
 
-/** Furniture bands in x order, with cutouts placed within each segment's floor ends. */
-function runFurnitureBaseBand(room, wall, run, settings, base, scene = runScene(room, wall, run, settings)) {
-  return base.kind === 'furniture_base'
-    ? runBaseSegments(room, wall, run, settings, scene, 'furnitureBase', base)
-      .map(({ band }) => band) : [];
-}
-
 /** Chip lines on drawn end panels and fillers, independent of the swept bands. */
 export function runChipLines(scene) {
   const { drawnPieces, hiddenIds, endBottom } = scene;
@@ -435,7 +427,7 @@ export function runChipLines(scene) {
  * The bands around a run (SPEC-42): its toe kick, its top (countertop, or top mold and crown), the
  * parts below it, and the chip lines on its end panels and fillers, in elevation coordinates. The
  * canvas and the DXF both draw from it. `wall` is the resolved wall face; `scene` is runScene's.
- * Each end follows bandEdge (SPEC-42.1); a blind panel takes every band to the wall.
+ * Each drawn band comes from its path sweep.
  * `countertop` retains the overall envelope for end dimensions; drawing uses `countertops` and
  * `topSegments`, which remove the inserts' column spans from the main top.
  */
@@ -444,36 +436,31 @@ export function runBands(room, wall, run, settings, scene) {
   const runEnd = run.x + run.width;
   const panelStart = panelBySide.left ? Math.min(panelBySide.left.x, run.x) : null;
   const panelEnd = panelBySide.right ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd) : null;
-  const shapes = lazyCornerShapes(room, wall, settings);
-  const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   let paths;
-  const sweptKinds = new Set();
   const sweptPieces = new Map();
   const sweptBand = (kind, z, height, profiled = false) => {
-    // Preview runs can differ from the stored room used to build the paths.
-    if (!room.walls.find(({ id }) => id === wall.id)?.runs.includes(run)) return null;
+    const missing = (reason) => {
+      let reported = missingBandPaths.get(room);
+      if (!reported) missingBandPaths.set(room, reported = new Set());
+      const key = `${run.id}|${kind}`;
+      if (!reported.has(key)) {
+        reported.add(key);
+        console.error('band-path-missing', { runId: run.id, kind, reason });
+      }
+      return null;
+    };
     paths ??= bandPaths(room, settings);
     const pathId = paths.ends.get(`${run.id}|${kind}|${z}|left`)?.pathId;
     const path = paths.paths.find((path) => path.id === pathId && Math.abs(path.height - height) <= EPSILON);
-    const segment = path?.segments.find((segment) => segment.runId === run.id && !segment.return);
+    if (!path) return missing('path');
+    const segment = path.segments.find((segment) => segment.wallId === wall.id
+      && segment.face === (wall.side ?? 'front') && segment.runId === run.id && !segment.return);
+    if (!segment) return missing('segment');
     // The owner's segment ends at the turn, not the run edge, on its corner side.
     const turnAt = (side) => path?.vertices.some(({ type, corner }) => type === 'turn'
       && corner?.runId === run.id && corner.side === side);
-    // A return run meeting a corner cabinet starts at the leg's far x, not at its own edge.
-    const atCorner = (side) => {
-      const at = segment?.[side === 'left' ? 'from' : 'to'];
-      return path?.vertices.some(({ type, corner, at: vertex }) => corner && type !== 'mitre' && corner.runId !== run.id
-        && at && Math.hypot(vertex.x - at.x, vertex.y - at.y) <= EPSILON)
-        || [path?.start, path?.end].some((end) => end?.runId === run.id && end.side === side
-          && end.against?.kind === 'corner');
-    };
-    if (!segment
-      || (!turnAt('left') && !atCorner('left') && Math.abs(segment.x1 - (panelStart ?? run.x)) > EPSILON)
-      || (!turnAt('right') && !atCorner('right') && Math.abs(segment.x2 - (panelEnd ?? runEnd)) > EPSILON)
-      || sweepEligible(room, path, settings, undefined, run.id) !== null) return null;
     const view = viewRun(room, path, run.id, settings);
-    if (!view) return null;
-    sweptKinds.add(kind);
+    if (!view) return missing('view');
     const cornerOwner = (turnAt('left') || turnAt('right')) && view.lines?.length > 0;
     // Keep each kind's public fields: plain bands have no outline, and toe kicks have no lines.
     const waterfall = kind === 'countertop'
@@ -489,13 +476,6 @@ export function runBands(room, wall, run, settings, scene) {
     sweptPieces.set(kind, view.pieces.map(publicBand));
     return publicBand(view);
   };
-  const band = (kind, z, height) => {
-    const [left, right] = endsFor(kind, z, height);
-    const x = kind === 'countertop' ? returnedX(left) : left.x;
-    const end = kind === 'countertop' ? returnedX(right) : right.x;
-    return { x, z, width: end - x, height,
-      ...(kind === 'topMold' || kind === 'crown' ? { ends: [left, right] } : {}) };
-  };
   const profile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(profile, settings, run);
   const base = runBase(room, wall, run, settings, scene);
@@ -504,42 +484,10 @@ export function runBands(room, wall, run, settings, scene) {
   const drawn = runMoldings(wall, run, profile, settings);
   const topMold = drawn.topMold
     ? sweptBand('topMold', boxTop, profile.topMoldHeight, !!moldings.topMold)
-      ?? band('topMold', boxTop, profile.topMoldHeight)
     : null;
   const crown = drawn.crown
     ? sweptBand('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight, !!moldings.crown)
-      ?? band('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight)
     : null;
-  for (const [rect, kind, picked, reference] of [
-    [topMold, 'topMold', moldings.topMold, boxTop],
-    [crown, 'crown', moldings.crown, boxTop + profile.crownStackHeight],
-  ]) {
-    if (!rect || sweptKinds.has(kind)) continue;
-    let edges;
-    if (picked) {
-      const loop = sectionProfileOutline(picked.geometry);
-      edges = endsFor(kind, rect.z, rect.height).map((end, index) => {
-        const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
-          ? placeAtEnd(loop, end.side, kind === 'crown' && moldings.picked.topMold === 'none'
-            ? 0 : moldings.overhang, reference, end.facing) : null);
-        const edge = end.edge ?? (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
-          ?? [[end.x, rect.z, 0], [end.x, rect.z + rect.height, 0]];
-        return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
-      });
-      rect.outline = bandOutline(...edges, rect.z, rect.height);
-      const { minX, maxX } = outlineBounds(rect.outline);
-      rect.x = minX;
-      rect.width = maxX - minX;
-    }
-    rect.lines = [];
-    for (const id of picked?.profile.drawnPoints.elevation ?? []) {
-      const z = reference + picked.geometry.points[id][1];
-      if (Math.abs(z - rect.z) <= EPSILON || Math.abs(z - rect.z - rect.height) <= EPSILON
-        || rect.lines.some((line) => Math.abs(line.z1 - z) <= EPSILON)) continue;
-      rect.lines.push({ x1: edges ? endEdgeX(edges[0], z, -1) : rect.x, z1: z,
-        x2: edges ? endEdgeX(edges[1], z, 1) : rect.x + rect.width, z2: z });
-    }
-  }
   const span = bottomPartSpan(
     run,
     drawnPieces,
@@ -558,54 +506,16 @@ export function runBands(room, wall, run, settings, scene) {
   }));
   const chipLines = runChipLines(scene);
   if (base.kind === 'toe_kick') sweptBand('toeKick', 0, base.height);
-  const toeKicks = sweptPieces.get('toeKick') ?? (base.kind === 'toe_kick'
-    ? runBaseSegments(room, wall, run, settings, scene, 'toeKick', base).map(({ band }) => band) : []);
+  const toeKicks = sweptPieces.get('toeKick') ?? [];
   if (base.kind === 'furniture_base') sweptBand('furnitureBase', 0, base.height, !!base.picked);
-  const furnitureBases = sweptPieces.get('furnitureBase')
-    ?? runFurnitureBaseBand(room, wall, run, settings, base, scene);
+  const furnitureBases = sweptPieces.get('furnitureBase') ?? [];
   const overhangs = topOverhangs(room, wall, run, settings);
   const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
     (runBackOffset(run) - overhangs.back) - (frontDepth(run, settings) + overhangs.front));
   const topZ = section ? boxTop + top.height + section.minY : boxTop;
-  let countertop = isCountertop(top.kind)
-    ? sweptBand('countertop', topZ, boxTop + top.height - topZ, !!section)
-      ?? band('countertop', boxTop, top.height) : null;
-  let countertopEdges;
-  if (section && !sweptKinds.has('countertop')) {
-    const reference = boxTop + top.height;
-    const z = reference + section.minY;
-    const height = reference - z;
-    const edges = endsFor('countertop', z, height).map((end, index) => {
-      const source = end.countertop ?? { picked: moldings.nosing, reference, overhangs };
-      const overhang = source.overhangs[end.facing === -1 ? 'left' : 'right'];
-      const loop = source.picked && sectionProfileOutline(source.picked.geometry);
-      const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
-        ? placeAtEnd(loop, end.side, overhang, source.reference, end.facing) : null);
-      const edge = end.edge ?? (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
-        ?? [[end.x, z, 0], [end.x, reference, 0]];
-      return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
-    });
-    countertopEdges = edges;
-    const outline = bandOutline(...edges, z, height);
-    const { minX, maxX } = outlineBounds(outline);
-    const lines = [];
-    for (const id of moldings.nosing.profile.drawnPoints.elevation) {
-      const lineZ = reference + moldings.nosing.geometry.points[id][1];
-      if (lineZ <= z + EPSILON || lineZ >= reference - EPSILON
-        || lines.some((line) => Math.abs(line.z1 - lineZ) <= EPSILON)) continue;
-      lines.push({ x1: endEdgeX(edges[0], lineZ, -1), z1: lineZ,
-        x2: endEdgeX(edges[1], lineZ, 1), z2: lineZ });
-    }
-    countertop = { x: minX, z, width: maxX - minX, height, outline, lines };
-  }
-  const waterfall = waterfallEnds(room, wall, run, settings);
-  if (countertop && !sweptKinds.has('countertop') && (waterfall.left || waterfall.right)) {
-    const surface = boxTop + top.height;
-    const edges = countertopEdges ?? [countertop.x, countertop.x + countertop.width]
-      .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
-    countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
-  }
+  const countertop = isCountertop(top.kind)
+    ? sweptBand('countertop', topZ, boxTop + top.height - topZ, !!section) : null;
   return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines,
-    ...segmentedCountertop(run, scene, top, sweptKinds.has('countertop') ? null : countertop),
-    ...(sweptKinds.has('countertop') ? { countertops: sweptPieces.get('countertop') } : {}) };
+    ...segmentedCountertop(run, scene, top, null),
+    countertops: sweptPieces.get('countertop') ?? [] };
 }

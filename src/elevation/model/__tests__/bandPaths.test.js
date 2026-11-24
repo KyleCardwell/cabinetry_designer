@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bandPaths } from '../bandPaths.js';
 import { bandFronts } from '../bandParts.js';
-import { sweepEligible } from '../bandSweep.js';
 import { cornerBandTurns } from '../cornerBands.js';
 import { cornerEnd } from '../cornerEnd.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
@@ -191,7 +190,6 @@ it('matches corner leg ends and turn points across golden rooms (D4)', () => {
           const path = result.paths.find(({ id }) => id === ownerEnd?.pathId);
           compare(label, 'owner path', Boolean(path), true);
           if (!path || !old) continue;
-          compare(label, 'eligibility', sweepEligible(room, path, settings), null);
           const matches = (tag) => tag?.ownerWallId === ownerWall.id && tag.runId === owner.id && tag.side === side;
           const turns = path.vertices.filter(({ type, corner }) => type === 'turn' && matches(corner));
           compare(label, 'turn count', turns.length, corner.kind === 90 ? 1 : 2);

@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { bandDepths, runBands } from '../runBands.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runScene } from '../runScene.js';
+import { goldenRooms } from './helpers/goldenRooms.js';
+import { WALL_SIDES } from '../wallSides.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -149,3 +151,19 @@ describe('SPEC-42 run bands', () => {
     expect(span(g2['860a1197'].toeKicks[0])).toEqual([75.5, 75.5]);
   });
 });
+
+it.each(goldenRooms().map(({ key, load }) => [key, load]))(
+  'draws every band from its path in %s (D8)', (_key, load) => {
+    const errors = vi.spyOn(console, 'error');
+    try {
+      const { room: source, settings } = load();
+      const room = syncRoom(source, settings);
+      for (let index = 0; index < room.walls.length; index += 1) {
+        for (const face of WALL_SIDES) bandsOf(room, index, face, settings);
+      }
+      expect(errors.mock.calls.filter(([message]) => message === 'band-path-missing')).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+  },
+);
