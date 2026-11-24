@@ -190,6 +190,24 @@ export function wallReach(room, wall, run, side, settings) {
   return wallFrame(room, neighbor).length * Math.abs(Math.sin(corner.angle * Math.PI / 180));
 }
 
+/** A floor band's square end where a waterfall meets it. */
+export function waterfallFloorEnd(room, view, run, side, kind, settings) {
+  const edge = side === 'left' ? run.x : run.x + run.width;
+  if (kind === 'toeKick' || kind === 'furnitureBase') {
+    const waterfall = waterfallEnds(room, view, run, settings)[side];
+    if (waterfall) {
+      const overhang = topOverhangs(room, view, run, settings)[side];
+      if (overhang === 0 || waterfall.baseToLeg) {
+        // A touching leg retains the toe kick's end-panel setback; a bridged gap does not.
+        const x = kind === 'toeKick' && overhang === 0 && run.ends?.[side]?.type === 'end_panel'
+          ? freeEdge(room, view, run, side, kind, settings)
+          : edge + (side === 'left' ? -1 : 1) * overhang;
+        return { type: 'square', x };
+      }
+    }
+  }
+}
+
 /**
  * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold',
  * 'crown' or 'furnitureBase'. Against a run that carries the band on (a top or furniture base at the
@@ -202,19 +220,8 @@ export function wallReach(room, wall, run, side, settings) {
 function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
   const edge = side === 'left' ? run.x : run.x + run.width;
   const square = { type: 'square', x: edge };
-  if (band === 'toeKick' || band === 'furnitureBase') {
-    const waterfall = waterfallEnds(room, wall, run, settings)[side];
-    if (waterfall) {
-      const overhang = topOverhangs(room, wall, run, settings)[side];
-      if (overhang === 0 || waterfall.baseToLeg) {
-        // A touching leg retains the toe kick's end-panel setback; a bridged gap does not.
-        const x = band === 'toeKick' && overhang === 0 && run.ends?.[side]?.type === 'end_panel'
-          ? freeEdge(room, wall, run, side, band, settings)
-          : edge + (side === 'left' ? -1 : 1) * overhang;
-        return { type: 'square', x };
-      }
-    }
-  }
+  const waterfall = waterfallFloorEnd(room, wall, run, side, band, settings);
+  if (waterfall) return waterfall;
   const returned = (source, end) => {
     const x = freeEdge(room, wall, source, end, band, settings);
     const s = end === 'left' ? -1 : 1;

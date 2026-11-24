@@ -141,3 +141,47 @@ it.each(['toeKick', 'crown'])('cuts each joined %s member at its run edge (D3)',
   expect(rightPieces[0].x).toBeCloseTo(right.x1, 6);
   expect(joint).toBeCloseTo(rightPieces[0].x, 6);
 });
+
+function sweepEnd({ room: key, wall, face = 'front', run, kind, side }) {
+  const { room: source, settings } = goldenRooms().find((room) => room.key === key).load();
+  const room = syncRoom(source, settings);
+  const numbers = wallNumbers(room);
+  const path = bandPaths(room, settings).paths.find((path) => path.kind === kind
+    && [path.start, path.end].some((rule) => rule.runId.startsWith(run) && rule.side === side)
+    && path.segments.some((segment) => segment.runId.startsWith(run)
+      && segment.face === face && numbers.get(segment.wallId) === wall));
+  const index = [path.start, path.end].findIndex((rule) => rule.runId.startsWith(run) && rule.side === side);
+  return { rule: [path.start, path.end][index], cap: sweepBand(room, path, settings).caps[index] };
+}
+
+it.each([
+  { room: 'N4', wall: 1, run: 'e006a1de', kind: 'countertop', side: 'left', x: 83, joint: 84, facing: -1 },
+  { room: 'N4', wall: 1, run: 'f7f82190', kind: 'topMold', side: 'right', x: 54.25, joint: 54, facing: 1 },
+  { room: 'N4', wall: 1, run: 'f7f82190', kind: 'crown', side: 'right', x: 57.75, joint: 54, facing: 1 },
+])('returns the $room $run $kind $side cap at a solid on a mitre path (D9)', (anchor) => {
+  const { rule, cap } = sweepEnd(anchor);
+  expect(rule).toMatchObject({ type: 'die-in', against: { kind: 'solid' } });
+  expect(cap).toMatchObject({ type: 'return', x: anchor.x, side: anchor.joint, facing: anchor.facing });
+  expect(cap.source.loop.length).toBeGreaterThan(0);
+});
+
+it.each([
+  { room: 'N1', wall: 5, run: '1dd86015', face: 'front', side: 'left', x: 0.8125 },
+  { room: 'N1', wall: 5, run: 'eb5f40b0', face: 'back', side: 'right', x: 46.4375 },
+  { room: 'N4', wall: 4, run: '100fcdd9', face: 'front', side: 'right', x: 42.5 },
+])('squares the $room $run $side floor cap at a waterfall (D9)', (anchor) => {
+  const { rule, cap } = sweepEnd({ ...anchor, kind: 'toeKick' });
+  expect(rule.type).toBe('waterfall');
+  expect(cap).toEqual({ type: 'waterfall', x: anchor.x, source: {} });
+});
+
+it.each([
+  { room: 'S3', wall: 4, run: '0f8a2992', face: 'front', side: 'left', x: 19.625, joint: 18.8125, facing: 1 },
+  { room: 'S3', wall: 4, run: 'c3e90115', face: 'back', side: 'right', x: 59.375, joint: 60.1875, facing: -1 },
+])('copes the $room $run $side base cap against its corner neighbor (D9)', (anchor) => {
+  const { rule, cap } = sweepEnd({ ...anchor, kind: 'furnitureBase' });
+  expect(rule).toMatchObject({ type: 'cope', neighbor: { kind: 'corner', x: anchor.x } });
+  expect(rule.neighbor.runId.startsWith('0cc425d0')).toBe(true);
+  expect(cap).toEqual({ type: 'cope', x: anchor.x, side: anchor.joint, facing: anchor.facing,
+    source: { outline: rule.neighbor.outline } });
+});

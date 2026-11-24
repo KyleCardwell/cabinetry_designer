@@ -4,7 +4,6 @@ import { partStrips } from './bandStrips.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { insertBaseCutouts } from './baseCutouts.js';
 import { buildCacheFor } from './buildCache.js';
-import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
 import { whileBuildingPaths } from './pathBuilding.js';
@@ -13,7 +12,7 @@ import { add, dot, normalize, planPointToWallX, scale, subtract } from './geomet
 import { moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
-import { bandPast, freeEdge, runBandEnds, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds } from './runBands.js';
+import { bandPast, freeEdge, runBandEnds, runBaseSpans, segmentedCountertop, waterfallBand, waterfallEnds, waterfallFloorEnd } from './runBands.js';
 import { runScene } from './runScene.js';
 import { arcExtremes, flattenOutline, outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { topOverhangs } from './topOverhang.js';
@@ -64,8 +63,8 @@ function sectionFor(room, view, run, kind, settings, side = 'left') {
 }
 
 function capFor(room, path, rule, view, settings) {
-  const { kind, z, height } = path;
-  const { side, type } = rule;
+  const { kind } = path;
+  const { side, type, neighbor } = rule;
   const run = view.runs.find(({ id }) => id === rule.runId);
   if (rule.x != null && rule.against?.kind === 'corner') {
     return { type, x: rule.x, side: rule.jointX, facing: side === 'left' ? -1 : 1,
@@ -85,15 +84,11 @@ function capFor(room, path, rule, view, settings) {
   if (type === 'die-in' && rule.against?.kind === 'solid' && kind !== 'toeKick'
     && path.vertices.some(({ type }) => type === 'mitre')
     && path.vertices.every(({ type }) => type === 'mitre' || type === 'joined')) {
-    const scene = runScene(room, view, run, settings);
-    const end = runBandEnds(room, view, run, settings, scene, kind, z, height)[side === 'left' ? 0 : 1];
-    if (end.type === 'return') return { ...end, source: sectionFor(room, view, run, kind, settings, side) };
+    return { ...returned(run, side), type: 'return' };
   }
   if (type === 'waterfall') {
     if (kind === 'countertop') return returned(run, side);
-    const scene = runScene(room, view, run, settings);
-    const end = runBandEnds(room, view, run, settings, scene, kind, z, height)[side === 'left' ? 0 : 1];
-    return { ...end, type, source: {} };
+    return { ...waterfallFloorEnd(room, view, run, side, kind, settings), type, source: {} };
   }
   if (type === 'return') {
     if (rule.against?.kind === 'panel') {
@@ -101,26 +96,21 @@ function capFor(room, path, rule, view, settings) {
       return { type, x: wallEnd + facing * bandPast(room, view, run, side, kind, settings),
         side: wallEnd, facing, source: sectionFor(room, view, run, kind, settings, side) };
     }
-    const joint = profileBandJoint(lazyCornerShapes(room, view, settings), run, side,
-      kind, z, height, frontDepth(run, settings));
-    if (joint?.relation === 'through') {
-      const { outline, edge: contour, ...end } = joint.end;
+    if (neighbor?.kind === 'profile' && neighbor.relation === 'through') {
+      const { outline, edge: contour, ...end } = neighbor.end;
       return { ...end, source: { outline, edge: contour } };
     }
     return { ...returned(run, side), ...(rule.returnLength != null ? { returnLength: rule.returnLength } : {}) };
   }
   if (type === 'cope') {
-    const shapes = lazyCornerShapes(room, view, settings);
-    const corner = cornerBandEdge(shapes, run, side, kind, z, height);
-    if (corner) return { type, x: corner.x, side: edge, facing: -facing,
-      source: { outline: corner.outline } };
-    const joint = profileBandJoint(shapes, run, side, kind, z, height, frontDepth(run, settings));
-    if (joint?.end) {
-      const { outline, edge: contour, ...end } = joint.end;
+    if (neighbor?.kind === 'corner') return { type, x: neighbor.x, side: edge, facing: -facing,
+      source: { outline: neighbor.outline } };
+    if (neighbor?.kind === 'profile' && neighbor.end) {
+      const { outline, edge: contour, ...end } = neighbor.end;
       return { ...end, source: { outline, edge: contour } };
     }
-    const neighbor = view.runs.find(({ id }) => id === rule.against?.id);
-    return neighbor ? returned(neighbor, opposite(side)) : null;
+    const other = view.runs.find(({ id }) => id === rule.against?.id);
+    return other ? returned(other, opposite(side)) : null;
   }
   const scene = runScene(room, view, run, settings);
   const panel = scene.panelBySide[side];
