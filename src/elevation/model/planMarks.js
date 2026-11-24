@@ -117,6 +117,7 @@ export function planMarkPlacementInput(dimensions, marks, parts, scale) {
     const positions = [record.textAt, add(line[1], times(u, past)), add(line[0], times(u, -past))];
     items.push({
       key: `dimension:${i}`, at: record.textAt, axes: [u, v], half, shift: [0, 0],
+      overCabinets: record.row === 'depth',
       steps: positions.flatMap((point) => signedSteps(3).map((k) => (
         add(point, times(v, k * (DIMENSION_TEXT_HEIGHT + 1 / 16) * scale))
           .map((value, axis) => value - record.textAt[axis])
@@ -159,7 +160,7 @@ export function planMarkPlacementInput(dimensions, marks, parts, scale) {
         ...parts.filter(({ closed }) => closed === false)
           .flatMap(({ points }) => points.slice(1).map((point, i) => [points[i], point])),
       ],
-      polygons: parts.filter(({ closed }) => closed !== false).map(({ points }) => points),
+      polygons: parts.filter(({ closed }) => closed !== false).map(({ points, kind }) => ({ points, kind })),
     },
   };
 }

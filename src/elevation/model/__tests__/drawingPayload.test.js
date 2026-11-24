@@ -198,17 +198,28 @@ const preHP5PayloadHashes = {
   'G6 Stacked runs': '94b5ffea54656e17ac948aba63c80ad0230d1496652b613e24c1b66b38b85ae5',
 };
 
-// Keep the historical hashes: assert PD3's only payload change, then restore its old position
-// on a copy for the historical comparison. These fixtures deliberately have runFlex disabled.
-function payloadBeforePD3(payload, name) {
-  if (name !== 'G1 Euro kitchen') return payload;
+// GC5.2's depth text moves are covered by the payload goldens; restore their old positions
+// for the historical hashes. These fixtures deliberately have runFlex disabled.
+const preGC52DepthTextAt = {
+  'G1 Euro kitchen': { 10: [-42.25, 39.21875], 11: [-2.5625, 88.875] },
+  'G2 Face frame kitchen': { 8: [36, 21] },
+  'G6 Stacked runs': { 4: [-70, 31.375], 5: [-79, 29.6875] },
+};
+function payloadBeforeTextMoves(payload, name) {
   const copy = structuredClone(payload);
-  const clearances = copy.plan.dimensions.filter(({ row, text }) => row === 'clearance' && text === '44 5/8');
-  expect(clearances).toEqual([{
-    row: 'clearance', kind: 'island', start: [-35.125, -1.875], end: [9.5, -1.875], offset: 0, text: '44 5/8',
-  }]);
-  clearances[0].start[1] = 2.125;
-  clearances[0].end[1] = 2.125;
+  if (name === 'G1 Euro kitchen') {
+    // Assert PD3's clearance move before restoring that position too.
+    const clearances = copy.plan.dimensions.filter(({ row, text }) => row === 'clearance' && text === '44 5/8');
+    expect(clearances).toEqual([{
+      row: 'clearance', kind: 'island', start: [-35.125, -1.875], end: [9.5, -1.875], offset: 0, text: '44 5/8',
+    }]);
+    clearances[0].start[1] = 2.125;
+    clearances[0].end[1] = 2.125;
+  }
+  for (const [i, textAt] of Object.entries(preGC52DepthTextAt[name] ?? {})) {
+    expect(copy.plan.dimensions[i].row).toBe('depth');
+    copy.plan.dimensions[i].textAt = textAt;
+  }
   return copy;
 }
 
@@ -256,7 +267,7 @@ describe('SPEC-40 drawing payload', () => {
       }
       const legacy = structuredClone(payload);
       for (const elevation of legacy.elevations) delete elevation.glassMarks;
-      expect(createHash('sha256').update(JSON.stringify(payloadBeforePD3(legacy, name))).digest('hex'))
+      expect(createHash('sha256').update(JSON.stringify(payloadBeforeTextMoves(legacy, name))).digest('hex'))
         .toBe(preHP5PayloadHashes[name]);
       const enabled = toDrawingPayload(synced, settings);
       for (const elevation of enabled.elevations) delete elevation.pulls;
@@ -619,7 +630,7 @@ describe('IN14 step e payload', () => {
         records.push(...expected);
         delete elevation.glassMarks;
       }
-      expect(createHash('sha256').update(JSON.stringify(payloadBeforePD3(payload, name))).digest('hex'))
+      expect(createHash('sha256').update(JSON.stringify(payloadBeforeTextMoves(payload, name))).digest('hex'))
         .toBe(preHP5PayloadHashes[name]);
     }
     expect(records).toHaveLength(1);

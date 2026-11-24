@@ -51,17 +51,12 @@ function lineThroughText(line, box) {
 }
 const conflicts = (a, b) => overlaps(a, b) || lineThroughText(a.line, b) || lineThroughText(b.line, a);
 
-it('clears golden plan marks and moved text except named candidate fallbacks (GC5.1)', () => {
+it('clears golden plan marks and moved text except named candidate fallbacks (GC5.2)', () => {
   const fallbacks = {};
   const expectedFallbacks = {
-    G1: [{ text: '12 7/8', hits: 1 }, { text: '12 7/8', hits: 1 }],
-    G2: [{ text: '12 13/16', hits: 1 }],
-    G6: [{ text: '12 7/8', hits: 1 }, { text: '3/4', hits: 2 }],
-    S1: [{ text: '12 7/8', hits: 1 }],
-    N1: [{ text: '12 7/8', hits: 1 }, { text: '12 7/8', hits: 1 },
-      { text: '13/16', hits: 1 }, { text: '4 1/2', hits: 2 }],
-    N2: [{ text: '12 13/16', hits: 1 }],
+    N1: [{ text: '13/16', hits: 1 }, { text: '4 1/2', hits: 2 }],
     N3: [{ text: '12 7/8', hits: 1 }],
+    N4: [{ text: 'E', hits: 2 }, { text: 'G', hits: 2 }],
   };
   for (const { key, load } of goldenRooms()) {
     const { room, settings } = load();
@@ -108,7 +103,7 @@ it('clears golden plan marks and moved text except named candidate fallbacks (GC
           expect(lineHitsBox(line, item.box), context).toBe(false);
         }
       });
-      for (const { points, closed } of plan.parts) {
+      for (const { points, closed, kind } of plan.parts) {
         const loop = closed === false ? points : [...points, points[0]];
         let winding = 0;
         for (let j = 1; j < loop.length; j += 1) {
@@ -117,11 +112,29 @@ it('clears golden plan marks and moved text except named candidate fallbacks (GC
           const [a, b] = line.map((p) => p.map((value, axis) => value - item.box.center[axis]));
           winding += Math.atan2(a[0] * b[1] - a[1] * b[0], dot(a, b));
         }
-        if (closed !== false) expect(Math.abs(winding), context).toBeLessThan(Math.PI);
+        if (closed !== false && !(kind === 'cabinet' && plan.dimensions[item.own]?.row === 'depth')) {
+          expect(Math.abs(winding), context).toBeLessThan(Math.PI);
+        }
       }
     }
   }
   expect(fallbacks).toEqual(expectedFallbacks);
+});
+
+it('places blocked depth text over cabinets but counts edges and wall and projection interiors (GC5.2)', () => {
+  const dimension = { row: 'depth', start: [0, -6], end: [0, 6], offset: 0,
+    text: '12 7/8', textAt: [0, 0] };
+  const points = [[-30, -30], [30, -30], [30, 30], [-30, 30]];
+  for (const kind of ['cabinet', 'wall', 'projection']) {
+    const { items, blockers } = planMarkPlacementInput([dimension], [], [{ kind, points }], 1);
+    blockers.lines.push([[-2, 0], [2, 0]]);
+    const placed = placePlanMarks(items.map((item) => ({ ...item,
+      steps: [[29.96875, 0], [0, 0], [6, 0], [12, 0]],
+    })), blockers, { gap: 1 / 16 });
+    expect(placed, kind).toEqual([{ key: 'dimension:0',
+      at: [6, 0], hits: kind === 'cabinet' ? 0 : 1,
+    }]);
+  }
 });
 
 it('all golden and fixture dimensions clear other text, except Room 8 wall rows 28 / 36 (PD3)', () => {
