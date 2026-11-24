@@ -76,7 +76,8 @@ function runEntries(room, source, face, settings) {
   });
 }
 
-function endRule(room, settings, entries, entry, side) {
+export function endRule(room, settings, entries, entry, side,
+  { profiles = true, cornerLookup = cornerBandEdge } = {}) {
   const { run, view, scene, shapes, kind, z, height, segment } = entry;
   const rule = (type, against, extra) => ({ type, runId: run.id, side,
     ...(against ? { against } : {}), ...extra });
@@ -131,13 +132,13 @@ function endRule(room, settings, entries, entry, side) {
     || (kind === 'toeKick' && neighbors.some((other) => (floorEnd(other).open && floorEnd(other).onFloor)
       || carries(room, view, other, 'furnitureBase', settings)))) return rule('square');
 
-  const edge = cornerBandEdge(shapes, run, side, kind, z, height);
+  const edge = cornerLookup(shapes, run, side, kind, z, height);
   if (edge) {
     const other = entries.find((candidate) => candidate.run.id === edge.runId
       && candidate.view.id === edge.wallId && matching(candidate));
     if (other) {
       const otherSide = SIDES.find((end) => {
-        const back = cornerBandEdge(other.shapes, other.run, end, kind, z, height);
+        const back = cornerLookup(other.shapes, other.run, end, kind, z, height);
         return back?.runId === run.id && back.wallId === view.id;
       });
       if (otherSide && Math.abs(segment.front - other.segment.front) <= 1 / 32) {
@@ -148,7 +149,7 @@ function endRule(room, settings, entries, entry, side) {
     }
     return rule('cope', edge.runId ? { kind: 'run', id: edge.runId } : { kind: 'wall', id: edge.wallId });
   }
-  const joint = profileBandJoint(shapes, run, side, kind, z, height, frontDepth(run, settings));
+  const joint = profiles && profileBandJoint(shapes, run, side, kind, z, height, frontDepth(run, settings));
   if (joint) {
     const shape = shapes().find((shape) => shape.parts.includes(joint.part));
     return rule(joint.relation === 'cope' ? 'cope' : 'return',
@@ -311,19 +312,25 @@ export function bandPaths(room, settings) {
   return cache.byRoom('bandPaths', room, settings, build);
 }
 
-function buildBandPaths(room, settings) {
+/** Raw run entries, before path links adjust their segments. */
+export function bandPathEntries(room, settings) {
   const sources = new Map((room.walls ?? []).map((wall) => [wall.id, wall]));
-  const entries = [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).flatMap(([id]) => (
+  return [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).flatMap(([id]) => (
     WALL_SIDES.flatMap((face) => runEntries(room, sources.get(id), face, settings))
   ));
+}
+
+export function buildBandPaths(room, settings, { cornerLookup = cornerBandEdge } = {}) {
+  const sources = new Map((room.walls ?? []).map((wall) => [wall.id, wall]));
+  const entries = bandPathEntries(room, settings);
   const rules = new Map();
   for (const entry of entries) for (const side of SIDES) {
-    rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side));
+    rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side, { cornerLookup }));
   }
   // A return seen from either wall can reach through the other member's blind panel
   // (or another early end rule). Resolve site mitres together before reciprocity.
   for (const entry of entries.filter(({ kind }) => siteBand(kind))) for (const side of SIDES) {
-    const edge = cornerBandEdge(entry.shapes, entry.run, side, entry.kind, entry.z, entry.height);
+    const edge = cornerLookup(entry.shapes, entry.run, side, entry.kind, entry.z, entry.height);
     const other = edge && entries.find((candidate) => candidate.view.id === edge.wallId
       && candidate.view.id !== entry.view.id && candidate.run.id === edge.runId
       && candidate.kind === entry.kind && same(candidate.z, entry.z) && same(candidate.height, entry.height));
@@ -337,7 +344,7 @@ function buildBandPaths(room, settings) {
     const at = lineIntersection(entry.segment.from, entry.frame.r, other.segment.from, other.frame.r);
     if (!at || !contains(entry, at) || !contains(other, at)) continue;
     const otherSide = SIDES.find((end) => {
-      const back = cornerBandEdge(other.shapes, other.run, end, entry.kind, entry.z, entry.height);
+      const back = cornerLookup(other.shapes, other.run, end, entry.kind, entry.z, entry.height);
       return back?.runId === entry.run.id && back.wallId === entry.view.id;
     }) ?? SIDES.find((end) => cornerAt(room, other.view, end).neighborWallId === entry.view.id);
     if (!otherSide) continue;

@@ -69,7 +69,7 @@ function joinedProfileBands(room, wall, settings, shapes) {
  * directions of the return's end (exact at any angle; `cornerX ± offset` at 90°). Measured from the corner,
  * not from plan points, so back faces (frames shifted by the wall thickness) and landings stay put.
  */
-function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
+export function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
   const along = dot(neighborFrame.r, frame.r);
   const across = dot(neighborFrame.n, frame.r);
   return (offset) => cornerX + along * (endX - neighborCornerX) + across * offset;
@@ -77,7 +77,7 @@ function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
 
 /** Matching bands at an obtuse corner turn along the wall-corner/front-intersection line,
  * rather than the cabinet's square end. Its projection also squashes molding profiles. */
-function angledBandX(room, view, end, neighborView, neighborRun, corner, settings) {
+export function angledBandX(room, view, end, neighborView, neighborRun, corner, settings) {
   if (corner.angle <= 90.5) return () => null;
   const radians = corner.angle * Math.PI / 180;
   const sine = Math.sin(radians);
