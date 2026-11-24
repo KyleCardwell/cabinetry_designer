@@ -8,7 +8,7 @@ import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
 import { runEndView, runSide } from '../runSide.js';
-import { frontContour } from '../bandEnds.js';
+import { clipEdgeBelow, frontContour } from '../bandEnds.js';
 import { outlineBounds } from '../sectionProfileOutline.js';
 
 const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -61,13 +61,25 @@ describe('run end views (DM6)', () => {
     expect(part('box')).toMatchObject({ kind: 'profile', x: -24, width: 24, z: 4, height: 110 });
     expect(part('faces')).toMatchObject({ kind: 'profile', x: -24.875, width: 0.875, z: 4, height: 110 });
     expect(part('crown')).toMatchObject({ x: -29.625, width: 29.625, z: 115.5, height: 4.5 });
-    expect(part('top_mold')).toMatchObject({ x: -25.125, width: 25.125, z: 114, height: 3 });
+    // The crown (from 115 1/2) laps over the top mold's top, so the returned top mold stops under it.
+    expect(part('top_mold')).toMatchObject({ x: -25.125, width: 25.125, z: 114, height: 1.5 });
     for (const piece of pieces.filter(({ outline }) => outline)) {
       expect(outlineBounds(piece.outline)).toMatchObject({ minX: 0, maxX: piece.front });
       const side = runSide(room, wall, run, settings).find((candidate) => candidate.piece === piece.piece);
-      expect(frontContour(piece.outline)).toEqual(frontContour(side.outline));
+      const contour = frontContour(side.outline);
+      expect(frontContour(piece.outline)).toEqual(piece.piece === 'top_mold' ? clipEdgeBelow(contour, 115.5) : contour);
       expect(outlineBounds(part(piece.piece).outline)).toMatchObject({ minX: -piece.front, maxX: 0 });
     }
+  });
+
+  it('draws returning crown and top mold drawn points across the end, as along the run (D9)', () => {
+    const { room, run, pieces } = setup();
+    const lines = (piece) => pieces.find((candidate) => candidate.piece === piece).lines;
+    expect(lines('crown')).toEqual([{ back: 0, front: 29.625, z: 119 }, { back: 0, front: 25.875, z: 116 }]);
+    expect(lines('top_mold')).toEqual([{ back: 0, front: 25.125, z: 114.75 }]);
+    const shape = cornerShapes(room, room.walls[2], 'front', settings).find(({ runId }) => runId === run.id);
+    expect(shape.parts.find(({ id }) => id.endsWith(':crown')).lines).toEqual([
+      { x1: -29.625, z1: 119, x2: 0, z2: 119 }, { x1: -25.875, z1: 116, x2: 0, z2: 116 }]);
   });
 
   it('uses the nearer end panel and its scene height, including drops and extensions', () => {

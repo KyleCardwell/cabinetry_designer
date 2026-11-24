@@ -163,6 +163,41 @@ export function clipReturnEdge(edge, end) {
   return clipped;
 }
 
+/**
+ * The part of an outward chain (bottom to top) below `zMax`, cut where it first reaches that height; arcs keep
+ * their curve up to the cut (frontContour already splits arcs at their extrema). Used where a band above laps over this one (a crown over a top mold).
+ */
+export function clipEdgeBelow(edge, zMax) {
+  const clipped = [];
+  for (let i = 0; i < edge.length; i += 1) {
+    const from = edge[i];
+    if (from[1] > zMax + EPSILON) break;
+    const to = edge[i + 1];
+    if (!to || to[1] <= zMax + EPSILON) {
+      clipped.push([...from.slice(0, 2), to ? from[2] ?? 0 : 0]);
+      continue;
+    }
+    const arc = arcOf(from, to);
+    let cut = [from[0] + (to[0] - from[0]) * (zMax - from[1]) / (to[1] - from[1]), zMax];
+    let bulge = 0;
+    if (arc) {
+      const sine = Math.max(-1, Math.min(1, (zMax - arc.cz) / arc.radius));
+      const t = [Math.asin(sine), Math.PI - Math.asin(sine)].map((angle) => fraction(arc, angle))
+        .filter((value) => value >= -EPSILON && value <= 1 + EPSILON).sort((a, b) => a - b)[0];
+      if (t != null) {
+        const angle = arc.start + t * arc.sweep;
+        cut = [arc.cx + arc.radius * Math.cos(angle), zMax];
+        bulge = roundBulge(Math.tan(t * arc.sweep / 4));
+      }
+    }
+    clipped.push([...from.slice(0, 2), bulge]);
+    if (Math.hypot(cut[0] - from[0], cut[1] - from[1]) > EPSILON) clipped.push([...cut, 0]);
+    else clipped.at(-1)[2] = 0;
+    break;
+  }
+  return clipped;
+}
+
 /** Most outward intersection at a drawn line's height, including horizontal steps and true arcs. */
 export function endEdgeX(edge, z, facing) {
   const xs = [];

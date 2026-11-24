@@ -62,6 +62,11 @@ function sectionFor(room, view, run, kind, settings, side = 'left') {
   };
 }
 
+/** A band's profile drawn-point heights (absolute z) for `kind` on `run`, or [] when it has no picked profile. */
+export function bandLineHeights(room, view, run, kind, settings) {
+  return sectionFor(room, view, run, kind, settings)?.lineHeights ?? [];
+}
+
 function capFor(room, path, rule, view, settings) {
   const { kind } = path;
   const { side, type, neighbor } = rule;

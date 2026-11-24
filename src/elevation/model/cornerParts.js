@@ -235,10 +235,11 @@ function buildCornerShapes(room, wall, side, settings,
         ...(piece.outline ? { outline: transformOutline(piece.outline, ([depth, z]) => [
           Math.min(length, Math.max(0, xOf(depth))), z,
         ], xOf(1) < xOf(0)) } : {}),
-        ...(BODY.has(piece.piece) || piece.piece === 'end_panel' ? {} : { opaque: false }),
+        // Bands in a section are outlines; seen end-on they are solid and hide this face's parts behind them (D9.1).
+        ...(BODY.has(piece.piece) || piece.piece === 'end_panel' || asEnd ? {} : { opaque: false }),
         ...(asEnd && piece.piece === 'end_panel'
           ? endPanelDetail(neighborView, run, end, piece, xOf, x, width) : {}),
-        // FX5.1: a returned furniture base's profile lines run across the end.
+        // FX5.1 / D9: a returned band's profile lines run across the end.
         ...(piece.lines?.length ? { lines: piece.lines.map(({ back, front, z }) => {
           const [x1, x2] = [xOf(back), xOf(front)].map((value) => Math.min(length, Math.max(0, value)));
           return { x1: Math.min(x1, x2), z1: z, x2: Math.max(x1, x2), z2: z };
@@ -337,6 +338,10 @@ function buildCornerShapes(room, wall, side, settings,
               ], xOf(1) < xOf(0)) } : {}),
               ...(piece.piece === 'end_panel'
                 ? endPanelDetail(neighborView, run, end, piece, xOf, start, finish - start) : {}),
+              ...(piece.lines?.length ? { lines: piece.lines.map(({ back, front, z }) => {
+                const [x1, x2] = [xOf(back), xOf(front)].map((value) => Math.min(finish, Math.max(start, value)));
+                return { x1: Math.min(x1, x2), z1: z, x2: Math.max(x1, x2), z2: z };
+              }).filter(({ x1, x2 }) => x2 - x1 > EPSILON) } : {}),
             }];
           });
           if (parts.length === 0) continue;
