@@ -1,10 +1,59 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { elevationMarkers } from '../elevationMarkers.js';
-import { boxesOverlap } from '../../model/planBoxes.js';
+import { boxesOverlap, lineHitsBox } from '../../model/planBoxes.js';
+import { polygonContainsPoint } from '../../model/footprints.js';
+import * as placement from '../../model/planMarkPlacement.js';
+import { planSolidParts } from '../../model/planParts.js';
+import { goldenRooms } from '../../model/__tests__/helpers/goldenRooms.js';
 import { room, run, wall } from '../../../test/builders.js';
 
 describe('elevationMarkers', () => {
+  it('clears N4 cabinet footprints and keeps already clear marker points (GC5.2)', () => {
+    const { room, settings } = goldenRooms().find(({ key }) => key === 'N4').load();
+    const place = vi.spyOn(placement, 'placePlanMarks');
+    try {
+      const markers = elevationMarkers(room, settings, 4, 1);
+      const [items, , options] = place.mock.calls[0];
+      const [, blockers] = place.mock.calls[2];
+      const moved = place.mock.results[2].value;
+      const withoutFootprints = placement.placePlanMarks(items, {}, options);
+      const footprints = planSolidParts(room, settings)
+        .filter(({ kind }) => kind === 'cabinet' || kind === 'wall')
+        .map(({ id, kind, points }) => ({ id, kind, points: points.map(([x, y]) => [x, -y]) }));
+      expect(blockers.polygons).toEqual(footprints.map(({ points }) => points));
+      const boxAt = (key, at) => {
+        const item = items.find((item) => item.key === key);
+        return {
+          center: at.map((value, i) => value + item.shift[i]),
+          axes: item.axes,
+          half: item.half.map((half) => half + options.gap / 2),
+        };
+      };
+      const hits = (box, { points }) => polygonContainsPoint(points.map(([x, y]) => ({ x, y })),
+        { x: box.center[0], y: box.center[1] })
+        || points.some((point, i) => lineHitsBox([point, points[(i + 1) % points.length]], box));
+      const cabinets = footprints.filter(({ kind }) => kind === 'cabinet');
+      const clearBefore = withoutFootprints.filter(({ key, at }) => (
+        !footprints.some((polygon) => hits(boxAt(key, at), polygon))
+      ));
+      expect(markers.map(({ letter }) => letter)).toEqual(expect.arrayContaining(['E', 'F']));
+      for (const { key, point, letter } of markers) {
+        const box = boxAt(key, [point.x, point.y]);
+        expect(cabinets.filter((polygon) => hits(box, polygon)).map(({ id }) => id), letter).toEqual([]);
+      }
+      for (const { key, hits } of moved) {
+        expect(hits, markers.find((marker) => marker.key === key).letter).toBe(0);
+      }
+      expect(clearBefore.length).toBeGreaterThan(0);
+      for (const { key, at } of clearBefore) {
+        expect(markers.find((marker) => marker.key === key).point).toEqual({ x: at[0], y: at[1] });
+      }
+    } finally {
+      place.mockRestore();
+    }
+  });
+
   it('separates nearby marker footprints at full and smaller zoom (GC5.1)', () => {
     const testRoom = room({ walls: [
       wall({ id: 'A', y1: 0, y2: 0, elevationForced: true }),

@@ -6,6 +6,7 @@ import { wallOutline } from '../model/wallOutline.js';
 import { elevationToPlan, wallFrame } from '../model/geometry.js';
 import { planMarkerPlacement } from '../model/planMarkerPlacement.js';
 import { placePlanMarks } from '../model/planMarkPlacement.js';
+import { planSolidParts } from '../model/planParts.js';
 import { elevationKey, elevationLetters } from '../model/topology.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
@@ -98,7 +99,24 @@ export function elevationMarkers(room, settings, scale, factor = 1) {
       steps: candidates.map(({ a, b }) => u.map((value, i) => -value * a * out + v[i] * b * side)),
     };
   });
-  const points = new Map(placePlanMarks(items, {}, { gap: 3 / scale })
+  // These use the canvas's planRunPieces / wallOutline geometry; undo the DXF y flip.
+  const polygons = (room ? planSolidParts(room, settings) : [])
+    .filter(({ kind }) => kind === 'cabinet' || kind === 'wall')
+    .map(({ points }) => points.map(([x, y]) => [x, -y]));
+  const options = { gap: 3 / scale };
+  const original = placePlanMarks(items, {}, options);
+  // Reserve already-clear positions so an earlier moved marker cannot displace a later one.
+  const checked = placePlanMarks(items.map((item, i) => ({
+    ...item, at: original[i].at, steps: [[0, 0]],
+  })), { polygons }, options);
+  const clear = new Set(checked.filter(({ hits }) => hits === 0).map(({ key }) => key));
+  const boxes = items.flatMap((item, i) => (clear.has(item.key) ? [{
+    center: original[i].at.map((value, axis) => value + item.shift[axis]),
+    axes: item.axes,
+    half: item.half,
+  }] : []));
+  const moved = placePlanMarks(items.filter(({ key }) => !clear.has(key)), { polygons, boxes }, options);
+  const points = new Map([...original, ...moved]
     .map(({ key, at }) => [key, { x: at[0], y: at[1] }]));
   return markers.map((marker) => ({ ...marker, point: points.get(marker.key) }));
 }
