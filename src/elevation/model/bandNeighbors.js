@@ -2,7 +2,6 @@ import { bandOutline, frontContour } from './bandEnds.js';
 import { returnX, angledBandX, landedReturns } from './cornerParts.js';
 import { anchoredToCorner, cornerAt, crossingRuns, frontDepth, runBackOffset } from './corners.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
-import { runSide } from './runSide.js';
 import { transformOutline } from './sectionProfileOutline.js';
 import { elevationKey, returnsView } from './topology.js';
 
@@ -15,16 +14,13 @@ const opposite = (side) => side === 'left' ? 'right' : 'left';
 
 /**
  * Neighbours of each raw path entry, keyed by entry then left/right (corner and profile independently).
- * firstPass is a Map of entry -> { left, right } endRule results with profile neighbours disabled.
- * Only those rules decide whether a neighbour's end-view band fills back to its wall; no end drawing
- * or band-end builder is needed here. Omit firstPass for section-only corner lookups.
+ * Resolve section-only rules before shaping end-view corners and profile neighbours.
+ * All section geometry comes from the entries; no drawing or band-end builder runs here.
  */
-export function pathNeighbors(room, settings, entries, firstPass = new Map()) {
-  const pieces = new Map();
-  const sidePieces = (entry) => {
-    if (!pieces.has(entry.run)) pieces.set(entry.run, runSide(room, entry.view, entry.run, settings));
-    return pieces.get(entry.run);
-  };
+export function pathNeighbors(room, settings, entries, resolveFirstPass) {
+  let firstPass = new Map();
+  const sections = new Map(entries.map((entry) => [entry.run, entry.sections]));
+  const sidePieces = (entry) => entry.sections;
   const bandPiece = (entry) => sidePieces(entry).find((piece) => piece.piece === PART_KINDS[entry.kind]
     && same(piece.z, entry.z) && (entry.kind !== 'furnitureBase' || same(piece.height, entry.height)));
   const matching = (entry, other) => entry.kind === other.kind && same(entry.z, other.z)
@@ -54,11 +50,10 @@ export function pathNeighbors(room, settings, entries, firstPass = new Map()) {
       ([depth, z]) => [clamp(xOf(depth)), z], xOf(1) < xOf(0)) } : {}) };
   };
   const result = new Map();
-  for (const entry of entries) {
+  const cornersFor = (entry, useEndView) => {
     const { run, view, frame } = entry;
     const length = frame.length;
-    const depthOf = (point) => dot(subtract(point, frame.leftPoint), frame.n);
-    const endView = returnsView(room, elevationKey(view.id, view.side)) === 'end';
+    const endView = useEndView && returnsView(room, elevationKey(view.id, view.side)) === 'end';
     const ends = {};
     for (const side of SIDES) {
       const anchor = run.anchors?.[side];
@@ -83,7 +78,8 @@ export function pathNeighbors(room, settings, entries, firstPass = new Map()) {
             const endX = corner.neighborSide === 'left' ? other.run.x : other.run.x + other.run.width;
             cut(other, opposite(corner.neighborSide), returnX(frame, other.frame,
               side === 'left' ? 0 : length, corner.neighborSide === 'left' ? 0 : other.frame.length, endX),
-            false, angledBandX(room, view, side, other.view, other.run, corner, settings));
+            false, angledBandX(room, view, side, other.view, other.run, corner, settings,
+              (own) => sections.get(own) ?? []));
           }
           const crossing = new Set(crossingRuns(room, corner));
           for (const other of others.filter((other) => crossing.has(other.run))) {
@@ -103,8 +99,21 @@ export function pathNeighbors(room, settings, entries, firstPass = new Map()) {
       const corner = candidates.reduce((best, other) => !best
         || (side === 'left' ? other.x > best.x : other.x < best.x) ? other : best, null);
 
-      const source = view.sideSource ?? view;
-      const connected = new Set(['start', 'end'].map((endpoint) => source.connections?.[endpoint]?.wallId));
+      ends[side] = { corner, profile: null };
+    }
+    return ends;
+  };
+  for (const entry of entries) result.set(entry, cornersFor(entry, false));
+  firstPass = resolveFirstPass(result);
+  for (const entry of entries) {
+    const { run, view, frame } = entry;
+    const length = frame.length;
+    const depthOf = (point) => dot(subtract(point, frame.leftPoint), frame.n);
+    const ends = returnsView(room, elevationKey(view.id, view.side)) === 'end'
+      ? cornersFor(entry, true) : result.get(entry);
+    const source = view.sideSource ?? view;
+    const connected = new Set(['start', 'end'].map((endpoint) => source.connections?.[endpoint]?.wallId));
+    for (const side of SIDES) {
       const profiles = [];
       for (const other of entries) {
         if (!connected.has(other.view.id) || other.run.recessId || !matching(entry, other)) continue;
@@ -161,7 +170,7 @@ export function pathNeighbors(room, settings, entries, firstPass = new Map()) {
         joint = { kind: 'profile', entry: other, side: farSide, relation, x: far,
           ...(part.outline ? { outline: part.outline } : {}), ...(end ? { end } : {}) };
       }
-      ends[side] = { corner, profile: joint };
+      ends[side].profile = joint;
     }
     result.set(entry, ends);
   }

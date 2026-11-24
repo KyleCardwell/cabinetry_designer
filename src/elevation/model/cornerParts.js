@@ -77,7 +77,8 @@ export function returnX(frame, neighborFrame, cornerX, neighborCornerX, endX) {
 
 /** Matching bands at an obtuse corner turn along the wall-corner/front-intersection line,
  * rather than the cabinet's square end. Its projection also squashes molding profiles. */
-export function angledBandX(room, view, end, neighborView, neighborRun, corner, settings) {
+export function angledBandX(room, view, end, neighborView, neighborRun, corner, settings,
+  sections = (run) => runSide(room, view, run, settings)) {
   if (corner.angle <= 90.5) return () => null;
   const radians = corner.angle * Math.PI / 180;
   const sine = Math.sin(radians);
@@ -85,7 +86,7 @@ export function angledBandX(room, view, end, neighborView, neighborRun, corner, 
   const woodMiter = (settings.woodTopCorner ?? DEFAULT_SETTINGS.woodTopCorner) === 'miter'
     && runTop(neighborView, neighborRun, resolveProfile(settings, room, neighborView)).kind === 'wood';
   const bands = view.runs.filter((own) => anchoredToCorner(own.anchors?.[end], corner))
-    .flatMap((own) => runSide(room, view, own, settings).filter((piece) => BANDS[piece.piece]
+    .flatMap((own) => sections(own).filter((piece) => BANDS[piece.piece]
       && piece.piece !== 'furniture_base'
       && (piece.piece !== 'countertop' || (woodMiter
         && runTop(view, own, resolveProfile(settings, room, view)).kind === 'wood'))));

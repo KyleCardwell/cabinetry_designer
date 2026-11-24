@@ -1,11 +1,11 @@
 import { bandFronts } from './bandParts.js';
 import { buildCacheFor } from './buildCache.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
+import { pathNeighbors } from './bandNeighbors.js';
 import { cornerLegBandJointsForOwner } from './cornerLegBands.js';
 import { cornerAt, cornerEndActive, cornerReturnPoint, frontDepth, runBackOffset } from './corners.js';
 import { floorEndOpen } from './floorOpenings.js';
-import { runBase } from './furnitureBase.js';
+import { runBaseProfile } from './furnitureBase.js';
 import { elevationToPlan, lineIntersection, planPointToWallX, scale, subtract } from './geometry.js';
 import { moldingProfiles } from './moldingProfiles.js';
 import { woodTopSection } from './nosing.js';
@@ -14,6 +14,7 @@ import { resolveProfile } from './profile.js';
 import { whileBuildingPaths } from './pathBuilding.js';
 import { recessesOn } from './recesses.js';
 import { bandPast, carries, freeEdge, isOpenWallEnd, touching, wallReach, waterfallEnds } from './runBands.js';
+import { runSections } from './runSections.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
@@ -30,6 +31,9 @@ const contains = (entry, at) => {
   return x >= entry.segment.x1 - EPSILON && x <= entry.segment.x2 + EPSILON;
 };
 const endKey = (entry, side) => `${entry.segment.memberKey ?? entry.run.id}|${entry.kind}|${entry.z}|${side}`;
+const neighborData = ({ entry, ...neighbor }) => ({
+  ...neighbor, wallId: entry.view.id, runId: entry.run.id,
+});
 const PART_KINDS = {
   toeKick: 'toe_kick', furnitureBase: 'furniture_base', countertop: 'countertop',
   topMold: 'top_mold', crown: 'crown',
@@ -40,10 +44,10 @@ function runEntries(room, source, face, settings) {
   const frame = wallSideFrame(room, source, face);
   const view = { ...wallSideView(source, face), length: frame.length };
   const profile = resolveProfile(settings, room, view);
-  const shapes = lazyCornerShapes(room, view, settings);
   return view.runs.flatMap((run) => {
     const scene = runScene(room, view, run, settings);
-    const base = runBase(room, view, run, settings, scene);
+    const sections = runSections(room, view, run, settings);
+    const base = runBaseProfile(room, view, run, settings);
     const top = runTop(view, run, profile);
     const drawn = runMoldings(view, run, profile, settings);
     const fronts = bandFronts(room, view, run, settings);
@@ -69,16 +73,15 @@ function runEntries(room, source, face, settings) {
     const x2 = Math.max(run.x + run.width, scene.panelBySide.right
       ? scene.panelBySide.right.x + scene.panelBySide.right.width : run.x + run.width);
     return bands.map(([kind, z, height]) => ({
-      run, view, scene, shapes, frame, top, kind, z, height,
+      run, view, scene, sections, frame, top, kind, z, height,
       segment: { runId: run.id, wallId: source.id, face, x1, x2, front: fronts[kind],
         from: elevationToPlan(frame, x1, fronts[kind]), to: elevationToPlan(frame, x2, fronts[kind]) },
     }));
   });
 }
 
-export function endRule(room, settings, entries, entry, side,
-  { profiles = true, cornerLookup = cornerBandEdge } = {}) {
-  const { run, view, scene, shapes, kind, z, height, segment } = entry;
+function endRule(room, settings, entries, entry, side, neighbors, profiles = true) {
+  const { run, view, scene, kind, z, height, segment } = entry;
   const rule = (type, against, extra) => ({ type, runId: run.id, side,
     ...(against ? { against } : {}), ...extra });
   const againstRun = (other) => ({ kind: 'run', id: other.id });
@@ -105,8 +108,8 @@ export function endRule(room, settings, entries, entry, side,
     }
   }
 
-  const neighbors = touching(view, run, side, furniture);
-  const taller = !floorBand && neighbors.find((other) => other.z + other.height > run.z + run.height + EPSILON);
+  const touchingRuns = touching(view, run, side, furniture);
+  const taller = !floorBand && touchingRuns.find((other) => other.z + other.height > run.z + run.height + EPSILON);
   if (taller) return rule('die-in', againstRun(taller));
   const floorEnds = new Map();
   const floorEnd = (other) => {
@@ -115,7 +118,7 @@ export function endRule(room, settings, entries, entry, side,
     }
     return floorEnds.get(other.id);
   };
-  const carriers = neighbors.filter((other) => carries(room, view, other, kind, settings)
+  const carriers = touchingRuns.filter((other) => carries(room, view, other, kind, settings)
     && !(floorBand && floorEnd(other).open)).flatMap((other) => entries.filter((candidate) => (
     candidate.run.id === other.id && candidate.view.id === view.id && candidate.view.side === view.side
       && matching(candidate)
@@ -128,32 +131,31 @@ export function endRule(room, settings, entries, entry, side,
     if (siteBand(kind)) return link(other, opposite(side), 'step');
     return segment.front > other.segment.front ? rule('return') : rule('cope', againstRun(other.run));
   }
-  if ((furniture && neighbors.length)
-    || (kind === 'toeKick' && neighbors.some((other) => (floorEnd(other).open && floorEnd(other).onFloor)
+  if ((furniture && touchingRuns.length)
+    || (kind === 'toeKick' && touchingRuns.some((other) => (floorEnd(other).open && floorEnd(other).onFloor)
       || carries(room, view, other, 'furnitureBase', settings)))) return rule('square');
 
-  const edge = cornerLookup(shapes, run, side, kind, z, height);
+  const edge = neighbors.get(entry)[side].corner;
   if (edge) {
-    const other = entries.find((candidate) => candidate.run.id === edge.runId
-      && candidate.view.id === edge.wallId && matching(candidate));
+    const other = entries.find((candidate) => candidate.run.id === edge.entry.run.id
+      && candidate.view.id === edge.entry.view.id && matching(candidate));
     if (other) {
       const otherSide = SIDES.find((end) => {
-        const back = cornerLookup(other.shapes, other.run, end, kind, z, height);
-        return back?.runId === run.id && back.wallId === view.id;
+        const back = neighbors.get(other)[end].corner;
+        return back?.entry.run.id === run.id && back.entry.view.id === view.id;
       });
       if (otherSide && Math.abs(segment.front - other.segment.front) <= 1 / 32) {
         const at = lineIntersection(segment.from, entry.frame.r, other.segment.from, other.frame.r);
-        if (at) return link(other, otherSide, 'mitre', at);
+        if (at) return { ...link(other, otherSide, 'mitre', at), neighbor: neighborData(edge) };
       }
-      return rule('cope', againstRun(other.run));
+      return rule('cope', againstRun(other.run), { neighbor: neighborData(edge) });
     }
-    return rule('cope', edge.runId ? { kind: 'run', id: edge.runId } : { kind: 'wall', id: edge.wallId });
+    return rule('cope', againstRun(edge.entry.run), { neighbor: neighborData(edge) });
   }
-  const joint = profiles && profileBandJoint(shapes, run, side, kind, z, height, frontDepth(run, settings));
+  const joint = profiles && neighbors.get(entry)[side].profile;
   if (joint) {
-    const shape = shapes().find((shape) => shape.parts.includes(joint.part));
     return rule(joint.relation === 'cope' ? 'cope' : 'return',
-      joint.relation === 'cope' && shape?.runId ? { kind: 'run', id: shape.runId } : null);
+      joint.relation === 'cope' ? againstRun(joint.entry.run) : null, { neighbor: neighborData(joint) });
   }
   if (!floorBand || furniture) {
     const reach = wallReach(room, view, run, side, settings);
@@ -313,26 +315,37 @@ export function bandPaths(room, settings) {
 }
 
 /** Raw run entries, before path links adjust their segments. */
-export function bandPathEntries(room, settings) {
+function bandPathEntries(room, settings) {
   const sources = new Map((room.walls ?? []).map((wall) => [wall.id, wall]));
   return [...wallNumbers(room)].sort((a, b) => a[1] - b[1]).flatMap(([id]) => (
     WALL_SIDES.flatMap((face) => runEntries(room, sources.get(id), face, settings))
   ));
 }
 
-export function buildBandPaths(room, settings, { cornerLookup = cornerBandEdge } = {}) {
+function buildBandPaths(room, settings) {
   const sources = new Map((room.walls ?? []).map((wall) => [wall.id, wall]));
   const entries = bandPathEntries(room, settings);
   const rules = new Map();
+  const neighbors = pathNeighbors(room, settings, entries, (corners) => new Map(entries.map((entry) => {
+    const ends = Object.fromEntries(SIDES.map((side) => {
+      const rule = endRule(room, settings, entries, entry, side, corners, false);
+      rules.set(endKey(entry, side), rule);
+      return [side, rule];
+    }));
+    return [entry, ends];
+  })));
   for (const entry of entries) for (const side of SIDES) {
-    rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side, { cornerLookup }));
+    const { corner, profile } = neighbors.get(entry)[side];
+    if (corner || profile || rules.get(endKey(entry, side)).neighbor?.kind === 'corner') {
+      rules.set(endKey(entry, side), endRule(room, settings, entries, entry, side, neighbors));
+    }
   }
   // A return seen from either wall can reach through the other member's blind panel
   // (or another early end rule). Resolve site mitres together before reciprocity.
   for (const entry of entries.filter(({ kind }) => siteBand(kind))) for (const side of SIDES) {
-    const edge = cornerLookup(entry.shapes, entry.run, side, entry.kind, entry.z, entry.height);
-    const other = edge && entries.find((candidate) => candidate.view.id === edge.wallId
-      && candidate.view.id !== entry.view.id && candidate.run.id === edge.runId
+    const edge = neighbors.get(entry)[side].corner;
+    const other = edge && entries.find((candidate) => candidate.view.id === edge.entry.view.id
+      && candidate.view.id !== entry.view.id && candidate.run.id === edge.entry.run.id
       && candidate.kind === entry.kind && same(candidate.z, entry.z) && same(candidate.height, entry.height));
     if (!other) continue;
     // Keep today's reciprocal mitres, including their point and path order. The
@@ -344,13 +357,17 @@ export function buildBandPaths(room, settings, { cornerLookup = cornerBandEdge }
     const at = lineIntersection(entry.segment.from, entry.frame.r, other.segment.from, other.frame.r);
     if (!at || !contains(entry, at) || !contains(other, at)) continue;
     const otherSide = SIDES.find((end) => {
-      const back = cornerLookup(other.shapes, other.run, end, entry.kind, entry.z, entry.height);
-      return back?.runId === entry.run.id && back.wallId === entry.view.id;
+      const back = neighbors.get(other)[end].corner;
+      return back?.entry.run.id === entry.run.id && back.entry.view.id === entry.view.id;
     }) ?? SIDES.find((end) => cornerAt(room, other.view, end).neighborWallId === entry.view.id);
     if (!otherSide) continue;
-    rules.set(endKey(entry, side), { type: 'mitre', runId: entry.run.id, side, other, otherSide, at });
+    const reverse = neighbors.get(other)[otherSide].corner;
+    rules.set(endKey(entry, side), { type: 'mitre', runId: entry.run.id, side, other, otherSide, at, neighbor: neighborData(edge) });
     rules.set(endKey(other, otherSide), { type: 'mitre', runId: other.run.id, side: otherSide,
-      other: entry, otherSide: side, at });
+      other: entry, otherSide: side, at,
+      neighbor: neighborData(reverse?.entry === entry ? reverse : {
+        kind: 'corner', entry, side: opposite(side), x: planPointToWallX(other.frame, at),
+      }) });
   }
   addCornerEntries(room, settings, entries, rules, sources);
   addStepEntries(room, settings, entries, rules);
@@ -362,6 +379,7 @@ export function buildBandPaths(room, settings, { cornerLookup = cornerBandEdge }
     const back = rules.get(endKey(rule.other, rule.otherSide));
     if (back.other !== entry || back.otherSide !== side || back.type !== rule.type) {
       rules.set(key, { type: rule.type === 'mitre' ? 'cope' : rule.type === 'joined' ? 'square' : 'return', runId: entry.run.id, side,
+        ...(rule.neighbor ? { neighbor: rule.neighbor } : {}),
         ...(rule.type === 'mitre' ? { against: { kind: 'run', id: rule.other.run.id } } : {}) });
     }
   }
