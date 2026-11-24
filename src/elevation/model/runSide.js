@@ -1,9 +1,10 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { bandOutline, endEdgeX, frontContour } from './bandEnds.js';
 import { runSections } from './runSections.js';
-import { cornerShapes } from './cornerParts.js';
+import { bandPaths } from './bandPaths.js';
+import { memberCaps } from './bandSweep.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
-import { runBandEnds } from './runBands.js';
+import { buildingPaths } from './pathBuilding.js';
 import { runScene } from './runScene.js';
 import { wallEndPanels } from './wallEndPanels.js';
 import { wallSideOf } from './wallSides.js';
@@ -61,12 +62,10 @@ function wallEndPanelPiece(room, wall, run, end, settings, pieces) {
  * return drawn in end view, FX5.1) also returns the furniture base and adds the wall end panel at that end.
  */
 export function runEndView(room, wall, run, end, settings, { returnEnd = false } = {}) {
+  if (buildingPaths()) throw new Error('runEndView ran while buildingPaths() is true');
   const scene = runScene(room, wall, run, settings);
   const back = runBackOffset(run);
-  let returns;
-  // Band lookup uses raw sections so two end-view returns cannot recursively resolve each other.
-  const getReturns = () => (returns ??= cornerShapes(room, wall, wall.side ?? 'front', settings,
-    { profiles: false, returns: 'section' }));
+  const { paths, ends } = bandPaths(room, settings);
   const bands = {
     countertop: 'countertop', top_mold: 'topMold', crown: 'crown',
     ...(returnEnd ? { furniture_base: 'furnitureBase' } : {}),
@@ -74,8 +73,15 @@ export function runEndView(room, wall, run, end, settings, { returnEnd = false }
   const pieces = runSide(room, wall, run, settings).map((piece) => {
     const band = bands[piece.piece];
     if (!band) return piece;
-    const ends = runBandEnds(room, wall, run, settings, scene, band, piece.z, piece.height, getReturns);
-    if (ends[end === 'left' ? 0 : 1].type !== 'return') return piece;
+    // An insert with a different section reads the main top at the same surface height.
+    const topPath = band === 'countertop' && paths.find((path) => path.kind === band
+      && Math.abs(path.z + path.height - piece.z - piece.height) <= EPSILON
+      && path.segments.some((member) => member.wallId === wall.id
+        && member.face === (wall.side ?? 'front') && member.runId === run.id && !member.corner && !member.return));
+    const rule = ends.get(`${run.id}|${band}|${topPath ? topPath.z : piece.z}|${end}`);
+    const path = rule && paths.find(({ id }) => id === rule.pathId);
+    const cap = path && memberCaps(room, path, wall, run, settings)[end === 'left' ? 0 : 1];
+    if (cap?.type !== 'return') return piece;
     return { ...piece, back,
       ...(piece.outline ? { outline: bandOutline(
         [[back, piece.z, 0], [back, piece.z + piece.height, 0]],

@@ -22,8 +22,8 @@ const settings = { ...DEFAULT_SETTINGS, runFlex: 0,
 const makeWall = (id, extra) => ({ id, height: 120, thickness: 4.5, profile: {},
   openings: [], joints: [], runs: [], connections: { start: null, end: null }, ...extra });
 
-function setup(extra = {}, using = settings) {
-  const room = syncRoom({ id: 'room', name: 'End views', profile: {}, wallOrder: ['W2', 'W3', 'W4'], walls: [
+function setup(extra = {}, using = settings, prepare = () => {}) {
+  const stored = { id: 'room', name: 'End views', profile: {}, wallOrder: ['W2', 'W3', 'W4'], walls: [
     makeWall('W2', { x1: -72.875, y1: 60, x2: -72.875, y2: 0,
       connections: { start: null, end: { wallId: 'W3', endpoint: 'start' } } }),
     makeWall('W3', { x1: -72.875, y1: 0, x2: 0, y2: 0, flipped: true,
@@ -33,7 +33,9 @@ function setup(extra = {}, using = settings) {
         autoCount: false, grid: gridFromItems('tall', [{ id: 'box', kind: 'cabinet', width: null }]), ...extra }] }),
     makeWall('W4', { x1: 0, y1: 0, x2: 0, y2: 60,
       connections: { start: { wallId: 'W3', endpoint: 'end' }, end: null } }),
-  ] }, using);
+  ] };
+  prepare(stored);
+  const room = syncRoom(stored, using);
   const wall = resolveWall(room, room.walls[1]);
   const run = wall.runs[0];
   return { room, wall, run, pieces: runEndView(room, wall, run, 'right', using) };
@@ -89,9 +91,11 @@ describe('run end views (DM6)', () => {
   });
 
   it('fills only returning tops, preserving nonreturning profiles, offsets and countertop pieces', () => {
-    const { room, wall, run } = setup({ anchors: {}, outset: 3, ends: {} });
-    const neighbour = { ...run, id: 'next', x: run.x + run.width };
-    wall.runs.push(neighbour);
+    const { room, wall, run } = setup({ anchors: {}, outset: 3, ends: {} }, settings, (room) => {
+      const wall = room.walls.find(({ id }) => id === 'W3');
+      const run = wall.runs[0];
+      wall.runs.push({ ...run, id: 'next', x: run.x + run.width, anchors: {}, outset: 3, ends: {} });
+    });
     expect(runEndView(room, wall, run, 'right', settings)).toEqual(runSide(room, wall, run, settings));
     const free = runEndView(room, wall, run, 'left', settings);
     expect(free.find(({ piece }) => piece === 'crown')).toMatchObject({ back: 3, front: 32.625 });
