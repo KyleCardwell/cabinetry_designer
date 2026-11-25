@@ -25,6 +25,17 @@ const resolve = (tree, dimensions) => resolveInterior(tree, dimensions, standard
 const section = (result, path) => result.sections.find((entry) => entry.path === path);
 
 describe('interior rectangles (IN2)', () => {
+  it.each([
+    [[{ kind: 'partition' }, { kind: 'partition' }], [12.125, 23.875]],
+    [[{ kind: 'partition', at: 10 }, { kind: 'partition' }], [10, 22.8125]],
+    [[{ kind: 'double_partition' }, { kind: 'partition' }], [12.25, 24.125]],
+  ])('shares clear space between divider positions with their thicknesses as gaps (E2)', (dividers, expected) => {
+    const tree = { direction: 'horizontal', children: [{}, {}, {}], dividers };
+    const construction = { left: true, right: true, top: 'between', bottom: 'between', back: 'dado' };
+    const result = resolveInterior(tree, { x: 0, z: 0, width: 36, height: 30, depth: 23 }, construction);
+    expect(result.dividers.map(({ fromLeft }) => fromLeft)).toEqual(expected);
+  });
+
   it('an absent interior is one clear root section', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({

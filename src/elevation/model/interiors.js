@@ -9,6 +9,7 @@ import { getFaceNode } from './faceTree.js';
 import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { splitLine } from './split/splitLine.js';
 import { isInsetStyle } from './styles.js';
 import { roundTo } from './units.js';
 
@@ -41,12 +42,13 @@ function dividerCenters(node, rect, box, thicknesses, seams) {
   for (let i = 0; i <= centers.length; i += 1) {
     if (i < centers.length && centers[i] === null) continue;
     const limit = i === centers.length ? end : centers[i] - thicknesses[i] / 2;
-    const material = thicknesses.slice(first, i).reduce((sum, value) => sum + value, 0);
-    const clear = (limit - bound - material) / (i - first + 1);
-    let cursor = bound;
-    for (let j = first; j < i; j += 1) {
-      centers[j] = cursor + clear + thicknesses[j] / 2;
-      cursor = centers[j] + thicknesses[j] / 2;
+    if (first < i) {
+      const { sizes, starts } = splitLine(Array(i - first + 1).fill({ size: null }), limit - bound,
+        { gaps: thicknesses.slice(first, i) });
+      for (let j = first; j < i; j += 1) {
+        const m = j - first;
+        centers[j] = bound + starts[m] + sizes[m] + thicknesses[j] / 2;
+      }
     }
     if (i < centers.length) bound = centers[i] + thicknesses[i] / 2;
     first = i + 1;
