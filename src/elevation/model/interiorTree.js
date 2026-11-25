@@ -2,10 +2,19 @@ import { treeRows } from './treeWalk.js';
 import { isPlainObject } from '@reduxjs/toolkit';
 import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, SHELF_NOSINGS } from './constants.js';
 import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
-import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
+import { MAX_SPLIT, clampCount, equalizeChildren, nodeAt, parentPath, replaceAt, splitChild } from './split/treeEdits.js';
 import { ROOT_FACE_PATH } from './faces.js';
 
 const BANDED_KINDS = ['fixed', 'double_fixed'];
+
+const INTERIORS = {
+  get root() { return ROOT_FACE_PATH; },
+  axisKey: 'direction',
+  flatMax: MAX_SPLIT,
+  seams: (node) => node.dividers,
+  withSeams: (node, dividers) => ({ ...node, dividers }),
+  autoSeam: (divider) => Object.hasOwn(divider, 'at') ? autoPosition(divider) : divider,
+};
 
 function isDivider(divider, direction) {
   return isPlainObject(divider)
@@ -98,7 +107,7 @@ export function isInteriorNode(node) {
   return Object.keys(node).every((key) => ['direction', 'children', 'dividers'].includes(key))
     && ['vertical', 'horizontal'].includes(node.direction)
     && Array.isArray(node.children)
-    && node.children.length >= 2 && node.children.length <= MAX_FACE_SPLIT
+    && node.children.length >= 2 && node.children.length <= MAX_SPLIT
     && Array.from(node.children).every(isInteriorNode)
     && Array.isArray(node.dividers)
     && node.dividers.length === node.children.length - 1
@@ -112,27 +121,12 @@ export function isStoredInterior(value) {
 
 /** An absent interior is one empty root section. Missing paths return null. */
 export function getInteriorNode(interior, path) {
-  if (typeof path !== 'string' || !/^r(?:\.(?:0|[1-9]\d*))*$/.test(path)) return null;
-  let node = interior ?? {};
-  for (const index of path.split('.').slice(1).map(Number)) node = node?.children?.[index];
-  return node ?? null;
+  return nodeAt(interior ?? {}, path, ROOT_FACE_PATH);
 }
 
 /** Pre-order rows for the interior outline. */
 export function interiorOutline(interior) {
   return treeRows(interior ?? {});
-}
-
-function replaceAt(interior, path, replacer) {
-  if (path === ROOT_FACE_PATH) {
-    return replacer(interior ?? {});
-  }
-  const parentPath = parentFacePath(path);
-  const index = Number(path.split('.').at(-1));
-  return replaceAt(interior, parentPath, (parent) => ({
-    ...parent,
-    children: parent.children.map((child, i) => i === index ? replacer(child) : child),
-  }));
 }
 
 /** Shelf overrides belong only to leaf sections; explicit default picks remain stored. */
@@ -262,23 +256,16 @@ export function splitSection(interior, path, direction, count, kind) {
     || !Number.isFinite(count)) return interior ?? {};
   const dividerKind = kind === undefined ? INTERIOR_DIVIDERS[direction][0] : kind;
   if (!INTERIOR_DIVIDERS[direction].includes(dividerKind)) return interior ?? {};
-  const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
+  const n = clampCount(count, 2);
   const children = Array.from({ length: n }, (_, index) => sectionAfterResize(target,
     direction === 'vertical' && index === n - 1 ? target.rollouts : null));
   if (target.accessories) children[0].accessories = target.accessories.map((item) => ({ ...item }));
-  const dividers = Array.from({ length: n - 1 }, () => ({ kind: dividerKind }));
-  const parentPath = parentFacePath(path);
-  const parent = parentPath === null ? null : getInteriorNode(interior, parentPath);
-  if (parent?.direction === direction) {
-    if (parent.children.length + n - 1 > MAX_FACE_SPLIT) return interior ?? {};
-    const index = Number(path.split('.').at(-1));
-    return replaceAt(interior, parentPath, (node) => ({
-      ...node,
-      children: [...node.children.slice(0, index), ...children, ...node.children.slice(index + 1)],
-      dividers: [...node.dividers.slice(0, index), ...dividers, ...node.dividers.slice(index)],
-    }));
-  }
-  return replaceAt(interior, path, () => ({ direction, children, dividers }));
+  return splitChild(interior ?? {}, path, INTERIORS, {
+    axis: direction,
+    children,
+    seam: () => ({ kind: dividerKind }),
+    group: () => ({}),
+  });
 }
 
 /** Action-time sink pair: link two zones to the door seam and copy the first roll-out's picks. */
@@ -289,9 +276,9 @@ export function splitSinkRollouts(interior, path, seam) {
   }
   let next = splitSection(interior, path, 'horizontal', 2, 'zone');
   if (next === interior) return interior;
-  const parentPath = parentFacePath(path);
-  const flattened = parentPath !== null && getInteriorNode(interior, parentPath)?.direction === 'horizontal';
-  const groupPath = flattened ? parentPath : path;
+  const parent = parentPath(path);
+  const flattened = parent !== null && getInteriorNode(interior, parent)?.direction === 'horizontal';
+  const groupPath = flattened ? parent : path;
   const index = flattened ? Number(path.split('.').at(-1)) : 0;
   next = replaceAt(next, groupPath, (group) => ({
     ...group,
@@ -407,11 +394,7 @@ export function setDividerDepth(interior, groupPath, index, depth) {
 
 /** Clear positions in this group only, retaining kinds and depth overrides. */
 export function equalizeDividers(interior, groupPath) {
-  const group = getInteriorNode(interior, groupPath);
-  if (!group?.children || !group.dividers.some((divider) => Object.hasOwn(divider, 'at'))) return interior ?? {};
-  return replaceAt(interior, groupPath, (node) => ({
-    ...node, dividers: node.dividers.map(autoPosition),
-  }));
+  return equalizeChildren(interior ?? {}, groupPath, INTERIORS);
 }
 
 export function clearSplit(interior, groupPath) {
