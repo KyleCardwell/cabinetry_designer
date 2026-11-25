@@ -1,38 +1,45 @@
 import { treeRows } from './treeWalk.js';
+import {
+  MAX_SPLIT, clampCount, equalizeChildren, nodeAt, parentPath, removeChild,
+  replaceAt, setChildCount, setChildSize, splitChild,
+} from './split/treeEdits.js';
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH, isFaceNode } from './faces.js';
 import { isStyleRef } from './doorStyles.js';
 import { panelMaterial } from './constants.js';
 import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
 /** Most sections a single split or count can create. */
-export const MAX_FACE_SPLIT = 8;
+export const MAX_FACE_SPLIT = MAX_SPLIT;
 
-function indexesOf(path) {
-  return path === ROOT_FACE_PATH ? [] : path.split('.').slice(1).map(Number);
-}
+export function parentFacePath(path) { return parentPath(path); }
 
-export function parentFacePath(path) {
-  if (path === ROOT_FACE_PATH) return null;
-  return path.split('.').slice(0, -1).join('.');
-}
+export function getFaceNode(face, path) { return nodeAt(face, path, ROOT_FACE_PATH); }
 
-export function getFaceNode(face, path) {
-  let node = face;
-  for (const index of indexesOf(path)) node = node?.children?.[index];
-  return node ?? null;
-}
-
-function replaceAt(face, path, replacer) {
-  const next = structuredClone(face);
-  if (path === ROOT_FACE_PATH) return replacer(next);
-  const parent = getFaceNode(next, parentFacePath(path));
-  const index = indexesOf(path).at(-1);
-  parent.children[index] = replacer(parent.children[index]);
-  return next;
-}
+const FACES = {
+  // A getter: faces.js reaches this file through an import cycle, so ROOT_FACE_PATH may not exist yet here.
+  get root() { return ROOT_FACE_PATH; },
+  axisKey: 'direction',
+  seams: (node) => node.children.slice(1).map((_, i) => (node.noRail ?? []).includes(i)),
+  withSeams: (node, seams) => withNoRail(node, seams.flatMap((cut, i) => cut ? [i] : [])),
+  newSeam: () => false,
+  join: (before, after) => before && after,
+  collapse: collapseGroup,
+  autoChild: (child) => {
+    if (child.size === null && !Object.hasOwn(child, 'match')) return child;
+    const next = { ...child, size: null };
+    delete next.match;
+    return next;
+  },
+  sizeOf: (node) => node.size ?? null,
+  withSize: (node, size) => {
+    const next = { ...node, size };
+    if (size !== null) delete next.match;
+    return next;
+  },
+};
 
 /** A group with its no-rail seams replaced; an empty list removes the key. */
-function withSeams(node, seams) {
+function withNoRail(node, seams) {
   const { noRail, ...rest } = node;
   void noRail;
   return seams.length ? { ...rest, noRail: seams } : rest;
@@ -42,7 +49,7 @@ function withSeams(node, seams) {
 function withoutSeams(face, path, dropped) {
   const group = path === null ? null : getFaceNode(face, path);
   if (!group?.noRail) return face;
-  return replaceAt(face, path, (node) => withSeams(
+  return replaceAt(face, path, (node) => withNoRail(
     node,
     node.noRail.filter((seam) => !dropped.includes(seam)),
   ));
@@ -106,13 +113,7 @@ export function setFacePart(face, path, patch) {
 }
 
 export function setFaceSize(face, path, size) {
-  if (path === ROOT_FACE_PATH || !getFaceNode(face, path)) return face;
-  if (size !== null && !(Number.isFinite(size) && size > 0)) return face;
-  return replaceAt(face, path, (node) => {
-    const next = { ...node, size };
-    if (size !== null) delete next.match;
-    return next;
-  });
+  return setChildSize(face, path, FACES, size);
 }
 
 /** Match an eligible height to the standard front or base bank, or return it to auto. */
@@ -141,33 +142,26 @@ export function setFaceMatch(face, path, match) {
 export function splitFace(face, path, direction, count) {
   const target = getFaceNode(face, path);
   if (!target?.type || !FACE_DIRECTIONS.includes(direction) || !Number.isFinite(count)) return face;
-  const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
+  const n = clampCount(count, 2);
   const copies = Array.from({ length: n }, () => ({ type: target.type, size: null }));
   const parentPath = parentFacePath(path);
   const parent = parentPath === null ? null : getFaceNode(face, parentPath);
-  const index = indexesOf(path).at(-1);
-  if (parent && parent.direction === direction) {
-    return replaceAt(face, parentPath, (node) => {
-      // Seams after the split leaf move along; splitting inside a shared opening stays shared.
-      const seams = node.noRail ?? [];
-      const inside = seams.includes(index - 1) && seams.includes(index);
-      const moved = seams.map((seam) => (seam < index ? seam : seam + n - 1));
-      const added = inside ? Array.from({ length: n - 1 }, (_, offset) => index + offset) : [];
-      return withSeams({
-        ...node,
-        children: [...node.children.slice(0, index), ...copies, ...node.children.slice(index + 1)],
-      }, [...moved, ...added].sort((a, b) => a - b));
-    });
-  }
-  const nested = replaceAt(face, path, (node) => ({ direction, size: node.size, ...(node.match ? { match: node.match } : {}), children: copies }));
-  return withoutSeams(nested, parentPath, [index - 1, index]);
+  const split = splitChild(face, path, FACES, {
+    axis: direction,
+    children: copies,
+    seam: (seams, index) => Boolean(seams[index - 1] && seams[index]),
+    group: (node) => ({ size: node.size, ...(node.match ? { match: node.match } : {}) }),
+  });
+  if (parent?.direction === direction) return split;
+  const index = Number(path.split('.').at(-1));
+  return withoutSeams(split, parentPath, [index - 1, index]);
 }
 
 /** Replace a leaf with a nested vertical stack; optionally match its height to the base bank. */
 export function makeDrawerStack(face, path, count, { match = false } = {}) {
   const target = getFaceNode(face, path);
   if (!target?.type || !Number.isFinite(count)) return face;
-  const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
+  const n = clampCount(count, 2);
   const children = Array.from({ length: n }, (_, index) => ({
     type: 'drawer_front', size: null, ...(index < n - 2 ? { match: 'standard' } : {}),
   }));
@@ -179,7 +173,7 @@ export function makeDrawerStack(face, path, count, { match = false } = {}) {
     ...(matched ? { match: 'base' } : {}),
     children,
   }));
-  const index = indexesOf(path).at(-1);
+  const index = Number(path.split('.').at(-1));
   return withoutSeams(stacked, parentPath, [index - 1, index]);
 }
 
@@ -194,48 +188,21 @@ function collapseGroup(node, child) {
 
 /** Change how many sections a group has. Added ones copy the last leaf's type; 1 collapses the group. */
 export function setGroupCount(face, path, count) {
-  const target = getFaceNode(face, path);
-  if (!target?.children || !Number.isFinite(count)) return face;
-  const n = Math.min(MAX_FACE_SPLIT, Math.max(1, Math.round(count)));
-  if (n === 1) return replaceAt(face, path, (node) => collapseGroup(node, node.children[0]));
-  return replaceAt(face, path, (node) => {
-    const fillType = node.children.at(-1).type ?? (node.match === 'standard' ? 'drawer_front' : 'door');
-    const children = node.children.slice(0, n);
-    while (children.length < n) children.push({ type: fillType, size: null });
-    return withSeams({ ...node, children }, (node.noRail ?? []).filter((seam) => seam <= n - 2));
-  });
+  if (!Number.isFinite(count)) return face;
+  return setChildCount(face, path, FACES, clampCount(count, 1), (node) => ({
+    type: node.children.at(-1).type ?? (node.match === 'standard' ? 'drawer_front' : 'door'),
+    size: null,
+  }));
 }
 
 /** Remove a section. A group left with one child collapses into it, keeping the group's size. */
 export function removeFace(face, path) {
-  const parentPath = parentFacePath(path);
-  if (parentPath === null || !getFaceNode(face, path)) return face;
-  const index = indexesOf(path).at(-1);
-  return replaceAt(face, parentPath, (node) => {
-    const children = node.children.filter((_, childIndex) => childIndex !== index);
-    if (children.length === 1) return collapseGroup(node, children[0]);
-    // The seams beside the removed section join into one, kept only if both were cut.
-    const seams = node.noRail ?? [];
-    const joined = seams.includes(index - 1) && seams.includes(index) ? [index - 1] : [];
-    const kept = seams
-      .filter((seam) => seam < index - 1 || seam > index)
-      .map((seam) => (seam > index ? seam - 1 : seam));
-    return withSeams({ ...node, children }, [...kept, ...joined].sort((a, b) => a - b));
-  });
+  return removeChild(face, path, FACES);
 }
 
 /** Make every child of a group auto (equal). */
 export function equalizeGroup(face, path) {
-  const target = getFaceNode(face, path);
-  if (!target?.children) return face;
-  return replaceAt(face, path, (node) => ({
-    ...node,
-    children: node.children.map((child) => {
-      const next = { ...child, size: null };
-      delete next.match;
-      return next;
-    }),
-  }));
+  return equalizeChildren(face, path, FACES);
 }
 
 /** Patch a drawer front or pull-out door's own box picks; null clears a key. */
@@ -297,11 +264,12 @@ export function setFacePullPlacement(face, path, patch) {
   }
   if (!keys.some((key) => values[key] === null ? Object.hasOwn(target, key) : target[key] !== values[key])) return face;
   return replaceAt(face, path, (node) => {
+    const next = { ...node };
     for (const key of keys) {
-      if (values[key] === null) delete node[key];
-      else node[key] = values[key];
+      if (values[key] === null) delete next[key];
+      else next[key] = values[key];
     }
-    return node;
+    return next;
   });
 }
 
@@ -329,9 +297,10 @@ export function setFacePanelMaterial(face, path, id) {
   if (id !== null && !panelMaterial(id)) return face;
   if ((target.panelMaterial ?? null) === id) return face;
   return replaceAt(face, path, (node) => {
-    if (id === null) delete node.panelMaterial;
-    else node.panelMaterial = id;
-    return node;
+    const next = { ...node };
+    if (id === null) delete next.panelMaterial;
+    else next.panelMaterial = id;
+    return next;
   });
 }
 
@@ -368,5 +337,5 @@ export function setSeamNoRail(face, path, seam, value) {
   const seams = target.noRail ?? [];
   if (seams.includes(seam) === Boolean(value)) return face;
   const next = value ? [...seams, seam].sort((a, b) => a - b) : seams.filter((entry) => entry !== seam);
-  return replaceAt(face, path, (node) => withSeams(node, next));
+  return replaceAt(face, path, (node) => withNoRail(node, next));
 }
