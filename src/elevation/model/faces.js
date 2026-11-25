@@ -3,6 +3,7 @@ import { EPSILON } from './cells.js';
 import { DEFAULT_SETTINGS, panelMaterial } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
 import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
+import { splitLine } from './split/splitLine.js';
 
 /** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
 export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
@@ -226,34 +227,24 @@ export function resolveFaces(face, area, reveals) {
       : gap);
     const length = stacked ? rect.height : rect.width;
     const lastIndex = node.children.length - 1;
-    const hasAuto = node.children.some((child) => child.size === null);
-    const isAuto = (child, index) => child.size === null || (!hasAuto && index === lastIndex);
-    const fixedTotal = node.children.reduce(
-      (sum, child, index) => (isAuto(child, index) ? sum : sum + child.size),
-      0,
-    );
-    const autoCount = node.children.filter(isAuto).length;
     // A face next to a cut seam takes no fit on that edge, so an auto slot grows by it and the faces stay equal.
     const uncutEdges = (index) => 2 - (cuts.has(index - 1) ? 1 : 0) - (cuts.has(index) ? 1 : 0);
-    const gaps = cuts.size
-      ? node.children.reduce((sum, _child, index) => (index < lastIndex ? sum + gapAfter(index) : sum), 0)
-      : gap * lastIndex;
-    const cutFit = cuts.size
-      ? fit * node.children.reduce((sum, child, index) => (
-        isAuto(child, index) && !isSquare(childPathAt(index)) ? sum + uncutEdges(index) : sum
-      ), 0)
-      : 0;
-    const autoSize = (length - gaps - fixedTotal - cutFit) / autoCount;
-    if (autoSize < MIN_FACE_SIZE) warnings.push({ code: 'face-too-small', path });
+    const children = node.children.map((child, index) => ({
+      size: child.size,
+      extra: cuts.size ? fitAt(childPathAt(index)) * uncutEdges(index) : 0,
+    }));
+    const line = splitLine(children, length, {
+      gaps: children.slice(0, lastIndex).map((_child, index) => gapAfter(index)),
+      short: 'share',
+    });
+    const share = line.autoCount > 0 ? line.autoSize : line.sizes[lastIndex] - children[lastIndex].extra;
+    if (share < MIN_FACE_SIZE) warnings.push({ code: 'face-too-small', path });
 
-    let cursor = stacked ? rect.z + rect.height : rect.x;
     node.children.forEach((child, index) => {
-      const size = isAuto(child, index)
-        ? autoSize + (cuts.size ? fitAt(childPathAt(index)) * uncutEdges(index) : 0)
-        : child.size;
+      const size = line.sizes[index];
       const childRect = stacked
-        ? { x: rect.x, z: cursor - size, width: rect.width, height: size }
-        : { x: cursor, z: rect.z, width: size, height: rect.height };
+        ? { x: rect.x, z: rect.z + rect.height - line.starts[index] - size, width: rect.width, height: size }
+        : { x: rect.x + line.starts[index], z: rect.z, width: size, height: rect.height };
       const childPath = childPathAt(index);
       if (child.type && (cuts.has(index - 1) || cuts.has(index))) {
         // The faces on either side of a cut seam are one opening in the frame, named for its first face.
@@ -273,7 +264,6 @@ export function resolveFaces(face, area, reveals) {
       } else {
         place(child, childRect, childPath);
       }
-      cursor = stacked ? cursor - size - gapAfter(index) : cursor + size + gapAfter(index);
     });
   };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { applyHinges, cabinetFaces, isFaceNode } from '../faces.js';
+import { applyHinges, cabinetFaces, isFaceNode, resolveFaces } from '../faces.js';
 import { PANEL_MATERIALS, panelMaterial } from '../index.js';
 
 const { BASE, UPPER } = CABINET_TYPE_IDS;
@@ -50,6 +50,57 @@ describe('panel material data (IN14)', () => {
       expect(faces.every((face) => face.panelMaterial === 'glass')).toBe(true);
       if (type === 'pair_door') expect(faces.map(({ half }) => half)).toEqual(['left', 'right']);
     }
+  });
+});
+
+describe('resolveFaces', () => {
+  it.each([
+    {
+      name: 'horizontal with a typed middle door',
+      width: 30,
+      height: 20,
+      face: {
+        direction: 'horizontal', size: null,
+        children: [{ type: 'door', size: null }, { type: 'door', size: 10 }, { type: 'door', size: null }],
+      },
+      reveals: { vertical: 0.125, horizontal: 0.125, fit: 0 },
+      expected: [
+        { path: 'r.0', type: 'door', x: 0, z: 0, width: 9.875, height: 20 },
+        { path: 'r.1', type: 'door', x: 10, z: 0, width: 10, height: 20 },
+        { path: 'r.2', type: 'door', x: 20.125, z: 0, width: 9.875, height: 20 },
+      ],
+    },
+    {
+      name: 'vertical with a cut seam',
+      width: 20,
+      height: 30,
+      face: {
+        direction: 'vertical', size: null, noRail: [0],
+        children: [{ type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }],
+      },
+      reveals: { horizontal: 0.125, vertical: 0.125, fit: 0.0625, shared: 0 },
+      expected: [
+        { path: 'r.0', type: 'drawer_front', x: 0.0625, z: 15, width: 19.875, height: 14.9375, opening: 'r.0' },
+        { path: 'r.1', type: 'drawer_front', x: 0.0625, z: 0.0625, width: 19.875, height: 14.9375, opening: 'r.0' },
+      ],
+    },
+    {
+      name: 'vertical with all typed drawers',
+      width: 20,
+      height: 30,
+      face: {
+        direction: 'vertical', size: null,
+        children: [{ type: 'drawer_front', size: 20 }, { type: 'drawer_front', size: 12 }],
+      },
+      reveals: { horizontal: 0.125, vertical: 0.125, fit: 0 },
+      expected: [
+        { path: 'r.0', type: 'drawer_front', x: 0, z: 10, width: 20, height: 20 },
+        { path: 'r.1', type: 'drawer_front', x: 0, z: 0, width: 20, height: 9.875 },
+      ],
+    },
+  ])('sizes $name face groups (E2)', ({ face, width, height, reveals, expected }) => {
+    const area = { x: 0, z: 0, width, height };
+    expect(resolveFaces(face, area, reveals)).toEqual({ faces: expected, warnings: [] });
   });
 });
 
