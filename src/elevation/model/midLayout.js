@@ -1,3 +1,5 @@
+import { splitLine } from './split/splitLine.js';
+
 export const MAX_MID_SPLIT = 8;
 
 const EPSILON = 1e-6;
@@ -193,26 +195,21 @@ export function resolveMidLayout(layout, area, widths, { mirror = false } = {}) 
       };
     });
 
-    const space = (rows ? rect.height : rect.width) - mids.reduce((sum, mid) => sum + mid.width, 0);
-    const sizes = node.children.map((child) => child.size ?? 0);
-    const remainder = space - sizes.reduce((sum, size) => sum + size, 0);
-    const autoCount = node.children.filter((child) => child.size === undefined).length;
-    if (autoCount && remainder > EPSILON) {
-      node.children.forEach((child, index) => {
-        if (child.size === undefined) sizes[index] = remainder / autoCount;
-      });
-    } else {
-      const lastTyped = node.children.findLastIndex((child) => child.size !== undefined);
-      if (lastTyped !== -1) sizes[lastTyped] += remainder;
-      if (remainder < -EPSILON || autoCount) warnings.push({ code: 'mid-layout-overfull', path });
+    const { sizes, starts, remainder, autoCount } = splitLine(
+      node.children, rows ? rect.height : rect.width,
+      { gaps: mids.map((mid) => mid.width), short: 'lastTyped' },
+    );
+    if ((autoCount > 0 && remainder <= EPSILON) || remainder < -EPSILON) {
+      warnings.push({ code: 'mid-layout-overfull', path });
     }
 
     // Keep references to bounding mids until their names can be assigned in coordinate order.
     const reversed = !rows && mirror;
-    let cursor = rows ? rect.z : rect.x + (reversed ? rect.width : 0);
     node.children.forEach((child, index) => {
       const size = sizes[index];
-      const start = reversed ? cursor - size : cursor;
+      const start = reversed
+        ? rect.x + rect.width - starts[index] - size
+        : (rows ? rect.z : rect.x) + starts[index];
       const childRect = rows
         ? { x: rect.x, z: start, width: rect.width, height: size }
         : { x: start, z: rect.z, width: size, height: rect.height };
@@ -224,11 +221,11 @@ export function resolveMidLayout(layout, area, widths, { mirror = false } = {}) 
           ? { ...bounds, left: after ?? bounds.left, right: before ?? bounds.right }
           : { ...bounds, left: before ?? bounds.left, right: after ?? bounds.right };
       place(child, childRect, `${path}.${index}`, childBounds);
-      cursor += reversed ? -size : size;
       if (after) {
-        after.at = cursor + (reversed ? -after.width / 2 : after.width / 2);
+        after.at = reversed
+          ? rect.x + rect.width - starts[index] - size - after.width / 2
+          : (rows ? rect.z : rect.x) + starts[index] + size + after.width / 2;
         members.push({ mid: after, across: rows ? rect.x : rect.z });
-        cursor += reversed ? -after.width : after.width;
       }
     });
   };
