@@ -122,7 +122,8 @@ export {
   cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
   wallDrawerBoxes,
 } from './drawerBoxes.js';
-export { pairSeam, sectionRollouts, wallRollouts } from './rollouts.js';
+export { pairSeam } from './split/seamLinks.js';
+export { sectionRollouts, wallRollouts } from './rollouts.js';
 export { sectionShelves, wallShelves } from './shelves.js';
 export { glassMarks } from './glassMarks.js';
 export { wallShowThrough } from './showThrough.js';

@@ -1,4 +1,5 @@
 import { treeRows } from './treeWalk.js';
+import { isSeamKey, parseSeam } from './split/seamLinks.js';
 import { isPlainObject } from '@reduxjs/toolkit';
 import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, SHELF_NOSINGS } from './constants.js';
 import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
@@ -26,9 +27,7 @@ function isDivider(divider, direction) {
       && Number.isFinite(divider.gap) && divider.gap >= 0))
     && (!Object.hasOwn(divider, 'at') || (Number.isFinite(divider.at) && divider.at > 0))
     && (!Object.hasOwn(divider, 'depth') || (Number.isFinite(divider.depth) && divider.depth > 0))
-    && (!Object.hasOwn(divider, 'seam') || (typeof divider.seam === 'string'
-      && /^r(\.\d+)*:(\d+|pair)$/.test(divider.seam)
-      && (direction === 'horizontal' || !divider.seam.endsWith(':pair'))))
+    && (!Object.hasOwn(divider, 'seam') || isSeamKey(divider.seam, direction))
     && (!Object.hasOwn(divider, 'banding') || (BANDED_KINDS.includes(divider.kind)
       && typeof divider.banding === 'boolean'))
     && (!Object.hasOwn(divider, 'from')
@@ -273,7 +272,7 @@ export function splitSection(interior, path, direction, count, kind) {
 /** Action-time sink pair: link two zones to the door seam and copy the first roll-out's picks. */
 export function splitSinkRollouts(interior, path, seam) {
   const target = getInteriorNode(interior, path);
-  if (!target || target.children || typeof seam !== 'string' || !/^r(\.\d+)*:pair$/.test(seam)) {
+  if (!target || target.children || !parseSeam(seam)?.pair) {
     return interior ?? {};
   }
   let next = splitSection(interior, path, 'horizontal', 2, 'zone');

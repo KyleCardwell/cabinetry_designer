@@ -8,17 +8,9 @@ import { resolveWall } from './room.js';
 import { covers, shelfZone, sideHinged } from './shelves.js';
 import { fittingLength, resolveBoxSlide, slideBoxWidth } from './slides.js';
 import { spacedStack } from './spacedStack.js';
+export { pairSeam } from './split/seamLinks.js';
 
 const EPSILON = 1e-9;
-
-export function pairSeam(faces) {
-  for (const left of faces) {
-    if (left.type !== 'pair_door' || left.half !== 'left') continue;
-    const right = faces.find((face) => face.type === 'pair_door' && face.path === left.path && face.half === 'right');
-    if (right) return (left.x + left.width + right.x) / 2;
-  }
-  return null;
-}
 
 function columnSpacers(column, faces, spacer) {
   const sides = new Set();

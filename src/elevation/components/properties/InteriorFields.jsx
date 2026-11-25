@@ -14,7 +14,6 @@ import {
   getInteriorNode,
   interiorOutline,
   placeInterior,
-  pairSeam,
   removeDivider,
   removeSectionAccessory,
   resolveWall,
@@ -37,6 +36,7 @@ import { sectionAccessories } from '../../model/accessories.js';
 import { sectionRollouts } from '../../model/rollouts.js';
 import { BUILT_IN_SLIDES, resolveBoxSlide, resolveSlide } from '../../model/slides.js';
 import { covers, sectionShelves } from '../../model/shelves.js';
+import { pairHalves, pairKey } from '../../model/split/seamLinks.js';
 import { setCabinetSlide, setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
@@ -140,8 +140,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     }).get(path);
     const section = placed.sections.find((section) => section.path === path);
     const covering = faces.filter((face) => section && covers(face, section));
-    const pair = pairSeam(covering) === null ? null : covering.find((face) => face.type === 'pair_door' && face.half === 'left'
-      && covering.some((other) => other.path === face.path && other.half === 'right'));
+    const pair = pairHalves(covering)?.left;
     const autoBottom = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionShelves(interior, path, { bottom: null }) },
     }).get(path)?.positions[0] - section?.z;
@@ -179,7 +178,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     if (count !== 2 || item.purpose !== 'sink' || shelfData.pairPath === undefined) {
       return patchRollouts({ count });
     }
-    const next = splitSinkRollouts(interior, path, `${shelfData.pairPath}:pair`);
+    const next = splitSinkRollouts(interior, path, pairKey(shelfData.pairPath));
     if (!commit(next)) return false;
     const parentPath = path.includes('.') ? path.slice(0, path.lastIndexOf('.')) : null;
     const groupPath = getInteriorNode(interior, parentPath)?.direction === 'horizontal' ? parentPath : path;

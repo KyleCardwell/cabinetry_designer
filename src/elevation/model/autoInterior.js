@@ -1,4 +1,5 @@
 import { ROOT_FACE_PATH, resolveFaces } from './faces.js';
+import { pairKey, parseSeam, seamKey } from './split/seamLinks.js';
 
 const group = (direction, children, dividers) => ({ direction, children, dividers });
 
@@ -32,7 +33,7 @@ function shelfLevels(face, dividers, path) {
       horizontal: 0, vertical: 0,
     });
     return dividers.map(({ seam }) => {
-      const [parent, index] = seam.split(':');
+      const { path: parent, index } = parseSeam(seam);
       const prefix = `${parent.slice(path.length)}.${index}`;
       const above = faces.filter((entry) => {
         const relative = entry.path.slice(ROOT_FACE_PATH.length);
@@ -50,7 +51,7 @@ export function autoInterior(faceTree, boxWidth, { nosing } = {}) {
   const walk = (face, path, inColumns = false) => {
     if (!face.children) {
       return wide && !inColumns && face.type === 'pair_door'
-        ? group('horizontal', [{}, {}], [{ kind: 'partition', seam: `${path}:pair` }]) : null;
+        ? group('horizontal', [{}, {}], [{ kind: 'partition', seam: pairKey(path) }]) : null;
     }
     const columns = face.direction === 'horizontal';
     const trees = face.children.map((child, index) => walk(child, `${path}.${index}`, inColumns || columns));
@@ -67,7 +68,7 @@ export function autoInterior(faceTree, boxWidth, { nosing } = {}) {
         }
       }
       return group('horizontal', trees.map((tree) => tree ?? {}),
-        face.children.slice(1).map((_, index) => ({ kind: 'partition', seam: `${path}:${index}` })));
+        face.children.slice(1).map((_, index) => ({ kind: 'partition', seam: seamKey(path, index) })));
     }
     const dividers = [];
     const children = [];
@@ -77,7 +78,7 @@ export function autoInterior(faceTree, boxWidth, { nosing } = {}) {
         : trees[i] || trees[i + 1] ? 'stretcher' : null;
       if (!kind) continue;
       children.push(first === i ? trees[i] ?? {} : {});
-      dividers.push({ kind, seam: `${path}:${i}` });
+      dividers.push({ kind, seam: seamKey(path, i) });
       first = i + 1;
     }
     if (!dividers.length) return null;

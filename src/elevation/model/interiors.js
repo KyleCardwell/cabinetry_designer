@@ -9,6 +9,7 @@ import { getFaceNode } from './faceTree.js';
 import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { pairSeam, parseSeam } from './split/seamLinks.js';
 import { splitLine } from './split/splitLine.js';
 import { isInsetStyle } from './styles.js';
 import { roundTo } from './units.js';
@@ -57,20 +58,18 @@ function dividerCenters(node, rect, box, thicknesses, seams) {
 }
 
 /** A valid seam in wall coordinates becomes an exterior-to-centre box-local position. */
-function seamCenter(seam, direction, thickness, box, context) {
-  if (!context || !seam) return null;
-  const [path, key] = seam.split(':');
+function seamPosition(seam, direction, thickness, box, context) {
+  const parsed = parseSeam(seam);
+  if (!context || !parsed) return null;
+  const { path, index, pair } = parsed;
   const node = getFaceNode(context.faceTree, path);
   const under = (entries, prefix) => (entries ?? [])
     .filter((entry) => entry.path === prefix || entry.path.startsWith(`${prefix}.`));
-  if (key === 'pair') {
+  if (pair) {
     if (direction !== 'horizontal' || node?.type !== 'pair_door') return null;
-    const halves = under(context.faces, path);
-    const left = halves.find((face) => face.half === 'left');
-    const right = halves.find((face) => face.half === 'right');
-    return left && right ? (left.x + left.width + right.x) / 2 - (box.x ?? 0) : null;
+    const position = pairSeam(under(context.faces, path));
+    return position === null ? null : position - (box.x ?? 0);
   }
-  const index = Number(key);
   if (!node?.children || node.direction !== direction || !Number.isInteger(index)
     || index < 0 || index >= node.children.length - 1) return null;
   const above = under(context.faces, `${path}.${index}`);
@@ -131,7 +130,7 @@ export function resolveInterior(interior, box, construction, settings, context) 
       ? gap ?? (stacked ? 0 : settings?.zoneGap ?? 1)
       : kind.startsWith('double_') ? 2 * t : t);
     const seams = node.dividers.map((divider, index) => (
-      seamCenter(divider.seam, node.direction, thicknesses[index], box, context)
+      seamPosition(divider.seam, node.direction, thicknesses[index], box, context)
     ));
     const { centers, start, end } = dividerCenters(node, clear, box, thicknesses, seams);
     node.dividers.forEach((divider, index) => {
