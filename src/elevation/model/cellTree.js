@@ -1,9 +1,10 @@
 import { insertRootColumn, isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
   rootItems, updateRootItem } from './grid.js';
 import { EXTEND_DIRECTIONS, isExtendTarget } from './extensions.js';
+import { MAX_SPLIT, clampCount } from './split/treeEdits.js';
 
 /** Maximum number of cells created by one split. */
-export const MAX_CELL_SPLIT = 8;
+export const MAX_CELL_SPLIT = MAX_SPLIT;
 
 /** Directions accepted by splitGridCell. */
 export const CELL_DIRECTIONS = ['across', 'down'];
@@ -27,6 +28,18 @@ const trackKey = (axis) => (axis === 'row' ? 'rows' : 'cols');
 const splitAxis = (direction) => (direction === 'down' ? 'row' : 'col');
 const autoTrack = (id) => ({ id, size: null, sizeMode: 'auto' });
 const ordered = (cells) => [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
+const shiftCells = (cells, axis, from, by) => cells.map((cell) => (
+  cell[axis] >= from ? { ...cell, [axis]: cell[axis] + by } : cell));
+
+function gridOf(id, cross, axis, tracks, nodes) {
+  return {
+    id,
+    cols: axis === 'col' ? tracks : [cross],
+    rows: axis === 'row' ? tracks : [cross],
+    cells: nodes.map((node, index) => ({ col: axis === 'col' ? index : 0,
+      row: axis === 'row' ? index : 0, colSpan: 1, rowSpan: 1, node })),
+  };
+}
 
 function locate(grid, nodeId, depth = 0) {
   const axis = axisOf(grid);
@@ -96,9 +109,7 @@ function splitFlat(parent, found, count, makeId) {
   tracks.splice(cell[axis] + 1, 0, ...newTracks);
   const leaves = Array.from({ length: count - 1 }, () => (
     { id: makeId(), kind: cell.node.kind, ...copiedStyle(cell.node) }));
-  const shifted = parent.cells.map((entry) => entry[axis] > cell[axis]
-    ? { ...entry, [axis]: entry[axis] + count - 1 }
-    : entry);
+  const shifted = shiftCells(parent.cells, axis, cell[axis] + 1, count - 1);
   const additions = leaves.map((node, index) => (
     { ...cell, [axis]: cell[axis] + index + 1, node }));
   return { ...parent, [key]: tracks, cells: ordered([...shifted, ...additions]) };
@@ -110,14 +121,7 @@ function nestedSplit(leaf, direction, count, makeId) {
   const tracks = Array.from({ length: count }, () => autoTrack(makeId()));
   const leaves = [leaf, ...Array.from({ length: count - 1 }, () => (
     { id: makeId(), kind: leaf.kind, ...copiedStyle(leaf) }))];
-  const down = direction === 'down';
-  return {
-    id,
-    cols: down ? [cross] : tracks,
-    rows: down ? tracks : [cross],
-    cells: leaves.map((node, index) => ({ col: down ? 0 : index,
-      row: down ? index : 0, colSpan: 1, rowSpan: 1, node })),
-  };
+  return gridOf(id, cross, splitAxis(direction), tracks, leaves);
 }
 
 /** Finds a leaf or nested-grid node and describes its containing cell. */
@@ -189,7 +193,7 @@ export function splitGridCell(grid, leafId, direction, count, makeId) {
   const found = locate(grid, leafId);
   if (!found || isNestedGrid(found.cell.node)
     || !['cabinet', 'panel'].includes(found.cell.node.kind)) return grid;
-  const total = Math.min(MAX_CELL_SPLIT, Math.max(2, Math.round(count)));
+  const total = clampCount(count, 2);
   if (found.depth === 0 && direction === 'across') {
     const items = rootItems(grid);
     const item = { ...items[found.cell.col], width: null };
@@ -216,9 +220,8 @@ function flattenInto(parent, owner, child) {
   const tracks = [...parent[key]];
   tracks.splice(at, 1, ...child[key]);
   const offset = child[key].length - 1;
-  const cells = parent.cells
-    .filter((_, index) => index !== owner.cellIndex)
-    .map((cell) => cell[axis] > at ? { ...cell, [axis]: cell[axis] + offset } : cell);
+  const cells = shiftCells(parent.cells.filter((_, index) => index !== owner.cellIndex),
+    axis, at + 1, offset);
   const inserted = child.cells.map((cell) => ({ ...cell, [axis]: cell[axis] + at }));
   return { ...parent, [key]: tracks, cells: ordered([...cells, ...inserted]) };
 }
@@ -232,9 +235,7 @@ export function removeGridCell(grid, leafId) {
   const key = trackKey(axis);
   const at = found.cell[axis];
   const tracks = parent[key].filter((_, index) => index !== at);
-  const cells = parent.cells
-    .filter((_, index) => index !== cellIndex)
-    .map((cell) => cell[axis] > at ? { ...cell, [axis]: cell[axis] - 1 } : cell);
+  const cells = shiftCells(parent.cells.filter((_, index) => index !== cellIndex), axis, at + 1, -1);
   let next;
   if (cells.length > 1) {
     next = replaceNestedGrid(grid, parent, { ...parent, [key]: tracks, cells: ordered(cells) });
@@ -277,32 +278,9 @@ export function unsplitGridCell(grid, leafId) {
 /** Sets any root or nested track to automatic or a positive manual size. */
 export function setGridTrackSize(grid, trackId, size) {
   if (size !== null && !(typeof size === 'number' && Number.isFinite(size) && size > 0)) return grid;
-  const desiredMode = size === null ? 'auto' : 'manual';
-  function visit(node) {
-    for (const key of ['cols', 'rows']) {
-      const index = node[key].findIndex((track) => track.id === trackId);
-      if (index >= 0) {
-        const track = node[key][index];
-        if (Object.is(track.size, size) && track.sizeMode === desiredMode) return [node, true];
-        const tracks = [...node[key]];
-        tracks[index] = { ...track, size, sizeMode: desiredMode };
-        return [{ ...node, [key]: tracks }, true];
-      }
-    }
-    for (let index = 0; index < node.cells.length; index += 1) {
-      const cell = node.cells[index];
-      if (!isNestedGrid(cell.node)) continue;
-      const [child, found] = visit(cell.node);
-      if (!found) continue;
-      if (child === cell.node) return [node, true];
-      const cells = [...node.cells];
-      cells[index] = { ...cell, node: child };
-      return [{ ...node, cells }, true];
-    }
-    return [node, false];
-  }
-  const [next, found] = visit(grid);
-  return found ? next : grid;
+  const sizeMode = size === null ? 'auto' : 'manual';
+  return updateTrack(grid, trackId, (track) => Object.is(track.size, size) && track.sizeMode === sizeMode
+    ? track : { ...track, size, sizeMode });
 }
 
 function replaceLeaf(grid, found, leaf) {
@@ -392,13 +370,7 @@ function wrapGrid(axis, makeId, nodes, sizes) {
     ? autoTrack(makeId())
     : { id: makeId(), size, sizeMode: 'manual' }));
   const leaves = nodes.map((node) => node ?? { id: makeId(), kind: 'panel' });
-  return {
-    id,
-    cols: axis === 'col' ? tracks : [cross],
-    rows: axis === 'row' ? tracks : [cross],
-    cells: leaves.map((node, index) => ({ col: axis === 'col' ? index : 0,
-      row: axis === 'row' ? index : 0, colSpan: 1, rowSpan: 1, node })),
-  };
+  return gridOf(id, cross, axis, tracks, leaves);
 }
 
 /**
@@ -477,8 +449,7 @@ export function addGridPanel(grid, leafId, side, thickness, makeId) {
     const tracks = [...parent[key]];
     tracks.splice(at, 0, { id: makeId(), size: thickness, sizeMode: 'manual' });
     const panel = { ...cell, [axis]: at, node: { id: makeId(), kind: 'panel' } };
-    const cells = parent.cells.map((entry) => (
-      entry[axis] >= at ? { ...entry, [axis]: entry[axis] + 1 } : entry));
+    const cells = shiftCells(parent.cells, axis, at, 1);
     next = replaceNestedGrid(grid, parent, { ...parent, [key]: tracks, cells: ordered([...cells, panel]) });
   } else {
     const id = makeId();
@@ -487,13 +458,7 @@ export function addGridPanel(grid, leafId, side, thickness, makeId) {
     const tracks = before ? [fixed(), autoTrack(makeId())] : [autoTrack(makeId()), fixed()];
     const panel = { id: makeId(), kind: 'panel' };
     const nodes = before ? [panel, found.cell.node] : [found.cell.node, panel];
-    next = replaceLeaf(grid, found, {
-      id,
-      cols: axis === 'col' ? tracks : [cross],
-      rows: axis === 'row' ? tracks : [cross],
-      cells: nodes.map((node, index) => ({ col: axis === 'col' ? index : 0,
-        row: axis === 'row' ? index : 0, colSpan: 1, rowSpan: 1, node })),
-    });
+    next = replaceLeaf(grid, found, gridOf(id, cross, axis, tracks, nodes));
   }
   return rehomeBlind(grid, next);
 }
