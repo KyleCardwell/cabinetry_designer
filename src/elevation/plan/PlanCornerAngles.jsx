@@ -15,7 +15,7 @@ export default function PlanCornerAngles({ room, scale, tool, entry, cursor, onE
     const radius = 24 / scale;
     const middle = mark.startAngle + mark.sweep / 2;
     const labelRadius = 35 / scale;
-    // Reflex corners remain visible; outside-corner plan editing is outside this round.
+    // 270° corners are skipped; other reflex corners remain visible but aren't editable.
     const editable = selectable && mark.angle < 180;
     const key = String(index);
     return (

@@ -16,7 +16,8 @@ export function cornerAngleMarks(room) {
     ]) {
       const corner = cornerAt(room, wall, side);
       if (!Number.isFinite(corner.angle) || Math.abs(corner.angle - 90) <= 0.5
-        || Math.abs(corner.angle - 180) <= 0.5) continue;
+        || Math.abs(corner.angle - 180) <= 0.5
+        || Math.abs(corner.angle - 270) <= 0.5) continue;
       const neighbor = room.walls.find(({ id }) => id === corner.neighborWallId);
       if (!neighbor) continue;
       const connection = wall.connections?.[endpoint];

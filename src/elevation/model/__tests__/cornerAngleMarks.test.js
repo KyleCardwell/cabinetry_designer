@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { room, wall } from '../../../test/builders.js';
 import { cornerAngleMarks } from '../cornerAngleMarks.js';
 import { dot, wallFrame } from '../geometry.js';
+import { goldenRooms } from './helpers/goldenRooms.js';
 
 const clipped = room({ walls: [
   wall({ id: 'bottom', x1: 0, y1: 0, x2: 100, y2: 0, connections: {
@@ -36,4 +37,12 @@ it('marks both clipped corners on the room side and omits square corners (MW1)',
     const frame = wallFrame(clipped, clipped.walls.find(({ id }) => id === mark.walls[0]));
     expect(dot({ x: Math.cos(middle), y: Math.sin(middle) }, frame.n)).toBeGreaterThan(0);
   }
+});
+
+it('omits N4 outside corner F and marks its 135° corners (GC5.2)', () => {
+  const { room } = goldenRooms().find(({ key }) => key === 'N4').load();
+  const marks = cornerAngleMarks(room);
+
+  expect(marks).not.toContainEqual(expect.objectContaining({ point: { x: -36, y: 25 } }));
+  expect(marks.map(({ angle }) => angle)).toEqual([135, 135]);
 });
