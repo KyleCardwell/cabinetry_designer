@@ -8,7 +8,6 @@ import { resolveWall } from './room.js';
 import { covers, shelfZone, sideHinged } from './shelves.js';
 import { fittingLength, resolveBoxSlide, slideBoxWidth } from './slides.js';
 import { spacedStack } from './spacedStack.js';
-export { pairSeam } from './split/seamLinks.js';
 
 const EPSILON = 1e-9;
 

@@ -133,7 +133,9 @@ export function resolveInterior(interior, box, construction, settings, context) 
     const seams = node.dividers.map((divider, index) => (
       seamPosition(divider.seam, node.direction, thicknesses[index], box, context)
     ));
-    const pins = node.dividers.map((divider, index) => rankedPosition(typedPosition(divider, box, stacked), seams[index]));
+    const pins = node.dividers.map((divider, index) => (
+      rankedPosition(typedPosition(divider, box, stacked), seams[index])
+    ));
     const { centers, start, end } = dividerCenters(pins, clear, thicknesses, stacked);
     node.dividers.forEach((divider, index) => {
       const thickness = thicknesses[index];
