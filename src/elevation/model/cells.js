@@ -8,41 +8,11 @@ import { stepEndPieces } from './stepEnds.js';
 import { endHeightMode } from './runEnds.js';
 import { MAX_SHELVES } from './cellTree.js';
 import { autoStackCount, spacedStack } from './spacedStack.js';
+import { absorberIndexes, splitLine } from './split/splitLine.js';
 
 export const MIN_CELL_SIZE = 1;
 
 export const EPSILON = 1e-6;
-
-export function resolveTracks(tracks, length, gaps = []) {
-  if (tracks.length === 0) return [];
-
-  const anyAuto = tracks.some((track) => track.size === null);
-  const last = tracks.length - 1;
-  const isAuto = (track, index) => track.size === null || (!anyAuto && index === last);
-  const fixed = tracks.reduce(
-    (total, track, index) => total + (isAuto(track, index) ? 0 : track.size),
-    0,
-  );
-  const autoCount = tracks.reduce(
-    (total, track, index) => total + (isAuto(track, index) ? 1 : 0),
-    0,
-  );
-  const spacing = gaps.reduce((total, gap) => total + gap, 0);
-  const autoSize = (length - fixed - spacing) / autoCount;
-
-  return tracks.map((track, index) => (isAuto(track, index) ? autoSize : track.size));
-}
-
-/** Where each track starts along its axis, each track's gap after it. */
-function trackStarts(sizes, gaps) {
-  const starts = [];
-  let cursor = 0;
-  sizes.forEach((size, index) => {
-    starts.push(cursor);
-    cursor += size + (gaps[index] ?? 0);
-  });
-  return starts;
-}
 
 /** What a cell covers from track `first` over `count` tracks, the gaps between them included. */
 function spanLength(starts, sizes, first, count) {
@@ -83,8 +53,8 @@ export function gapReach(gaps) {
 
 function axisLayout(grid, key, length, seamGap, insidePanels, context) {
   const gaps = trackGaps(grid, key, seamGap, insidePanels, context);
-  const sizes = resolveTracks(grid[key], length, gaps);
-  return { gaps, sizes, starts: trackStarts(sizes, gaps) };
+  const { sizes, starts } = splitLine(grid[key], length, { gaps });
+  return { gaps, sizes, starts };
 }
 
 /**
@@ -95,14 +65,12 @@ function axisLayout(grid, key, length, seamGap, insidePanels, context) {
 export function derivedLeafWidths(node, width, seamGap = 0, insidePanels = [], context) {
   if (!isNestedGrid(node)) return node.kind === 'void' ? [] : [width];
   const cols = axisLayout(node, 'cols', width, seamGap, insidePanels, context);
-  const anyAuto = node.cols.some((track) => track.size === null);
-  const last = node.cols.length - 1;
-  const derived = (index) => node.cols[index].size === null || (!anyAuto && index === last);
+  const derived = new Set(absorberIndexes(node.cols));
   const widths = [];
   for (const cell of node.cells) {
     let spansDerived = false;
     for (let index = cell.col; index < cell.col + cell.colSpan; index += 1) {
-      if (derived(index)) spansDerived = true;
+      if (derived.has(index)) spansDerived = true;
     }
     if (!spansDerived) continue;
     const cellWidth = spanLength(cols.starts, cols.sizes, cell.col, cell.colSpan);

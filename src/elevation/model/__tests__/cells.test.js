@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { auto, run as buildRun } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
-import { blindCellWidths, cellPieces, resolveTracks, stackedSides } from '../cells.js';
+import { blindCellWidths, cellPieces, stackedSides } from '../cells.js';
 import { gridFromItems, runItems } from '../grid.js';
 import { syncAutoItems } from '../splitRun.js';
 
@@ -27,20 +27,6 @@ const LAYOUT = { pieces: [
 ] };
 
 describe('cells', () => {
-  it('resolves tracks', () => {
-    expect(resolveTracks([AUTO('x'), { id: 'y', size: 30, sizeMode: 'manual' }], 90)).toEqual([60, 30]);
-    expect(resolveTracks([
-      { id: 'x', size: 20, sizeMode: 'manual' },
-      { id: 'y', size: 30, sizeMode: 'manual' },
-    ], 90)).toEqual([20, 70]);
-    expect(resolveTracks([AUTO('x'), AUTO('y'), AUTO('z')], 90)).toEqual([30, 30, 30]);
-    expect(resolveTracks([], 10)).toEqual([]);
-    expect(resolveTracks([
-      { id: 'x', size: 100, sizeMode: 'manual' },
-      AUTO('y'),
-    ], 90)).toEqual([100, -10]);
-  });
-
   it('expands a split column', () => {
     const cells = cellPieces(RUN, LAYOUT);
     expect(cells.pieces.map((value) => value.id)).toEqual(['r:left', 'a', 'p', 't', 'q']);
