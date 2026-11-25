@@ -9,7 +9,7 @@ import { getFaceNode } from './faceTree.js';
 import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
-import { pairSeam, parseSeam } from './split/seamLinks.js';
+import { pairSeam, parseSeam, rankedPosition } from './split/seamLinks.js';
 import { splitLine } from './split/splitLine.js';
 import { isInsetStyle } from './styles.js';
 import { roundTo } from './units.js';
@@ -28,16 +28,17 @@ export function interiorDepth(boxDepth, back, settings) {
   }
 }
 
+function typedPosition(divider, box, stacked) {
+  if (divider.at === undefined) return null;
+  if (stacked) return divider.at;
+  return divider.from === 'right' ? box.width - divider.at : divider.at;
+}
+
 /** Divider centres along the outline axis: left to right, or top to bottom (-z). */
-function dividerCenters(node, rect, box, thicknesses, seams) {
-  const stacked = node.direction === 'vertical';
+function dividerCenters(pins, rect, thicknesses, stacked) {
   const start = stacked ? -rect.z - rect.height : rect.x;
   const end = stacked ? -rect.z : rect.x + rect.width;
-  const centers = node.dividers.map((divider, index) => {
-    if (divider.at === undefined) return seams[index] === null ? null : stacked ? -seams[index] : seams[index];
-    if (stacked) return -divider.at;
-    return divider.from === 'right' ? box.width - divider.at : divider.at;
-  });
+  const centers = pins.map(({ at }) => at === null ? null : stacked ? -at : at);
   let first = 0;
   let bound = start;
   for (let i = 0; i <= centers.length; i += 1) {
@@ -132,11 +133,13 @@ export function resolveInterior(interior, box, construction, settings, context) 
     const seams = node.dividers.map((divider, index) => (
       seamPosition(divider.seam, node.direction, thicknesses[index], box, context)
     ));
-    const { centers, start, end } = dividerCenters(node, clear, box, thicknesses, seams);
+    const pins = node.dividers.map((divider, index) => rankedPosition(typedPosition(divider, box, stacked), seams[index]));
+    const { centers, start, end } = dividerCenters(pins, clear, thicknesses, stacked);
     node.dividers.forEach((divider, index) => {
       const thickness = thicknesses[index];
       const center = stacked ? -centers[index] : centers[index];
-      const auto = divider.at === undefined;
+      const pin = pins[index];
+      const auto = pin.source !== 'typed';
       const zone = divider.kind === 'zone';
       const depthAuto = zone || divider.depth === undefined;
       const dividerDepth = zone ? null : divider.depth ?? (divider.kind === 'stretcher' ? STRETCHER_DEPTH : depth);
@@ -154,7 +157,7 @@ export function resolveInterior(interior, box, construction, settings, context) 
         height: stacked ? thickness : clear.height,
         depth: dividerDepth, ...dimensions, auto, depthAuto,
         gap: zone ? thickness : null, gapAuto: zone && divider.gap === undefined,
-        seam: divider.seam ?? null, linked: auto && seams[index] !== null,
+        seam: divider.seam ?? null, linked: pin.source === 'reference',
         banding: banded ? divider.banding ?? !context?.inset : null,
         bandingSource: banded ? divider.banding === undefined ? 'auto' : 'manual' : null,
       });
