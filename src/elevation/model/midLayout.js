@@ -51,7 +51,7 @@ function collapseGroup(node, child, root) {
   return next;
 }
 
-const midsAdapter = {
+const MID_TREE = {
   root: 'root',
   axisKey: 'split',
   flatMax: MAX_MID_SPLIT,
@@ -59,7 +59,7 @@ const midsAdapter = {
   withSeams: withMids,
   newSeam: () => ({}),
   collapse: collapseGroup,
-  autoChild: (child) => Object.hasOwn(child, 'size') ? midsAdapter.withSize(child, null) : child,
+  autoChild: (child) => Object.hasOwn(child, 'size') ? MID_TREE.withSize(child, null) : child,
   sizeOf: (node) => node.size ?? null,
   withSize: (node, size) => {
     const next = { ...node };
@@ -75,38 +75,38 @@ export function splitLayout(layout, path, split, count) {
   const n = clampCount(count, 2);
   const children = Array.from({ length: n }, () => ({}));
   if (layout === undefined && path === 'root') return checked(layout, { split, children });
-  const target = nodeAt(layout, path, midsAdapter.root);
+  const target = nodeAt(layout, path, MID_TREE.root);
   if (!target || target.split) return layout;
-  return checked(layout, splitChild(layout, path, midsAdapter, {
+  return checked(layout, splitChild(layout, path, MID_TREE, {
     axis: split, children, seam: () => ({}), group: (node) => node,
   }));
 }
 
 /** Resize a split at its top/right end, or collapse it into its first child. */
 export function setLayoutCount(layout, path, count) {
-  const target = nodeAt(layout, path, midsAdapter.root);
+  const target = nodeAt(layout, path, MID_TREE.root);
   if (!target?.split || !Number.isFinite(count)) return layout;
-  return checked(layout, setChildCount(layout, path, midsAdapter, clampCount(count, 1), () => ({})));
+  return checked(layout, setChildCount(layout, path, MID_TREE, clampCount(count, 1), () => ({})));
 }
 
 /** Remove a child and its following mid (the preceding mid for the last child). */
 export function removeLayoutChild(layout, path) {
-  return checked(layout, removeChild(layout, path, midsAdapter));
+  return checked(layout, removeChild(layout, path, MID_TREE));
 }
 
 /** Set or clear a panel/group's typed size; the root has no size. */
 export function setLayoutSize(layout, path, size) {
-  return checked(layout, setChildSize(layout, path, midsAdapter, size));
+  return checked(layout, setChildSize(layout, path, MID_TREE, size));
 }
 
 /** Clear only the direct children's typed sizes. */
 export function equalizeLayout(layout, path) {
-  return checked(layout, equalizeChildren(layout, path, midsAdapter));
+  return checked(layout, equalizeChildren(layout, path, MID_TREE));
 }
 
 /** Set or clear one mid's width, omitting the list when every mid is automatic. */
 export function setLayoutMidWidth(layout, path, index, width) {
-  const target = nodeAt(layout, path, midsAdapter.root);
+  const target = nodeAt(layout, path, MID_TREE.root);
   if (!target?.split || !Number.isInteger(index) || index < 0 || index >= target.children.length - 1
     || (width !== null && !positive(width)) || (target.mids?.[index]?.width ?? null) === width) return layout;
   return checked(layout, replaceAt(layout, path, (node) => {
@@ -118,7 +118,7 @@ export function setLayoutMidWidth(layout, path, index, width) {
 
 /** Position a mid using the preceding child's unmirrored bottom/left coordinate. */
 export function setMidPosition(layout, path, index, at, nodes, width) {
-  const target = nodeAt(layout, path, midsAdapter.root);
+  const target = nodeAt(layout, path, MID_TREE.root);
   if (!target?.split || !Number.isInteger(index) || index < 0 || index >= target.children.length - 1
     || !Number.isFinite(at) || !Number.isFinite(width) || width < 0 || !Array.isArray(nodes)) return layout;
   const childPath = `${path}.${index}`;

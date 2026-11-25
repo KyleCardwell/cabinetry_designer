@@ -2,13 +2,15 @@ import { treeRows } from './treeWalk.js';
 import { isPlainObject } from '@reduxjs/toolkit';
 import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, SHELF_NOSINGS } from './constants.js';
 import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
-import { MAX_SPLIT, clampCount, equalizeChildren, nodeAt, parentPath, replaceAt, splitChild } from './split/treeEdits.js';
-import { ROOT_FACE_PATH } from './faces.js';
+import { MAX_SPLIT, clampCount, equalizeChildren, lastIndex, nodeAt, parentPath, replaceAt, splitChild } from './split/treeEdits.js';
+
+// Same as faces' ROOT_FACE_PATH; a literal because importing faces.js here makes an import cycle.
+const ROOT_PATH = 'r';
 
 const BANDED_KINDS = ['fixed', 'double_fixed'];
 
-const INTERIORS = {
-  get root() { return ROOT_FACE_PATH; },
+const INTERIOR_TREE = {
+  root: ROOT_PATH,
   axisKey: 'direction',
   flatMax: MAX_SPLIT,
   seams: (node) => node.dividers,
@@ -121,7 +123,7 @@ export function isStoredInterior(value) {
 
 /** An absent interior is one empty root section. Missing paths return null. */
 export function getInteriorNode(interior, path) {
-  return nodeAt(interior ?? {}, path, ROOT_FACE_PATH);
+  return nodeAt(interior ?? {}, path, ROOT_PATH);
 }
 
 /** Pre-order rows for the interior outline. */
@@ -260,7 +262,7 @@ export function splitSection(interior, path, direction, count, kind) {
   const children = Array.from({ length: n }, (_, index) => sectionAfterResize(target,
     direction === 'vertical' && index === n - 1 ? target.rollouts : null));
   if (target.accessories) children[0].accessories = target.accessories.map((item) => ({ ...item }));
-  return splitChild(interior ?? {}, path, INTERIORS, {
+  return splitChild(interior ?? {}, path, INTERIOR_TREE, {
     axis: direction,
     children,
     seam: () => ({ kind: dividerKind }),
@@ -279,7 +281,7 @@ export function splitSinkRollouts(interior, path, seam) {
   const parent = parentPath(path);
   const flattened = parent !== null && getInteriorNode(interior, parent)?.direction === 'horizontal';
   const groupPath = flattened ? parent : path;
-  const index = flattened ? Number(path.split('.').at(-1)) : 0;
+  const index = flattened ? lastIndex(path) : 0;
   next = replaceAt(next, groupPath, (group) => ({
     ...group,
     dividers: group.dividers.map((divider, i) => i === index ? { ...divider, seam } : divider),
@@ -394,7 +396,7 @@ export function setDividerDepth(interior, groupPath, index, depth) {
 
 /** Clear positions in this group only, retaining kinds and depth overrides. */
 export function equalizeDividers(interior, groupPath) {
-  return equalizeChildren(interior ?? {}, groupPath, INTERIORS);
+  return equalizeChildren(interior ?? {}, groupPath, INTERIOR_TREE);
 }
 
 export function clearSplit(interior, groupPath) {

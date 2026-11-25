@@ -1,6 +1,6 @@
 import { treeRows } from './treeWalk.js';
 import {
-  MAX_SPLIT, clampCount, equalizeChildren, nodeAt, parentPath, removeChild,
+  MAX_SPLIT, clampCount, equalizeChildren, lastIndex, nodeAt, parentPath, removeChild,
   replaceAt, setChildCount, setChildSize, splitChild,
 } from './split/treeEdits.js';
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH, isFaceNode } from './faces.js';
@@ -15,7 +15,7 @@ export function parentFacePath(path) { return parentPath(path); }
 
 export function getFaceNode(face, path) { return nodeAt(face, path, ROOT_FACE_PATH); }
 
-const FACES = {
+const FACE_TREE = {
   // A getter: faces.js reaches this file through an import cycle, so ROOT_FACE_PATH may not exist yet here.
   get root() { return ROOT_FACE_PATH; },
   axisKey: 'direction',
@@ -113,7 +113,7 @@ export function setFacePart(face, path, patch) {
 }
 
 export function setFaceSize(face, path, size) {
-  return setChildSize(face, path, FACES, size);
+  return setChildSize(face, path, FACE_TREE, size);
 }
 
 /** Match an eligible height to the standard front or base bank, or return it to auto. */
@@ -146,14 +146,15 @@ export function splitFace(face, path, direction, count) {
   const copies = Array.from({ length: n }, () => ({ type: target.type, size: null }));
   const parentPath = parentFacePath(path);
   const parent = parentPath === null ? null : getFaceNode(face, parentPath);
-  const split = splitChild(face, path, FACES, {
+  const split = splitChild(face, path, FACE_TREE, {
     axis: direction,
     children: copies,
     seam: (seams, index) => Boolean(seams[index - 1] && seams[index]),
     group: (node) => ({ size: node.size, ...(node.match ? { match: node.match } : {}) }),
   });
   if (parent?.direction === direction) return split;
-  const index = Number(path.split('.').at(-1));
+  // It nested: the new group isn't a leaf, so the parent's no-rail seams beside it go.
+  const index = lastIndex(path);
   return withoutSeams(split, parentPath, [index - 1, index]);
 }
 
@@ -173,7 +174,7 @@ export function makeDrawerStack(face, path, count, { match = false } = {}) {
     ...(matched ? { match: 'base' } : {}),
     children,
   }));
-  const index = Number(path.split('.').at(-1));
+  const index = lastIndex(path);
   return withoutSeams(stacked, parentPath, [index - 1, index]);
 }
 
@@ -189,7 +190,7 @@ function collapseGroup(node, child) {
 /** Change how many sections a group has. Added ones copy the last leaf's type; 1 collapses the group. */
 export function setGroupCount(face, path, count) {
   if (!Number.isFinite(count)) return face;
-  return setChildCount(face, path, FACES, clampCount(count, 1), (node) => ({
+  return setChildCount(face, path, FACE_TREE, clampCount(count, 1), (node) => ({
     type: node.children.at(-1).type ?? (node.match === 'standard' ? 'drawer_front' : 'door'),
     size: null,
   }));
@@ -197,12 +198,12 @@ export function setGroupCount(face, path, count) {
 
 /** Remove a section. A group left with one child collapses into it, keeping the group's size. */
 export function removeFace(face, path) {
-  return removeChild(face, path, FACES);
+  return removeChild(face, path, FACE_TREE);
 }
 
 /** Make every child of a group auto (equal). */
 export function equalizeGroup(face, path) {
-  return equalizeChildren(face, path, FACES);
+  return equalizeChildren(face, path, FACE_TREE);
 }
 
 /** Patch a drawer front or pull-out door's own box picks; null clears a key. */
